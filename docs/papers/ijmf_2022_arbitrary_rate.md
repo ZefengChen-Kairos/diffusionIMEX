@@ -271,3 +271,160 @@ $$\mathcal E^0=\alpha_1^*\mathcal E_1\Big(p^*,\frac{(\alpha_1\rho_1)^0}{\alpha_1
 Convenient with complex EOS (P&S 2014 procedure may need an iterative method). Appendix D shows that this procedure ensures velocity and pressure invariance at material interfaces at least with SG EOS [continued next page].
 
 *Note:* $p_I$ in (51) is evaluated at state $^0$ (with impedance-weighted $p_I$ in tests) [uncertain whether the paper uses $p_I^0$ or another value — see later pages].
+used [i.e. the SG EOS]. A similar mechanical relaxation procedure was proposed in De Lorenzo et al. (2019), but there the exponential solution for $\alpha_1$ was assumed *a priori*, whereas here it is deduced from the model equations by assuming $\xi_k^p$ constant during relaxation. Also, in De Lorenzo 2019 the instantaneous case was an exponential with very small relaxation time; here the analytical limit (57) is used.
+
+**Summary of the mechanical step (as I read it):**
+1. From state $^0$ compute $\xi_k^{p0}$ via (51) (needs $\Gamma_k,\rho_kc_k^2,p_k,p_I$ at $^0$).
+2. $\alpha_1^*$ from (57) (or (56) for finite $\mu$).
+3. $\rho_k^*=(\alpha_k\rho_k)^0/\alpha_k^*$; solve (59) for $p^*$ (explicit via (28) for MG EOS).
+4. Phasic energies: $\mathcal E_k^*=\mathcal E_k(p^*,\rho_k^*)$, so $(\alpha_kE_k)^*=\alpha_k^*\mathcal E_k^*+\tfrac12(\alpha_k\rho_k)^0|\vec u|^2$. [*Note:* the paper does not spell out step 4 explicitly in Section 7.2.1; it is implied by the relaxed state being defined by $\alpha_1^*,p^*$ and the invariants.]
+5. If $\alpha_1^*\notin(0,1)$ (unphysical), set $\alpha_1=\bar\alpha_1$ (see "complete evaporation" below).
+
+#### 7.2.2 Thermal relaxation (finite or infinite $\vartheta$, under $p_1=p_2$)
+
+Built from the 5-eq. *p*-relaxed model (9). From (9a) and (15) with only $\mathcal Q$:
+$$\partial_t\alpha_1=\vartheta\frac{Z}{D}(T_2-T_1), \tag{60a}$$
+$$\partial_tT_1=\vartheta\frac{1}{\phi_1D}\Big[-\frac{\rho_1}{\alpha_1}Z-\zeta_1(\Gamma_1\rho_2c_2^2-\Gamma_2\rho_1c_1^2)\Big](T_2-T_1), \tag{60b}$$
+$$\partial_tT_2=\vartheta\frac{1}{\phi_2D}\Big[\frac{\rho_2}{\alpha_2}Z-\zeta_2(\Gamma_1\rho_2c_2^2-\Gamma_2\rho_1c_1^2)\Big](T_2-T_1), \tag{60c}$$
+$D$ from (10) and
+$$Z=\alpha_2\Gamma_1+\alpha_1\Gamma_2. \tag{61}$$
+Initial condition: pressure-equilibrium state from the mechanical step ($^*$). Define
+$$\frac{1}{\xi_k^T}=-\frac{\frac{\rho_k}{\alpha_k}Z+(-1)^{k-1}\zeta_k(\Gamma_1\rho_2c_2^2-\Gamma_2\rho_1c_1^2)}{\phi_kD},\quad k=1,2. \tag{62}$$
+(Checked: consistent with (60b,c) given $\partial_tT_1=\vartheta\xi_1^{-1}\Delta T$, $\partial_tT_2=-\vartheta\xi_2^{-1}\Delta T$.)
+Freeze $\xi_k^T=\xi_k^{T*}$:
+$$\partial_tT_1=\vartheta\frac{1}{\xi_1^{T*}}(T_2-T_1),\qquad \partial_tT_2=-\vartheta\frac{1}{\xi_2^{T*}}(T_2-T_1). \tag{63a,b}$$
+$\vartheta>0$ constant; **if $\vartheta$ is a function of variables, freeze it at state $^*$.** For $\Delta T=T_2-T_1$:
+$$\partial_t\Delta T=-\vartheta\Big(\frac{1}{\xi_1^{T*}}+\frac{1}{\xi_2^{T*}}\Big)\Delta T, \tag{64}$$
+$$\Delta T^{**}=\Delta T^*e^{-K_T\Delta t}, \tag{65}$$
+$$K_T=\vartheta\Big(\frac{1}{\xi_1^{T*}}+\frac{1}{\xi_2^{T*}}\Big). \tag{66}$$
+$K_T>0$ assumed (heat flows from hotter to colder phase if $\vartheta>0$). Assuming $Z/D$ constant, integrating (60a):
+$$\alpha_1^{**}=\alpha_1^*+\Big(\frac ZD\Big)^*\frac{\Delta T^*}{\frac{1}{\xi_1^{T*}}+\frac{1}{\xi_2^{T*}}}\big(1-e^{-K_T\Delta t}\big). \tag{67}$$
+Instantaneous limit $\vartheta\to+\infty$:
+$$\alpha_{1,\vartheta\to\infty}=\alpha_1^*+\Big(\frac ZD\Big)^*\frac{\Delta T^*}{\frac{1}{\xi_1^{T*}}+\frac{1}{\xi_2^{T*}}}, \tag{68}$$
+$$T_{\vartheta\to\infty}=\frac{\xi_1^{T*}T_1^*+\xi_2^{T*}T_2^*}{\xi_1^{T*}+\xi_2^{T*}}. \tag{69}$$
+Update: use $\alpha_1^{**}$ from (67) (or (68)), and $p^{**}$ from the energy relation
+$$\mathcal E^0=\alpha_1^{**}\mathcal E_1\Big(p^{**},\frac{(\alpha_1\rho_1)^0}{\alpha_1^{**}}\Big)+\alpha_2^{**}\mathcal E_2\Big(p^{**},\frac{(\alpha_2\rho_2)^0}{\alpha_2^{**}}\Big) \tag{70}$$
+to ensure mixture-energy-consistency. *Note:* (69) is not used to set the state; the temperatures after the step follow from $T_k(p^{**},\rho_k^{**})$, so in the instantaneous limit $T_1^{**}=T_2^{**}$ only approximately (the paper's figures show the temperatures overlap to plotting accuracy).
+
+*Note:* with $\phi_k<0$ (normal fluids, $\beta_k>0$), the sign of $\xi_k^T$ is the sign of $[\rho_kZ/\alpha_k\pm\dots]$; $K_T>0$ is an *assumption*. Implementation should guard $K_T\le0$ (not discussed explicitly in the paper; only $\alpha_1$ outside $(0,1)$ is treated, see below).
+
+#### 7.2.3 Chemical relaxation (finite or infinite $\nu$, under $p_1=p_2$ and $T_1=T_2$)
+
+Chemical relaxation is coupled with a thermal relaxation assumed much faster, so it is modelled under both mechanical and thermal equilibrium, using the ODEs of the 4-eq. *pT*-relaxed model (18). Unknowns: $\alpha_1$, $\alpha_1\rho_1$, $g_1$, $g_2$. From (18) and (23): $\partial_t\alpha_1=S_\alpha\mathcal M$, $\partial_t(\alpha_1\rho_1)=\mathcal M$; and $\partial_tg_k=\frac{1}{\rho_k}\partial_tp_k-s_k\partial_tT_k$ (Gibbs relation $dg=v\,dp-s\,dT$) with $\partial_tT=S_T\mathcal M$, $\partial_tp=S_p\mathcal M$:
+$$\partial_t\alpha_1=\nu S_\alpha(g_2-g_1), \tag{71a}$$
+$$\partial_tg_1=\nu\Big(\frac{S_p}{\rho_1}-s_1S_T\Big)(g_2-g_1), \tag{71b}$$
+$$\partial_tg_2=\nu\Big(\frac{S_p}{\rho_2}-s_2S_T\Big)(g_2-g_1), \tag{71c}$$
+$$\partial_t(\alpha_1\rho_1)=\nu(g_2-g_1). \tag{71d}$$
+**$g_I$ does not appear** (as in the *pT*-relaxed model), so no definition is needed. Initial condition: state $^{**}$. Define
+$$\frac{1}{\xi_k^g}=\frac{(-1)^{k-1}}{\rho_k}S_p-s_kS_T,\quad k=1,2. \tag{72 as printed}$$
+**[uncertain / probable typo]**: consistency with (71b,c) and with (73) ($\partial_tg_2=-\nu\xi_2^{-1}\Delta g$) requires $\frac{1}{\xi_k^g}=(-1)^{k-1}\Big(\frac{S_p}{\rho_k}-s_kS_T\Big)$, i.e. $\frac1{\xi_2^g}=-\frac{S_p}{\rho_2}+s_2S_T$. The printed (72) has $-s_2S_T$ for $k=2$. I recommend the version derived from (71): then
+$$K_g=\nu\Big[S_p\Big(\frac1{\rho_1}-\frac1{\rho_2}\Big)-(s_1-s_2)S_T\Big].$$
+Freeze $\xi_k^g=\xi_k^{g**}$:
+$$\partial_tg_1=\nu\frac{1}{\xi_1^{g**}}(g_2-g_1),\qquad \partial_tg_2=-\nu\frac{1}{\xi_2^{g**}}(g_2-g_1). \tag{73a,b}$$
+$\nu>0$ constant; **if $\nu$ is a function, freeze at state $^{**}$.** For $\Delta g=g_2-g_1$:
+$$\partial_t\Delta g=-\nu\Big(\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}\Big)\Delta g, \tag{74}$$
+$$\Delta g^\otimes=\Delta g^{**}e^{-K_g\Delta t}, \tag{75}$$
+$$K_g=\nu\Big(\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}\Big). \tag{76}$$
+$K_g>0$ assumed (mass goes from phase with highest chemical potential to lowest if $\nu>0$). Integrating (71d) and (71a) (with $S_\alpha$ constant $=S_\alpha^{**}$):
+$$(\alpha_1\rho_1)^\otimes=(\alpha_1\rho_1)^{**}+\frac{\Delta g^{**}}{\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}}\big(1-e^{-K_g\Delta t}\big), \tag{77}$$
+$$\alpha_1^\otimes=\alpha_1^{**}+S_\alpha^{**}\frac{\Delta g^{**}}{\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}}\big(1-e^{-K_g\Delta t}\big). \tag{78}$$
+Instantaneous limit $\nu\to+\infty$:
+$$(\alpha_1\rho_1)_{\nu\to\infty}=(\alpha_1\rho_1)^{**}+\frac{\Delta g^{*}}{\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}}, \tag{79}$$
+$$\alpha_{1,\nu\to\infty}=\alpha_1^{*}+S_\alpha^{**}\frac{\Delta g^{*}}{\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}}, \tag{80}$$
+**[probable typos in the paper: (79)–(80) print $\Delta g^*$ and $\alpha_1^*$; by consistency with (77)–(78) these should be $\Delta g^{**}$ and $\alpha_1^{**}$.]**
+$$g_{\nu\to\infty}=\frac{\xi_1^{g**}g_1^{**}+\xi_2^{g**}g_2^{**}}{\xi_1^{g**}+\xi_2^{g**}}. \tag{81}$$
+Update: $(\alpha_1\rho_1)^\otimes$, $\alpha_1^\otimes$ from (77),(78) (or (79),(80)); $(\alpha_2\rho_2)^\otimes=\rho^0-(\alpha_1\rho_1)^\otimes$ [implied by (48)]; $p^\otimes$ from
+$$\mathcal E^0=\alpha_1^\otimes\mathcal E_1\Big(p^\otimes,\frac{(\alpha_1\rho_1)^\otimes}{\alpha_1^\otimes}\Big)+\alpha_2^\otimes\mathcal E_2\Big(p^\otimes,\frac{(\alpha_2\rho_2)^\otimes}{\alpha_2^\otimes}\Big). \tag{82}$$
+Remark: (71) was derived assuming $T_1=T_2$, but holds more generally for chemical relaxation at **constant temperature difference** $T_2-T_1=\Delta T$ (since then $\partial T_1=\partial T_2$, and the derivation of (23) in Appendix B extends with phase-$k$ variables functions of $p$ and $T_k$, $T_2=T_1+\Delta T$). So the procedure can model chemical relaxation with thermal disequilibrium, provided consistent relaxation times are chosen (thermal relaxation physically faster than chemical).
+
+*Note:* the coefficients $S_\alpha,S_T,S_p$ (23) at state $^{**}$ need $\Gamma_k,\chi_k,\phi_k,\zeta_k,\rho_kc_k^2,\rho_k,\alpha_k$; $s_k$ also needed for (72). For finite-rate $\vartheta$ followed by chemical relaxation, the state $^{**}$ is not in thermal equilibrium; the paper's remark above justifies using (23) with each phase's own $T_k$ [my interpretation].
+
+#### Complete evaporation or condensation
+Mass transfer may make one phase disappear; then (78) (or (80)) gives $\alpha_1^\otimes\notin(0,1)$. Both phases must always be present: a pure phase $k$ is modelled by $\alpha_k=1-\epsilon_\alpha$, $0<\epsilon_\alpha\ll1$ (e.g. $\epsilon_\alpha=10^{-8}$). If $\alpha_1^\otimes\notin(0,1)$: one phase vanishes; set $\alpha_1^\otimes=\bar\alpha_1$ with $\bar\alpha_1=\epsilon_\alpha$ if $s_2^{**}>s_1^{**}$ (vanishing of phase 1), or $\bar\alpha_1=1-\epsilon_\alpha$ if $s_1^{**}>s_2^{**}$ (vanishing of phase 2). [*Note:* $s_k$ here is the phasic **entropy**, used to identify the vapour (higher entropy) as the phase that survives on evaporation — as printed; the logic presumably: if $\alpha_1$ overshoots, the phase being destroyed is identified from entropy ordering. Slightly ambiguous; an implementation can equivalently choose based on sign of $\alpha_1^\otimes$: $<0\Rightarrow\epsilon_\alpha$, $>1\Rightarrow1-\epsilon_\alpha$.] Then determine the relaxation parameter giving $\bar\alpha_1$ through (78):
+$$\bar K_g=-\frac{1}{\Delta t}\log\left(1-\frac{\bar\alpha_1-\alpha_1^{**}}{S_\alpha^{**}\dfrac{\Delta g^{**}}{\frac{1}{\xi_1^{g**}}+\frac{1}{\xi_2^{g**}}}}\right). \tag{83}$$
+Then set $(\alpha_1\rho_1)^\otimes$ via (77) with $K_g=\bar K_g$ (keeps mass and volume updates consistent). If an unphysical $\alpha_1$ is computed in the pressure or temperature relaxation procedures, simply set $\alpha_1=\bar\alpha_1$.
+
+*Note:* (83) requires the argument of log in $(0,1]$; it is when $\bar\alpha_1$ lies between $\alpha_1^{**}$ and the overshooting $\alpha_{1,\nu\to\infty}$. In the instantaneous case this replaces the infinite rate with a finite effective rate $\bar K_g$.
+
+---
+
+## 8. Numerical experiments (Section 8)
+
+Implemented with the basic routines of **CLAWPACK** (LeVeque). All computations: second-order wave-propagation scheme with **minmod limiter**. For some 1D Riemann problems, exact solutions of the *p*-relaxed model (9) (Petitpas et al. 2007) and of the *pT*-relaxed model (18) are plotted, computed by extending Kamm (2015) and Israel et al. (2014) (single-phase Euler, general EOS).
+
+### EOS parameter tables
+
+**Table 2 — JWL (explosive / detonation gases):** $\rho_0=1840$ kg/m³, $\Gamma_0=0.25$, $a=854.5\times10^9$ Pa, $b=20.5\times10^9$ Pa, $r_1=4.6$, $r_2=1.35$, $\varepsilon_0=0$ J/kg. (Taken from Saurel & Abgrall 1999.)
+
+**Table 3 — NASG water, 300–500 K:**
+
+| Phase | $\gamma$ | $\varpi$ [Pa] | $\eta$ [J/kg] | $\bar\eta$ [J/(kg K)] | $\kappa_v$ [J/(kg K)] | $b$ [m³/kg] |
+|---|---|---|---|---|---|---|
+| Liquid | 1.187 | $7028\times10^5$ | $-1\,177\,788$ | 0 | 3610 | $6.61\times10^{-4}$ |
+| Vapor | 1.467 | 0 | $2\,077\,616$ | 14 317 | 955 | 0 |
+
+**Table 4 — NASG dodecane, 400–600 K (slightly modified from LMS2016):**
+
+| Phase | $\gamma$ | $\varpi$ [Pa] | $\eta$ [J/kg] | $\bar\eta$ [J/(kg K)] | $\kappa_v$ [J/(kg K)] | $b$ [m³/kg] |
+|---|---|---|---|---|---|---|
+| Liquid | 1.206 | $1681\times10^5$ | $-996\,054$ | 0 | 2532 | $7.51\times10^{-4}$ |
+| Vapor | 1.021 | 0 | $-384\,592$ | $-4301$ | 2274 | 0 |
+
+**Table 5 — NASG water, 350–550 K:**
+
+| Phase | $\gamma$ | $\varpi$ [Pa] | $\eta$ [J/kg] | $\bar\eta$ [J/(kg K)] | $\kappa_v$ [J/(kg K)] | $b$ [m³/kg] |
+|---|---|---|---|---|---|---|
+| Liquid | 1.387 | $8899\times10^5$ | $-1\,244\,191$ | 0 | 3202 | $4.78\times10^{-4}$ |
+| Vapor | 1.954 | 0 | $2\,287\,484$ | 6417 | 462 | 0 |
+
+### 8.1 Tests with only (instantaneous) mechanical relaxation
+
+#### 8.1.1 Detonation gas–water shock tube (1D)
+- Domain $[-10,10]$ m, discontinuity at $x=0$.
+- Left: detonation gases, $\rho_{\rm gas}=2000$ kg/m³, $p_{\rm gas}=4.6406\cdot10^{10}$ Pa; JWL (Table 2).
+- Right: liquid water, $\rho_{\rm liq}=1044$ kg/m³, $p_{\rm liq}=10^5$ Pa; NASG (Table 3).
+- Each region nearly pure: volume fraction $1-10^{-8}$. $u=0$.
+- 500 cells, CFL 0.4, $t=0.9$ ms.
+- Fig. 1: $\rho,u,p,\alpha_1$ vs exact solution — good agreement; velocity and pressure invariance across the material interface preserved (no oscillations). Structure: left rarefaction, contact at $x\approx2$, right shock at $x\approx8$ ($u\approx2400$ m/s, $p\approx2.2\times10^{10}$ Pa in the star region, read from figure).
+
+#### 8.1.2 Underwater explosion close to a rigid wall (2D)
+- Variant of Xie et al. (2006, 2007) (they used a one-fluid cavitation model with Tait EOS + ideal gas).
+- Gas bubble (JWL, Table 2) in liquid water (NASG, Table 3) near an upper flat wall.
+- Domain $[-1.35,1.35]\times[-1.5,0]$ m², wall at $y=0$. Bubble centre $(x_b,y_b)=(0,-0.32)$ m, radius $r_b=0.05$ m.
+- Inside: $p=4.6406\cdot10^{10}$ Pa, $\rho_{\rm gas}=2000$ kg/m³, $\alpha_{\rm gas}=1-10^{-6}$. Outside: $p=10^5$ Pa, $\rho_{\rm liq}=1044$ kg/m³, $\alpha_{\rm liq}=1-10^{-6}$ (same states as 8.1.1).
+- Grid $721\times400$, CFL 0.4. Pressure fields at $t=0,0.03,0.06,0.08,0.21,0.3$ ms (Fig. 2; plotted on $x\in[-1,1]$). Fig. 3: pressure history at $(0,0)$ until $t=0.4$ ms.
+- Results: circular shock, reflection at wall, rarefactions → strong pressure decrease near the wall, moderate recompression, then another expansion. Minimum pressure at the wall centre around $t=0.21$ ms; maximum of subsequent recompression at about $t=0.3$ ms. With this setup expansion regions near the wall do not reach very low pressures (no cavitation, unlike some cases of Xie et al. 2007). Peak wall pressure in Fig. 3 ≈ $2.2\times10^{10}$ Pa [read from plot, approximate].
+
+### 8.2 Tests with thermo-chemical relaxation
+Both instantaneous and finite-rate transfer; mainly finite-rate mass transfer under thermal equilibrium.
+
+#### 8.2.1 Water two-phase cavitation tube (1D)
+- Variant of Saurel et al. (2008), previously done in Pelanti & Shyue 2014 with SG EOS and instantaneous relaxation.
+- Tube $[0,1]$ m, liquid water with uniform small vapour fraction $\alpha_{\rm vap}=10^{-2}$. $p=10^5$ Pa, $T=T_1=T_2=353$ K $<T_{\rm sat}(p)=372.3$ K. Phases in thermal equilibrium but **not** chemical equilibrium.
+- Velocity discontinuity at $x=0.5$ m: $u=-2$ m/s left, $u=2$ m/s right.
+- NASG for liquid water and vapour, Table 3.
+- Five relaxation levels (techniques of Section 7.2):
+  - *p-relax*: only instantaneous mechanical;
+  - *pT(f)*: instantaneous mechanical + finite-rate thermal, $\vartheta=2000$ Pa/(s K);
+  - *pT*: instantaneous mechanical + thermal;
+  - *pTg(f)*: instantaneous mechanical + thermal + finite-rate chemical, $\nu=10^{-4}$ Pa kg²/(s J²);
+  - *pTg*: full instantaneous thermodynamic relaxation.
+  Phase transition only in the last two.
+- Following Saurel et al. (2008), **chemical relaxation activated only when the equilibrium temperature exceeds the saturation temperature, $T>T_{\rm sat}(p)$** (happens in the middle of the tube). Because of this and the initial chemical-potential disequilibrium, the *pTg* solution does **not** correspond to a solution of the HEM (24).
+- 5000 cells, CFL 0.5, $t=0.003$ s (Fig. 4: $p$, $u$, $\alpha_2$, $Y_2$; Fig. 5: $T$ and $g_k$).
+- Results: two rarefactions moving apart lower pressure in the middle and raise vapour volume fraction. Without mass transfer $Y_{\rm vap}$ constant (purely mechanical cavitation). With mass transfer two evaporation waves appear, vapour mass fraction increases in the middle and pressure is driven to its saturation value (≈ $0.48\times10^5$ Pa plateau in *pTg* from Fig. 4 [read from plot]), whereas without mass transfer pressure keeps decreasing (min ≈ $0.05\times10^5$ Pa for *p-relax*, ≈ $0.13\times10^5$ for *pT*, ≈ $0.36\times10^5$ for *pTg(f)* [read from plot]).
+- Fig. 5: liquid and vapour temperatures overlap for *pT*, *pTg(f)*, *pTg* → thermal equilibrium numerically imposed (T dip ≈ 352.94 K for *pTg*). Chemical potentials: region of equality in the middle for *pTg* (activation region $T>T_{\rm sat}$); with *pTg(f)* the $g$ difference is reduced relative to *pT*.
+- Good agreement of *p-relax* with exact 5-eq. solution and of *pT* with exact 4-eq. solution → the method approximates relaxed limit models.
+- Leading edges of rarefactions travel at speeds consistent with subcharacteristic condition (26), $c_{pT}\le c_p$. With phase transition, leading edges move at $c_{pT}$ (19), not $c_{pTg}$ (25) (much smaller), since chemical relaxation is not active where $T<T_{\rm sat}$.
+
+#### 8.2.2 Dodecane liquid–vapour shock tube (1D)
+- From Saurel et al. (2008); solved in P&S 2014 with SG EOS.
+- Unit tube, discontinuity at $x=0.75$ m. Left: liquid dodecane; right: vapour dodecane; each region contains $\alpha=10^{-8}$ of the other phase.
+- Left $p=10^8$ Pa, right $p=10^5$ Pa; $u=0$; $\rho_{\rm vap}=2$ kg/m³, $\rho_{\rm liq}=500$ kg/m³.
+- NASG, Table 4. 2000 cells, CFL 0.5, $t=473$ μs.
+- Two relaxation levels: *p-relax* and *pTg-relax*. In *pTg*, thermo-chemical relaxation activated only at interfaces, $\min(\alpha_{\rm vap},\alpha_{\rm liq})>\epsilon$, $\epsilon=10^{-4}$, and chemical relaxation activated only under $T>T_{\rm sat}$.
+- Results: both cases have a leftward rarefaction, rightward contact discontinuity, and shock. With thermo-chemical effects an additional **evaporation wave** appears between rarefaction and contact; the evaporation front produces a liquid–vapour saturation region at higher speed. Left rarefaction runs in almost pure liquid ($\alpha_{\rm vap}\approx0$), where only mechanical relaxation is active, so phase temperatures differ; the vapour temperature there has no physical meaning and is unphysically high (order $10^6$ K), so Fig. 6 shows temperatures only up to 1200 K. *pTg*: liquid–vapour transition leads to **complete evaporation** (handled by the technique of Section 7.2.3, (83)); on the right end a region of nearly pure vapour ($\alpha_{\rm liq}\approx0$), again only mechanical relaxation. Small liquid–vapour mixture zone where thermo-chemical relaxation is active and phase temperatures coincide, ≈ $x=0.83$ m. Exact 5-eq. solution also shown; good agreement for mechanical relaxation only.
+
+#### 8.2.3 Simões-Moreira & Shepherd dodecane evaporation tests
+- Validation following Saurel et al. (2008): compare computed evaporation front velocities with experiments of Simões-Moreira & Shepherd (1999): liquid dodecane suddenly discharged into a low-pressure chamber (diaphragm broken), depressurising liquid and initiating evaporation. Initial reservoir pressure ≈ 1 mbar; eight test temperatures $T_{\rm test}$ from 180 °C to 300 °C.
+- As in Saurel 2008, Zein 2010, Rodio–Abgrall 2015: instantaneous mass transfer; liquid and vapour dodecane modelled by a **stiffened gas** EOS with the dodecane parameters of Pelanti & Shyue (2014) (good match with experimental saturation curve in this range). $T_{\rm test}$ set everywhere initially. In the low-pressure chamber $p=1$ mbar as in the experiments, and in the other [continued]

@@ -89,7 +89,7 @@ $$
 ($q$ = vector of unknowns.) Sum of (6e)+(6f) gives the conservative mixture total energy equation, $E=\mathcal E+\tfrac12\rho u^2=\alpha_1E_1+\alpha_2E_2$:
 $$\partial_tE+\nabla\cdot(E\vec u+\alpha_1p_1\vec u+\alpha_2p_2\vec u)=0. \tag{7}$$
 
-*Check (my derivation, not in paper):* $\Sigma$ arises because phasic kinetic energy $\tfrac12\alpha_k\rho_k u^2$ evolves with $u\cdot\nabla(\alpha_1p_1+\alpha_2p_2)$ weighted by $Y_k$; $\alpha_1\rho_1 u\cdot D u/Dt=-Y_1 u\cdot\nabla P$ with $P=\alpha_1p_1+\alpha_2p_2$, and the phase-1 internal energy eq. contributes $\alpha_1p_1\nabla\cdot u$; combining: $-Y_1u\cdot\nabla P+\nabla\cdot(\alpha_1p_1u)-\alpha_1p_1\nabla\cdot u... $ gives $u\cdot\nabla(\alpha_1p_1)-Y_1u\cdot\nabla P = u\cdot(Y_2\nabla(\alpha_1p_1)-Y_1\nabla(\alpha_2p_2))=-\Sigma$. Consistent with (6g).
+*Check (my derivation, not in paper):* with $P=\alpha_1p_1+\alpha_2p_2$, phasic kinetic energy obeys $\partial_t(\tfrac12\alpha_k\rho_ku^2)+\nabla\cdot(\tfrac12\alpha_k\rho_ku^2\vec u)=-Y_k\vec u\cdot\nabla P$. Adding to (1e): $\partial_t(\alpha_1E_1)+\nabla\cdot(\alpha_1E_1\vec u+\alpha_1p_1\vec u)=\vec u\cdot\nabla(\alpha_1p_1)-Y_1\vec u\cdot\nabla P=\vec u\cdot(Y_2\nabla(\alpha_1p_1)-Y_1\nabla(\alpha_2p_2))=-\Sigma$. Consistent with (6g).
 
 ### 1.5 Model with heat and mass transfer — Eqs. (8)–(10)
 
@@ -110,7 +110,7 @@ $$
 \qquad
 \nu=\begin{cases}\infty & \text{if }\epsilon_I\le\alpha_1\le1-\epsilon_I\text{ and }T_{liq}>T_{sat},\\ 0&\text{otherwise}.\end{cases}\quad(10b)
 $$
-$\epsilon_I$ identifies interface locations (e.g. $\epsilon_I=10^{-4}$). Phase 1 = liquid in the convention of (8a)/(8b) [the sign: $\dot m=\nu(g_2-g_1)>0$ when $g_2>g_1$, mass goes to phase 1; note $\dot m>0$ means phase 2→1]. Hmm: in later sections phase 1 is liquid and phase 2 vapour [confirm with tests].
+$\epsilon_I$ identifies interface locations (e.g. $\epsilon_I=10^{-4}$; see [8] for choice of tolerances). Sign convention: $\dot m=\nu(g_2-g_1)>0$ transfers mass from phase 2 to phase 1 (mass flows toward the phase of lower Gibbs energy). The paper does not fix which phase is liquid in Sec. 2.3; in the tests phases are labelled $l$/$v$. Since the relaxation is instantaneous and solved algebraically, the labelling is immaterial for the algorithm.
 
 Subcharacteristic condition proved for the 3 relaxation levels (p; p,T; p,T,g) in refs [33,34] (Flåtten & Lund; Lund).
 
@@ -245,7 +245,7 @@ $$
 \end{aligned}
 $$
 (37) ⇔ approximating $p_I\approx\bar p_I=\frac{p_I^0+p_I^*}{2}$ in (36) (also in [17]).
-Impose $p_1^*=p_2^*=p_I^*=p^*$, i.e. $\mathcal E_k^*=\mathcal E_k(p^*,(\alpha_k\rho_k)^0/\alpha_k^*)$. With (35) and $\alpha_1+\alpha_2=1$, (38) gives two equations for the two unknowns $\alpha_1^*$, $p^*$. For SG EOS: a **quadratic for $p^*$** (always has a physically admissible root), then $\alpha_1^*$ explicitly — Appendix C.1. $p_I^0$ computed from (1)-closure $p_I=(Z_2p_1+Z_1p_2)/(Z_1+Z_2)$ with step-1 values [the paper uses $p_I^0$ from the state after step 1; formula of $p_I$ given in §2.1].
+Impose $p_1^*=p_2^*=p_I^*=p^*$, i.e. $\mathcal E_k^*=\mathcal E_k(p^*,(\alpha_k\rho_k)^0/\alpha_k^*)$. With (35) and $\alpha_1+\alpha_2=1$, (38) gives two equations for the two unknowns $\alpha_1^*$, $p^*$. For SG EOS: a **quadratic for $p^*$** (always has a physically admissible root), then $\alpha_1^*$ explicitly — Appendix C.1. $p_I^0$ = interface pressure $p_I=(Z_2p_1+Z_1p_2)/(Z_1+Z_2)$ evaluated with the step-1 (superscript 0) state — confirmed by re-deriving (C.2), see §4 below.
 
 **Why consistent:** $p^*,\alpha_1^*$ satisfy the mixture internal energy equation (4) by construction (sum of (38a,b) gives $\mathcal E^*=\mathcal E^0$), hence $p^*=p(\mathcal E^0,\alpha_1^*,(\alpha_1\rho_1)^0/\alpha_1^*,(\alpha_2\rho_2)^0/\alpha_2^*)$. Since the wave propagation scheme gives $E^0=(\alpha_1E_1)^0+(\alpha_2E_2)^0=E^{0,C}$, $\mathcal E^0=E^0-\frac{(\rho u)^0\cdot(\rho u)^0}{2\rho^0}$ agrees with mixture total energy conservation ⇒ properties (i),(ii) hold.
 
@@ -291,4 +291,227 @@ Equilibrium:
 $$p_1^\circledast=p_2^\circledast\equiv p^\circledast,\ (47a)\quad T_1^\circledast=T_2^\circledast\equiv T^\circledast,\ (47b)\quad g_1^\circledast=g_2^\circledast.\ (47c)$$
 (46),(47), $\alpha_1+\alpha_2=1$ and $\mathcal E_k=\mathcal E_k(p_k,\rho_k)$ → algebraic system for $\alpha_1^\circledast,p^\circledast,T^\circledast,\rho_1^\circledast,\rho_2^\circledast$; reduced to a single nonlinear equation in $p^\circledast$, solved by Newton (Appendix C.3). **No need to specify $\rho_I$ or $e_I$.** Same approach used in [23]. Consistency: relaxed thermodynamic state satisfies mixture energy (4) and $E^\circledast=E^{**}=E^*=E^0$ conservation-consistent.
 
-<!-- CONTINUED BELOW -->
+---
+
+## 4. Appendix C — closed-form relaxed states for SG EOS (implementation core)
+
+### C.1 Mechanical relaxation (Step 2)
+
+Quadratic for $p^*$:
+$$a(p^*)^2+bp^*+d=0,$$
+$$
+a=1+\gamma_2\alpha_1^0+\gamma_1\alpha_2^0,\qquad
+b=C_1\alpha_2^0+C_2\alpha_1^0-(1+\gamma_2)\alpha_1^0p_1^0-(1+\gamma_1)\alpha_2^0p_2^0,\qquad
+d=-\big(C_2\alpha_1^0p_1^0+C_1\alpha_2^0p_2^0\big),
+$$
+$$C_1=2\gamma_1\pi_1+(\gamma_1-1)p_I^0,\qquad C_2=2\gamma_2\pi_2+(\gamma_2-1)p_I^0.$$
+(The subscript in the printed $C_k$ looks like "$p_1^0$"/"$p_I^0$"; I re-derived C.2 from (38a) with SG EOS and it requires **$p_I^0$**, the interface pressure $p_I=(Z_2p_1+Z_1p_2)/(Z_1+Z_2)$ evaluated with the post-hyperbolic-step state. Derivation check: (38a) with $\alpha_k\mathcal E_k=\alpha_k\frac{p_k+\gamma_k\pi_k}{\gamma_k-1}+\alpha_k\rho_k\eta_k$ gives exactly (C.2) with $C_1$ containing $p_I^0$, and $\sum\alpha_k^*=1$ gives the leading coefficient $-2(1+\gamma_2\alpha_1^0+\gamma_1\alpha_2^0)$, matching $a$.)
+$$p^*=\frac{-b+\sqrt{b^2-4ad}}{2a} \tag{C.1}$$
+Root retained = physically meaningful positive pressure; note $C_1,C_2>0$, $a>0$, $d<0$, $b^2-4ad>0$. [Positivity of $C_k$, $d<0$ requires $p_k^0,p_I^0$ such that these hold — e.g. $p_k^0>0$ or at least $p_I^0>-2\gamma_k\pi_k/(\gamma_k-1)$; with negative pressures in liquid (tension) check sign of $d$. My remark.]
+$$\alpha_1^*=\frac{(\gamma_1-1)p^*+2p_1^0+C_1}{(\gamma_1+1)p^*+C_1}\,\alpha_1^0. \tag{C.2}$$
+Then $\rho_k^*=(\alpha_k\rho_k)^0/\alpha_k^*$, $\alpha_k\mathcal E_k^*=\alpha_k^*\mathcal E_k(p^*,\rho_k^*)$. [Alternatively, $p^*$ can be recomputed from the mixture EOS (17) with $\alpha_1^*$ — identical analytically.]
+
+### C.2 Thermal relaxation (Step 3a)
+
+From (42),(43):
+$$a'(p^{**})^2+b'p^{**}+d'=0 \tag{C.3}$$
+$$a'=C_{v1}(\alpha_1\rho_1)^0+C_{v2}(\alpha_2\rho_2)^0,$$
+$$
+\begin{aligned}
+b'=\;&\eta_1C_{v1}(\gamma_1-1)\big((\alpha_1\rho_1)^0\big)^2+\eta_2C_{v2}(\gamma_2-1)\big((\alpha_2\rho_2)^0\big)^2+(\alpha_1\rho_1)^0C_{v1}(\gamma_1\pi_1+\pi_2)\\
+&+(\alpha_2\rho_2)^0C_{v2}(\gamma_2\pi_2+\pi_1)+(\alpha_1\rho_1)^0(\alpha_2\rho_2)^0\big(\eta_1C_{v2}(\gamma_2-1)+\eta_2C_{v1}(\gamma_1-1)\big)\\
+&-\mathcal E^0\big(C_{v1}(\gamma_1-1)(\alpha_1\rho_1)^0+C_{v2}(\gamma_2-1)(\alpha_2\rho_2)^0\big),
+\end{aligned}
+$$
+$$
+\begin{aligned}
+d'=\;&\eta_1C_{v1}(\gamma_1-1)\pi_2\big((\alpha_1\rho_1)^0\big)^2+\eta_2C_{v2}(\gamma_2-1)\pi_1\big((\alpha_2\rho_2)^0\big)^2+\big((\alpha_1\rho_1)^0C_{v1}\gamma_1\\
+&+(\alpha_2\rho_2)^0C_{v2}\gamma_2\big)\pi_2\pi_1+(\alpha_1\rho_1)^0(\alpha_2\rho_2)^0\big(\eta_1C_{v2}(\gamma_2-1)\pi_1+\eta_2C_{v1}(\gamma_1-1)\pi_2\big)\\
+&-\mathcal E^0\big(C_{v1}(\gamma_1-1)\pi_2(\alpha_1\rho_1)^0+C_{v2}(\gamma_2-1)\pi_1(\alpha_2\rho_2)^0\big).
+\end{aligned}
+$$
+[Transcribed as printed. I am somewhat unsure about the exact pairing in the cross terms of $b'$/$d'$ — **[uncertain]**; recommended to re-derive symbolically: unknowns $\alpha_1,p,T$ with $\rho_k=(p+\pi_k)/((\gamma_k-1)C_{vk}T)$, $\alpha_k=(\alpha_k\rho_k)^0/\rho_k$, $\alpha_1+\alpha_2=1$, $\mathcal E^0=\sum\alpha_k\frac{p+\gamma_k\pi_k}{\gamma_k-1}+\sum(\alpha_k\rho_k)^0\eta_k$. Eliminating $T$ via $\alpha_1+\alpha_2=1$: $T=\frac{(\gamma_1-1)C_{v1}(\alpha_1\rho_1)^0}{p+\pi_1}+\frac{(\gamma_2-1)C_{v2}(\alpha_2\rho_2)^0}{p+\pi_2}$, then substitution into the energy equation gives a quadratic in $p$.]
+$$\alpha_1^{**}=\frac{C_{v1}(\gamma_1-1)(p^{**}+\pi_2)(\alpha_1\rho_1)^0}{C_{v1}(\gamma_1-1)(p^{**}+\pi_2)(\alpha_1\rho_1)^0+C_{v2}(\gamma_2-1)(p^{**}+\pi_1)(\alpha_2\rho_2)^0} \tag{C.4}$$
+$$T^{**}=\frac{(p^{**}+\pi_1)\alpha_1^{**}}{(\gamma_1-1)C_{v1}(\alpha_1\rho_1)^0}=\frac{(p^{**}+\pi_2)(1-\alpha_1^{**})}{(\gamma_2-1)C_{v2}(\alpha_2\rho_2)^0} \tag{C.5}$$
+(Root choice for C.3: not stated explicitly in the paper; presumably the positive/physical root, analogous to C.1 [uncertain].)
+
+### C.3 Thermo-chemical relaxation (Step 3b)
+
+Using (46),(47) and $\mathcal E_k=\mathcal E_k(p_k,\rho_k)$: first a quadratic for $T^\circledast$ as a function of $p^\circledast$:
+$$a_p(p^\circledast)(T^\circledast)^2+b_p(p^\circledast)T^\circledast+d_p(p^\circledast)=0, \tag{C.6}$$
+$$
+\begin{aligned}
+a_p(p)&=\rho^0C_{v1}C_{v2}\big((\gamma_2-1)(p+\gamma_1\pi_1)-(\gamma_1-1)(p+\gamma_2\pi_2)\big),\\
+b_p(p)&=\mathcal E^0\big((\gamma_1-1)C_{v1}(p+\pi_2)-(\gamma_2-1)C_{v2}(p+\pi_1)\big)\\
+&\quad+\rho^0\big((\gamma_2-1)C_{v2}\eta_1(p+\pi_1)-(\gamma_1-1)C_{v1}\eta_2(p+\pi_2)\big)\\
+&\quad+C_{v2}(p+\pi_1)(p+\gamma_2\pi_2)-C_{v1}(p+\pi_2)(p+\gamma_1\pi_1),\\
+d_p(p)&=(\eta_2-\eta_1)(p+\pi_1)(p+\pi_2).
+\end{aligned}
+$$
+$$T^\circledast(p^\circledast)=\frac{-b_p+\sqrt{b_p^2-4a_pd_p}}{2a_p} \tag{C.7}$$
+Substitute into the Gibbs equilibrium (47c)/(11):
+$$A_S+\frac{B_S}{T^\circledast(p^\circledast)}+C_S\log T^\circledast(p^\circledast)+D_S\log(p^\circledast+\pi_1)-\log(p^\circledast+\pi_2)=0 \tag{C.8}$$
+— single scalar nonlinear equation in $p^\circledast$, solved by Newton (Sec. 4.2). Then $T^\circledast$ from (C.7) and
+$$\rho_k^\circledast=\frac{p^\circledast+\pi_k}{(\gamma_k-1)C_{vk}T^\circledast},\ k=1,2,\qquad \alpha_1^\circledast=\frac{\rho^*-\rho_2^\circledast}{\rho_1^\circledast-\rho_2^\circledast}. \tag{C.9}$$
+($\rho^*=\rho^0$.) Then $(\alpha_k\rho_k)^\circledast=\alpha_k^\circledast\rho_k^\circledast$ and phasic energies from EOS.
+
+(Derivation sketch, mine: from (46a) $\alpha_1=(\rho-\rho_2)/(\rho_1-\rho_2)$; (46b) with $\mathcal E_k=\frac{p+\gamma_k\pi_k}{\gamma_k-1}+\rho_k\eta_k$ and $\rho_k=\frac{p+\pi_k}{(\gamma_k-1)C_{vk}T}$, multiply through by $T$ → quadratic in $T$.)
+
+**Abnormal case (end of Appendix C, p.356):** the $pTg$ equilibrium solution of (46)–(47) **may not be physically admissible** (e.g. $\alpha_1^\circledast\notin[0,1]$). Then assume the mixture is composed nearly of the species $k$ having the highest entropy $s_k^{**}$ (idea from [14], Faccanoni et al.). Fix $\alpha_k^\circledast=\bar\alpha_k^\circledast=1-\epsilon$ (e.g. $\epsilon=10^{-8}$), and solve for $p^\circledast,T^\circledast,\rho_1^\circledast,\rho_2^\circledast$ from conservation (46) and $p,T$ equilibrium (47a,b) only (no Gibbs equality). For SG EOS this reduces to a single quadratic in $p^\circledast$ (or $T^\circledast$); select the physically admissible root that **maximises the total mixture entropy** $s^\circledast=Y_1^\circledast s_1^\circledast+Y_2^\circledast s_2^\circledast$.
+
+---
+
+## 5. Appendix A — eigenstructure (1D homogeneous system)
+
+$$\lambda_1=u-c,\quad\lambda_{2..5}=u,\quad\lambda_6=u+c, \tag{A.1}$$
+$c$ = mixture sound speed (2). Right eigenvectors (columns), with $H_k=h_k+u^2/2$, $\Pi_k=-\rho_kc_k^2+p_k(1+\kappa_k)$, $\kappa_k=\partial p_k/\partial\mathcal E_k$; component order $(\alpha_1,\alpha_1\rho_1,\alpha_2\rho_2,\rho u,\alpha_1E_1,\alpha_2E_2)$:
+$$
+R=\begin{pmatrix}
+0&0&0&0&1&0\\
+Y_1&0&0&1&0&Y_1\\
+Y_2&0&1&0&0&Y_2\\
+u-c&0&u&u&0&u+c\\
+Y_1(H_1-uc)&-\frac{\kappa_2}{\kappa_1}&\frac{\kappa_2}{\kappa_1}H_2-\frac{c_2^2}{\kappa_1}&H_1-\frac{c_1^2}{\kappa_1}&\frac{\Pi_1-\Pi_2}{\kappa_1}&Y_1(H_1+uc)\\
+Y_2(H_2-uc)&1&0&0&0&Y_2(H_2+uc)
+\end{pmatrix} \tag{A.2}
+$$
+(For SG: $\Pi_k=\gamma_k\pi_k$ as stated in App. B — check: $-\rho c^2+\gamma p=-\gamma(p+\pi)+\gamma p=-\gamma\pi$; so the sign convention gives $\Pi_k=-\gamma_k\pi_k$ from the A definition but App. B says "$\Pi_k=\gamma_k\pi_k$" [uncertain sign; matters only through $\Pi_1-\Pi_2$ and $-\Pi_1+\Pi_2$ in $\hat A$ — re-derive before use].)
+
+## 6. Appendix B — Roe matrix (SG EOS)
+
+$\hat A=A(\hat u,\hat Y_1,\widetilde{uY_1},\widehat{Y_1H_1},\widehat{Y_2H_2})$:
+$$
+\hat A=\begin{pmatrix}
+\hat u&0&0&0&0&0\\
+0&\hat u\hat Y_2&-\hat u\hat Y_1&\hat Y_1&0&0\\
+0&-\hat u\hat Y_2&\hat u\hat Y_1&\hat Y_2&0&0\\
+-\Pi_1+\Pi_2&\hat A_{42}&\hat A_{43}&2\hat u-(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2})&\kappa_1&\kappa_2\\
+(-\Pi_1+\Pi_2)\widetilde{uY_1}&\hat A_{52}&\hat A_{53}&\widehat{Y_1H_1}-\widetilde{uY_1}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2})&\hat u+\kappa_1\widetilde{uY_1}&\widetilde{uY_1}\kappa_2\\
+(-\Pi_1+\Pi_2)\widetilde{uY_2}&\hat A_{62}&\hat A_{63}&\widehat{Y_2H_2}-\widetilde{uY_2}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2})&\widetilde{uY_2}\kappa_1&\hat u+\kappa_2\widetilde{uY_2}
+\end{pmatrix} \tag{B.1a}
+$$
+(SG: $\Pi_k=\gamma_k\pi_k$, $\kappa_k=\gamma_k-1$, $\chi_k=-(\gamma_k-1)\eta_k$.)
+$$
+\begin{aligned}
+\hat A_{42}&=-\hat u^2+\chi_1-\kappa_1\tfrac{\hat u^2}{2}+\hat u(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}), &(B.1b)\\
+\hat A_{43}&=-\hat u^2+\chi_2-\kappa_2\tfrac{\hat u^2}{2}+\hat u(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}), &(B.1c)\\
+\hat A_{52}&=-\widehat{Y_1H_1}\hat u+\widetilde{uY_1}\big(\chi_1-\kappa_1\tfrac{\hat u^2}{2}\big)+\hat u\widetilde{uY_1}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}), &(B.1d)\\
+\hat A_{53}&=-\widehat{Y_1H_1}\hat u+\widetilde{uY_1}\big(\chi_2-\kappa_2\tfrac{\hat u^2}{2}\big)+\hat u\widetilde{uY_1}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}), &(B.1e)\\
+\hat A_{62}&=-\widehat{Y_2H_2}\hat u+\widetilde{uY_2}\big(\chi_1-\kappa_1\tfrac{\hat u^2}{2}\big)+\hat u\widetilde{uY_2}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}), &(B.1f)\\
+\hat A_{63}&=-\widehat{Y_2H_2}\hat u+\widetilde{uY_2}\big(\chi_2-\kappa_2\tfrac{\hat u^2}{2}\big)+\hat u\widetilde{uY_2}(\kappa_1\widetilde{uY_1}+\kappa_2\widetilde{uY_2}). &(B.1g)
+\end{aligned}
+$$
+Averages (Roe, $\sqrt\rho$ weights):
+$$\hat u=\frac{u_\ell\sqrt{\rho_\ell}+u_r\sqrt{\rho_r}}{\sqrt{\rho_\ell}+\sqrt{\rho_r}},\ (B.2a)\quad \hat Y_k=\frac{Y_{k\ell}\sqrt{\rho_\ell}+Y_{kr}\sqrt{\rho_r}}{\sqrt{\rho_\ell}+\sqrt{\rho_r}},\ (B.2b)\quad \overline{uY_k}=\frac{(uY_k)_\ell\sqrt{\rho_\ell}+(uY_k)_r\sqrt{\rho_r}}{\sqrt{\rho_\ell}+\sqrt{\rho_r}},\ (B.2c)$$
+$$\widetilde{uY_k}=\tfrac12(\hat u\hat Y_k+\overline{uY_k}),\ (B.2d)\qquad \widehat{Y_kH_k}=\frac{(Y_kH_k)_\ell\sqrt{\rho_\ell}+(Y_kH_k)_r\sqrt{\rho_r}}{\sqrt{\rho_\ell}+\sqrt{\rho_r}}.\ (B.2e)$$
+(In print, (B.2c) defines a $\sqrt\rho$-average of $uY_k$ — notation distinguishes it from the $\widetilde{uY_k}$ of (B.2d) [notation partially uncertain].) $\hat Y_1+\hat Y_2=1$, $\widetilde{uY_1}+\widetilde{uY_2}=\hat u$.
+$$\hat c=\sqrt{\widetilde{Y_1c_1^2}+\widetilde{Y_2c_2^2}},\qquad \widetilde{Y_kc_k^2}=\kappa_k\big(\widehat{Y_kH_k}-\tfrac{\hat u^2}{2}\hat Y_k\big)+\chi_k\hat Y_k. \tag{B.2f}$$
+Eigenvalues $\hat\lambda_1=\hat u-\hat c$, $\hat\lambda_{2..5}=\hat u$, $\hat\lambda_6=\hat u+\hat c$ (B.3). Eigenvectors:
+$$
+\hat R=\begin{pmatrix}
+0&0&0&0&1&0\\
+\hat Y_1&0&0&1&0&\hat Y_1\\
+\hat Y_2&0&1&0&0&\hat Y_2\\
+\hat u-\hat c&0&\hat u&\hat u&0&\hat u+\hat c\\
+\widehat{Y_1H_1}-\widetilde{uY_1}\hat c&-\frac{\kappa_2}{\kappa_1}&-\frac{\chi_2}{\kappa_1}+\frac{\kappa_2}{\kappa_1}\frac{\hat u^2}{2}&-\frac{\chi_1}{\kappa_1}+\frac{\hat u^2}{2}&\frac{\Pi_1-\Pi_2}{\kappa_1}&\widehat{Y_1H_1}+\widetilde{uY_1}\hat c\\
+\widehat{Y_2H_2}-\widetilde{uY_2}\hat c&1&0&0&0&\widehat{Y_2H_2}+\widetilde{uY_2}\hat c
+\end{pmatrix} \tag{B.4}
+$$
+Wave strengths ($\Delta(\cdot)=(\cdot)_r-(\cdot)_\ell$):
+$$
+\begin{aligned}
+\hat\beta_{1,6}&=\frac{\Delta(\alpha_1p_1+\alpha_2p_2)\mp\hat c\sqrt{\rho_\ell\rho_r}\,\Delta u}{2\hat c^2}, &(B.5a)\\
+\hat\beta_2&=-\frac{\Delta(\alpha_1p_1+\alpha_2p_2)}{\hat c^2}\widehat{Y_2H_2}+\frac{\hat u^2}{2}\Delta(\alpha_2\rho_2)+\Delta(\alpha_2\mathcal E_2), &(B.5b)\\
+\hat\beta_3&=\Delta(\alpha_2\rho_2)-\hat Y_2\frac{\Delta(\alpha_1p_1+\alpha_2p_2)}{\hat c^2}, &(B.5c)\\
+\hat\beta_4&=\Delta(\alpha_1\rho_1)-\hat Y_1\frac{\Delta(\alpha_1p_1+\alpha_2p_2)}{\hat c^2}, &(B.5d)\\
+\hat\beta_5&=\Delta\alpha_1. &(B.5e)
+\end{aligned}
+$$
+[(B.5b): printed as "$\Delta(\alpha_2\mathcal E_2)$" — might be $\Delta(\alpha_2E_2)$; transcribed as seen, **[uncertain]**.]
+
+**2D (B.6–B.8):** plane-wave Riemann problem in $x$ with $\vec u=(u,v)$, 7 unknowns $A^x\in\mathbb R^{7\times7}$; kinetic energy terms use $(u^2+v^2)/2$. Eigenvalues $\hat u-\hat c$, $\hat u$ (×5), $\hat u+\hat c$.
+$$
+\hat R^x=\begin{pmatrix}
+0&0&0&0&1&0&0\\
+\hat Y_1&0&0&1&0&0&\hat Y_1\\
+\hat Y_2&0&1&0&0&0&\hat Y_2\\
+\hat u-\hat c&0&\hat u&\hat u&0&0&\hat u+\hat c\\
+\hat v&0&0&0&0&1&\hat v\\
+\widehat{Y_1H_1}-\widetilde{uY_1}\hat c&-\frac{\kappa_2}{\kappa_1}&-\frac{\chi_2}{\kappa_1}+\frac{\kappa_2}{\kappa_1}\hat{\mathcal K}-\hat v\frac{\hat V}{\kappa_1}&-\frac{\chi_1}{\kappa_1}+\hat{\mathcal K}-\hat v\frac{\hat V}{\kappa_1}&\frac{\Pi_1-\Pi_2}{\kappa_1}&\frac{\hat V}{\kappa_1}&\widehat{Y_1H_1}+\widetilde{uY_1}\hat c\\
+\widehat{Y_2H_2}-\widetilde{uY_2}\hat c&1&0&0&0&0&\widehat{Y_2H_2}+\widetilde{uY_2}\hat c
+\end{pmatrix} \tag{B.7}
+$$
+$\hat v$ Roe average (B.8a); $\overline{vY_k}$, $\widetilde{vY_k}=\tfrac12(\hat v\hat Y_k+\overline{vY_k})$ (B.8b,c); $\hat c=\sqrt{\widetilde{Y_1c_1^2}+\widetilde{Y_2c_2^2}}$, $\widetilde{Y_kc_k^2}=\kappa_k(\widehat{Y_kH_k}-\hat{\mathcal K}\hat Y_k)+\chi_k\hat Y_k$, $\hat{\mathcal K}=\frac{\hat u^2+\hat v^2}{2}$ (B.8d); $\hat V=\kappa_1\widetilde{vY_1}+\kappa_2\widetilde{vY_2}$ (B.8e).
+
+---
+
+## 7. Test cases (Section 5)
+
+General: CFL called Courant number $\varkappa$. Relaxation levels compared: "$p$ relaxation" (mechanical only), "$p$–$pT$" (mechanical + thermal at interfaces, no mass transfer), "$p$–$pT$–$pTg$" (paper's physical model: Steps 2, 3a, 3b with activation (10)), "$p$–$pTg$" (alternative: skip 3a; go from Step 2 directly to 3b when $\epsilon_I\le\alpha_1\le1-\epsilon_I$ and $T_k>T_{sat}(p_{eq})$ for either $k=1$ or $k=2$, refs [8,22]).
+
+**Table 1 — SG parameters, water:**
+
+| Phase | $\gamma$ | $\pi$ [Pa] | $\eta$ [J/kg] | $\eta'$ [J/(kg K)] | $C_v$ [J/(kg K)] |
+|---|---|---|---|---|---|
+| liquid | 2.35 | $10^9$ | $-1167\times10^3$ | 0 | 1816 |
+| vapor | 1.43 | 0 | $2030\times10^3$ | $-23.4\times10^3$ | 1040 |
+
+**Table 2 — SG parameters, dodecane:**
+
+| Phase | $\gamma$ | $\pi$ [Pa] | $\eta$ [J/kg] | $\eta'$ [J/(kg K)] | $C_v$ [J/(kg K)] |
+|---|---|---|---|---|---|
+| liquid | 2.35 | $4\times10^8$ | $-775.269\times10^3$ | 0 | 1077.7 |
+| vapor | 1.025 | 0 | $-237.547\times10^3$ | $-24.4\times10^3$ | 1956.45 |
+
+### 5.1 Water cavitation tube (1D, from Saurel et al. [8])
+- Unit-length tube, liquid $\rho_l=1150$ kg/m³, $p=10^5$ Pa, uniform small vapour $\alpha_v=10^{-2}$ everywhere. Water SG (Table 1). From (3): $T_l=354.728$ K; vapour density $\rho_v=0.63$ kg/m³ assuming $T_v=T_l$.
+- Velocity discontinuity at $x=0.5$ m.
+- **Case a:** $u=-2$ m/s left, $u=2$ m/s right. 5000 cells (as in [17]), $\varkappa=0.5$ ([17] needed $\varkappa\approx0.15$). Results at $t=3.2$ ms (Fig. 1): $p$, $u$, $\alpha_v$, $Y_v$. Two rarefactions → pressure drop. $p$–$pT$ and $p$–$pT$–$pTg$ leading rarefaction edges slower than $p$ and $p$–$pTg$ (thermal transfer activated → lower equilibrium sound speed, consistent with Flåtten–Lund [33]). In $p$–$pT$–$pTg$ and $p$–$pTg$: two additional evaporation waves (slower) — liquid expanded until saturation pressure reached (pressure plateau ~0.5×10^5 Pa in Fig.1), small $Y_v$ generated (~1.3×10⁻⁴ peak). Pure $p$ relaxation: pressure dips to ~0.05×10^5.
+- **Case b:** $u=\mp500$ m/s. 5000 cells, $\varkappa=0.1$ (higher Courant deteriorates pressure accuracy at evaporation fronts due to stiffness). Fig. 2 at $t=0.58$ ms: $\alpha_v\to1$ in centre, $Y_v$ up to ~0.145; evaporation fronts clearly visible. Comparison: Zein et al. [17] needed $\varkappa=0.03$. Agrees qualitatively with [8,17].
+
+### 5.2 Dodecane liquid–vapour shock tube (1D, from [8])
+- Unit length, discontinuity at $x=0.75$ m; left liquid dodecane, right vapour dodecane; each contains small amount of other phase, $\epsilon=10^{-8}$.
+- $(\rho_v,\rho_l,u,p,\alpha_v)_L=(2\ \mathrm{kg/m^3},500\ \mathrm{kg/m^3},0,10^8\ \mathrm{Pa},10^{-8})$, $(\rho_v,\rho_l,u,p,\alpha_v)_R=(2,500,0,10^5\ \mathrm{Pa},1-10^{-8})$.
+- Table 2 SG parameters. $t=473\ \mu$s (Fig. 3: $\rho$ (log), $u$, $\alpha_v$, $Y_v$, $p$ (log, bar), $T_v-T_l$). 2000 cells. Grid/CFL: [the text says "computation performed by using a grid with 2000 cells"; CFL not stated [uncertain]].
+- Levels: $p$, $p$–$pT$–$pTg$, $p$–$pTg$. Structure: left rarefaction, right-going contact, shock; with phase change an extra evaporation wave between rarefaction and contact, producing a liquid–vapour saturation region at higher speed (velocity ~310 m/s vs ~140 m/s). No visible difference between $p$–$pT$–$pTg$ and $p$–$pTg$. In the rarefaction (almost pure liquid) only mechanical relaxation acts → flow out of thermal equilibrium.
+- **Corrigendum (JCP 288 (2015) 196–197, doi:10.1016/j.jcp.2015.01.036):** the $T_v-T_l$ panel of Fig. 3 was wrong (post-processing visualisation settings, not the method). Corrected plot shows $T_v-T_l$ ≈ 10 (×10^5? axis label hard to read) on the left plateau, ~9 in the middle, dropping to 0 near $x\approx0.76$–0.8; the $p$ relaxation curve slightly lower (~8.8) and extends to ~0.8 [values/multiplier **uncertain** from image]. Thanks to T. Flåtten and S. L. Bore.
+
+### 5.3 Cavitating Richtmyer–Meshkov instability (2D, from [9]; no heat/mass transfer)
+- Domain $[0,3]\times[0,1]$ m; curved interface; left nearly pure gas ($\alpha_w=10^{-6}$), right nearly pure water ($\alpha_g=10^{-6}$) [left-zone/right-zone assignment as in text: "left zone filled with nearly pure water ($\alpha_g=10^{-6}$) and a right zone filled with nearly pure gas ($\alpha_w=10^{-6}$)" — **as printed**; but Fig. 4 shows gas (yellow, $\alpha_g\approx1$) on the left and water on the right with the interface bulging into water [inconsistency, uncertain]].
+- $p=10^5$ Pa; $\rho_g=100$ kg/m³, $\rho_w=1000$ kg/m³; all $u=-200$ m/s.
+- SG: water $\gamma_w=4.4$, $\pi_w=6\times10^8$ Pa, $\eta_w=\eta'_w=0$; gas $\gamma_g=1.4$, $\pi_g=0$, $\eta_g=\eta'_g=0$.
+- Top, bottom, left: solid walls; right: outflow. Grid 300×100. Outputs at $t=2,3.1,6.4,8.6$ ms (Fig. 4: gas volume fraction, mixture pressure contours). Flow impinging on left wall → right-going shock through curved interface → RM instability, expansion waves, elongating jet; expansions near left wall produce cavitation pockets. Agrees with [9].
+
+### 5.4 Vapour bubble compression (2D, setup like Caro et al. [53], see [14])
+- Unit square, stationary vapour bubble radius 0.2 m at centre, liquid-filled; wall-mounted piston at left boundary, fixed walls elsewhere. Dodecane (Table 2). $p_l=p_v=10^5$ Pa, $T_l=T_v=600$ K → $\rho_l=458.338$, $\rho_v=3.408$ kg/m³. $\alpha_l=10^{-6}$ in bubble, $\alpha_v=10^{-6}$ in liquid. Piston velocity $u_p=100$ m/s (moving boundary treatment per [19]).
+- Full thermo-chemical model; 200×200 grid; Fig. 5 at $t=0.4,0.8,1.2$ ms: vapour mass fraction and pressure contours; bubble deforms to kidney shape and condenses; no spurious pressure oscillations at interfaces.
+
+### 5.5 High-velocity underwater projectile (2D mapped grid, from [8], also [10])
+- Water at $u=600$ m/s flows left→right over a hexagonal-section obstacle; $p=10^5$ Pa, $\rho_l=1500$ kg/m³ [as printed], $\alpha_v=10^{-3}$. Water SG (Table 1).
+- Symmetry: compute upper half, symmetry BC at $y=0$. 600×200 cells over $[0,1.5]\times[0,0.5]$ mapped to curvilinear grid (Fig. 6).
+- With/without heat and mass transfer. Steady state at $t=10$ ms (Fig. 7: $\alpha_v$, $Y_v$, $\rho$, $p$). Without thermo-chemical effects: only mechanical cavitation, $Y_v$ constant, pressure in wake ~$10^{-3}$ bar; with it, evaporation fronts, pressure decreases until saturation ~0.5 bar. Consistent with [8].
+
+### 5.6 High-pressure fuel injector (2D mapped grid, from [8])
+- Nozzle length 10 cm, height 4 cm, throat height 1.2 cm; converging/diverging angles 45° and 10°. Initial discontinuity at $\bar x=0.8$ cm: left liquid dodecane at 1000 bar and 640 K (density 570 kg/m³); right dodecane vapour at atmospheric conditions (1 bar). $\alpha_v=10^{-4}$ in the liquid initially. Table 2 SG parameters.
+- 400×160 grid; $t=600\ \mu$s (Fig. 8: $\alpha_v$, $Y_v$, $\rho$, vapour temperature, $p$). Cavitation pocket size similar with/without phase transition, but $Y_v$ and vapour temperature differ markedly; without thermo-chemical effects, sharp vapour-temperature variation across interfaces (vapour T up to ~1000+ K vs 500–580 K with transfer).
+
+---
+
+## 8. Conclusions (Section 6)
+
+Phasic-total-energy formulation ⇒ conservation-consistent mixture energy without an extra equation; relaxation by simple algebraic solvers; consistent equilibrium pressure; robust, allows larger Courant numbers than [17]. Future: powder compaction [54], low-Mach strategies (large impedance contrast liquid/vapour).
+
+---
+
+## 9. Implementation remarks (for the 6-eq IMEX / TV-split project)
+
+1. **Use $\alpha_kE_k$ (phasic total energy) as unknowns.** Discretise the conservative part $\nabla\cdot(\alpha_k(E_k+p_k)\vec u)$ conservatively and the $\pm\Sigma$ term symmetrically (or simply drop it in the hyperbolic step, as the authors do with HLLC). Then $\sum_k\alpha_kE_k$ is exactly conserved and the relaxed pressure is EOS-consistent. This directly maps onto an IMEX split: explicit hyperbolic part on $(\alpha_1,\alpha_k\rho_k,\rho u,\alpha_kE_k)$; "implicit" part = algebraic instantaneous relaxation.
+2. **Dropping $\Sigma$ is only OK because relaxation follows every step** (the phasic energies are reset from $p^*,\alpha_1^*$). Without stiff pressure relaxation everywhere, $\Sigma$ would be needed. If one uses finite $\mu$ (non-instantaneous) relaxation in an IMEX scheme, this argument weakens [my remark].
+3. **Pressure relaxation is applied everywhere** (all cells, every step), with the closed-form quadratic (C.1)–(C.2). $p_I^0$ uses impedance-weighted interface pressure from the post-hyperbolic state. Check $b^2-4ad>0$ and $\alpha_1^*\in(0,1)$; negative pressures (liquid under tension, $\pi_l\gg|p|$) can make $p_k^0<0$ — the paper asserts the root is always admissible, but guard anyway.
+4. **Thermal & chemical relaxation only at interfaces** $\epsilon_I\le\alpha_1\le1-\epsilon_I$ ($\epsilon_I=10^{-4}$), and chemical only when metastable $T_{liq}>T_{sat}(p)$; $T_{sat}(p)$ from Newton on (11a). In the "$p$–$pTg$" variant thermal step is skipped and $pTg$ activated if $T_k>T_{sat}(p_{eq})$ for either phase.
+5. **pTg solver:** nested: for given $p$, $T(p)$ from quadratic (C.6)–(C.7); outer Newton on $G(p)=$ (C.8). Need good initial guess (e.g. $p^{**}$) and safeguarding (bracketing; $p+\pi_2>0$, $T>0$, $a_p\ne0$). Then $\alpha_1$ from (C.9); if $\alpha_1\notin[0,1]$ ⇒ abnormal case: fix $\alpha_k=1-\epsilon$ ($\epsilon=10^{-8}$) for the higher-entropy species $k$ and solve p–T equilibrium only, choosing the root maximising mixture entropy.
+6. **Relaxations conserve** $\alpha_k\rho_k$ (pressure, thermal) or $\rho$ (chemical), $\rho\vec u$, $E$, $\mathcal E$. Kinetic energy is untouched (single velocity).
+7. HLLC (Davis wave speeds with frozen 6-eq sound speed $c=\sqrt{Y_1c_1^2+Y_2c_2^2}$, monotone — no Wood-speed issues) is more robust than Roe. Roe eigenstructure only needed for transverse fluctuations in 2D wave propagation.
+8. Stiffness at evaporation fronts: they used $\varkappa=0.5$ (weak expansion) but $\varkappa=0.1$ for strong expansion ($u=\pm500$) for accuracy, not stability per se. Still much larger than Zein et al. (0.15 / 0.03).
+9. Residual phase volume fractions used: $10^{-2}$ (water tube, physical vapour content), $10^{-8}$ (dodecane), $10^{-6}$ (RM, bubble), $10^{-3}$ (projectile), $10^{-4}$ (injector).
+10. Possible sign/notation issues to double-check (marked [uncertain] above): $p_\iota$ in HLLC energy rows of (28); $\Pi_k$ sign in App. A vs B; $\Delta(\alpha_2\mathcal E_2)$ vs $\Delta(\alpha_2E_2)$ in (B.5b); cross terms in $b',d'$ of (C.3) (re-derive symbolically).

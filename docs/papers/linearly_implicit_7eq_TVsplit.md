@@ -319,3 +319,270 @@ $$
 D^m_{i+1/2}=\tfrac12a^n_\Omega\big(w^n_{i+1}(x_{i+1/2})-w^n_i(x_{i+1/2})\big),\qquad D^m_{i-1/2}=\tfrac12a^n_\Omega\big(w^n_i(x_{i-1/2})-w^n_{i-1}(x_{i-1/2})\big),\tag{35}
 $$
 **central part of the flux untouched** (still $\frac12(f(m_{i+1})+f(m_i))$ with cell averages). Same applies to any artificial viscosity term.
+
+#### Numerical dissipation in the volume-fraction equation (optional, for strong $\phi$ gradients)
+Explicit artificial viscosity added on the RHS of (23):
+$$
+\phi^{n+1}_{s,i}+\frac{\Delta t}{2\Delta x}\Big(u^n_{I,i+1/2}(\phi^{n+1}_{s,i+1}-\phi^{n+1}_{s,i})-u^n_{I,i-1/2}(\phi^{n+1}_{s,i-1}-\phi^{n+1}_{s,i})\Big)=\phi^n_{s,i}+\frac{\Delta t}{\Delta x^2}\Big(\nu^+(\phi^n_{s,i+1}-\phi^n_{s,i})-\nu^-(\phi^n_{s,i}-\phi^n_{s,i-1})\Big),\tag{36}
+$$
+$$
+\nu^\pm(\sigma)=\frac{\sigma^n_i+\sigma^n_{i\pm1}}{2},\qquad\sigma^n_i=\tfrac12\Delta x\,a^n_\Omega.\tag{37}
+$$
+(Since $a_\Omega$ is global, $\nu^\pm=\tfrac12\Delta x a_\Omega$; equivalent to the first-order Rusanov dissipation on $\phi$; the MUSCL version via (35) presumably applies too **[uncertain]**.)
+
+**Crucial consistency requirement:** this dissipation must also be added in the pressure system (29) and in the conservative total-energy update (32b), with rescaled coefficients
+$$
+\sigma^n_{i,\star}=\sigma^n_i\,\frac{\partial(\rho_\alpha\phi_\alpha e_\alpha)^n_i}{\partial\phi^n_{\alpha,i}}.\tag{38}
+$$
+(For stiffened gas at fixed $p$: $\partial(\rho\phi e)/\partial\phi=(p_\alpha+\gamma_\alpha\pi_\alpha)/(\gamma_\alpha-1)$ — **[note]**, paper's (71) shows $p_0/(\gamma-1)$ for ideal gas.) I.e. the diffusion of $\phi$ must be mirrored by a diffusion of internal energy $\propto\nabla^2\phi$, otherwise pressure oscillations appear at contacts (Abgrall's pressure-oscillation issue). Details in Sec. 3.7.
+
+#### Numerical dissipation in the energy equation (optional, high Mach)
+Kinetic-energy convective flux augmented by a pressure-jump viscosity:
+$$
+f^{\rho_\alpha\phi_\alpha k_\alpha}_{i+1/2}=\tfrac12\Big(((\rho_\alpha k_\alpha u_\alpha)^n\phi^{n+1}_\alpha)_{i+1}+((\rho_\alpha k_\alpha u_\alpha)^n\phi^{n+1}_\alpha)_i\Big)-\tfrac12a^n_\Omega\Big((\rho_\alpha\phi_\alpha k_\alpha)^n_{i+1}-(\rho_\alpha\phi_\alpha k_\alpha)^n_i\Big)-\frac{1}{\Delta x}\nu^+(\sigma_{\star\star})\Big(p^n_{\alpha,i+1}-p^n_{\alpha,i}\Big),\tag{39}
+$$
+$$
+\sigma^n_{i,\star\star}=\sigma^n_i\,\frac{\partial(\rho_\alpha\phi_\alpha e_\alpha)^n_i}{\partial p^n_{\alpha,i}}.\tag{40}
+$$
+(For stiffened gas $\partial(\rho\phi e)/\partial p=\phi/(\gamma-1)$ — **[note]**.) Only active for very high Mach flows (it is not scaled with $\epsilon$-independent velocity only... the paper notes in Sec. 3.6 that it is only activated at very high Mach).
+
+### 3.5 Relaxation solver (sources)
+
+Homogeneous-step result labelled $\mathbf Q^H$. Strang splitting [63] **[note: as written it is a first-order Lie step per stage; the text says "Strang"]**; the ODE step:
+$$
+\frac{\mathbf Q^{n+1}_i-\mathbf Q^H_i}{\Delta t}=\mathbf S(\mathbf Q^{n+1}_i),\qquad i=1,\dots,N_x,\tag{41}
+$$
+discretised semi-implicitly (linear, no nonlinearity), in $x$:
+$$
+\mathbf S(\mathbf Q^{n+1}_i)=\begin{bmatrix}0\\ \delta(u^{n+1}_{s,i}-u^{n+1}_{f,i})\\ \mu\,p^H_{I,i}(p^H_{s,i}-p^H_{f,i})+\delta\,u^H_{I,i}(u^{n+1}_{s,i}-u^{n+1}_{f,i})\\ 0\\ -\delta(u^{n+1}_{s,i}-u^{n+1}_{f,i})\\ -\mu\,p^H_{I,i}(p^H_{s,i}-p^H_{f,i})-\delta\,u^H_{I,i}(u^{n+1}_{s,i}-u^{n+1}_{f,i})\\ \mu(p^H_{s,i}-p^H_{f,i})\end{bmatrix}.\tag{42}
+$$
+Key points:
+- **Pressures are frozen at the homogeneous solution $p^H$** (taken from the wave equation (29)) → pressure relaxation is effectively **explicit** in this paper: $\phi_s^{n+1}=\phi_s^H+\Delta t\,\mu(p^H_s-p^H_f)$, energy exchange $\pm\Delta t\,\mu p^H_I(p^H_s-p^H_f)$. **[note]** This is *not* an instantaneous/stiff pressure relaxation; for $\mu\Delta t\gg1$ it would overshoot. RP7 uses $\mu=10^2$, $\delta=10^3$ (dimensionless) and works, but with stiff $\mu\to\infty$ you need a proper pressure-relaxation procedure (e.g. Saurel–Petitpas–Berry / Pelanti–Shyue) — the paper does not provide one.
+- Velocities implicit: cell-local 2×2 linear system (per direction) for $(u^{n+1}_s,u^{n+1}_f)$, inspired by Re–Abgrall [46]: with $m_\alpha=(\rho_\alpha\phi_\alpha)^H$ (unchanged by sources),
+  $m_f u_f^{n+1}=m_fu_f^H+\Delta t\,\delta(u_s^{n+1}-u_f^{n+1})$, $m_su_s^{n+1}=m_su_s^H-\Delta t\,\delta(u_s^{n+1}-u_f^{n+1})$ **[note: closed form: mixture momentum conserved, $\Delta u^{n+1}=\Delta u^H/(1+\Delta t\,\delta(1/m_s+1/m_f))$]**.
+- Then energy sources computed with $u^{n+1}$ (drag work uses $u_I^H$).
+- 2nd order in space automatic (cell-centred = midpoint rule); time accuracy via the IMEX scheme (21) **[uncertain: how the relaxation step is embedded in the IMEX stages is not detailed — the text suggests the sources are part of the implicit operator within (21)]**.
+
+### Summary of the linearly implicit scheme (per stage / per step)
+1. Solve implicitly (23) for $\phi^{n+1}_s$ (GMRES).
+2. Explicit convective fluxes with FV (25)–(26): obtain $\rho^\star_\alpha$, $q^\star_\alpha$, $E^\star_\alpha$; note $\rho^\star_\alpha=(\rho_\alpha\phi_\alpha)^{n+1}$.
+3. Solve linearly implicit wave equation (29) for $(\phi_\alpha p_\alpha)^{n+1}$ (GMRES), each phase.
+4. Update momentum (32a) → $(\rho_\alpha\phi_\alpha u_\alpha)^{n+1}$.
+5. Update energy (32b) → $(\rho_\alpha\phi_\alpha E_\alpha)^{n+1}$.
+6. Relax with sources, semi-implicit discretisation (42).
+
+**[note]** Order matters: $\phi$ first (it enters every flux as $\phi^{n+1}$), then explicit fluxes (which need $\phi^{n+1}$), then pressure, then momentum (needs $p^{n+1}$), then energy (needs momentum$^{n+1}$, and $h^n$ via (18) needs $\rho^{n+1}$ from step 2).
+
+### 3.6 Asymptotic-preserving property
+
+AP: for $\epsilon\to0$ with $\Delta t$ independent of $\epsilon$, the scheme gives a consistent, stable discretisation of the limit model.
+
+**Continuous limit.** Bounded $\Omega$, impermeable walls
+$$
+\mathbf u_\alpha\cdot\mathbf n=0\ \text{on }\partial\Omega.\tag{43}
+$$
+Expansion $m=m_{(0)}+\epsilon m_{(1)}+\epsilon^2m_{(2)}+\dots+\mathcal O(\epsilon^k)$ (44), well-prepared data. Volume fraction eq. with finite $\mu$:
+$$
+\mathcal O(\epsilon^{-1}):\ \mu(p_{s(0)}-p_{f(0)})=0\Rightarrow p_{s(0)}=p_{f(0)}=p_{I(0)}=p_{(0)},\tag{45}
+$$
+$$
+\mathcal O(\epsilon^0):\ \partial_t\phi_{\alpha(0)}+\mathbf u_{I(0)}\cdot\nabla\phi_{\alpha(0)}=\pm\mu(p_{s(1)}-p_{f(1)}).\tag{46}
+$$
+Continuity: $\partial_t(\rho_{\alpha(0)}\phi_{\alpha(0)})+\nabla\cdot(\rho_{\alpha(0)}\phi_{\alpha(0)}\mathbf u_{\alpha(0)})=0$ (47). Momentum:
+$$
+\mathcal O(\epsilon^{-1}):\ \nabla(p_{\alpha(0)}\phi_{\alpha(0)})-p_{I(0)}\nabla\phi_{\alpha(0)}=0,\tag{48a}
+$$
+$$
+\mathcal O(\epsilon^0):\ \partial_t(\rho_{\alpha(0)}\phi_{\alpha(0)}\mathbf u_{\alpha(0)})+\nabla\cdot(\rho_{\alpha(0)}\phi_{\alpha(0)}\mathbf u_{\alpha(0)}\otimes\mathbf u_{\alpha(0)})+\nabla(p_{\alpha(1)}\phi_{\alpha(1)})-p_{I(1)}\nabla\phi_{\alpha(1)}=\mp\delta(\mathbf u_{s(0)}-\mathbf u_{f(0)}).\tag{48b}
+$$
+Summing (48a) over phases with (45) and $\sum\phi=1$: $\nabla p_{(0)}=0$, $p_{(0)}=p_{(0)}(t)$ (49). Energy:
+$$
+\mathcal O(\epsilon^0):\ \partial_t(\rho_{\alpha(0)}\phi_{\alpha(0)}e_{\alpha(0)})+\nabla\cdot(\rho_{\alpha(0)}\phi_{\alpha(0)}h_{\alpha(0)}\mathbf u_{\alpha(0)})-p_{I(0)}\mathbf u_{I(0)}\cdot\nabla\phi_{\alpha(0)}=\mp\mu p_{I(1)}(p_{s(1)}-p_{f(1)}),\tag{50a}
+$$
+$$
+\mathcal O(\epsilon^1):\ \partial_t(\rho_{\alpha(0)}\phi_{\alpha(0)}k_{\alpha(0)})+\nabla\cdot(\rho_{\alpha(0)}\phi_{\alpha(0)}k_{\alpha(0)}\mathbf u_{\alpha(0)})=\mp\delta\,\mathbf u_{I(0)}(\mathbf u_{s(0)}-\mathbf u_{f(0)}).\tag{50b}
+$$
+Ideal gas ($\pi=0$), integrate (50a) over $\Omega$:
+$$
+\frac{1}{\gamma_\alpha-1}\int_\Omega\frac{d(\phi_{\alpha(0)}p_{(0)})}{dt}dx+\frac{\gamma_\alpha}{\gamma_\alpha-1}p_{(0)}\int_{\partial\Omega}\phi_{\alpha(0)}\mathbf u_{\alpha(0)}\cdot\mathbf n\,dS-p_{(0)}\int_\Omega\mathbf u_{I(0)}\cdot\nabla\phi_{\alpha(0)}dx=\mp\mu\int_\Omega p_{I(1)}(p_{s(1)}-p_{f(1)})dx.\tag{51}
+$$
+Sum over phases + walls + (46):
+$$
+\frac{\gamma_f+\gamma_s-2}{(\gamma_s-1)(\gamma_f-1)}|\Omega|\frac{dp_{(0)}}{dt}-p_{(0)}\int_\Omega\mathbf u_{I(0)}\nabla(\phi_{s(0)}+\phi_{f(0)})dx=-\int_\Omega p_{I(1)}\mathbf u_{I(0)}\nabla(\phi_{s(0)}+\phi_{f(0)})dx,\tag{52}
+$$
+$$
+\frac{dp_{(0)}}{dt}=0.\tag{53}
+$$
+**[uncertain]** (52) coefficient as printed; it looks like it should be a weighted sum of $\phi_\alpha/(\gamma_\alpha-1)$; I transcribe as printed.
+Then (50a) for the mixture gives
+$$
+p_{(0)}\nabla\cdot(\phi_{s(0)}\mathbf u_{s(0)}+\phi_{f(0)}\mathbf u_{f(0)})=0,\tag{54}
+$$
+and with instantaneous relaxation $\mathbf u_{s(0)}=\mathbf u_{f(0)}=\mathbf u_{I(0)}=\mathbf u_{(0)}$:
+$$
+\nabla\cdot\mathbf u_{(0)}=0.\tag{55}
+$$
+Limit = incompressible Euler (for a single phase).
+
+**Discrete AP.** Insert expansion into (12a)–(12d) plus sources (42):
+$$
+\mathcal O(\epsilon^{-1}):\ \mu(p^H_{s(0)}-p^H_{f(0)})=0\Rightarrow p^H_{s(0)}=p^H_{f(0)}=p^H_{I(0)}=p^H_{(0)}.\tag{56}
+$$
+From (12b): $\nabla(p^H_{s(0)}\phi^{n+1}_{s(0)}+p^H_{f(0)}\phi^{n+1}_{f(0)})=p^n_{I(0)}\nabla(\phi_{s(0)}+\phi_{f(0)})^{n+1}$, $\nabla(p^H_{(0)}(\phi_{s(0)}^{n+1}+\phi_{f(0)}^{n+1}))=p^n_{I(0)}\cdot0\Rightarrow\nabla p^H_{(0)}=0$ (57). Leading order discrete system:
+$$
+\begin{aligned}
+(\rho_{\alpha(0)}\phi_{\alpha(0)})^{n+1}&=(\rho_{\alpha(0)}\phi_{\alpha(0)})^n-\Delta t\nabla\cdot((\rho_{\alpha(0)}\mathbf u_{\alpha(0)})^n\phi^{n+1}_{\alpha(0)}),&(58a)\\
+(\rho_{\alpha(0)}\phi_{\alpha(0)}\mathbf u_{\alpha(0)})^{n+1}&=(\dots)^n-\Delta t\nabla\cdot((\rho\mathbf u\otimes\mathbf u)^n_{\alpha(0)}\phi^{n+1}_{\alpha(0)})-\Delta t\nabla(\phi^{n+1}_{\alpha(1)}p^H_{\alpha(1)})+\Delta t\,p^n_{I(1)}\nabla\phi^{n+1}_{\alpha(1)}\mp\Delta t\,\delta(\mathbf u^{n+1}_{s(0)}-\mathbf u^{n+1}_{f(0)}),&(58b)\\
+(\rho_{\alpha(0)}\phi_{\alpha(0)}e_{\alpha(0)})^{n+1}&=(\dots)^n-\Delta t\nabla\cdot(h^n_{\alpha(0)}(\rho_{\alpha(0)}\phi_{\alpha(0)}\mathbf u_{\alpha(0)})^{n+1})+\Delta t\,p^n_{I(0)}\mathbf u^n_{I(0)}\nabla\phi^{n+1}_{\alpha(0)}\mp\Delta t\,\mu p^H_{I(1)}(p^H_{s(1)}-p^H_{f(1)}),&(58c)\\
+\phi^{n+1}_{\alpha(0)}&=\phi^n_{\alpha(0)}-\Delta t\,\mathbf u^n_{I(0)}\nabla\phi^{n+1}_{\alpha(0)}\pm\Delta t\,\mu(p^H_{s(1)}-p^H_{f(1)}),&(58d)
+\end{aligned}
+$$
+kinetic terms at $\mathcal O(\epsilon)$:
+$(\rho\phi k)^{n+1}_{\alpha(0)}=(\rho\phi k)^n_{\alpha(0)}-\Delta t\nabla\cdot((\rho\phi k\mathbf u)^n_{\alpha(0)}\phi^{n+1}_{\alpha(0)})\mp\delta\mathbf u^{n+1}_{I(0)}(\mathbf u^{n+1}_{s(0)}-\mathbf u^{n+1}_{f(0)})$ (59) [as printed].
+Integrating (58c) with ideal gas, enthalpy (18):
+$$
+p^{n+1}_{(0)}\int_\Omega\phi^{n+1}_{\alpha(0)}dx=p^n_{(0)}\int_\Omega\phi^n_{\alpha(0)}dx-\Delta t\,p^n_{(0)}\int_{\partial\Omega}\phi^{n+1}_{\alpha(0)}\mathbf u^{n+1}_{\alpha(0)}\cdot\mathbf n\,dS+\Delta t\,p^n_{(0)}\int_\Omega\mathbf u^n_{I(0)}\nabla\phi^{n+1}_{\alpha(0)}dx\mp\Delta t\,\mu\int_\Omega p^H_{I(1)}(p^H_{s(1)}-p^H_{f(1)})dx\tag{60}
+$$
+[the $\gamma$ factors appear to have been absorbed — as printed]. Summing phases + walls + (56): $p^{n+1}_{(0)}=p^n_{(0)}$ (61). Then
+$$
+p_{(0)}\phi^{n+1}_{\alpha(0)}=p_{(0)}\phi^n_{\alpha(0)}-\Delta t\,p_{(0)}\nabla\cdot(\phi_{\alpha(0)}\mathbf u_{\alpha(0)})^{n+1}+\Delta t\,p^n_{(0)}\mathbf u^n_{I(0)}\nabla\phi^{n+1}_{\alpha(0)}\mp\Delta t\,\mu p^H_{I(1)}(p^H_{s(1)}-p^H_{f(1)}),\tag{62}
+$$
+which for the mixture gives $\nabla\cdot(\phi_{s(0)}\mathbf u_{s(0)}+\phi_{f(0)}\mathbf u_{f(0)})^{n+1}=0$, the discrete analogue of (54). → AP.
+
+**Remark 2.** If the phases are treated independently (not as a mixture), relaxation terms vanish and this analysis does not apply; separate Mach numbers per phase needed ([51]). Single-phase case: recovers the AP scheme of Boscheri–Pareschi [43].
+
+Numerical dissipation does not dominate for small $\epsilon$ (cf. Dellacherie [22]): the viscosity in Sec. 3.4 is proportional only to the material velocity, so independent of $\epsilon$ by construction. Extra pressure-jump dissipation (39) only activated for very high Mach.
+
+### 3.7 Well-balanced property (moving contact discontinuity)
+
+1D, $\Omega=[x_L,x_R]$, discontinuity at $x_D$:
+$$
+\rho_{\alpha,i}(t_0)=\begin{cases}\rho_{\alpha_L}&x\le x_D\\\rho_{\alpha_R}&x>x_D\end{cases},\quad
+\phi_{\alpha,i}(t_0)=\begin{cases}\phi_{\alpha_L}&x\le x_D\\\phi_{\alpha_R}&x>x_D\end{cases},\quad u_{\alpha,i}(t_0)=u_0,\quad p_{\alpha,i}(t_0)=p_0.\tag{63}
+$$
+Sources vanish. Convective subsystem (28) gives
+$$
+\rho^\star_{\alpha,i}=(\rho_\alpha\phi_\alpha)^{n+1}_i,\tag{64a}
+$$
+$$
+q^\star_{\alpha,i}=(\rho_\alpha\phi_\alpha u_\alpha)^n_i-\frac{\Delta t}{\Delta x}(f^{\rho\phi u}_{i+1/2}-f^{\rho\phi u}_{i-1/2})^n=u_0\Big((\rho_\alpha\phi_\alpha)^n_i-\frac{\Delta t}{\Delta x}(f^{\rho\phi}_{i+1/2}-f^{\rho\phi}_{i-1/2})^n\Big)=u_0(\rho_\alpha\phi_\alpha)^{n+1}_i,\tag{64b}
+$$
+$$
+E^\star_{\alpha,i}=(\rho_\alpha\phi_\alpha e_\alpha)^n_i+\frac{u_0^2}{2}(\rho_\alpha\phi_\alpha)^n_i-\frac{u_0^2}{2}\frac{\Delta t}{\Delta x}(f^{\rho\phi}_{i+1/2}-f^{\rho\phi}_{i-1/2})^n=(\rho_\alpha\phi_\alpha e_\alpha)^n_i+\frac{u_0^2}{2}(\rho_\alpha\phi_\alpha)^{n+1}_i,\tag{64c}
+$$
+$$
+\phi^\star_{\alpha,i}=\phi^n_{\alpha,i}-\frac{\Delta t}{2\Delta x}u_0(\phi^{n+1}_{\alpha,i+1}-\phi^{n+1}_{\alpha,i-1}):=\phi^{n+1}_{\alpha,i}.\tag{64d}
+$$
+Wave equation (17) with ideal gas, discrete (65): LHS
+$p_0\frac{\phi^{n+1}_{\alpha,i}}{\gamma-1}-\frac{\Delta t}{4\Delta x}u_0p_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})-\frac{\Delta t^2}{\Delta x^2}p_0\Big((\tfrac34h_{i-1}+\tfrac14h_{i+1})\phi^{n+1}_{i-1}-(h_{i-1}+h_{i+1})\phi^{n+1}_i+(\tfrac14h_{i-1}+\tfrac34h_{i+1})\phi^{n+1}_{i+1}\Big)$;
+RHS
+$p_0\frac{\phi^n_{\alpha,i}}{\gamma-1}+\frac{u_0^2}{2}(\rho\phi)^{n+1}_i-\frac{u_0^2}{2}(\rho\phi)^{n+1}_i-\frac{\Delta t}{4\Delta x}p_0u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})-\frac{\Delta t}{2\Delta x}u_0\big((\rho\phi)^{n+1}_{i+1}h_{i+1}-(\rho\phi)^{n+1}_{i-1}h_{i-1}\big)+\frac{\Delta t}{2\Delta x}p_0u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})-\frac{\Delta t^2}{\Delta x^2}p_0\big(\text{same compact operator on }\phi^{n+1}\big)$.
+
+The two $\Delta t^2$ terms cancel **because $\nabla\cdot(h p_I\nabla\phi)$ uses the same compact operator (31) as $\nabla\cdot(h\nabla(\phi p))$** — this is *the* design requirement. Using (18), $h^n_\alpha=\frac{\rho^n_\alpha}{\rho^{n+1}_\alpha}(e^n_\alpha+p^n_\alpha/\rho^n_\alpha)$ so $(\rho\phi)^{n+1}_{i\pm1}h^n_{i\pm1}=(\rho_\alpha e_\alpha)^n_{i\pm1}\phi^{n+1}_{i\pm1}+\dots$; printed result: $-\frac{\Delta t}{2\Delta x}u_0\big((\rho_\alpha e_\alpha)^n_{i+1}\phi^{n+1}_{\alpha,i+1}-(\rho_\alpha e_\alpha)^n_{i-1}\phi^{n+1}_{\alpha,i-1}\big)$ **[uncertain: the $p/\rho$ part is lumped into $\rho e$ notation; for ideal gas $\rho h=\gamma p/(\gamma-1)$]**. Left with
+$$
+p_0\frac{\phi^{n+1}_{\alpha,i}}{\gamma-1}=p_0\frac{\phi^n_{\alpha,i}}{\gamma-1}-\frac{\Delta t}{2\Delta x}u_0\big((\rho_\alpha e_\alpha)^n_{i+1}\phi^{n+1}_{\alpha,i+1}-(\rho_\alpha e_\alpha)^n_{i-1}\phi^{n+1}_{\alpha,i-1}\big)-\frac{\Delta t}{2\Delta x}u_0p_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}p_0u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1}),\tag{66}
+$$
+last two cancel; with $\rho e=p_0/(\gamma-1)$:
+$$
+p_0\frac{\phi^{n+1}_{\alpha,i}}{\gamma-1}=p_0\frac{1}{\gamma-1}\Big(\phi^n_{\alpha,i}-\frac{\Delta t}{2\Delta x}u_0(\phi^{n+1}_{\alpha,i+1}-\phi^{n+1}_{\alpha,i-1})\Big)=p_0\frac{\phi^{n+1}_{\alpha,i}}{\gamma-1},\tag{67}
+$$
+by (64d) ⇒ $p_0$ solves the pressure system. Momentum and energy:
+$$
+(\rho_\alpha\phi_\alpha u_\alpha)^{n+1}_i=q^\star_{\alpha,i}-\frac{\Delta t}{2\Delta x}p_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}p_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})=u_0(\rho_\alpha\phi_\alpha)^{n+1}_i,\tag{68a}
+$$
+$$
+(\rho_\alpha\phi_\alpha E_\alpha)^{n+1}_i=E^\star_{\alpha,i}-\frac{\Delta t}{2\Delta x}u_0\Big(\frac{p_0}{\gamma-1}+p_0\Big)(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}p_0u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})=\frac{p_0}{\gamma-1}\phi^{n+1}_{\alpha,i}+\frac{u_0^2}{2}(\rho_\alpha\phi_\alpha)^{n+1}_i.\tag{68b}
+$$
+
+**[note] Implementation checklist for well-balancing:** (i) $\phi$ eq. and all $p_I\nabla\phi$, $p_Iu_I\nabla\phi$ terms use the *same* central fluctuation form; (ii) mass, momentum and kinetic-energy convective fluxes all carry the same $\phi^{n+1}$ and the same Rusanov dissipation coefficient (so $q^\star=u_0\rho^\star$, $E^\star$ kinetic part $=\tfrac{u_0^2}{2}\rho^\star$); (iii) energy dissipation acts on $\rho\phi k$ only; (iv) enthalpy via (18); (v) the two $\Delta t^2$ second-derivative terms use the identical compact operator (31).
+
+**With numerical dissipation.** $a_\Omega=u_0$, $\nu^\pm=\tfrac12\Delta x u_0$:
+$$
+\phi^{n+1}_{s,i}=\phi^n_{s,i}-\frac{\Delta t}{2\Delta x}u_0(\phi^{n+1}_{s,i+1}-\phi^{n+1}_{s,i-1})+\frac{\Delta t}{2\Delta x}u_0(\phi^n_{s,i+1}-2\phi^n_{s,i}+\phi^n_{s,i-1}).\tag{69}
+$$
+Must be added to RHS of (65), rescaled by
+$$
+\frac{\partial(\rho_\alpha\phi_\alpha e_\alpha)^n_i}{\partial\phi^n_{\alpha,i}}=\frac{\partial}{\partial\phi^n_{\alpha,i}}\Big(\frac{(\phi_\alpha p_\alpha)^n_i}{\gamma_\alpha-1}\Big)=\frac{p_0}{\gamma_\alpha-1},\tag{71}
+$$
+giving (70): $p_0\phi^{n+1}/(\gamma-1)=\frac{p_0}{\gamma-1}(\phi^n-\frac{\Delta t}{2\Delta x}u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}u_0(\phi^n_{s,i+1}-2\phi^n_{s,i}+\phi^n_{s,i-1}))$. Same added term to total energy (68b) → (72):
+$(\rho\phi E)^{n+1}_i=E^\star_i-\frac{\Delta t}{2\Delta x}u_0(\frac{p_0}{\gamma-1}+p_0)(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}p_0u_0(\phi^{n+1}_{i+1}-\phi^{n+1}_{i-1})+\frac{\Delta t}{2\Delta x}\frac{p_0}{\gamma-1}u_0(\phi^n_{s,i+1}-2\phi^n_{s,i}+\phi^n_{s,i-1})=\frac{p_0}{\gamma-1}\phi^{n+1}_{\alpha,i}+\frac{u_0^2}{2}(\rho\phi)^{n+1}_i$.
+**[note]** In (69)–(72) the dissipation for phase $\alpha$ is written with $\phi_s$; for the fluid phase it must be applied with $\phi_f$ (same magnitude since $\phi_f=1-\phi_s$, Laplacian flips sign).
+
+---
+
+## 4. Numerical results (Section 4)
+
+Scheme labelled **SIFV-BN**. Mach numbers in $[10^{-3},10^1]$. $\Delta t$ from (11) with **CFL = 0.9**. If initial velocity is zero, the **first** time step uses the acoustic CFL (6). Dimensionless form used unless stated.
+
+### 4.1 Convergence: smooth (isentropic) vortex
+- Modified Hu–Shu vortex [66], setup as in Dumbser et al. [67] (details deferred there).
+- $\Omega=[-5,5]^2$, periodic. Ideal gases $\gamma_f=1.35$, $\gamma_s=1.4$. Mean advection $\mathbf v_c=(2,2)$; $t_f=5$ (one full period back to origin).
+- Background pressure $p_0\in[1,10^4]$ to vary Mach. Fig. 1: solid pressure for $p_0=1,10^2,10^4$ on $\varrho=1/16$ — no spurious oscillations, same accuracy.
+- $L_2$ errors vs. exact solution, Table 1:
+
+| $N_x$ | $\varrho$ | $L_2(\rho_s\phi_s)$ | ord | $L_2(\rho_s\phi_su_s)$ | ord | $L_2(\phi_s)$ | ord |
+|---|---|---|---|---|---|---|---|
+| **$p_0=1$** |||||||
+| 20 | 0.5 | 4.2250E−01 | – | 1.0690E+00 | – | 1.6308E−01 | – |
+| 40 | 0.25 | 1.6787E−01 | 1.33 | 3.4438E−01 | 1.63 | 6.3713E−02 | 1.36 |
+| 80 | 0.125 | 4.6463E−02 | 1.85 | 8.7884E−02 | 1.97 | 1.6970E−02 | 1.91 |
+| 160 | 0.0625 | 1.1957E−02 | 1.96 | 2.5092E−02 | 1.81 | 4.2119E−03 | 2.01 |
+| **$p_0=10$** |||||||
+| 20 | 0.5 | 3.5478E−02 | – | 1.0726E+00 | – | 1.6402E−01 | – |
+| 40 | 0.25 | 1.3797E−02 | 1.36 | 3.5107E−01 | 1.61 | 6.3683E−02 | 1.36 |
+| 80 | 0.125 | 3.2493E−03 | 2.09 | 8.8656E−02 | 1.99 | 1.6530E−02 | 1.95 |
+| 160 | 0.0625 | 7.6859E−04 | 2.08 | 2.5126E−02 | 1.82 | 4.0399E−03 | 2.03 |
+| **$p_0=10^2$** |||||||
+| 20 | 0.5 | 4.9215E−03 | – | 1.0725E+00 | – | 1.6412E−01 | – |
+| 40 | 0.25 | 1.6694E−03 | 1.56 | 3.5247E−01 | 1.61 | 6.3743E−02 | 1.36 |
+| 80 | 0.125 | 4.2384E−04 | 1.98 | 8.9128E−02 | 1.98 | 1.6527E−02 | 1.95 |
+| 160 | 0.0625 | 1.0384E−04 | 2.03 | 2.5228E−02 | 1.82 | 4.0357E−03 | 2.03 |
+| **$p_0=10^3$** |||||||
+| 20 | 0.5 | 2.8493E−03 | – | 1.0675E+00 | – | 1.6386E−01 | – |
+| 40 | 0.25 | 1.2504E−03 | 1.19 | 3.4870E−01 | 1.61 | 6.3264E−02 | 1.37 |
+| 80 | 0.125 | 3.3387E−04 | 1.90 | 8.7773E−02 | 1.99 | 1.6292E−02 | 1.96 |
+| 160 | 0.0625 | 8.2761E−05 | 2.01 | 2.4899E−02 | 1.82 | 3.9670E−03 | 2.04 |
+| **$p_0=10^4$** |||||||
+| 20 | 0.5 | 9.4160E−03 | – | 1.0305E+00 | – | 1.6343E−01 | – |
+| 40 | 0.25 | 4.2722E−03 | 1.14 | 3.2406E−01 | 1.67 | 6.2452E−02 | 1.39 |
+| 80 | 0.125 | 9.1133E−04 | 2.23 | 7.9132E−02 | 2.03 | 1.5855E−02 | 1.98 |
+| 160 | 0.0625 | 1.4772E−04 | 2.63 | 2.2924E−02 | 1.79 | 3.8419E−03 | 2.05 |
+
+($N_x$ here is cells per direction; grid $N_x\times N_x$. Momentum order saturates ≈1.8.)
+
+### 4.2 1D Riemann problems
+$\Omega=[0,1]$, $N_x=1000$, Dirichlet BCs, $x_D=0.5$. Reference: explicit 2nd-order TVD FV on 10 000 cells (RP7: exact Euler Riemann solver with different $\gamma$ either side of contact). Table 2:
+
+| RP | EOS f | EOS s | $(\delta,\mu)$ | side | $\rho_f$ | $u_f$ | $p_f$ | $\rho_s$ | $u_s$ | $p_s$ | $\phi_s$ | $t_f$ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| RP0 | 1.4, 0 | 1.4, 0 | 0, 0 | L | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 0.8 | 0.2 |
+| | | | | R | 0.5 | 1.0 | 1.0 | 0.5 | 1.0 | 1.0 | 0.4 | |
+| RP1 [69] | 1.4, 0 | 1.4, 0 | 0, 0 | L | 0.5 | 0.0 | 1.0 | 1.0 | 0.0 | 1.0 | 0.4 | 0.1 |
+| | | | | R | 1.5 | 0.0 | 2.0 | 2.0 | 0.0 | 2.0 | 0.8 | |
+| RP2 [69] | 1.4, 0 | 3.0, 100 | 0, 0 | L | 1.5 | 0.0 | 2.0 | 800.0 | 0.0 | 500.0 | 0.4 | 0.1 |
+| | | | | R | 1.0 | 0.0 | 1.0 | 1000.0 | 0.0 | 600.0 | 0.3 | |
+| RP3 [69] | 1.4, 0 | 1.4, 0 | 0, 0 | L | 1.0 | 0.0 | 1.0 | 1.0 | 0.9 | 2.5 | 0.9 | 0.1 |
+| | | | | R | 1.2 | 1.0 | 2.0 | 1.0 | 0.0 | 1.0 | 0.2 | |
+| RP4 [70] | 1.35, 0 | 3.0, 3400 | 0, 0 | L | 2.0 | 0.0 | 3.0 | 1900.0 | 0.0 | 10.0 | 0.2 | 0.15 |
+| | | | | R | 1.0 | 0.0 | 1.0 | 1950.0 | 0.0 | 1000.0 | 0.9 | |
+| RP5 [70] | 1.4, 0 | 1.4, 0 | 0, 0 | L | 0.2 | 0.0 | 0.3 | 1.0 | 0.0 | 1.0 | 0.8 | 0.2 |
+| | | | | R | 1.0 | 0.0 | 1.0 | 1.0 | 0.0 | 1.0 | 0.3 | |
+| RP6 [68] | 1.4, 0 | 1.4, 0 | 0, 0 | L | 0.5806 | 1.5833 | 1.375 | 0.2068 | 1.4166 | 0.0416 | 0.1 | 0.1 |
+| | | | | R | 0.4890 | −0.70138 | 0.986 | 2.2263 | 0.9366 | 6.0 | 0.2 | |
+| RP7 [54] | 1.67, 0 | 1.4, 0 | $10^3$, $10^2$ | L | 1.0 | 0.0 | 1.0 | 1.0 | 0.0 | 1.0 | 0.99 | 0.2 |
+| | | | | R | 0.125 | 0.0 | 0.1 | 0.125 | 0.0 | 0.1 | 0.01 | |
+
+(EOS columns: $\gamma,\pi$.) Results:
+- **RP0** (moving contact, Fig. 2): constant $p=1$ and $u=1$ of both phases preserved to plotting precision ($\pm10^{-6}$ axis range shows flat lines); density and $\phi_s$ jumps captured (smeared over ~5–6 cells). Numerical confirmation of well-balancing.
+- **RP1–RP4** (Figs. 3–6): shock tubes; rarefactions and shocks captured well, slightly more difficulty for RP3 and RP4 (RP4 shows mild smearing / small deviation in $\rho_f$ around the solid contact).
+- **RP5, RP6** (Figs. 7, 8): small oscillations, but agreement very good (RP6 shows small wiggles near $x\approx0.4$–0.45 in $\rho_s,\rho_f,u_f$).
+- **RP7**: classical Sod with stiff relaxation (pressure + velocity), compared with exact Euler solution with different $\gamma$ either side of the contact (Fig. 9) — satisfying.
+- Authors' caveat: method is not designed specifically for sharp discontinuities but handles high-Mach regime.
+
+### Explosion problem with/without drag relaxation (2D)
+- $\Omega=[-1,1]^2$, $N_x\times N_y=1000\times1000$. Inside circle $R=0.4$: L state of RP2, outside: R state of RP2. $t_f=0.15$. Cases $\delta=10^5$ and $\delta=0$ ($\mu$ presumably 0 **[uncertain]**).
+- Reference: explicit 2nd-order TVD FV on 10 000 cells (1D radial — presumably a 1D radial reference with geometric source **[uncertain]**). Fig. 10: excellent agreement; for $\delta=10^5$ phase velocities relax to the mixture velocity. Cylindrical symmetry preserved.
+- Efficiency vs fully explicit: Table 5 for $\delta=10^5$, speed-up factor **43** (due to the stiff drag handled implicitly).
+
+### 4.3 2D Riemann problems (start)
+MPI-parallel code. Two 2D Riemann problems from Dumbser–Boscheri [54] (inspired by Zhang–Zheng [71], Kurganov–Tadmor [72]). Four constant states in the quadrants of $\Omega=[-0.5,0.5]^2$, reflective walls everywhere. Parameters in Table 3 (next pages).
