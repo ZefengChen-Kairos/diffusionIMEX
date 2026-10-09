@@ -310,3 +310,225 @@ All integrals computed **analytically with a symbolic toolbox**; result $\tilde{
 
 ---
 
+
+## 5. Appendix A — derivation for a generic variable $\varphi$, coefficient table, SG example
+
+### A.1-A.7 Generic derivation
+Write (8) generically as sums of source contributions $S_j$:
+$$
+\frac{d\alpha_k}{dt}=\sum_jS_j^{\alpha_k},\quad \frac{d\alpha\rho_k}{dt}=\sum_jS_j^{\alpha\rho_k},\quad \frac{d\alpha\rho\mathbf u_k}{dt}=\sum_j\mathbf S_j^{\alpha\rho\mathbf u_k},\quad \frac{d\alpha E^t_k}{dt}=\sum_jS_j^{\alpha E^t_k}. \tag{A.1}
+$$
+$$
+\frac{d\rho_k}{dt}=\frac1{\alpha_k}\Big(\frac{d\alpha\rho_k}{dt}-\rho_k\frac{d\alpha_k}{dt}\Big)=\frac1{\alpha_k}\Big(\sum_jS_j^{\alpha\rho_k}-\rho_k\sum_jS_j^{\alpha_k}\Big), \tag{A.2}
+$$
+$$
+\frac{d\mathbf u_k}{dt}=\frac1{\alpha\rho_k}\Big(\frac{d\alpha\rho\mathbf u_k}{dt}-\mathbf u_k\frac{d\alpha\rho_k}{dt}\Big)=\frac1{\alpha\rho_k}\Big(\sum_j\mathbf S_j^{\alpha\rho\mathbf u_k}-\mathbf u_k\sum_jS_j^{\alpha\rho_k}\Big), \tag{A.3}
+$$
+$$
+\frac{d\alpha E^t_k}{dt}=\alpha\rho_k\frac{d}{dt}\Big(e_k+\tfrac12\mathbf u_k^2\Big)+e^t_k\frac{d\alpha\rho_k}{dt}
+=\alpha\rho_k\Big((e_{\varphi,\rho})_k\frac{d\varphi_k}{dt}+(e_{\rho,\varphi})_k\frac{d\rho_k}{dt}\Big)+\alpha\rho\mathbf u_k\cdot\frac{d\mathbf u_k}{dt}+e^t_k\frac{d\alpha\rho_k}{dt}, \tag{A.4}
+$$
+($e^t_k=e_k+|\mathbf u_k|^2/2$ specific total energy)
+$$
+\frac{d\varphi_k}{dt}=-\frac{(e_{\rho,\varphi})_k}{(e_{\varphi,\rho})_k}\frac{d\rho_k}{dt}-\frac{1}{(e_{\varphi,\rho})_k}\mathbf u_k\cdot\frac{d\mathbf u_k}{dt}-\frac{e^t_k}{\alpha\rho_k(e_{\varphi,\rho})_k}\frac{d\alpha\rho_k}{dt}+\frac{1}{\alpha\rho_k(e_{\varphi,\rho})_k}\frac{d\alpha E^t_k}{dt}. \tag{A.5}
+$$
+Substituting (A.1)-(A.3):
+$$
+\frac{d\varphi_k}{dt}=-\frac{(e_{\rho,\varphi})_k}{\alpha_k(e_{\varphi,\rho})_k}\Big[\sum_jS_j^{\alpha\rho_k}-\rho_k\sum_jS_j^{\alpha_k}\Big]
+-\frac{1}{\alpha\rho_k(e_{\varphi,\rho})_k}\mathbf u_k\cdot\Big[\sum_j\mathbf S_j^{\alpha\rho\mathbf u_k}-\mathbf u_k\sum_jS_j^{\alpha\rho_k}\Big]
+-\frac{e^t_k}{\alpha\rho_k(e_{\varphi,\rho})_k}\sum_jS_j^{\alpha\rho_k}+\frac{1}{\alpha\rho_k(e_{\varphi,\rho})_k}\sum_jS_j^{\alpha E^t_k}. \tag{A.6}
+$$
+Valid for any relaxation model of the form (A.1) — **directly reusable for a 6-eq model** (drop the velocity-relaxation sources, single $\mathbf u$). Inserting the sources of (8) gives (A.7) = (9), with the velocity equation written as $\frac{d\mathbf u_k}{dt}=\frac{1}{\alpha\rho_k}\big[-\lambda\Delta_k\mathbf u+(\mathbf u_k-\mathbf u_I)\nu\Delta_kg\big]$.
+
+### Table A.8 — coefficients $K^{eq}_y$
+| $K^{eq}_y$ | definition | $K^{eq}_y$ | definition |
+|---|---|---|---|
+| $K_P^{\alpha_1}$ | $\mu$ | $K_g^{\alpha_1}$ | $-\nu/\rho_I$ |
+| $K_g^{\alpha\rho_k}$ | $-\nu$ | $K_{\mathbf u}^{\mathbf u_k}$ | $-\lambda/\alpha\rho_k$ |
+| $K_{\mathbf u_I}^{\mathbf u_k}$ | $\nu\Delta_kg/\alpha\rho_k$ | $K_P^{\varphi_k}$ | $\dfrac{\rho_k^2(e_{\rho,\varphi})_k-P_I}{\alpha\rho_k(e_{\varphi,\rho})_k}\,\mu$ |
+| $K_{\mathbf u}^{\varphi_k}$ | $\dfrac{\lambda}{\alpha\rho_k(e_{\varphi,\rho})_k}$ | $K_T^{\varphi_k}$ | $-\dfrac{\theta}{\alpha\rho_k(e_{\varphi,\rho})_k}$ |
+| $K_g^{\varphi_k}$ | $\dfrac{\nu}{\alpha\rho_k(e_{\varphi,\rho})_k}\Big[(e^t_k-e^t_I)+\Big(\rho_k-\dfrac{\rho_k^2}{\rho_I}\Big)(e_{\rho,\varphi})_k+\mathbf u_k\cdot(\mathbf u_I-\mathbf u_k)\Big]$ | | |
+
+Then $K_y^{\Delta_1\varphi}=K_y^{\varphi_1}+K_y^{\varphi_2}$ where **$\varphi$ in (13) is taken as $P$, $T$ or $g$ respectively** — i.e. to build (13) with $\varphi_k=T_k$ as stored variable one still needs $(e_{\rho,P})_k,(e_{P,\rho})_k$, $(e_{\rho,g})_k,(e_{g,\rho})_k$ etc. for each EOS (the paper does not spell out how these derivative sets are computed for SW; presumably through CoolProp derivatives / Jacobian transformations — **[uncertain]**).
+
+### A.1 Stiffened-gas example, Eq. (A.8) ($\varphi_k=P_k$)
+With $T_k=\dfrac{P_k+P_{\infty,k}}{\rho_kc_{v,k}(\gamma_k-1)}$ and
+$$
+g_k(\rho_k,P_k)=\frac{\gamma_k}{\gamma_k-1}\frac{P_k+P_{\infty,k}}{\rho_k}+q_{0,k}-\frac{P_k+P_{\infty,k}}{\rho_k(\gamma_k-1)}\left[\log\!\left(\frac{P_k+P_{\infty,k}}{(\rho_kc_{v,k}(\gamma_k-1))^{\gamma_k}}\right)+\frac{q'_{0,k}}{c_{v,k}}\right],
+$$
+the linearised pressure ODEs read
+$$
+\frac{dP_1}{dt}=\bar K_P^{P_1}(P_1-P_2)+\bar K_T^{P_1}\big(T_1(\rho_1,P_1)-T_2(\rho_2,P_2)\big)+\bar K_g^{P_1}\big(g_1(\rho_1,P_1)-g_2(\rho_2,P_2)\big)+\bar K_{\mathbf u}^{P_1}(\mathbf u_1-\mathbf u_I)\cdot\Delta_1\mathbf u, \tag{A.8}
+$$
+and symmetrically for $P_2$ — still strongly nonlinear even for SG. (I verified the $g_k(\rho,P)$ expression from (5)-(6).)
+
+## 6. Appendix B — linearisation-quality measure (Table B.9)
+
+$D_i$ = linearised coefficients; weights $\mathscr W_i$ chosen by **trial and error** to harmonise error vs number of sub-steps across all tests; depend on **condensation ($g_1>g_2$) vs evaporation ($g_1<g_2$)**. Not claimed optimal.
+
+| $D_i$ | $\mathscr W_i$ condensation | $\mathscr W_i$ evaporation | appears in |
+|---|---|---|---|
+| $K_P^{\Delta_1P}$ | 1 | $5\cdot10^{-2}$ | (20) |
+| $K_T^{\Delta_1P}$ | 1 | $5\cdot10^{-2}$ | (20) |
+| $K_g^{\Delta_1P}$ | 4 | $20\cdot10^{-2}$ | (20) |
+| $K_T^{\Delta_1T}$ | 1 | $5\cdot10^{-2}$ | (19a) |
+| $K_g^{\Delta_1T}$ | 0 | 0 | (19a) |
+| $K_T^{\Delta_1g}$ | 1 | $5\cdot10^{-2}$ | (19b) |
+| $K_g^{\Delta_1g}$ | 1 | $5\cdot10^{-2}$ | (19b) |
+| $K_{\mathbf u}^{P_k}$ | 1 | $5\cdot10^{-2}$ | (20) |
+| $K_{\mathbf u}^{T_k}$ | 1 | $5\cdot10^{-2}$ | (19a) |
+| $K_{\mathbf u}^{g_k}$ | 1 | $5\cdot10^{-2}$ | (19b) |
+| $K_{\mathbf u}^{\mathbf u_k}$ | 10 | 1 | (16), (21d) |
+| $K_g^{\alpha_1}$ | 1 | $5\cdot10^{-2}$ | (21b) |
+| $K_P^{\varphi_k}$ | 1 | $5\cdot10^{-2}$ | (21d) |
+| $K_T^{\varphi_k}$ | 1 | $5\cdot10^{-2}$ | (21d) |
+| $K_g^{\varphi_k}$ | 1 | $5\cdot10^{-2}$ | (21d) |
+
+(Row labels read from small print; the $K_{\mathbf u}^{P_k},K_{\mathbf u}^{T_k},K_{\mathbf u}^{g_k}$ rows are the velocity coefficients of the $\varphi=P,T,g$ equations entering $S_{\mathbf u}^{\Delta_1\varphi}$ — **[uncertain]** on exact sub/superscripts.) Note evaporation weights are ~20x looser than condensation.
+
+---
+
+## 7. Verification of the relaxation solver alone (0-D, Sec. 4)
+
+Setup common to all three: relaxation operator (4b) only, high initial disequilibrium, both phases evolve to full mechanical + thermo-chemical equilibrium. **SW EOS via CoolProp** for all. Reference ("exact") = **LSODA** with rel/abs tolerance $2.221\cdot10^{-14}$. Convergence study: $\delta^{\max}_i=2^{-i}$, $i=0,1,2,\dots$; errors ($L_1$) vs number of sub-steps $N_t$. **Constant** relaxation parameters here. Units as printed: $\mu$ [1/(Pa s)], $\lambda$ [kg/(m$^3$ s)], $\theta$ [Pa/(K s)], $\nu$ printed as "kg$^3$/J·m$^3$·s" (**[uncertain]**; dimensional analysis of $\dot m=-\nu\Delta_1g$ gives kg$^2$/(J m$^3$ s)).
+
+### Test 4.1 — R134a pure condensation (Table 1, Figs. 2-3)
+| | Phase 1 (vapour, SW [38]) | Phase 2 (liquid, SW [38]) |
+|---|---|---|
+| $\alpha$ | 0.5 | 0.5 |
+| $\rho$ | 75.595 kg/m$^3$ | 1159.329 kg/m$^3$ |
+| $u$ | 10 m/s | −5 m/s |
+| $T$ | 329.81 K | 310.26 K |
+
+$t_{\rm final}=10^{-4}$ s; $\mu=10^4$, $\lambda=10^9$, $\theta=10^{12}$, $\nu=10^2$. Plots with $\delta^{\max}=2^{-3}$. Initial $P_1\approx15$ bar, $P_2\approx10$ bar (from Fig. 2). Three separate relaxation time scales visible (log time axis $10^{-9}$-$10^{1}\,\mu$s). Adaptive solver time-accurate with **28 sub-steps**; final state on saturation line (~10 bar, ~313 K; $\alpha_1$ 50% -> ~48.3%, $Y_1$ ~6.1% -> ~3.9%). Errors (Fig. 3): adaptive much lower absolute error than LSODA at few sub-steps; adaptive convergence **first order** (velocity almost 2nd in first refinements); LSODA higher order.
+
+### Test 4.2 — MM (hexamethyldisiloxane) pure evaporation (Table 2, Figs. 4-5)
+| | Phase 1 (MM vapour [39]) | Phase 2 (MM liquid [39]) |
+|---|---|---|
+| $\alpha$ | 0.1 | 0.9 |
+| $\rho$ | 5.384 kg/m$^3$ | 642.123 kg/m$^3$ |
+| $u$ | 0 m/s | 30 m/s |
+| $T$ | 384.26 K | 398.99 K |
+
+$t_{\rm final}=10^{-4}$ s; $\mu=10^4$, $\lambda=10^9$, $\theta=10^{12}$, $\nu=10^3$. Time-accurate with **11 sub-steps**; convergence more erratic: after ~20 sub-steps higher than 2nd order, then approaches 1st order. Up to "1000% less error" than LSODA at 100 sub-steps; LSODA higher rate. Final ~2 bar, ~399 K, $\alpha_1$ 10% -> ~10.19%.
+
+### Test 4.3 — D6 mixed evaporation-condensation (Table 3, Figs. 6-8)
+| | Phase 1 (D6 vapour [40]) | Phase 2 (D6 liquid [40]) |
+|---|---|---|
+| $\alpha$ | 0.1 | 0.9 |
+| $\rho$ | 11.459 kg/m$^3$ | 707.314 kg/m$^3$ |
+| $u$ | 20 m/s | 21 m/s |
+| $T$ | 525.01 K | 516.51 K |
+
+$t_{\rm final}=10^{-4}$ s; $\mu=10^4$, $\lambda=10^6$, $\theta=10^{12}$, $\nu=10^5$. **13 sub-steps**; convergence > 2nd order initially then between 1st and 2nd. Fig. 8: $\delta^{\max}=2^0\ldots2^{-7}$ -> $N_t=6,8,11,14,20,30,53,89$; even 6 sub-steps give acceptable (stable, physical) results. $\alpha_1$ goes up (evaporation, peak ~10.02%) then down (condensation) to ~9.99%.
+
+**Observations across 0-D tests:** sub-step adaptation refines mostly in the **chemical-relaxation time-scale range** => Gibbs relaxation is the most nonlinear process. **LSODA could not give a physically acceptable solution with < 100 sub-steps (positivity issues)**; adaptive solver acceptable with as few as 8 (conclusions) and lower absolute error than LSODA below ~300 sub-steps.
+
+---
+
+## 8. Full BN solver tests (Sec. 5)
+
+All with $\delta^{\max}=0.1$, $r^{\max}=10^{-12}$. Hyperbolic: HLLC [31] + MUSCL [32] + Barth-Jespersen [33], explicit [34,35]. Strang splitting with relaxation (4b) by the adaptive solver.
+
+### 5.1a Dodecane shock tube, SG EOS (Table 4, Fig. 9) — from Saurel et al. [15]
+SG parameters:
+| | vapour dodecane | liquid dodecane |
+|---|---|---|
+| $\gamma$ | 1.025 | 2.35 |
+| $c_v$ [J/(kg K)] | 1956.45 | 1077.7 |
+| $P_\infty$ [Pa] | 0 | $4\cdot10^8$ |
+| $q_0$ [J/kg] | $-237.547\cdot10^3$ | $-775.269\cdot10^3$ |
+| $q'_0$ [J/(kg K)] | $-24.4\cdot10^3$ | 0 |
+
+Initial data: left $x\in[-0.5,0.25)$ m: $\alpha_1=10^{-6}$, $\alpha_2=1-10^{-6}$, $u=0$, $P_1=P_2=10^8$ Pa, $T_1=475$ K, $T_2=687.335$ K; right $x\in(0.25,0.5]$ m: $\alpha_1=1-10^{-6}$, $\alpha_2=10^{-6}$, $u=0$, $P=10^5$ Pa, $T_1=1022.26$ K, $T_2=486.023$ K. (Left liquid at high pressure, right vapour at 1 bar; non-flowing phase temperatures differ.)
+Relaxation "sufficiently high to mimic instantaneous": $\mu=10^4$, $\lambda=10^{11}$, $\theta=10^{12}$, $\nu=10^2$. $\Delta x=0.001$ m (1000 cells), CFL = 1 (as printed), $t_{\rm final}=473\,\mu$s.
+Result: $Y_1$, $P_m$ (log scale $10^3\to10^1\to$ few bar $\to1$), $\rho_m$, $u_m$ agree well with Pelanti's 6-eq exponential semi-analytical solver [28] ($\theta,\nu\to\infty$). (Evaporation front; mixture velocity up to ~310 m/s.)
+
+### 5.1b Water cavitation (double expansion), SG EOS (Table 5, Fig. 10) — from Pelanti & Shyue [22]
+| | vapour water | liquid water |
+|---|---|---|
+| $\gamma$ | 1.43 | 2.35 |
+| $c_v$ | 1040 | 1816 |
+| $P_\infty$ | 0 | $10^9$ |
+| $q_0$ | $2030\cdot10^3$ | $-1167\cdot10^3$ |
+| $q'_0$ | $-23.4\cdot10^3$ | 0 |
+
+Initial: $\alpha_1=0.01$, $\alpha_2=0.99$, $P=10^5$ Pa, $T=354.728$ K everywhere; $u=-2$ m/s for $x\in[-0.5,0)$, $u=+2$ m/s for $x\in(0,0.5]$. $\mu=10^4$, $\lambda=10^{11}$, $\theta=10^{12}$, $\nu=10^4$; $\Delta x=0.001$ m, CFL = 1, $t_{\rm final}=3.2$ ms.
+Three models: mechanical only ($\theta=0,\nu=0$), mechanical + thermal ($\theta\to\infty,\nu=0$), mechanical + thermo-chemical ($\theta\to\infty,\nu\to\infty$). **Chemical relaxation activated only if the liquid is metastable** (as in [22]) — i.e. a switch, not just a rate. Great agreement with Pelanti et al. [22]. Without mass transfer, **spurious oscillations in $Y_1$** appear: due to the complete BN model with two velocities and the complete HLLC solver [31] — the two contact discontinuities of liquid and vapour propagate at different velocities -> local composition variations even without mass transfer; bounded, confined near the initial discontinuity, two orders of magnitude smaller than cavitation-induced variation. Without thermo-chemical relaxation the pressure drops below the liquid saturation pressure (~0.05-0.1 bar at centre); with it, the pressure stabilises at saturation (~0.5 bar) while evaporating ($Y_1$ peak ~$2\times10^{-4}$, $\alpha_1$ peak ~0.4).
+
+### 5.2 Water rapid depressurization — Bartak [41] experiment (Table 6, Figs. 11-12)
+Long thin high-pressure vessel with liquid water, closed except on the left where an outlet to ambient opens at $t=0$; sudden expansion -> metastable liquid, long-lasting chemical disequilibrium. Goal: show the solver handles **time-dependent closures for $\nu$** and reproduces Pelanti [28].
+- Domain: ambient chamber $x\in[-1.7,0)$ m, high-pressure vessel $x\in(0,1.7]$ m, diaphragm at $x=0$, pressure probe at 48 mm right of the diaphragm (vessel length to probe annotated 1.652 m in Fig. 11). **2D mesh $1000\times2$** control volumes (to model the right wall of the vessel rather than 1D).
+- SW EOS for water vapour/liquid [44] (IAPWS-95 via CoolProp).
+- Initial: ambient: $\alpha_1=1-10^{-3}$, $\alpha_2=10^{-3}$, $u=0$, $P=10^5$ Pa, $T_1=T_2=T^{\rm sat}(P)$; vessel: $\alpha_1=10^{-3}$, $\alpha_2=1-10^{-3}$, $u=0$, $P=1.25\cdot10^7$ Pa, $T_1=T^{\rm sat}(P)$, $T_2=563.13$ K (liquid at 125 bar, 563.13 K).
+- $\mu=10^4$, $\lambda=10^{11}$, $\theta=10^{12}$ (the $\mu$ exponent is faint in the PDF — **[uncertain] $10^4$**); $\nu$ varied: $10^2,10^{-1},10^{-2}$ and Pelanti's closure
+$$\nu=\alpha_1^{0.6}\Big[\big(P^{\rm sat}-P_2\big)\big/\big(P^{c}-P^{\rm sat}\big)\Big]^{1.76}$$
+(as printed; $P^c$ critical pressure; units/prefactor as in [28] — **[uncertain]** whether a dimensional constant is absorbed). $\Delta x=0.0034$ m, CFL = 1, $t_{\rm final}=0.0175$ s.
+- Results: with the $\nu(P,P^{\rm sat},\alpha)$ closure + SW, agrees well with experiment and with Pelanti [28] (who used NASG EOS + same closure): pressure undershoot to ~30-35 bar then recovery to ~40-43 bar. $\nu=10^2$ (fastest) almost overlaps HEM/IF97 results of De Lorenzo et al. [43] — equilibrium maintained, pressure follows saturation (~73 bar plateau), no metastability. $\nu=10^{-1},10^{-2}$ don't reach equilibrium nor match pressure drop/recovery. Message: the **closure of $\nu$ is crucial**, more than the EOS accuracy.
+
+### 5.3 2D converging-diverging supersonic nozzle with evaporating MDM droplets (Table 7, Figs. 13-14)
+Geometry/conditions from single-phase MDM experiments of Spinelli et al. [45]; inject 5% volume of MDM droplets with diameter $D_p\in\{1,10,50,100,200\}\,\mu$m. Not validation (no data), showcase of fully finite-rate nonlinear closures. All quantities in closures evaluated at $\mathbf w^{*,n+1}$ (post-hyperbolic state, i.e. frozen over the relaxation step).
+- Fluids (SW [50]): MDM vapour $k_1=0.0353$ W/(m K), $\eta_1=1.5148\cdot10^{-5}$ Pa s; MDM droplets $k_2=0.06475$ W/(m K), $\eta_2=8.7675\cdot10^{-5}$ Pa s.
+- Inlet: $\alpha_1=0.95$, $P_1^{\rm tot}=904388$ Pa, $T_1^{\rm tot}=542.13$ K. Outlet: $P=200000$ Pa. $\Delta x\simeq0.0012$ m, CFL = 1, $t_{\rm final}=15\,\mu$s (as printed; Fig. 13 caption says $t=15$ ms — **[uncertain]** which).
+
+Closures:
+$$
+\mu=\frac{6\alpha_2}{\pi D_p\rho_2c_2}\quad\text{(Saurel et al. [46], acoustic impedance of liquid)}, \tag{22}
+$$
+$$
+\lambda_{\rm drag}=3\pi\eta_1D_pf_{\rm drag}n_p,\qquad n_p=\frac{6\alpha_2}{\pi D_p^3}\quad\text{(McGrath et al. [47], dense particle cloud)}, \tag{23}
+$$
+$$
+f_{\rm drag}=\begin{cases}8.33\dfrac{\alpha_2}{\alpha_1}+0.0972\,{\rm Re}_R & \alpha_1<0.8\\ f_{\rm base}\,\alpha_1^{-\xi}&\alpha_1\ge0.8\end{cases},\quad
+f_{\rm base}=\begin{cases}1+\dfrac{{\rm Re}_R^{0.687}}{6}&{\rm Re}_R<1000\\ 0.0183\,{\rm Re}_R&{\rm Re}_R\ge1000\end{cases},
+$$
+$$
+\xi=3.7-0.65\exp\!\Big(-\tfrac12\big(1.5-\log_{10}{\rm Re}_R\big)^2\Big),\qquad {\rm Re}_R=\frac{\rho_1D_p|\mathbf u_1-\mathbf u_2|}{\eta_1}.
+$$
+Heat transfer droplet/vapour [48]:
+$$
+Q=\xi A_I\big(T^{\rm sat}(P_2)-T_1\big)\;\rightarrow\;\theta\simeq\frac{Q}{T_2-T_1}, \tag{24}
+$$
+$A_I=6\alpha_2/D_p$; heat transfer coefficient (symbol $\xi$ reused) $=Nu\,k_1/D_p$ (printed "$Nu/k_1D_p$", read as $Nu\,k_1/D_p$ — **[uncertain]**), $Nu$ from Ranz-Marshall [49]. Mass transfer from interface heat balance:
+$$
+\dot m=\frac{Q}{h_2-h_1^{\rm sat}(P_2)}\;\rightarrow\;\nu\simeq\frac{\dot m}{g_2-g_1}, \tag{25}
+$$
+$h$ specific enthalpy. In this evaporation, $T_2<T^{\rm sat}(P_2)<T_1$ -> $Q<0$ (vapour heats liquid), $\dot m>0$ (liquid -> vapour). (Note the rate-from-flux definitions $\theta=Q/(T_2-T_1)$, $\nu=\dot m/(g_2-g_1)$ can be singular as $\Delta T,\Delta g\to0$; the paper does not discuss regularisation — **[my remark]**.)
+Instantaneous comparison: $\mu=10^5$, $\lambda=10^{11}$, $\theta=10^{12}$, $\nu=10^4$.
+
+Results (Fig. 13, liquid volume fraction): pressure and thermal relaxation times from the closures are almost instantaneous for all $D_p$ -> associated disequilibrium negligible. Gibbs relaxation time decreases with droplet diameter... (i.e. smaller droplets evaporate faster): small droplets evaporate before the throat; droplets > 10 µm follow nearly straight trajectories to the outlet (inertia, velocity disequilibrium) and do not follow the expanding vapour in the divergent; droplets > 1 µm tend to cluster on the convergent walls.
+
+**CPU cost (Fig. 14, averaged over 100 time steps, normalised by hyperbolic step):** LSODA run at least restrictive tolerances still robust. Larger droplets/less stiff: LSODA relaxation ~200% of hyperbolic CPU; instantaneous: LSODA ~28400%. Adaptive: ~60% of hyperbolic in less stiff cases (~330% speed-up vs LSODA), roughly constant across cases except instantaneous ~200% (speed-up 14200%).
+
+---
+
+## 9. Conclusions (Sec. 6)
+- Efficient, time-accurate relaxation solver for 7-eq BN with simultaneous mechanical + thermo-chemical relaxation, generic EOS; extends Chiocchetti & Müller [30].
+- Augmented system of linearised ODEs including three extra ODEs for interphase disequilibria in $P,T,g$.
+- 0-D: LSODA needs >100 sub-steps for physical solution; proposed solver acceptable with 8; lower error than LSODA below ~300 sub-steps; convergence between 1st and 2nd order (lower than LSODA) but competitive esp. for stiff problems.
+- Speed-up over LSODA 330% (mild stiffness) to 14200% (very stiff).
+- Claimed first full non-equilibrium BN with finite-rate thermo-chemical relaxation + simultaneous relaxation under generic EOS. Extension to three-phase (inert third phase) would need further approximations.
+- Supplementary `.cpp` with analytical solution of (21); data on Zenodo [51] (zenodo.org/records/12178930, doi 10.5281/zenodo.12178930).
+- Funding: EU Horizon Europe MSCA-2021-PF 101066019 (NI2PhORC) (B. Re); NextGenerationEU (G. Sirianni).
+
+---
+
+## 10. Implementation pitfalls, positivity, abnormal cases — and relevance to a 6-eq TV-split IMEX code
+
+From the paper:
+1. **Admissibility**: after every sub-step check $0\le\alpha\le1$, $\rho_k>0$, $c_k^2>0$ (not beyond spinodal — important for SW/cubic EOS in metastable regions). Reject and retry with $\Delta t/3$.
+2. **Fixed-point divergence** (> $j^{\max}=10$) also triggers rejection. Typically 3-5 iterations.
+3. **Weights $\mathscr W_i$ are hand-tuned** and condensation/evaporation dependent; too-strict linearisation bounds over-constrain sub-steps.
+4. **Gibbs relaxation is the hardest** (most nonlinear) — adaptation concentrates there.
+5. **Time-scale separation assumption** ($\Delta P$ eq. one-way coupled) is a modelling approximation inside the linearised sub-step: if $\theta$ or $\nu$ become faster than $\mu$, the dropped $\bar K_P^{\Delta_1T}\Delta_1P$, $\bar K_P^{\Delta_1g}\Delta_1P$ terms could matter — not analysed in the paper **[my remark]**.
+6. **Chemical relaxation switch**: in the cavitation test it is turned on only when the liquid is metastable (following [22]).
+7. **Spurious $Y_1$ oscillations** in 7-eq with complete HLLC (two contacts) even without mass transfer — inherent to the two-velocity model, not the relaxation solver.
+8. LSODA (generic stiff solver) fails positivity with few steps — motivates structure-exploiting analytical solutions.
+9. Interface closures $\rho_I$, $e_I$ (3) are borrowed from equilibrium-reduced models; acknowledged as provisional.
+10. Analytical expressions (exponentials of 2x2 systems, time integrals of products with velocity exponentials) are very long; generated symbolically (`.cpp`). For the 2x2 $(\Delta T,\Delta g)$ system, eigenvalues of $\begin{bmatrix}\bar K_T^{\Delta_1T}&\bar K_g^{\Delta_1T}\\ \bar K_T^{\Delta_1g}&\bar K_g^{\Delta_1g}\end{bmatrix}$ may be complex or (nearly) repeated; the paper does not discuss these degenerate branches — an implementer must handle repeated eigenvalues / $K\to0$ limits robustly (e.g. via $\varphi$-functions $(e^{z}-1)/z$) **[my remark]**.
+
+Mapping to diffusionIMEX (6-eq, single velocity, rates $\mu,\theta,\nu$):
+- Drop (16) and all $S_{\mathbf u}$, $K_{\mathbf u}$, $\lambda$ terms; $\mathbf u_I=\mathbf u$. $K_g^{\varphi_k}$ loses the kinetic term. 6-eq usually evolves phasic energies rather than a mixture $E$ with two velocities; derivation (A.1)-(A.6) applies verbatim.
+- **Limits:** rate -> 0: all $K\to0$, $\tilde{\mathbf w}\equiv\mathbf w^m$, exact frozen scheme (sub-step = whole step). Rate -> ∞: linear exponential solutions tend to the (frozen-coefficient) equilibrium of the linear system; nothing blows up since the solutions are exponentials with negative real-part eigenvalues — but the result is the equilibrium **of the linearisation at $\bar{\mathbf w}$**, so to get the true instantaneous equilibrium you rely on the fixed point making $\bar{\mathbf w}$ consistent and on the linearisation-error control; the initial guess $\Delta t=1/|K_P^{\Delta_1P}|\to0$ and step growth by $\delta^{\max}/\delta$ governs cost. The paper only emulates ∞ with large finite rates (e.g. $\mu=10^4$-$10^5$, $\theta=10^{12}$, $\nu=10^2$-$10^4$); no asymptotic-preserving proof is given.
+- Mixture energy conservation is **not** guaranteed exactly by the linearised update (see Sec. 3.1 note); for an IMEX scheme one would likely recompute one phase's energy from $E_m$ after the relaxation step.
+- Choice of stored thermodynamic variable: $T_k$ chosen for SW ($(\rho,T)$-explicit); with SG/NASG, $P_k$ or $T_k$ are both cheap.
