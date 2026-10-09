@@ -130,7 +130,7 @@ $$
 \end{cases}\tag{8}
 $$
 
-**Mixture conservation is built in**: since $\Delta_1y=-\Delta_2y$, the sources cancel when summed over $k$. Hence $\rho_m=\alpha\rho_1+\alpha\rho_2$, $\rho\mathbf u_m=\alpha\rho\mathbf u_1+\alpha\rho\mathbf u_2$ and $E^t_m=\alpha E^t_1+\alpha E^t_2$ are constant during relaxation. (This is how the scheme ensures mixture conservation: the solver updates only phase-1 / per-phase primitive quantities and recovers $\alpha\rho_2=\rho_m-\alpha\rho_1$; see state vector $\mathbf w$ below. **Note**: total energy conservation is exact only if the $\varphi_k$ updates for both phases are consistent; the paper evolves $T_1,T_2$ separately via linearised ODEs — whether $E^t_m$ is re-imposed exactly after the sub-step is not stated explicitly in what I read — **[uncertain]**, check later sections.)
+**Mixture conservation is built in**: since $\Delta_1y=-\Delta_2y$, the sources cancel when summed over $k$. Hence $\rho_m=\alpha\rho_1+\alpha\rho_2$, $\rho\mathbf u_m=\alpha\rho\mathbf u_1+\alpha\rho\mathbf u_2$ and $E^t_m=\alpha E^t_1+\alpha E^t_2$ are constant during relaxation. (Mass: the solver stores only $\alpha\rho_1$ and recovers $\alpha\rho_2=\rho_m-\alpha\rho_1$, so mixture mass is exact. **Energy/momentum: not addressed explicitly in the paper.** The solver evolves $\mathbf u_1,\mathbf u_2,T_1,T_2$ independently from linearised ODEs with coefficients frozen at $\bar{\mathbf w}$; with frozen, phase-specific $\bar K$ the discrete updates of $\alpha E^t_1$ and $\alpha E^t_2$ need not cancel exactly, so $E^t_m$ (and $\rho\mathbf u_m$, since $K_{\mathbf u_I}^{\mathbf u_k}$ contains $1/\alpha\rho_k$ frozen) is conserved only up to the linearisation error controlled by $\delta^{\max}$. Nowhere in the paper is an a-posteriori re-projection onto $E^t_m$ described — **[my inference; the paper is silent]**. Ref. [35] (Sirianni, Re, Abgrall, "Mixture-conservative temperature-based BN solver", C&F 2025) is the authors' hyperbolic solver that handles conservation with temperature as variable; the relaxation step here might rely on something similar but this is not stated.)
 
 ### 3.2 Primitive-variable form, Eq. (9) (derivation in Appendix A)
 
@@ -310,4 +310,3 @@ All integrals computed **analytically with a symbolic toolbox**; result $\tilde{
 
 ---
 
-*(continued below after pages 13-24)*
