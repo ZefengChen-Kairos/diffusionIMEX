@@ -270,7 +270,7 @@ Since the pair (57)–(58) does **not** in general satisfy (43) (because of the 
 $$\mathcal E^0=\alpha_1^*\mathcal E_1\Big(p^*,\frac{(\alpha_1\rho_1)^0}{\alpha_1^*}\Big)+\alpha_2^*\mathcal E_2\Big(p^*,\frac{(\alpha_2\rho_2)^0}{\alpha_2^*}\Big). \tag{59}$$
 Convenient with complex EOS (P&S 2014 procedure may need an iterative method). Appendix D shows that this procedure ensures velocity and pressure invariance at material interfaces at least with SG EOS [continued next page].
 
-*Note:* $p_I$ in (51) is evaluated at state $^0$ (with impedance-weighted $p_I$ in tests) [uncertain whether the paper uses $p_I^0$ or another value — see later pages].
+*Note:* the paper does not state at which state $p_I$ in (51) is evaluated; since all of $\xi_k^{p}$ is frozen at $^0$, $p_I^0$ (impedance-weighted in the tests) is the natural reading [uncertain]. In the instantaneous limit only the ratio of $\xi$'s matters for (57).
 used [i.e. the SG EOS]. A similar mechanical relaxation procedure was proposed in De Lorenzo et al. (2019), but there the exponential solution for $\alpha_1$ was assumed *a priori*, whereas here it is deduced from the model equations by assuming $\xi_k^p$ constant during relaxation. Also, in De Lorenzo 2019 the instantaneous case was an exponential with very small relaxation time; here the analytical limit (57) is used.
 
 **Summary of the mechanical step (as I read it):**
@@ -427,4 +427,150 @@ Both instantaneous and finite-rate transfer; mainly finite-rate mass transfer un
 
 #### 8.2.3 Simões-Moreira & Shepherd dodecane evaporation tests
 - Validation following Saurel et al. (2008): compare computed evaporation front velocities with experiments of Simões-Moreira & Shepherd (1999): liquid dodecane suddenly discharged into a low-pressure chamber (diaphragm broken), depressurising liquid and initiating evaporation. Initial reservoir pressure ≈ 1 mbar; eight test temperatures $T_{\rm test}$ from 180 °C to 300 °C.
-- As in Saurel 2008, Zein 2010, Rodio–Abgrall 2015: instantaneous mass transfer; liquid and vapour dodecane modelled by a **stiffened gas** EOS with the dodecane parameters of Pelanti & Shyue (2014) (good match with experimental saturation curve in this range). $T_{\rm test}$ set everywhere initially. In the low-pressure chamber $p=1$ mbar as in the experiments, and in the other [continued]
+- As in Saurel 2008, Zein 2010, Rodio–Abgrall 2015: instantaneous mass transfer; liquid and vapour dodecane modelled by a **stiffened gas** EOS with the dodecane parameters of Pelanti & Shyue (2014) (good match with experimental saturation curve in this range). $T_{\rm test}$ set everywhere initially. In the low-pressure chamber $p=1$ mbar as in the experiments, and in the other
+tube portion the pressure is set to the saturation value corresponding to $T_{\rm test}$ (following Fechter et al. 2018).
+- Evaporation front velocity (Saurel 2008, Zein 2010): $U_{\rm front}=\dfrac{(\rho u)_a-(\rho u)_b}{\rho_a-\rho_b}$, $a$/$b$ = state after/before the evaporation wave. Averaged over results between $t=400$ μs and $t=500$ μs.
+- Domain length, grid, CFL for this test: **not stated** in the text I read [uncertain — not given].
+- Fig. 7: computed vs experimental front velocity for $T\approx453$–$573$ K; velocities rise from ≈0.2 m/s to ≈1.5 m/s; good agreement (similar to Zein et al. 2010).
+
+#### 8.2.4 Barták's depressurization (blowdown) experiment (1D)
+- Barták (1990): rapid depressurisation of a pressurised water pipe initiated by disk rupture (relevance: LOCA hazard in water-cooled reactors). Characteristic: pressure falls below saturation → metastable superheated liquid before vaporisation; needs non-instantaneous mass transfer.
+- Initial: liquid water, $p=12.5\times10^6$ Pa, $T=T_1=T_2=563.15$ K; uniformly distributed vapour $\alpha_{\rm vap}=10^{-3}$. Tube length 1700 mm, permanently closed on the right; left suddenly opened → atmospheric pressure conditions at the left boundary, $p=10^5$ Pa.
+- NASG water, **Table 5** (350–550 K set).
+- 1000 cells, CFL 0.5, $t_{\rm final}=17.5$ ms (very first stage of the transient).
+- Fig. 8: pressure and vapour mass fraction histories at $x=48$ mm (first gauge P1).
+- Cases: (i) instantaneous heat transfer ($\vartheta\to\infty$) + **finite-rate mass transfer** with relaxation function (modified Downar-Zapolski 1996 / De Lorenzo 2017):
+$$\nu=C_r\,\alpha_2^{0.6}\Big(\frac{p_{\rm sat}-p}{p_{\rm crit}-p_{\rm sat}}\Big)^{1.76},\qquad C_r=1\ \text{Pa kg}^2/(\text{s J}^2), \tag{84}$$
+  $p_{\rm crit}=22.0640\cdot10^6$ Pa. [*Note:* $\alpha_2$ is the vapour volume fraction; $p_{\rm sat}=p_{\rm sat}(T)$; $\nu$ only meaningful for $p<p_{\rm sat}$ — behaviour for $p>p_{\rm sat}$ not stated; presumably $\nu=0$ / mass transfer only in evaporation. **uncertain**]. (ii) no mass transfer ($\vartheta\to\infty,\nu=0$). (iii) instantaneous heat and mass transfer ($\vartheta,\nu\to\infty$), similar to HEM.
+- Results: finite-rate case qualitatively agrees with experiment, predicting a metastable superheated state $p<p_{\rm sat}(T)$ (pressure undershoot to ≈3 MPa, then recovery to ≈4.3 MPa vs experimental ≈4.5 MPa [read from plot]) followed by vaporisation. Instantaneous mass transfer: pressure stays at ≈$p_{\rm sat}(T_0)\approx5.8$ MPa — cannot describe metastable states. No mass transfer: pressure drops to ~0. $Y_{\rm vap}$ at P1: instantaneous saturates ≈0.0064; finite-rate grows linearly to ≈0.006 at 15 ms; none ≈0.
+
+#### 8.2.5 High-pressure fuel injector (2D)
+- Variant of Saurel et al. (2008); previously solved in P&S 2014 (SG, instantaneous).
+- Nozzle: length 10 cm, height 4 cm, throat height 1.2 cm; converging and diverging chamber outer inclination angles 45° and 10° w.r.t. horizontal.
+- Initial discontinuity at $x=0.8$ cm: left liquid dodecane $p=10^8$ Pa, $T=550$ K; right dodecane vapour $p=10^5$ Pa, $\rho_{\rm vap}=5$ kg/m³. $\alpha_{\rm vap}=10^{-4}$ in the liquid, $\alpha_{\rm liq}=10^{-6}$ in the vapour. Initially thermal equilibrium. NASG dodecane (Table 4).
+- Heat and mass transfer activated at interfaces $\min(\alpha_{\rm vap},\alpha_{\rm liq})>\epsilon$, $\epsilon=0.9\times10^{-4}$. Instantaneous thermal relaxation; varied $\nu$.
+- Fig. 9: instantaneous heat and mass transfer, $400\times160$ cells, CFL 0.4, $t=0.0006$ s (≈ stationary): $\rho_m$, $\alpha_v$, $p$, $Y_{\rm vap}$, $u$, $T_l$.
+- Fig. 10: $Y_{\rm vap}$ at $t=0.00027,0.0006,0.0012$ s for $\nu=0$, $0.1$, $25$, $+\infty$ [Pa kg²/(s J²)], $200\times80$ grid, CFL 0.4. Vapour production increases with $\nu$; at $t=0.0006$ the $\nu\to\infty$ results on the two meshes are comparable.
+- Shows capability to simulate mass transfer of arbitrary rate, slow to very fast.
+
+---
+
+## 9. Conclusions (Section 9)
+- New efficient relaxation techniques for mechanical, thermal and chemical source terms of model (1), based on analytical semi-exact exponential solutions; applicable to general EOS; arbitrary-rate heat and mass transfer; mixture-energy-consistent.
+- For MG-form EOS no iterative method needed; for more complex EOS, only the mixture energy equation (43) defining $p$ implicitly may need iteration.
+- Robust for both stiff instantaneous and non-stiff slow finite-rate processes — improvement over De Lorenzo 2019, 2021 (explicit RK).
+- By construction the techniques can also treat relaxation terms of the *p*-relaxed (9) and *pT*-relaxed (18) models when solved directly (e.g. Demou et al. 2022 for *pT*).
+- Future work: couple with a Table Look-up Method (De Lorenzo 2017, 2021) for IAPWS-IF97 water; extend to the three-phase model (Pelanti & Shyue 2019) for underwater explosions.
+- Funding: DGA grant N. 2018.60.0071.00.470.75.01. Thanks to K.-M. Shyue, M. De Lorenzo.
+
+---
+
+## Appendix A. Derivation of the *p*-relaxed model (Chapman–Enskog-like, Murrone & Guillard 2005; Chen et al. 1994)
+
+1D primitive variables $w\in\mathbb R^6$:
+$$\partial_tw+A(w)\partial_xw=\frac1\tau\Psi(w)+\Phi(w),\qquad \tau\equiv\tilde\mu/\mu \tag{85a}$$
+($\tilde\mu$ arbitrary reference to non-dimensionalise $\mu$),
+$$w=[\alpha_1,\rho_1,\rho_2,u,p_1,p_2]^T,\quad
+A=\begin{bmatrix}u&0&0&0&0&0\\0&u&0&\rho_1&0&0\\0&0&u&\rho_2&0&0\\\frac{p_1-p_2}{\rho}&0&0&u&\frac{\alpha_1}{\rho}&\frac{\alpha_2}{\rho}\\0&0&0&\rho_1c_1^2&u&0\\0&0&0&\rho_2c_2^2&0&u\end{bmatrix} \tag{85b}$$
+$$\Psi=\tilde\mu\begin{bmatrix}p_1-p_2\\-\frac{\rho_1}{\alpha_1}(p_1-p_2)\\\frac{\rho_2}{\alpha_2}(p_1-p_2)\\0\\-\frac{1}{\alpha_1}[\Gamma_1(\mathcal E_1+p_I)+\chi_1\rho_1](p_1-p_2)\\\frac{1}{\alpha_2}[\Gamma_2(\mathcal E_2+p_I)+\chi_2\rho_2](p_1-p_2)\end{bmatrix},\quad
+\Phi=\begin{bmatrix}0\\\frac{\mathcal M}{\alpha_1}\\-\frac{\mathcal M}{\alpha_2}\\0\\\frac{\Gamma_1}{\alpha_1}\mathcal Q+(\Gamma_1g_I+\chi_1)\frac{\mathcal M}{\alpha_1}\\-\frac{\Gamma_2}{\alpha_2}\mathcal Q-(\Gamma_2g_I+\chi_2)\frac{\mathcal M}{\alpha_2}\end{bmatrix} \tag{85c}$$
+Limit $\tau\to0^+$: solutions close to $\mathfrak U=\{w:\Psi(w)=0\}$, assumed a smooth manifold of dimension $L$ with Maxwellian parameterisation $\Xi$ from $\Omega\subset\mathbb R^L$; columns of $d\Xi_v$ span $\ker\Psi'(\Xi(v))$.
+$$C=[d\Xi_v^1\dots d\Xi_v^L\,V^1\dots V^{6-L}] \tag{86}$$
+($V^j$ basis of range of $\Psi'$). $P$ = first $L$ rows of $C^{-1}$:
+$$P\,d\Xi_v=\mathbb I_L,\qquad P\,\Psi'(\Xi(v))=0. \tag{87}$$
+Ansatz $w=\Xi(v)+\tau z$:
+$$\partial_t(\Xi(v))+A(\Xi(v))\partial_x(\Xi(v))-\Psi'(\Xi(v))z=\Phi(\Xi(v))+\mathcal O(\tau) \tag{88}$$
+$$\partial_tv+PA(\Xi(v))d\Xi_v\partial_xv=P\Phi(\Xi(v)). \tag{89}$$
+$v=[\alpha_1,\rho_1,\rho_2,u,p]^T\in\mathbb R^5$ (90), $L=5$; $\Xi(v)=[\alpha_1,\rho_1,\rho_2,u,p,p]^T$ (91);
+$d\Xi_v=\begin{bmatrix}\mathbb I_4&0\\0\cdots0&1\\0\cdots0&1\end{bmatrix}$ (92);
+$V^1=[1,-\frac{\rho_1}{\alpha_1},\frac{\rho_2}{\alpha_2},0,-\frac{\rho_1}{\alpha_1}c_1^2,\frac{\rho_2}{\alpha_2}c_2^2]^T$ (93);
+$$P=\left[\begin{array}{c|cc}\mathbb I_4&\begin{matrix}\frac{\alpha_1\alpha_2}{D}&-\frac{\alpha_1\alpha_2}{D}\\-\frac{\rho_1\alpha_2}{D}&\frac{\rho_1\alpha_2}{D}\\\frac{\rho_2\alpha_1}{D}&-\frac{\rho_2\alpha_1}{D}\\0&0\end{matrix}\\\hline 0\ \cdots\ 0&\frac{\rho_2c_2^2\alpha_1}{D}\quad\frac{\rho_1c_1^2\alpha_2}{D}\end{array}\right] \tag{94}$$
+**As printed (verified at 400 dpi):** column 5 of $P$ = $(\frac{\alpha_1\alpha_2}{D},-\frac{\rho_1\alpha_2}{D},\frac{\rho_2\alpha_1}{D},0\,|\,\frac{\rho_2c_2^2\alpha_1}{D})$, column 6 = $(\frac{\alpha_1\alpha_2}{D},\frac{\rho_1\alpha_2}{D},-\frac{\rho_2\alpha_1}{D},0\,|\,\frac{\rho_1c_1^2\alpha_2}{D})$. **Probable typo:** $P\,d\Xi_v=\mathbb I_5$ requires $P_{1,5}+P_{1,6}=0$, and $PV^1=0$ (first row: $1-\frac{\alpha_2\rho_1c_1^2+\alpha_1\rho_2c_2^2}{D}=0$) also requires $P_{1,6}=-\frac{\alpha_1\alpha_2}{D}$. The matrix written above (with $P_{1,6}=-\alpha_1\alpha_2/D$) is the consistent one; all other entries match the print and pass both checks. Use $\chi_k=c_k^2-\Gamma_kh_k$ in $\Phi$. Result: model (9).
+
+**Remark (Appendix A):** Pelanti & Shyue (2014) had an extra term $\mathcal M/\rho_I$ ($\rho_I$ interface density) in the $\alpha_1$ equation of (1); here (like Flåtten–Lund 2011) it is **not** included. The rigorous derivation shows mass transfer affects $\alpha_k$ through the pressure relaxation anyway (the $\mathcal M$ term in (9a)). It did not affect P&S 2014 results, since there $\nu=0$ or $\nu\to\infty$ (algebraic equilibrium).
+
+## Appendix B. Source terms of the *pT*-relaxed model
+From (18): $\partial_t(\alpha_1\rho_1)=\mathcal M$, $\partial_t(\alpha_2\rho_2)=-\mathcal M$, $\partial_t\mathcal E=0$ (95a–c). Change of variables
+$$\tilde q=\begin{bmatrix}\alpha_1\rho_1\\\alpha_2\rho_2\\\mathcal E\end{bmatrix}=\begin{bmatrix}\alpha_1\rho_1(p,T)\\(1-\alpha_1)\rho_2(p,T)\\\alpha_1\mathcal E_1(p,T)+(1-\alpha_1)\mathcal E_2(p,T)\end{bmatrix},\qquad w=\begin{bmatrix}\alpha_1\\T\\p\end{bmatrix} \tag{96}$$
+$$\frac{d\tilde q}{dw}=\begin{bmatrix}\rho_1&\alpha_1\phi_1&\alpha_1\zeta_1\\-\rho_2&\alpha_2\phi_2&\alpha_2\zeta_2\\\mathcal E_1-\mathcal E_2&C_{\mathcal Ep}&C_{\mathcal ET}\end{bmatrix} \tag{97}$$
+$$C_{\mathcal Ep}=\alpha_1\Big(\frac{\partial\mathcal E_1}{\partial T}\Big)_p+\alpha_2\Big(\frac{\partial\mathcal E_2}{\partial T}\Big)_p,\qquad C_{\mathcal ET}=\alpha_1\Big(\frac{\partial\mathcal E_1}{\partial p}\Big)_T+\alpha_2\Big(\frac{\partial\mathcal E_2}{\partial p}\Big)_T \tag{98a,b}$$
+$$\partial_tw=\Big(\frac{d\tilde q}{dw}\Big)^{-1}\begin{bmatrix}\mathcal M\\-\mathcal M\\0\end{bmatrix}=\mathcal M\begin{bmatrix}S_\alpha\\S_T\\S_p\end{bmatrix} \tag{99}$$
+$$S_\alpha=\frac{1}{D_T}\big[C_{\mathcal ET}(\alpha_1\phi_1+\alpha_2\phi_2)-C_{\mathcal Ep}(\alpha_1\zeta_1+\alpha_2\zeta_2)\big] \tag{100a}$$
+$$S_T=\frac{1}{D_T}\big[C_{\mathcal ET}(\rho_2-\rho_1)+(\mathcal E_1-\mathcal E_2)(\alpha_1\zeta_1+\alpha_2\zeta_2)\big] \tag{100b}$$
+$$S_p=\frac{1}{D_T}\big[C_{\mathcal Ep}(\rho_1-\rho_2)-(\mathcal E_1-\mathcal E_2)(\alpha_1\phi_1+\alpha_2\phi_2)\big] \tag{100c}$$
+$D_T$ from (23d) [*Note:* $D_T$ should be $\det(d\tilde q/dw)$ up to a common factor; in (23) the expressions have been multiplied through by $\Gamma$-factors]. Derivatives:
+$$\Big(\frac{\partial\mathcal E_k}{\partial T_k}\Big)_{p_k}=-\frac{\chi_k}{\Gamma_k}\phi_k,\qquad \Big(\frac{\partial\mathcal E_k}{\partial p_k}\Big)_{T_k}=\frac{1}{\Gamma_k}(1-\chi_k\zeta_k),\quad k=1,2. \tag{101}$$
+With $\mathcal E_1-\mathcal E_2=\rho_1h_1-\rho_2h_2$ [as printed; *Note:* actually $\mathcal E_1-\mathcal E_2=\rho_1h_1-\rho_2h_2$ holds since $p_1=p_2$] and $h_k=(c_k^2-\chi_k)/\Gamma_k$, numerators of (100) become (23). The derivation extends to constant $T_2-T_1=\Delta T$ by using variables of phase $k$ as functions of $p$ and $T_k$, e.g. $w=[\alpha_1,T_1,p]^T$. The derivation of homogeneous equations for $\alpha_1,p,T,u$ of the 4-eq. model from the 7-eq. Saurel–Abgrall model is in Demou et al. (2022).
+
+*Implementation note:* (99)–(101) is a cleaner way to compute $S_\alpha,S_T,S_p$ numerically: build the 3×3 Jacobian (97) and solve a linear system — avoids transcription errors in (23).
+
+## Appendix C. HLLC-type Riemann solver (1D, $q\in\mathbb R^6$)
+Requirements: $\Delta q\equiv q_r-q_\ell=\sum_{l}\mathcal W^l$ (102); conservation for $\alpha_k\rho_k$ and $\rho u$:
+$$\Delta f^{(\xi)}\equiv f^{(\xi)}(q_r)-f^{(\xi)}(q_\ell)=\sum_l s^l\mathcal W^{l(\xi)},\quad\xi=2,3,4 \tag{103}$$
+and mixture total energy conservation
+$$\Delta f_E\equiv f_E(q_r)-f_E(q_\ell)=\sum_l s^l(\mathcal W^{l(5)}+\mathcal W^{l(6)}),\quad f_E=u(E+\textstyle\sum_k\alpha_kp_k) \tag{104}$$
+((104) ensures (42); necessary but not sufficient for mixture-energy-consistency).
+Three waves (Fig. 11): $s^1=S_\ell$, $s^2=S^\star$, $s^3=S_r$ (105); states $q_\ell,q^{\star\ell},q^{\star r},q_r$;
+$\mathcal W^1=q^{\star\ell}-q_\ell$, $\mathcal W^2=q^{\star r}-q^{\star\ell}$, $\mathcal W^3=q_r-q^{\star r}$ (106).
+Invariance across middle wave: $u^{\star\ell}=u^{\star r}\equiv S^\star$ and $p_m^{\star\ell}=p_m^{\star r}\equiv p^\star$ (107) ($p_m=\alpha_1p_1+\alpha_2p_2$; individual $\alpha_kp_k$ vary).
+Phasic momenta $q_k^u=\alpha_k\rho_ku$ have non-conservative form:
+$$\partial_tq_k^u+\partial_xf_k^u+(-1)^{k-1}\Xi(q,\partial_xq)=0,\quad f_k^u=\alpha_k\rho_ku^2+\alpha_kp_k, \tag{108}$$
+$\Xi=Y_1\partial_x(\alpha_2p_2)-Y_2\partial_x(\alpha_1p_1)=Y_1\partial_xp_m-\partial_x(\alpha_1p_1)=-Y_2\partial_xp_m+\partial_x(\alpha_2p_2)$.
+RH conditions imposed (neglecting $\Xi$) across external waves:
+$$f^{(\xi)}(q_r)-f^{(\xi)}(q^{\star r})=S_r(q_r^{(\xi)}-q^{\star r(\xi)}),\ \xi=2,3,5,6;\quad f_k^u(q_r)-f_k^u(q^{\star r})=S_r(q^u_{kr}-q_k^{u\star r}) \tag{109a,b}$$
+$$f^{(\xi)}(q^{\star\ell})-f^{(\xi)}(q_\ell)=S_\ell(q^{\star\ell(\xi)}-q_\ell^{(\xi)}),\ \xi=2,3,5,6;\quad f_k^u(q^{\star\ell})-f_k^u(q_\ell)=S_\ell(q_k^{u\star\ell}-q^u_{k\ell}) \tag{109c,d}$$
+These imply correct RH for $\rho u$ and $E$ (so (42) holds). Intermediate partial pressures:
+$$(\alpha_kp_k)^{\star\iota}=(\alpha_kp_k)_\iota+(\alpha_k\rho_k)_\iota(S_\iota-u_\iota)(S^\star-u_\iota),\quad\iota=\ell,r \tag{110}$$
+$$S^\star=\frac{p_r-p_\ell+\rho_\ell u_\ell(S_\ell-u_\ell)-\rho_ru_r(S_r-u_r)}{\rho_\ell(S_\ell-u_\ell)-\rho_r(S_r-u_r)} \tag{111}$$
+(using $p_{m\ell}=p_\ell$, $p_{mr}=p_r$ — initial Riemann states are in pressure equilibrium). Wave speeds (Davis 1988):
+$$S_\ell=\min(u_\ell-c_{f\ell},u_r-c_{fr}),\qquad S_r=\max(u_\ell+c_{f\ell},u_r+c_{fr}) \tag{112}$$
+with frozen $c_f$ (4); more robust alternative: Bouchut (2004) (see De Lorenzo 2018). Volume fraction invariance across external waves:
+$$\alpha_k^{\star\ell}=\alpha_{k\ell},\qquad \alpha_k^{\star r}=\alpha_{kr} \tag{113}$$
+Middle states, $\iota=\ell,r$:
+$$q^{\star\iota}=\begin{pmatrix}\alpha_{1,\iota}\\(\alpha_1\rho_1)_\iota\frac{S_\iota-u_\iota}{S_\iota-S^\star}\\(\alpha_2\rho_2)_\iota\frac{S_\iota-u_\iota}{S_\iota-S^\star}\\\rho_\iota\frac{S_\iota-u_\iota}{S_\iota-S^\star}S^\star\\(\alpha_1\rho_1)_\iota\frac{S_\iota-u_\iota}{S_\iota-S^\star}\Big(\frac{E_{1,\iota}}{\rho_{1,\iota}}+(S^\star-u_\iota)\Big(S^\star+\frac{p_{1,\iota}}{\rho_{1,\iota}(S_\iota-u_\iota)}\Big)\Big)\\(\alpha_2\rho_2)_\iota\frac{S_\iota-u_\iota}{S_\iota-S^\star}\Big(\frac{E_{2,\iota}}{\rho_{2,\iota}}+(S^\star-u_\iota)\Big(S^\star+\frac{p_{2,\iota}}{\rho_{2,\iota}(S_\iota-u_\iota)}\Big)\Big)\end{pmatrix} \tag{114}$$
+with $p_{k,\iota}=p_\iota$. RH satisfied across the middle wave for conserved quantities:
+$$f^{(\xi)}(q^{\star r})-f^{(\xi)}(q^{\star\ell})=S^\star(q^{\star r(\xi)}-q^{\star\ell(\xi)}),\ \xi=2,3,4;\qquad f^E(q^{\star r})-f^E(q^{\star\ell})=S^\star(E^{\star r}-E^{\star\ell}) \tag{115a,b}$$
+$f^E=(E+\alpha_1p_1+\alpha_2p_2)u$. RH for the conservative portion of $\alpha_k\rho_ku$ and $\alpha_kE_k$ hold across the external waves but **not** in general across the middle wave (P&S 2014 incorrectly wrote RH for $\alpha_kE_k$ across the middle wave). The solver neglects $\Xi$ in the jump conditions for the 1- and 3-waves but not for the 2-wave:
+$$f^{(4+k)}(q^{\star r})-f^{(4+k)}(q^{\star\ell})=((\alpha_kE_k+\alpha_kp_k)^{\star r}-(\alpha_kE_k+\alpha_kp_k)^{\star\ell})S^\star \tag{116a}$$
+$$=S^\star(q^{\star r(4+k)}-q^{\star\ell(4+k)})+S^\star((\alpha_kp_k)^{\star r}-(\alpha_kp_k)^{\star\ell}),\quad k=1,2 \tag{116b}$$
+so the non-conservative contribution across the 2-wave is approximated as
+$$-S^\star((\alpha_kp_k)^{\star r}-(\alpha_kp_k)^{\star\ell}) \tag{117}$$
+— reasonable since across the 2-wave $p_m$ = const, $\Xi$ reduces to $-\partial_x(\alpha_1p_1)$ ($-\Xi=\partial_x(\alpha_1p_1)=-\partial_x(\alpha_2p_2)$), so (117) is a jump associated with $-u\partial_x(\alpha_kp_k)$. This HLLC-type solver belongs to the broader class introduced in De Lorenzo et al. (2018) (Suliciu-type interpretation).
+
+**Fluctuations for (44)–(45)** [my summary]: $\mathcal A^-\Delta Q=\sum_l(s^l)^-\mathcal W^l$, $\mathcal A^+\Delta Q=\sum_l(s^l)^+\mathcal W^l$ with $\mathcal W^l$ from (106) and $s^l$ from (105); the non-conservative product is thus handled implicitly by the wave decomposition (fluctuation form), no separate discretisation of $\Sigma$ needed.
+
+## Appendix D. Pressure invariance at interfaces
+Spurious pressure oscillations at contacts (Abgrall 1996) from cell-averaged conserved variables with nonlinear EOS. Shown: the pressure relaxation procedure of Section 7 preserves velocity and pressure invariance at material interfaces at least for SG-type (linear in $\rho$ and $\mathcal E$) EOS: (27) with constant $\Gamma(\rho)\equiv\bar\Gamma$, $\varepsilon_r\equiv\bar\varepsilon_r$, $p_r\equiv\bar p_r$:
+$$p_k(\rho_k,\mathcal E_k)=\bar\Gamma_k(\mathcal E_k-\rho_k\bar\varepsilon_{rk})+\bar p_{rk}. \tag{118}$$
+Isolated interface, uniform $\bar u>0$, $\bar p$.
+
+**Proposition.** If $u_i^n=\bar u$ and $p_i^n=\bar p$ $\forall i$, then the first-order scheme with instantaneous pressure relaxation ((44), (57), (59)) gives $u_i^{n+1}=\bar u$ and $p_i^{n+1}=\bar p$ with (118).
+
+Proof sketch: (i) HLLC: $\mathcal W^1=\mathcal W^3=0$ by (114); single 2-wave with $s^2=S^\star=\bar u$ (111). First-order update
+$$Q_i^{n+1}=Q_i^n-\bar u\frac{\Delta t}{\Delta x}(Q_i^n-Q_{i-1}^n)=(1-\xi_c)Q_i^n+\xi_cQ_{i-1}^n,\quad\xi_c\equiv\bar u\frac{\Delta t}{\Delta x} \tag{119}$$
+$$u_i^{n+1}=(\rho u)_i^{n+1}/\rho_i^{n+1}=\bar u \tag{120}$$
+(velocity invariance holds for any pressure law). Phasic pressures after homogeneous step, with (118):
+$$p_{ik}^{n+1}=\frac{1}{\alpha_{ik}^{n+1}}\big(\bar\Gamma_k((\alpha_k\mathcal E_k)_i^{n+1}-(\alpha_k\rho_k)_i^{n+1}\bar\varepsilon_{rk})\big)+\bar p_{rk}=\bar p,\quad\forall i,\ k=1,2. \tag{121}$$
+(ii) Since $(p_1^0)_i=(p_2^0)_i=\bar p$, $\Delta p^0=0$ and (57) gives $(\alpha_1^*)_i=(\alpha_1^0)_i=(1-\xi_c)\alpha^n_{1,i}+\xi_c\alpha^n_{1,i-1}$. Then (59) with (118):
+$$p_i^{n+1}=p_i^*=\frac{\mathcal E_i^0-\big((\alpha_1\rho_1)_i^0\bar\varepsilon_{r1}+(\alpha_2\rho_2)_i^0\bar\varepsilon_{r2}\big)+\Big(\frac{\alpha_{1,i}^0\bar p_{r1}}{\bar\Gamma_1}+\frac{\alpha_{2,i}^0\bar p_{r2}}{\bar\Gamma_2}\Big)}{\frac{\alpha_{1,i}^0}{\bar\Gamma_1}+\frac{\alpha_{2,i}^0}{\bar\Gamma_2}} \tag{122a}$$
+$$=\frac{\frac{1}{\bar\Gamma_1}\big((1-\xi_c)\alpha^n_{1,i}\bar p+\xi_c\alpha^n_{1,i-1}\bar p\big)+\frac{1}{\bar\Gamma_2}\big((1-\xi_c)\alpha^n_{2,i}\bar p+\xi_c\alpha^n_{2,i-1}\bar p\big)}{\frac{1}{\bar\Gamma_1}\big((1-\xi_c)\alpha^n_{1,i}+\xi_c\alpha^n_{1,i-1}\big)+\frac{1}{\bar\Gamma_2}\big((1-\xi_c)\alpha^n_{2,i}+\xi_c\alpha^n_{2,i-1}\big)}=\bar p. \tag{122b}$$
+[*Note:* (122a)'s sign on the $p_r/\Gamma$ term is "+" as printed; with (28) the term is $+\sum\alpha_kp_{rk}/\Gamma_k$… careful: from $\mathcal E_k=\rho_k\varepsilon_{rk}+(p-p_{rk})/\Gamma_k$, $p\sum\alpha_k/\Gamma_k=\mathcal E-\sum\alpha_k\rho_k\varepsilon_{rk}+\sum\alpha_kp_{rk}/\Gamma_k$ ✓.]
+Pressure invariance proven only for linear EOS, but numerically no oscillations were observed around material interfaces for general nonlinear MG pressure laws (27).
+
+---
+
+## Implementation notes, pitfalls, positivity, abnormal cases (synthesis)
+
+1. **Algorithm per time step** (Godunov/Lie splitting, as described): HLLC wave-propagation step (2nd order, minmod) → mechanical relaxation (57)+(59) [always] → thermal (67)/(68)+(70) [where active] → chemical (77)/(78) or (79)/(80) + (82) [where active]. Each relaxation uses the output of the previous one as initial data; $\mathcal E^0$, $\rho^0$, $(\rho\vec u)^0$ from the hyperbolic step are invariant throughout.
+2. **Mixture energy is the anchor.** After every relaxation sub-step the equilibrium pressure is *recomputed* from $\mathcal E^0=\sum\alpha_k^\#\mathcal E_k(p^\#,\rho_k^\#)$ (59)/(70)/(82); the exponential formulas give only $\alpha_1$ (and $\alpha_1\rho_1$). The "equilibrium" values $p_{\mu\to\infty}$ (58), $T_{\vartheta\to\infty}$ (69), $g_{\nu\to\infty}$ (81) are **not** used to set the state. Phasic total energies are then reconstructed from $\mathcal E_k(p^\#,\rho_k^\#)$ + kinetic energy split by mass [implied]. Hence energy conservation and consistency with (12) are exact by construction; the price is that equilibrium conditions ($T_1=T_2$, $g_1=g_2$) are satisfied only approximately in the instantaneous limit (first-order-in-linearisation accuracy).
+3. **Infinite-rate limit** is obtained analytically by $e^{-K\Delta t}\to0$: (57), (68), (79)–(80). No stiffness problem: exponential is unconditionally stable for any $K\Delta t\ge0$. Finite rate: exact solution of the frozen-coefficient linear ODE.
+4. **Frozen coefficients**: $\xi_k^{p}$, $\xi_k^{T}$, $\xi_k^{g}$, $Z/D$, $S_\alpha$, and the rates $\mu,\vartheta,\nu$ (if state-dependent, e.g. (84)) are evaluated at the start of each sub-step ($^0$, $^*$, $^{**}$ respectively).
+5. **Sign assumptions**: $K_p,K_T,K_g>0$ are assumed (physical). The paper does not discuss what happens if a computed $K$ is negative (e.g. near anomalous thermodynamics, or $\phi_k$ with sign change — water density maximum near 4 °C would make $\beta_k<0$!). A robust code should check and fall back (e.g. skip or clamp to the instantaneous algebraic solve). [my recommendation]
+6. **Positivity of $\alpha_1$**: if any relaxation step gives $\alpha_1\notin(0,1)$, clip to $\bar\alpha_1\in\{\epsilon_\alpha,1-\epsilon_\alpha\}$ ($\epsilon_\alpha=10^{-8}$). In the chemical step additionally recompute the effective rate $\bar K_g$ (83) and use it in (77) so that $\alpha_1\rho_1$ is consistent with the clipped $\alpha_1$ (complete evaporation/condensation; occurs in the dodecane shock tube 8.2.2). Positivity of $\alpha_k\rho_k$ after (77) is not explicitly guaranteed in the paper [not discussed].
+7. **Activation criteria**: thermo-chemical relaxation only where $\min_k\alpha_k>\epsilon$ ($10^{-6}$ default, $10^{-4}$ in 8.2.2, $0.9\times10^{-4}$ in 8.2.5); chemical relaxation only if $T>T_{\rm sat}(p)$ (evaporation only) in the tests of 8.2.1–8.2.2 (following Saurel 2008). In nearly pure-phase regions phase temperatures can be unphysical (vapour $T\sim10^6$ K in 8.2.2) — harmless because that phase is absent, but be careful when evaluating $\vartheta(T)$, $p_{\rm sat}(T)$ etc. there.
+8. **Pressure root-finding**: for MG-type EOS (SG, NASG, JWL) the mixture pressure from (12) is explicit (28) — **no iteration anywhere** in the arbitrary-rate procedures. For general EOS only the scalar equation (43) needs solving (Newton etc.). By contrast the instantaneous algebraic chemical-equilibrium solver of 7.1 needs iteration even for SG.
+9. **$g_I$ never needed**; $p_I$ only enters $\xi_k^p$ (51) (impedance-weighted $p_I$ in tests).
+10. **Interfaces/pressure oscillations**: mechanical relaxation step (57) leaves $\alpha_1$ unchanged when $p_1^0=p_2^0$ → exact pressure/velocity invariance at isolated interfaces for SG-type EOS (Appendix D); observed oscillation-free for general MG EOS.
+11. **Subcharacteristic behaviour**: with relaxation active, rarefaction fronts travel at the relaxed sound speed of the activated level ($c_p$, $c_{pT}$); with $T>T_{\rm sat}$ activation the front travels at $c_{pT}$, not $c_{pTg}$.
+12. **Suspected typos in the paper**: (72) sign of $s_kS_T$ for $k=2$ (use $(-1)^{k-1}(S_p/\rho_k-s_kS_T)$); (79)–(80) superscripts $^*$ should be $^{**}$; (94) sign pattern (see note).
+13. **For a TV-split IMEX user**: this paper's relaxation steps can be viewed as an exactly-integrated (exponential) implicit step for a locally linearised relaxation operator, applied sequentially (p → pT → pTg). Note the relaxation ODEs are *reformulated* (using relaxed-model equations, i.e. $\bar\psi_\vartheta$, $\bar\psi_\nu$) rather than integrating the original source vector $\psi_\vartheta,\psi_\nu$ of (37c) directly. The rate parameters' units: $\vartheta$ in Pa/(s K) [W m⁻³ K⁻¹], $\nu$ in Pa kg²/(s J²) [kg m⁻³ s⁻¹ per (J/kg)].

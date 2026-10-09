@@ -6,7 +6,7 @@
 
 > Scope of this note: equation-level transcription made for implementing a 6-equation diffuse-interface model with a transport/pressure-split IMEX scheme. Equation numbers are the paper's. Anything I could not read with certainty, or that looks like a typo in the paper, is marked **[uncertain]**. My own comments (not in the paper) are marked **[note]**.
 
-**Big picture in one paragraph.** The paper solves the full 7-equation Baer–Nunziato (BN) model with a *semi-implicit, linearly implicit* scheme in the Boscheri–Pareschi (2021, "high order pressure-based semi-implicit IMEX schemes for the 3D Navier–Stokes equations at all Mach numbers") style, i.e. the splitting idea of Toro–Vázquez-Cendón is used for the **energy flux** (kinetic part explicit, enthalpy part implicit) and pressure gradients are implicit. The convective (nonlinear) fluxes are explicit, discretised by a finite-volume Rusanov / global Lax–Friedrichs flux whose dissipation uses **only material velocities**; the implicit pressure terms are discretised by **central finite differences** with no added numerical diffusion. The volume-fraction equation is solved **first and implicitly** (linear system, GMRES). Then a linear **wave equation for $(\phi_\alpha p_\alpha)^{n+1}$** per phase is solved by GMRES, followed by explicit-in-form updates of momentum and energy. Relaxation sources (pressure relaxation $\mu$, drag $\delta$) are handled afterwards by a Strang-type splitting with a semi-implicit cell-local linear solve. Second order in time: LSDIRK2(2,2,2) semi-implicit IMEX Runge–Kutta of Boscaroli–Russo style [41]. CFL is based on $\max(|u_f|,|u_s|)$ only. Proven AP (low-Mach mixture limit gives $\nabla\cdot(\phi_s u_s+\phi_f u_f)=0$) and well-balanced (preserves moving contact discontinuities with constant $p,u$).
+**Big picture in one paragraph.** The paper solves the full 7-equation Baer–Nunziato (BN) model with a *semi-implicit, linearly implicit* scheme in the Boscheri–Pareschi (2021, "high order pressure-based semi-implicit IMEX schemes for the 3D Navier–Stokes equations at all Mach numbers") style, i.e. the splitting idea of Toro–Vázquez-Cendón is used for the **energy flux** (kinetic part explicit, enthalpy part implicit) and pressure gradients are implicit. The convective (nonlinear) fluxes are explicit, discretised by a finite-volume Rusanov / global Lax–Friedrichs flux whose dissipation uses **only material velocities**; the implicit pressure terms are discretised by **central finite differences** with no added numerical diffusion. The volume-fraction equation is solved **first and implicitly** (linear system, GMRES). Then a linear **wave equation for $(\phi_\alpha p_\alpha)^{n+1}$** per phase is solved by GMRES, followed by explicit-in-form updates of momentum and energy. Relaxation sources (pressure relaxation $\mu$, drag $\delta$) are handled afterwards by a Strang-type splitting with a semi-implicit cell-local linear solve. Second order in time: LSDIRK2(2,2,2) semi-implicit IMEX Runge–Kutta of Boscarino–Filbet–Russo [41]. CFL is based on $\max(|u_f|,|u_s|)$ only. Proven AP (low-Mach mixture limit gives $\nabla\cdot(\phi_s u_s+\phi_f u_f)=0$) and well-balanced (preserves moving contact discontinuities with constant $p,u$).
 
 **[note] Important clarification vs. the request's framing.** The paper does *not* split the flux into a "transport subsystem" and a "pressure subsystem" each with its own eigenstructure / Riemann solver in the classical Toro–Vázquez-Cendón (TV) sense. Instead the split is at the semi-discrete-in-time level: which terms are evaluated at $t^n$ (explicit) vs $t^{n+1}$ (implicit). The only eigenvalue information used is that the explicit convective part has eigenvalues $u_\alpha\cdot n$ (material velocity), used both for the CFL and for the Rusanov dissipation coefficient. The TV-type ingredient is the energy-flux split (9). Details below.
 
@@ -28,7 +28,7 @@ $$
 \end{aligned}\tag{1}
 $$
 
-**[uncertain / typo in paper]** The momentum equations are printed with a "$+p_I\nabla\phi_f$" on the LHS of the fluid momentum equation (written as $+\,p_I\nabla\phi_f$). Since $\nabla\phi_f=-\nabla\phi_s$ the fluid and solid interface forces are $-p_I\nabla\phi_s$ and $+p_I\nabla\phi_s$ on the RHS respectively... careful: with the printed signs the fluid momentum has LHS $+p_I\nabla\phi_f$, which is the *opposite* of the standard BN convention ($\partial_t(\alpha\rho u)+\dots+\nabla(\alpha p) = p_I\nabla\alpha$, i.e. LHS $-p_I\nabla\alpha$). Looking at the image, the fluid momentum line reads "$\nabla(p_f\phi_f)+p_I\nabla\phi_f$" and fluid energy "$+p_I\mathbf u_I\nabla\phi_f$", and the solid lines read "$-p_I\nabla\phi_s$", "$-p_I\mathbf u_I\nabla\phi_s$". Since $\nabla\phi_f=-\nabla\phi_s$, both phases then carry $-p_I\nabla\phi_s$ on the LHS for fluid (= $+p_I\nabla\phi_f$) and $-p_I\nabla\phi_s$ for solid — which means the interfacial forces do **not** cancel in the sum. The standard (momentum-conserving) BN is: fluid LHS $-p_I\nabla\phi_f$, solid LHS $-p_I\nabla\phi_s$, i.e. fluid LHS $= +p_I\nabla\phi_s$. Most likely the paper intends the standard BN and the fluid sign is a typo, or they intend "$\nabla\phi_f$" to be "$\nabla\phi_s$". Implement the standard, mixture-conservative form. Also the generic discrete form (12b) uses "$+\Delta t\,p_I^n\nabla\phi_\alpha^{n+1}$" for both phases, which is the standard form $\partial_t(\phi\rho u)+\dots=p_I\nabla\phi_\alpha$. So the generic scheme (12) is consistent with the standard BN; use that.
+**[uncertain / probable typo in paper — sign of the fluid interface terms]** (1) is transcribed exactly as printed (verified against the PDF text layer): the fluid equations carry $+p_I\nabla\phi_f$ and $+p_I\mathbf u_I\cdot\nabla\phi_f$ on the LHS, the solid equations $-p_I\nabla\phi_s$ and $-p_I\mathbf u_I\cdot\nabla\phi_s$. Since $\nabla\phi_f=-\nabla\phi_s$, the two interface forces as printed do **not** cancel when summed (sum $=-2p_I\nabla\phi_s$), so mixture momentum/energy would not be conserved. The standard (Saurel–Abgrall) BN has LHS $-p_I\nabla\phi_\alpha$ for *both* phases, i.e. fluid LHS $=+p_I\nabla\phi_s$. Most likely the paper means $\nabla\phi_s$ in the fluid lines. The generic discrete scheme (12b)/(12c), with "$+\Delta t\,p_I^n\nabla\phi_\alpha^{n+1}$" on the RHS for each phase $\alpha$, **is** the standard conservative form — implement that.
 
 - Variables: phase density $\rho_\alpha$, pressure $p_\alpha$, velocity $\mathbf u_\alpha$, volume fraction $\phi_\alpha\in[0,1]$, $\phi_s+\phi_f=1$; specific total energy $E_\alpha=e_\alpha+k_\alpha$, $k_\alpha=\tfrac12|\mathbf u_\alpha|^2$.
 - Sources: $\delta$ = drag (velocity relaxation), $\mu$ = pressure relaxation parameter; both possibly stiff ("frequently treated as instantaneous", $\mu,\delta\to\infty$).
@@ -344,7 +344,7 @@ $$
 $$
 \sigma^n_{i,\star\star}=\sigma^n_i\,\frac{\partial(\rho_\alpha\phi_\alpha e_\alpha)^n_i}{\partial p^n_{\alpha,i}}.\tag{40}
 $$
-(For stiffened gas $\partial(\rho\phi e)/\partial p=\phi/(\gamma-1)$ — **[note]**.) Only active for very high Mach flows (it is not scaled with $\epsilon$-independent velocity only... the paper notes in Sec. 3.6 that it is only activated at very high Mach).
+(For stiffened gas $\partial(\rho\phi e)/\partial p=\phi/(\gamma-1)$ — **[note]**.) Per Sec. 3.6, this pressure-jump term is only activated for very high Mach flows (it would otherwise add acoustic-type dissipation that spoils the low-Mach accuracy).
 
 ### 3.5 Relaxation solver (sources)
 
@@ -586,3 +586,92 @@ $\Omega=[0,1]$, $N_x=1000$, Dirichlet BCs, $x_D=0.5$. Reference: explicit 2nd-or
 
 ### 4.3 2D Riemann problems (start)
 MPI-parallel code. Two 2D Riemann problems from Dumbser–Boscheri [54] (inspired by Zhang–Zheng [71], Kurganov–Tadmor [72]). Four constant states in the quadrants of $\Omega=[-0.5,0.5]^2$, reflective walls everywhere. Parameters in Table 3 (next pages).
+
+Reference: high-order (third-order, per Fig. 11/12 captions) ADER-WENO FV scheme [67,73] on 2 277 668 triangles, $h=1/1000$. **[uncertain]** The SIFV-BN mesh resolution for the 2D RPs is not stated in the text I read. Final time 0.15. Table 3 (quadrant states; TR = top right, TL = top left, BL, BR):
+
+| case | EOS f ($\gamma,\pi$) | EOS s ($\gamma,\pi$) | $(\delta,\mu)$ | quad | $\rho_f$ | $\mathbf u_f$ | $p_f$ | $\rho_s$ | $\mathbf u_s$ | $p_s$ | $\phi_s$ | $t_f$ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| RP2D1 [54] | 1.67, 0 | 1.4, 0 | $10^3$, $10^2$ | TR | 1.5 | (0,0) | 2.0 | 2.0 | (0,0) | 2.0 | 0.8 | 0.15 |
+| | | | | TL | 0.5 | (0,0) | 1.0 | 1.0 | (0,0) | 1.0 | 0.4 | |
+| | | | | BL | 1.5 | (0,0) | 2.0 | 2.0 | (0,0) | 2.0 | 0.8 | |
+| | | | | BR | 0.5 | (0,0) | 1.0 | 1.0 | (0,0) | 1.0 | 0.4 | |
+| RP2D2 [54] | 1.4, 0 | 3.0, 100 | 0, 0 | TR | 1.0 | (0,0) | 1.0 | 1000.0 | (0,0) | 600.0 | 0.3 | 0.15 |
+| | | | | TL | 1.5 | (0,0) | 2.0 | 800.0 | (0,0) | 500.0 | 0.4 | |
+| | | | | BL | 1.0 | (0,0) | 1.0 | 1000.0 | (0,0) | 600.0 | 0.3 | |
+| | | | | BR | 1.5 | (0,0) | 2.0 | 800.0 | (0,0) | 500.0 | 0.4 | |
+
+RP2D1 has stiff relaxation sources; RP2D2 homogeneous. Figs. 11 (labelled "C1") and 12 ("C2"): $\rho_f$, $\rho_s$, $\phi_s$ at $t_f=0.15$; "strikingly in accordance" qualitatively with the reference; SIFV-BN slightly more diffusive (my visual impression), $\phi_s$ in C2 essentially stays at the initial quadrant pattern (contacts are stationary).
+
+### 4.4 2D Taylor–Green vortex at low Mach (AP / divergence convergence)
+Incompressible single-phase solution:
+$$
+\rho=\rho_0,\quad u=\sin x\cos y,\quad v=-\cos x\sin y,\quad p=p_0+\tfrac14(\cos2x+\cos2y).\tag{73}
+$$
+- $\Omega=[0,2\pi]^2$ periodic, $N_x\times N_y=50\times50$; $\rho_0=1$; (73) assigned to **each phase**; ideal gas $\gamma_f=\gamma_s=1.4$.
+- Mach lowered by increasing $p_0$ (up to $p_0=10^6$ for $M=10^{-3}$); $t_f=0.2$; **constant** $\Delta t=2.5\cdot10^{-3}$.
+- "Single phase": $\phi_s=0.5$; two-phase: $\phi_s=0.5+0.1(\cos2x+\cos2y)$.
+- Error in mixture velocity divergence with $\nabla_h\cdot\mathbf u=\frac{u_{i+1}-u_{i-1}}{2\Delta x}+\frac{v_{i+1}-v_{i-1}}{2\Delta y}$. Table 4 ("order" is w.r.t. $M$, i.e. $\nabla\cdot u=\mathcal O(M^2)$):
+
+| $M$ | $L_1$ | ord | $L_2$ | ord | $L_\infty$ | ord |
+|---|---|---|---|---|---|---|
+| single-phase $10^{-1}$ | 2.071400E−2 | – | 4.188600E−3 | – | 1.533700E−3 | – |
+| $10^{-2}$ | 4.964400E−4 | 1.62 | 1.026100E−4 | 1.61 | 3.603900E−5 | 1.63 |
+| $10^{-3}$ | 4.143400E−6 | 2.08 | 8.689600E−7 | 2.07 | 3.011100E−7 | 2.08 |
+| two-phase $10^{-1}$ | 2.9392E−02 | – | 5.5657E−03 | – | 1.9747E−03 | – |
+| $10^{-2}$ | 7.9792E−04 | 1.57 | 1.4673E−04 | 1.58 | 5.2690E−05 | 1.57 |
+| $10^{-3}$ | 4.1945E−06 | 2.28 | 8.7848E−07 | 2.22 | 3.0879E−07 | 2.23 |
+
+- Fig. 13 ($M=10^{-3}$): Mach contours up to $8\times10^{-4}$, $\nabla\cdot u$ contours $\pm2.5\times10^{-7}$; 1D cuts of $u,v$ match; pressure cut has a small deviation in amplitude vs reference.
+- **Important negative result:** for even lower Mach the scheme **does not converge** (cf. Orlando et al. [75]) because the collocated cell-centred discretisation is not divergence-preserving (no div–curl compatibility). Future: staggered / div-curl preserving schemes [59].
+
+### 4.5 Shock–bubble interaction (2D)
+- $\Omega=[-0.5,3]\times[-0.75,0.75]$; gas bubble radius 0.25 centred $(0.5,0)$, ideal gas $\gamma_f=1.4$; liquid stiffened gas $\gamma_s=3.0$, $\pi_s=100$, "moving at high speed from left to right". Inflow left, slip walls elsewhere. $2048\times1024$ cells. $t_f=0.025$, snapshots at $t=0.005,0.010,0.015,0.020,0.025$ (Fig. 14: $\phi_s$ and $\rho_s$, 21 contour lines; $\phi_s$ colour range ≈0.26–0.74, $\rho_s$ ≈1025–2225).
+- **[uncertain]** Exact pre/post-shock states, bubble/liquid densities and pressures are **not given** in the paper (refers to [76] Shyue, [78] Dumbser et al.). Result: qualitatively very good vs literature [78]; bubble rolls into two vortices.
+
+### 4.6 Water–air mixture (1D, then 3D)
+Riemann problem inspired by Saurel et al. [19], modified in Re–Abgrall [46].
+- $\Omega=[-0.65,0.65]$, $N_x=1000$, Dirichlet BCs.
+- Air (fluid): $\rho_f=1.2$, ideal gas $\gamma_f=1.4$. Water (solid phase index): $\rho_s=1050$, stiffened gas $\gamma_s=4.4$, $\pi_s=6.8\times10^8$.
+- At rest, uniform densities; both phases same pressure: $p=10^6$, $\phi=0.3$ "in the center of the domain", $p=10^5$, $\phi=0.7$ elsewhere. **[uncertain]** extent of the "center" region not given (from Fig. 15 the waves start at $x=0$, suggesting a half-domain / central interface split — the 3D plot suggests a central sphere/cube; the 1D extent is unclear). **[uncertain]** whether $\phi$ is $\phi_s$ (water) — most likely.
+- Interface closure **(3b)** (as in [46]); dimensional units, $t_f=350\,\mu s$.
+- Fig. 15: $\rho_s\in[1049.9,1050.26]$, $u_s\lesssim0.4$, $M_s\lesssim7\times10^{-3}$; $\rho_f$ up to ≈3.75, $u_f$ up to ≈545, $M_f$ up to ≈1.15 — four orders of magnitude of Mach in one simulation; excellent agreement with TVD reference (same as Sec. 4.2).
+- Efficiency, Table 5 (i7-1255U, 4 CPUs, $\beta$ = explicit/SIFV-BN):
+
+| test | SIFV-BN [s] | explicit FV [s] | $\beta$ |
+|---|---|---|---|
+| Explosion problem | 131.46 | 529.22 | 4.03 |
+| Water–air mixture | 14194.19 | 614122.20 | 43.27 |
+
+  **[note] inconsistency in paper:** Sec. 4.2 text says the explosion problem ($\delta=10^5$) gains a factor 43, and Sec. 4.6 text says water–air is "4 times faster" — the opposite of Table 5. Table 5's assignment (43× for water–air) is plausible because the stiffened water has a large sound speed relative to the flow velocity in the liquid, but the air velocity is also large there, so it is **unclear which is correct**.
+- 3D: $\Omega=[-0.65,0.65]^3$, $t_f=300\,\mu s$, meshes 7 077 888 ($192^3$) and 16 777 216 ($256^3$) cells. Fig. 16: $|\mathbf u_s|$ and $p_s$ on planes $x,y,z=0$; 1D cuts of air pressure (peaks ≈2.5×10^5) and water pressure (peaks ≈1.8×10^5) agree between meshes; no spurious oscillations, symmetry preserved.
+
+---
+
+## 5. Conclusions (paper)
+Pressure fluxes and stiff sources implicit with central FD; shock capturing from explicit FV on convective terms; $\Delta t$ limited by flow velocity only. Non-conservative products discretised for exact preservation of moving equilibria. 2nd order in space/time with judicious numerical viscosity. Single Mach number for the mixture; AP for the mixture low-Mach limit. Future: phase-specific Mach numbers, viscosity and gravity (Reynolds/Froude), magma flows in volcanic conduits, BN in fully non-conservative (primitive) form with conservation.
+
+---
+
+## 6. Implementation notes / pitfalls (my synthesis, for a 6-equation TV-split IMEX code)
+
+**What the "TV split" actually is here.** The split is Toro–Vázquez-Cendón-inspired only through the energy flux (9): $\phi\mathbf u(\rho E+p)=\epsilon\rho\phi k\mathbf u$ (explicit, advective) $+\ \rho\phi h\mathbf u$ (implicit, pressure). Unlike TV's original flux-vector splitting, there is **no separate Riemann solver for the pressure subsystem**; the pressure system is discretised with central differences and solved implicitly, and its eigenstructure is irrelevant to the CFL. The "advection subsystem" is: mass flux, $\rho\mathbf u\otimes\mathbf u\phi$, $\rho k\mathbf u\phi$, with eigenvalues $u_\alpha\cdot n$ only; Rusanov with $a=\max(|u_f|,|u_s|)$ global. The "pressure subsystem" is: $\nabla(\phi p)$, $p_I\nabla\phi$, $\nabla\cdot(h\rho\phi\mathbf u)$, $p_I\mathbf u_I\cdot\nabla\phi$, and (unusually) the volume-fraction transport $\mathbf u_I\cdot\nabla\phi$, which is implicit-in-$\phi$ with explicit $u_I$.
+
+**Non-conservative terms.** All products $p_I\nabla\phi$, $p_Iu_I\nabla\phi$, $u_I\nabla\phi$ use a single central "fluctuation" form with arithmetic face averages of the explicit coefficient and $\phi^{n+1}$ — same operator everywhere → constant-$p,u$ contacts preserved. If you add dissipation to $\phi$, you **must** add the matched internal-energy dissipation (38) to the pressure equation and the total-energy update.
+
+**Pressure system.** Unknown per phase $P_\alpha=(\phi_\alpha p_\alpha)^{n+1}$; 1D row (interior):
+$$
+\frac{P_i}{\gamma-1}-\frac{\Delta t}{4\Delta x}\bar u_i(P_{i+1}-P_{i-1})-\frac{\Delta t^2}{\Delta x^2}\Big[(\tfrac34h_{i-1}+\tfrac14h_{i+1})P_{i-1}-(h_{i-1}+h_{i+1})P_i+(\tfrac14h_{i-1}+\tfrac34h_{i+1})P_{i+1}\Big]=\text{RHS}_i,
+$$
+with $\bar u_i=(\rho\phi u)^n_i/(\rho\phi)^n_i$. Diagonally dominant for the elliptic part (positive-definite diffusion with $h>0$), non-symmetric due to the advective term → GMRES (they use tol $10^{-12}$). In multi-D add the same 1D operator in each direction. For a 6-equation model (single velocity) the analogous system is for the mixture pressure; the per-phase structure here does not directly carry over — you will couple phases through the common velocity. **[note]**
+
+**Order of updates per stage:** $\phi^{n+1}$ (implicit, linear) → explicit $\rho^\star,q^\star,E^\star$ (needs $\phi^{n+1}$) → $h^n$ via (18) with $\rho^{n+1}=\rho^\star$ → pressure system → momentum (32a) → energy (32b) → relaxation (42).
+
+**Conservation.** Partial masses: conservative FV (exact). Momentum and total energy per phase: conservative form up to the non-conservative interface terms; mixture momentum/energy conservation relies on the interface terms cancelling between phases — check signs carefully (see sign issue in (1)). Pressure from the wave equation is only used as a flux → total energy is conservatively updated, but then $(\rho\phi E)^{n+1}$ is not exactly $\mathrm{EOS}(p^{n+1})+k^{n+1}$ (Remark 1: $\mathcal O(\Delta t^q)$ thermodynamic inconsistency; also a stencil mismatch between (31) and the central FD in (32b)). Decide which $p$ to use afterwards (recomputed from $E$ vs. solved $P$). Fix: second pressure solve [60] or Picard.
+
+**Positivity.** Not discussed in the paper. No positivity proof for $\rho\phi$, $p$, or $\phi\in[0,1]$. The implicit central $\phi$ equation (23) is not monotone (central, no maximum principle) — they add optional explicit dissipation (36). Expect overshoots in $\phi$ at strong contacts; RP5/RP6 show small oscillations. The global LF coefficient uses only material speeds, so at strong shocks (high Mach) the explicit part is under-dissipated relative to acoustics; the optional pressure-jump viscosity (39) helps. With $a_\Omega=0$ (fluid at rest) the explicit fluxes have zero dissipation, and the first step uses the acoustic CFL (6).
+
+**Stiff relaxation.** Pressure relaxation in (42) uses frozen $p^H$ → explicit in $\mu$; only drag is implicit. For instantaneous pressure (and thermal/chemical) relaxation as in Saurel/Pelanti 6-eq models, you need a dedicated relaxation solver; this paper does not supply one. The AP analysis assumes finite $\mu$ and $\epsilon\to0$ with one global Mach number.
+
+**Time integration.** LSDIRK2(2,2,2), $\beta=1-1/\sqrt2$, $\hat c=1/(2\beta)$; stage formulas follow Boscarino–Filbet–Russo [41] and Boscheri–Pareschi [43] (not written out here). Relaxation is within the step after the homogeneous part ("Strang splitting" claimed; second order then requires a symmetric arrangement — not detailed **[uncertain]**).
+
+**Low-Mach limit failure below $M\approx10^{-3}$** on collocated grids — consider staggered/div-compatible discretisations if you need lower Mach.
