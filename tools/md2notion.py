@@ -3,8 +3,11 @@
    - inline $..$ -> $`..`$ ; display $$..$$ kept as equation blocks
    - pipe tables -> <table header-row="true">
    - plain text: escape Notion specials ([ ] < > { } ^ ~ |) outside math/code
-   - two-space list nesting -> tabs"""
-import re, sys
+   - two-space list nesting -> tabs
+   - image lines ![caption](path) kept as images; with a JSON map {path: notion source} the path is replaced
+     (e.g. by the file-upload:// source returned by Notion's create-attachment)
+   usage: python3 tools/md2notion.py FILE.md [IMAGES.json]"""
+import re, sys, json
 
 SPECIAL = set('[]<>{}^~|')
 
@@ -54,11 +57,15 @@ def split_row(row):
 def indent_of(line):
     m = re.match(r'^( *)', line); return len(m.group(1))
 
-def convert(text):
+def convert(text, images=None):
     lines = text.split('\n'); out = []; i = 0
     while i < len(lines):
         line = lines[i]
         ind = indent_of(line); tabs = '\t' * (ind // 2); body = line[ind:]
+        mi = re.match(r'^!\[(.*)\]\((.*)\)\s*$', body)
+        if mi:                                    # image: caption escaped, source mapped
+            src = (images or {}).get(mi.group(2), mi.group(2))
+            out.append(tabs + '![' + esc_plain(mi.group(1)) + '](' + src + ')'); i += 1; continue
         # display math block
         if body.startswith('$$'):
             rest = body[2:]
@@ -98,4 +105,5 @@ def convert(text):
 
 if __name__ == '__main__':
     src = open(sys.argv[1], encoding='utf-8').read()
-    sys.stdout.write(convert(src))
+    images = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else None
+    sys.stdout.write(convert(src, images))
