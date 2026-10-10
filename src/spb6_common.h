@@ -448,7 +448,7 @@ static void bound_cond_u(Grid& U) {
 	}
 	else for (int i = 0; i < nx + 2 * g; i++) for (int q = 0; q < g; q++) for (int k = 0; k < NUM_VARS; k++) { U(i, g - 1 - q, k) = U(i, g, k); U(i, g + 1 + q, k) = U(i, g, k); }
 }
-static void bound_cond_array(Array& A, int sign_x = 1, int sign_y = 1) {
+inline void bound_cond_array(Array& A, int sign_x = 1, int sign_y = 1) {
 	const int g = ghost_cells, nx = A.nx, ny = A.ny;
 	for (int j = 0; j < ny + 2 * g; j++) for (int q = 0; q < g; q++) {
 		int iL = g - 1 - q, iR = nx + g + q, sL, sR; double fs = 1.0;

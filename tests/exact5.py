@@ -1,19 +1,20 @@
 # exact Riemann solver of the 5-equation (mechanical equilibrium) model for a two-SG mixture with uniform mass fractions on each side,
 # shock relations of Saurel et al. (II.5): each phase follows its own Hugoniot at the common pressure; rarefactions: each phase isentropic.
+# NASG phases (covolume B): the Hugoniot and the isentrope of v - B are those of the stiffened gas for v (B = 0 gives the SG solver).
 import numpy as np
 from scipy.optimize import brentq
 from scipy.integrate import quad
 class Side:
-    def __init__(s,a,r,u,p,G,PI):   # a, r: phase volume fractions and densities
-        s.a=np.array(a,float); s.r=np.array(r,float); s.u=u; s.p=p; s.G=np.array(G,float); s.PI=np.array(PI,float)
+    def __init__(s,a,r,u,p,G,PI,B=(0.,0.)):   # a, r: phase volume fractions and densities; B: NASG covolumes
+        s.a=np.array(a,float); s.r=np.array(r,float); s.u=u; s.p=p; s.G=np.array(G,float); s.PI=np.array(PI,float); s.B=np.array(B,float)
         s.rho=(s.a*s.r).sum(); s.Y=s.a*s.r/s.rho; s.v0=1/s.r
     def vk(s,p,shock):
         P=p+s.PI; P0=s.p+s.PI; g=s.G
-        if shock: return s.v0*((g-1)*P+(g+1)*P0)/((g+1)*P+(g-1)*P0)
-        return s.v0*(P0/P)**(1/g)
+        if shock: return s.B+(s.v0-s.B)*((g-1)*P+(g+1)*P0)/((g+1)*P+(g-1)*P0)
+        return s.B+(s.v0-s.B)*(P0/P)**(1/g)
     def v(s,p,shock): return (s.Y*s.vk(p,shock)).sum()
     def cw_rho(s,p):  # rho*c (Wood) along the isentrope
-        vk=s.vk(p,False); dv=-(s.Y*vk/(s.G*(p+s.PI))).sum(); return np.sqrt(-1/dv)
+        vk=s.vk(p,False); dv=-(s.Y*(vk-s.B)/(s.G*(p+s.PI))).sum(); return np.sqrt(-1/dv)
     def f(s,p):       # |u* - u| with sign: f>0 for compression
         if p>s.p: return np.sqrt((p-s.p)*(1/s.rho-s.v(p,True)))
         return -quad(lambda z:np.exp(z)/s.cw_rho(np.exp(z)),np.log(p),np.log(s.p),epsabs=0,epsrel=1e-10,limit=200)[0]   # integrate in ln p (p may span many decades)

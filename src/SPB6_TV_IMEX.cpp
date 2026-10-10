@@ -67,13 +67,31 @@ static void TVDReconstruction(const Grid& Q, int dir, std::vector<double>& sig, 
 	sig.assign((size_t)NXT * NYT * NUM_VARS, 0.0);
 	if (phis) phis->assign((size_t)NXT * NYT, 0.0);
 	if (SpaceOrder < 2) return;
+	// “模板内为常数（到舍入）”的判据用该量的舍入尺度（B3）：格式产生的舍入不总是相对于该量自身。
+	//   alpha_1：sum alpha = 1 的约束与闭合在 O(1) 上算，尺度 1（微量相 alpha ~ 1e-8 的舍入是 eps，不是 eps alpha）；
+	//   rho u, rho v：动量由压力差驱动，舍入 ~ eps (tau/h) p ~ eps rho c，尺度 |rho u| + rho c_f（静止区 rho u ~ 0 时按自身大小会把噪声当极值）；
+	//   eps_k, E：闭合在两相间搬运 p d alpha，尺度 sum |eps_k| + 1/2 rho |u|^2；
+	//   m_k：只被自身通量输运（无传质时），舍入相对于自身，保持自身大小（也是微量相质量保正所需）。
+	// 按分量自身大小判时，二维中 rho v ~ 1e-15 的噪声会随机触发极值判据，令共用限制因子 phi 各行不同（devlog V8）。
+	std::vector<double> msc((size_t)NXT * NYT, 0.0), esc((size_t)NXT * NYT, 0.0);
+	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) {
+		Prim w; const double rho = Q(i, j, IM1) + Q(i, j, IM2), mm = std::hypot(Q(i, j, IMU), Q(i, j, IMV)); const size_t c = (size_t)i + (size_t)j * NXT;
+		msc[c] = mm + (cell_prim(Q, i, j, w) ? rho * w.cf : 0.0);
+		esc[c] = std::fabs(Q(i, j, IE1)) + std::fabs(Q(i, j, IE2)) + (rho > 0 ? 0.5 * mm * mm / rho : 0.0);
+	}
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) {
 		int ia = i, ja = j, ib = i, jb = j;
 		if (dir == 0) { ia = i - 1; ib = i + 1; if (ia < 0 || ib >= NXT) continue; } else { ja = j - 1; jb = j + 1; if (ja < 0 || jb >= NYT) continue; }
+		const size_t ca = (size_t)ia + (size_t)ja * NXT, cc = (size_t)i + (size_t)j * NXT, cb = (size_t)ib + (size_t)jb * NXT;
 		double phi = 1.0;
 		for (int k = 0; k < NUM_VARS; k++) {
 			const double xa = Q(ia, ja, k), xc = Q(i, j, k), xb = Q(ib, jb, k);
-			const double a = xc - xa, b = xb - xc, tiny = 1e-12 * (std::fabs(xa) + std::fabs(xc) + std::fabs(xb)) + 1e-300;
+			double sc;
+			if (k == IA1) sc = 3.0;
+			else if (k == IM1 || k == IM2) sc = std::fabs(xa) + std::fabs(xc) + std::fabs(xb);
+			else if (k == IMU || k == IMV) sc = msc[ca] + msc[cc] + msc[cb];
+			else sc = esc[ca] + esc[cc] + esc[cb];
+			const double a = xc - xa, b = xb - xc, tiny = 1e-12 * sc + 1e-300;
 			if (std::fabs(a) <= tiny && std::fabs(b) <= tiny) continue;          // 该量在模板内（到舍入）为常数：不约束
 			if (a * b <= 0) { phi = 0.0; break; }                                // 极值点：minmod 斜率为 0
 			const double c = 0.5 * (a + b), m = std::fabs(a) < std::fabs(b) ? a : b;
@@ -172,31 +190,31 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 	return std::isfinite(G);
 }
 
-// 邻格压力（边界：透射/固壁 = 本格，周期 = 绕回）
+// 邻格压力：边界虚格（透射/固壁）的压力取本格的值，周期绕回。nb_cell 给出该压力所属的未知量（虚格 = 本格）
 struct PField { int nx, ny; std::vector<double> P; inline double& at(int i, int j) { return P[(size_t)i + (size_t)j * nx]; } inline double at(int i, int j) const { return P[(size_t)i + (size_t)j * nx]; } };
-inline double Pnb(const PField& P, int i, int j, int di, int dj, double Pc) {
-	int ii = i + di, jj = j + dj;
-	if (ii < 0 || ii >= P.nx) { if (x_bc == x_Periodic) ii = (ii + P.nx) % P.nx; else return Pc; }
-	if (jj < 0 || jj >= P.ny) { if (y_bc == y_Periodic && P.ny > 1) jj = (jj + P.ny) % P.ny; else return Pc; }
-	return P.at(ii, jj);
+inline void nb_cell(int nx, int ny, int i, int j, int di, int dj, int& ii, int& jj) {
+	ii = i + di; jj = j + dj;
+	if (ii < 0 || ii >= nx) ii = (x_bc == x_Periodic) ? (ii + nx) % nx : i;
+	if (jj < 0 || jj >= ny) jj = (y_bc == y_Periodic && ny > 1) ? (jj + ny) % ny : j;
 }
+inline double Pnb(const PField& P, int i, int j, int di, int dj) { int ii, jj; nb_cell(P.nx, P.ny, i, j, di, dj, ii, jj); return P.at(ii, jj); }
 static bool residual_at(const StageData& S, const PField& P, int i, int j, double dc, int which, double dn, double& G, CellOut* out = nullptr) {
-	// which: -1 不扰动邻格；0 W, 1 E, 2 S, 3 N 扰动 dn
+	// dc 扰动本格；which = 0 W, 1 E, 2 S, 3 N 只扰动该邻格的压力 dn（-1 不扰动）。边界虚格的压力是本格压力的一个副本，
+	// 在 Jacobian 里是一个单独的元素（列号为本格），不并进对角元：这样边界行与内部行的算术逐位相同（devlog V8）
 	const double Pc = P.at(i, j) + dc;
-	double PW = Pnb(P, i, j, -1, 0, Pc), PE = Pnb(P, i, j, 1, 0, Pc), PS = Pnb(P, i, j, 0, -1, Pc), PN = Pnb(P, i, j, 0, 1, Pc);
-	const bool perW = (i > 0 || x_bc == x_Periodic), perE = (i < P.nx - 1 || x_bc == x_Periodic), perS = (j > 0 || (y_bc == y_Periodic && P.ny > 1)), perN = (j < P.ny - 1 || (y_bc == y_Periodic && P.ny > 1));
-	if (which == 0 && perW) PW += dn;
-	if (which == 1 && perE) PE += dn;
-	if (which == 2 && perS) PS += dn;
-	if (which == 3 && perN) PN += dn;
+	double PW = Pnb(P, i, j, -1, 0), PE = Pnb(P, i, j, 1, 0), PS = Pnb(P, i, j, 0, -1), PN = Pnb(P, i, j, 0, 1);
+	if (which == 0) PW += dn;
+	if (which == 1) PE += dn;
+	if (which == 2) PS += dn;
+	if (which == 3) PN += dn;
 	return cell_residual(S, IG(i), IG(j), Pc, PW, PE, PS, PN, G, out);
 }
 
-// 稀疏矩阵（每行至多 5 个非零元）+ BiCGStab（Jacobi 预条件）；一维非周期用 Thomas
+// 稀疏矩阵（每行 5 个元素：对角 + W, E, S, N；列号可重复）+ BiCGStab（Jacobi 预条件，用第一个元素即本格扰动的导数）；一维非周期用 Thomas
 struct SpRow { int n = 0; int col[5]; double val[5]; };
 static bool bicgstab(const std::vector<SpRow>& A, const std::vector<double>& b, std::vector<double>& x, double rtol, int maxit) {
 	const int n = (int)b.size(); std::vector<double> dinv(n, 1.0);
-	for (int r = 0; r < n; r++) for (int q = 0; q < A[r].n; q++) if (A[r].col[q] == r && A[r].val[q] != 0) dinv[r] = 1.0 / A[r].val[q];
+	for (int r = 0; r < n; r++) if (A[r].n > 0 && A[r].val[0] != 0) dinv[r] = 1.0 / A[r].val[0];
 	auto mv = [&](const std::vector<double>& v, std::vector<double>& y) { for (int r = 0; r < n; r++) { double s = 0; for (int q = 0; q < A[r].n; q++) s += A[r].val[q] * v[A[r].col[q]]; y[r] = s; } };
 	auto dot = [&](const std::vector<double>& a, const std::vector<double>& c) { double s = 0; for (int r = 0; r < n; r++) s += a[r] * c[r]; return s; };
 	x.assign(n, 0.0); for (int r = 0; r < n; r++) x[r] = b[r] * dinv[r];
@@ -241,22 +259,19 @@ static bool newton_solve(const StageData& S, PField& P, int& iters, double& resf
 			const int r = i + j * nx; const double Pc = P.at(i, j), h = 1e-7 * (std::fabs(Pc) + 1.0);
 			double g1; if (!residual_at(S, P, i, j, h, -1, 0, g1)) return false;
 			SpRow& row = A[r]; row.n = 0; row.col[row.n] = r; row.val[row.n++] = (g1 - G[r]) / h;
+			// 邻格元素按 W, E, S, N 的固定次序存放；同列（边界虚格 = 本格，或周期小网格上重合的邻格）也分开存，不合并
 			const int dd[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 			for (int w = 0; w < 4; w++) {
 				if (ny == 1 && w >= 2) break;
-				int ii = i + dd[w][0], jj = j + dd[w][1];
-				if (ii < 0 || ii >= nx) { if (x_bc == x_Periodic) ii = (ii + nx) % nx; else continue; }
-				if (jj < 0 || jj >= ny) { if (y_bc == y_Periodic && ny > 1) jj = (jj + ny) % ny; else continue; }
+				int ii, jj; nb_cell(nx, ny, i, j, dd[w][0], dd[w][1], ii, jj);
 				const double hn = 1e-7 * (std::fabs(P.at(ii, jj)) + 1.0);
 				double g2; if (!residual_at(S, P, i, j, 0, w, hn, g2)) return false;
-				const int c = ii + jj * nx; bool merged = false;
-				for (int q = 0; q < row.n; q++) if (row.col[q] == c) { row.val[q] += (g2 - G[r]) / hn; merged = true; }
-				if (!merged) { row.col[row.n] = c; row.val[row.n++] = (g2 - G[r]) / hn; }
+				row.col[row.n] = ii + jj * nx; row.val[row.n++] = (g2 - G[r]) / hn;
 			}
 		}
 		for (int q = 0; q < n; q++) rhs[q] = -G[q];
 		if (tri) {
-			for (int r = 0; r < n; r++) { lo[r] = up[r] = 0; for (int q = 0; q < A[r].n; q++) { const int c = A[r].col[q]; if (c == r) di[r] = A[r].val[q]; else if (c == r - 1) lo[r] = A[r].val[q]; else if (c == r + 1) up[r] = A[r].val[q]; } }
+			for (int r = 0; r < n; r++) { lo[r] = up[r] = di[r] = 0; for (int q = 0; q < A[r].n; q++) { const int c = A[r].col[q]; if (c == r) di[r] += A[r].val[q]; else if (c == r - 1) lo[r] = A[r].val[q]; else if (c == r + 1) up[r] = A[r].val[q]; } }
 			std::vector<double> cp(n), dp(n);
 			cp[0] = up[0] / di[0]; dp[0] = rhs[0] / di[0];
 			for (int r = 1; r < n; r++) { const double m = di[r] - lo[r] * cp[r - 1]; cp[r] = up[r] / m; dp[r] = (rhs[r] - lo[r] * dp[r - 1]) / m; }
