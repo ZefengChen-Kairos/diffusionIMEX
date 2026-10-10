@@ -10,7 +10,7 @@
 
 本章记号同 A 章。一个 IMEX-RK 级内的隐式步长记 $\tau=a_{ii}\Delta t$，$r=\tau/\Delta x$。
 
-本页与 Notion 页 B 同步（2026-10-10，V11）。每一处修改的来由与被否定的做法见“C. 开发记录”（`docs/devlog.md`）。
+本页与 Notion 页 B 同步（2026-10-10，V11.1）。每一处修改的来由与被否定的做法见“C. 开发记录”（`docs/devlog.md`）。
 
 ---
 
@@ -197,7 +197,9 @@ y 面对称。$\mathrm{div}_{i+1/2,j+1/2}$ 是四个格心值双线性插值在�
 2. **体粘性（grad-div）。** 记 $q_f=\varphi\psi\tilde Z_fD^*_f$，x 动量得到 $+r_x(q_{i+1/2,j}-q_{i-1/2,j})$。$\tilde Z$ 均匀、$\Delta x=\Delta y=h$、周期边界时分部求和：
 $$\sum_{ij}\Big[u_{ij}\big(q_{i+1/2,j}-q_{i-1/2,j}\big)+v_{ij}\big(q_{i,j+1/2}-q_{i,j-1/2}\big)\Big]=-\varphi\psi\tilde Z\,h^2\sum_{\rm 顶点}\mathrm{div}_v^2\le0 ,$$
 动能只按顶点散度的平方耗散，顶点意义下的无散场在它的核里。激波处 $\mathrm{div}$ 很负，它就是 von Neumann–Richtmyer 型的体粘性。
-3. **低马赫量级。** 光滑无散场的顶点散度只是 $O(\Delta x^2)$ 的截断误差（加上 $O(M^2)$）：$p_f$ 的修正与 $\rho U^2$ 之比为 $\varphi\psi\big[O(M)+O\big((\Delta x/L)^3/M\big)\big]$，比逐维形式小 $(\Delta x/L)^2$ 倍；而 $\varphi$ 只在 $M>a_{ii}\mathrm{CFL}$ 或起步斜坡时非零。
+3. **低马赫量级（对所有 $M$ 一致）。** 光滑无散场的顶点散度是 $O(M^2U/L)$ 加上 $O(\Delta x^2U/L^3)$ 的截断误差，所以 $p_f$ 的修正与 $\rho U^2$ 之比为 $\varphi\psi\big[O(M\Delta x/L)+O\big((\Delta x/L)^3/M\big)\big]$。物质 CFL 定步长时 $\varphi=(1-a_{ii}\mathrm{CFL}/M)^+$，而
+$$\sup_M\frac{\varphi}{M}=\sup_{M>m_0}\frac{M-m_0}{M^2}=\frac1{4m_0},\qquad m_0=a_{ii}\mathrm{CFL}$$
+（$M=2m_0$ 处取到；LSDIRK2、CFL 0.2 时 $m_0=0.059$，$1/(4m_0)=4.3$）。所以这个比值对所有 $M$ 不超过 $\psi\big[O(M\Delta x/L)+4.3\,O((\Delta x/L)^3)\big]$，与 $M$ 无关地小。逐维形式（V10）是 $\varphi\psi\frac{\Delta x/L}{2M}\le\frac{\psi}{8m_0}\frac{\Delta x}L=2.1\,\psi\,\frac{\Delta x}L$：一阶、常数大，在 $M=2m_0\approx0.12$ 处最大，这就是 Gresho $M=0.1$ 的 0.36。
 4. **奇偶模态照旧被阻尼。** $u_{ij}=(-1)^i$ 时 $D^*=\pm2$（法向紧致差分权 $\tfrac12$，两侧行各 $\tfrac14$）。
 
 Gresho 涡（$80^2$，一圈，单相极限；C. 开发记录 V11）的动能保持率：
@@ -490,6 +492,14 @@ $$
 
 V10 的逐维速度项在 $a_{ii}\mathrm{CFL}<M<1$ 和起步斜坡（$\varphi\approx0.9$，约 $\log(1/M)/\log1.2$ 步）里是声速量级的粘性。Gresho 涡 $M=0.1$ 时动能保持率 0.36。$M=0.01$ 时为 0.50：补足项只在斜坡里作用，只占其中不到 0.1%（速度项乘 $\theta$ 时为 0.503）；其余损失来自共用限制因子（B3）。V11 改成散度形式、速度单独重构后，三个马赫数都是 0.93–0.94（B4.1(c) 的表）。
 
+**直接检验（固定 $\Delta t$）。** AP 要求的是 $\Delta t$ 与 $M$ 无关时一致稳定、并收敛到极限。Gresho 涡用同一个 $\Delta t=0.0025$（503 步，无起步斜坡），$M=10^{-1}\ldots10^{-6}$（算例 50–55，`tests/run_gresho_ap.sh`）：
+- 每个 $M$ 都是 0 次拒绝，每级约 1 次 Newton；
+- 动能保持率 $M\le0.01$ 时到四位相同（0.9372），$M=0.1$ 为 0.930；
+- $|\rho-1|\le0.11M^2$；$p_2$ 与不可压精确解之差 $1.4\times10^{-2}$（离散误差），与 $M$ 无关；
+- 速度的 Cauchy 差（$M$ 与 $M/10$）为 $1.8\times10^{-3}$、$1.9\times10^{-6}$、$1.6\times10^{-7}$、$2.0\times10^{-9}$（$M=0.1\ldots10^{-4}$）。
+
+做到这一点，求解器有三处必须与 $M$ 无关（B8）：未知量取压力扰动 $P-P_{\rm ref}$（否则舍入噪声 $\nu^2\varepsilon_{\rm mach}p_0$，以 $\rho U^2$ 为单位是 $O(\varepsilon_{\rm mach}/M^4)$）；差分步长与步长判据按 $P$ 的自然尺度 $s=N/D$；线性解法用两级预条件。离散格式本身不变。$M\le10^{-5}$ 时剩下的是双精度的底：$\rho U^2/p_0=\gamma M^2$，相对绝对压力的 Newton 容差以 $\rho U^2$ 为单位是 $2.4\times10^{-13}/M^2$，$M=10^{-6}$ 时 $p_2$ 有约 $10^{-2}$ 的噪声。详见 C. 开发记录 V11 §11.8，图 `docs/figures/gresho_ap.png`。
+
 ---
 
 ## B8. 全局非线性方程组与求解
@@ -506,12 +516,32 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
 **求解：**
 
 - Newton。Jacobian 用逐格差分：扰动三个（五个）压力，各算一次局部闭合。
-- Jacobian 的差分步长 $h=10^{-7}(|P|+1)$；Newton 至多 60 次。
-- 一维非周期用 Thomas；二维与周期边界用 BiCGStab + Jacobi 预条件（`2DEuler_TV` 风格，但用相对容差 $10^{-13}$）。
+- **$P$ 的自然尺度（V11）。** $s_i=N_i/D_i$。$N_i=|P_i|+K_i+P_{E,i}$ 是残量尺度（见下面的收敛判据）；$D_i=1+(K_i+P_{E,i})\sum_f(\tau/h_f)k_f$ 是 $\partial G_i/\partial P_i$ 的尺度（$k_f$ 是面速度里压力差的系数 $\tau/(\bar\rho_fh_f)+\varphi\psi/(Z_L+Z_R)$，故 $D\approx1+2d\,\nu^2$，$d$ 为维数）。$s$ 是残量所能分辨的压力变化：非刚性时 $s\approx N$，低马赫时 $s\approx N/(2d\,\nu^2)$。
+- Jacobian 的差分步长 $h_i=10^{-7}s_i$（V11）；Newton 至多 60 次。
+  - 原来 $h=10^{-7}(|P|+1)$。扰动 $h$ 在本格引起的体积变化约 $h\sum_f(\tau/h_f)k_f\approx10^{-7}\nu^2/\gamma$（$|P|\approx K/\gamma$ 时），低马赫时 $\nu=a_{ii}\mathrm{CFL}/M$，$M=10^{-5}$ 时已是 $O(1)$：差分 Jacobian 失效，Newton 失败，Gresho $M=10^{-5}$ 每步被拒绝两次（4019 次拒绝）。
+  - 按 $N/D$ 取步长：体积变化不超过 $10^{-7}N/K$，舍入引起的导数相对误差约 $\varepsilon_{\rm mach}N/(hD)=\varepsilon_{\rm mach}/10^{-7}$，两者都与 $M$ 无关。这是差分 Jacobian 按变量的典型尺度取步长的通常做法（Dennis–Schnabel 的 typical size），这里典型尺度是“残量尺度 / Jacobian 尺度”。
+- 一维非周期用 Thomas；二维与周期边界用 BiCGStab（`2DEuler_TV` 风格，但用相对容差 $10^{-13}$），预条件是两级的（V11）：
+  $$M^{-1}r=D^{-1}r+\mathbf 1\,\frac{\mathbf 1^{\rm T}r}{\mathbf 1^{\rm T}J\mathbf 1},$$
+  即 Jacobi（用本格扰动的那个元素）加常数向量的粗空间校正（Nicolaides 1987 的两级预条件）。
+  - 理由：面速度与动量只依赖压力差，所有边界条件下（周期、固壁、透射虚格 = 本格）$P$ 的常数平移只使 $G$ 变化 $O(1)$（只经能量通量与 $-P$ 项），而对角元约 $1+2d\,\nu^2$。Jacobi 预条件后常数模态的特征值约 $1/(2d\,\nu^2)$，其余模态的谱与 $M$ 无关。
+  - $M=10^{-6}$ 时这个特征值约 $10^{-10}$，BiCGStab 发散（相对残量 $10^{129}$），37 次拒绝。粗空间校正把它移到 $[1,2]$，其余模态不变：预条件后的谱与 $M$ 无关。
+  - 粗空间只加一个标量，各格加的是同一个数：y 向均匀的问题各行仍逐位相同。
 - 边界虚格（透射、固壁）的压力等于本格压力。它在 Jacobian 里是单独的元素（列号为本格），不并进对角元：对角元只扰动本格，虚格的导数单独差分；每行按“本格、W、E、S、N”的固定次序存 5 个元素，同列的也不合并；Jacobi 预条件用本格的那个元素，Thomas 把同列元素相加。这样数学上 Jacobian 不变，而边界行与内部行的浮点运算相同：y 向均匀的问题各行逐位相同（V8；并进对角元时边界行的舍入不同，再经共用限制因子的开关放大成截断误差大小的行间差）。
 - 线搜索（步长减半，至多 40 次）：接受条件是所有格的局部闭合有解（可容许），且残量范数满足 Armijo 下降 $\|G\|_{\rm new}<(1-10^{-4}\lambda)\|G\|$。
 - 收敛判据：$\max_i|G_i|/(|P_i|+K_i+P_{E,i})<10^{-13}$，$K=\rho c_W^2$（Wood 体积模量，$G/K$ 就是体积约束残量 $\sum\alpha-1$），$P_E=\sum_k(|\varepsilon_k|+|m_kq_k|)/\sum_k\partial\varepsilon_k/\partial p$（$X^*$ 处；代码里分母再加 1 Pa 防零）。理由：闭合给出的压力只精确到 $\varepsilon_{\rm mach}(p+\pi)$，守恒总能的舍入 $\varepsilon_{\rm mach}|E|$ 又经 $\lambda_k\delta$ 进入各相压力，所以 $G$ 的可达精度是 $\varepsilon_{\rm mach}\max(K,P_E)$。按 $|P|$ 归一时 $p\ll\pi$ 的格子永远达不到容差：环氧–尖晶石（$\pi=1.41\times10^{11}$）算例因此每步都被拒绝（3659 次拒绝、13906 步），改后 0 次拒绝、122 步，每级 3 次 Newton。
-- **步长判据（V11）。** $P$ 的舍入 $\varepsilon_{\rm mach}|P|$ 经面速度（$\tau/(\rho\Delta x)$）、体积通量（$\tau/\Delta x$）与闭合（$K=\rho c^2$）进入残量，放大 $K\tau^2/(\rho\Delta x^2)=\nu^2$ 倍（$\nu=c\tau/\Delta x$）：残量有一个约 $\nu^2\varepsilon_{\rm mach}|P|$ 的舍入底。低马赫时 $\nu=a_{ii}\mathrm{CFL}/M$ 很大，Gresho $M=0.001$（$\nu\approx60$）时这个底约 $|G|\approx6\times10^{-7}$ Pa（$P=7.1\times10^5$），归一后 $(1\text{–}2)\times10^{-13}$，高于容差。Newton 一步就把残量从 $10^{-5}$ 降到这个底，线搜索再也降不下去，旧判据判为失败：拒绝、减半、斜坡重启，1495 次拒绝，7205 个一阶步。所以加步长判据：完整 Newton 步满足 $\max_i|\delta P_i|/(|P_i|+K_i+P_{E,i})<10^{-13}$ 时，接受 $P+\delta P$（$P$ 的误差已在容差内）。这是有限精度下 Newton 法的标准判据（步长与残量两个判据）。改后 $M=0.001$：0 次拒绝、911 步。日志里的 `maxres` 因此可以略高于容差（它记的是这个舍入底）。
+- **扰动未知量（V11）。** Newton 的未知量是 $P-P_{\rm ref}$，$P_{\rm ref}$ 是初始混合压力的最小值（常数）。
+  - $p_f=w_LP_L+w_RP_R-p_v$ 的权和为 1，所以面压力、面速度（$P_R-P_L$）、动量（$p_{f,e}-p_{f,w}$）都只含扰动量；只有能量通量 $p_fu_f$ 与闭合需要绝对压力，在那里加回 $P_{\rm ref}$：$(P_{\rm ref}+p_f')u_f$，闭合输入与残量 $G=(\bar p^{\rm cl}-P_{\rm ref})-P'$。精确算术下与原格式完全相同。
+  - 浮点下：存下来的 $P$ 带 $\varepsilon_{\rm mach}|P|$ 的舍入，它经面速度、体积通量与闭合放大 $\nu^2$ 倍（见下一条）进入残量与解。低马赫时 $|P|\approx p_0=1/(\gamma M^2)$、$\nu\sim1/M$，这个噪声是 $\nu^2\varepsilon_{\rm mach}p_0\sim\varepsilon_{\rm mach}/M^4$（相对 $\rho U^2$）。Gresho $M=10^{-4}$ 时约 $3\times10^{-3}$：压力的 Cauchy 差（相邻两个马赫数之差）从 $M=10^{-3}$ 的 $3.9\times10^{-4}$ 反而升到 $2.8\times10^{-3}$，$\max|\rho-1|/M^2$ 从 0.10 升到 0.24。
+  - 用扰动量后放大的只是 $\varepsilon_{\rm mach}|P-P_{\rm ref}|\sim\varepsilon_{\rm mach}\rho U^2$，噪声变为 $\nu^2\varepsilon_{\rm mach}\rho U^2\sim\varepsilon_{\rm mach}/M^2$。剩下的舍入底是总能形式本身的 $\varepsilon_{\rm mach}p_0$（$p=(\gamma-1)(E-\tfrac12\rho u^2)$），它不再被放大。
+  - $P_{\rm ref}$ 取最小值而不是平均值：$|P-P_{\rm ref}|$ 不超过当地压力，多相问题（压力跨几个量级）里残量的舍入底不会因参考值变大。
+  - 这是低马赫可压缩求解器的标准做法：Klein 1995 的多尺度展开 $p=p_0+M^2p_2$；Sesterhenn–Müller–Thomann 1999 以压力扰动为未知量。
+- **步长判据（V11）。** 完整 Newton 步满足
+  $$\max_i\frac{|\delta P_i|}{|P_i-P_{\rm ref}|+s_i}<10^{-13}$$
+  时接受 $P+\delta P$：Newton 步相对未知量本身的大小与残量的分辨率都已在容差内，$P$ 的误差已在容差内。这是有限精度下 Newton 法的标准判据（步长与残量两个判据）。
+  - **来由。** $P$ 的舍入 $\varepsilon_{\rm mach}|P|$ 经面速度（$\tau/(\rho\Delta x)$）、体积通量（$\tau/\Delta x$）与闭合（$K=\rho c^2$）进入残量，放大 $K\tau^2/(\rho\Delta x^2)=\nu^2$ 倍（$\nu=c\tau/\Delta x$）：残量有一个约 $\nu^2\varepsilon_{\rm mach}|P|$ 的舍入底。低马赫时 $\nu=a_{ii}\mathrm{CFL}/M$ 很大，Gresho $M=0.001$（$\nu\approx60$，未知量还是绝对压力时）这个底约 $|G|\approx6\times10^{-7}$ Pa（$P=7.1\times10^5$），归一后 $(1\text{–}2)\times10^{-13}$，高于容差。Newton 一步就把残量从 $10^{-5}$ 降到这个底，线搜索再也降不下去，只有残量判据时判为失败：拒绝、减半、斜坡重启，1495 次拒绝，7205 个一阶步。加步长判据后 0 次拒绝、911 步。
+  - **尺度。** 最初用与残量相同的尺度 $|P_i|+K_i+P_{E,i}$。低马赫时它比 Newton 步能改变的量 $s$ 大约 $\nu^2$ 倍：$M=10^{-6}$ 时第一步（$|\delta P|\approx3\times10^{-4}$ Pa，$N\approx2.4\times10^{12}$）就被接受，而一步之后残量的二次项还有 $\nu^4|\delta P|^2/K\approx10$ Pa（归一后 $6\times10^{-12}$，高于容差）：判据接受了一个没有收敛的迭代。改用 $|P-P_{\rm ref}|+s$：舍入底的情形里 Newton 步就是未知量的舍入 $\varepsilon_{\rm mach}|P-P_{\rm ref}|$ 或残量舍入折回的 $\varepsilon_{\rm mach}s$，判据照样成立；真正的修正（$M=10^{-6}$ 第一步的 $3\times10^{-4}$ Pa 对 $s\approx170$ Pa）不再被当成收敛，终残量不超过容差。非刚性时 $s\approx N$，与原判据相同。
+  - 用扰动未知量之后，低马赫时舍入底变为 $\nu^2\varepsilon_{\rm mach}|P-P_{\rm ref}|$，不再随 $p_0$ 增大；判据仍保留，因为压力跨度大的问题（$|P-P_{\rm ref}|$ 大的格子）里同样的底仍可能高于容差。
+  - 日志里的 `maxres` 是各级接受时的残量，可以略高于容差（它记的是舍入底）。
 
 **步长控制（不是补丁，而是可容许性条件）：** 以下任一情况发生时，拒绝本步，$\Delta t\leftarrow\Delta t/2$ 重算（至多 30 次，否则报告失败）：
 - $Q^e$ 出现 $\rho\le0$（显式通量只需要这一条，B3）；
@@ -675,9 +705,21 @@ $$
 | | $M=0.1$ | $M=0.01$ | $M=0.001$ |
 |---|---|---|---|
 | 显式 HLLC（声学 CFL 0.4） | 0.83 | 0.47 | — |
-| IMEX | 0.926 | 0.937 | 0.937（0 次拒绝，911 步） |
+| IMEX（物质 CFL 0.2，带起步斜坡） | 0.926 | 0.937 | 0.937（0 次拒绝，911 步） |
 
 $M=0.001$ 时 $\rho-1\in[-1.1\times10^{-7},3.6\times10^{-8}]$，即 $O(M^2)$。
+
+同一个固定 $\Delta t=0.0025$（503 步）下 $M=10^{-1}\ldots10^{-6}$（`tests/run_gresho_ap.sh`、`tests/plot_gresho_ap.py`，图 `docs/figures/gresho_ap.png`）：
+
+| $M$ | $10^{-1}$ | $10^{-2}$ | $10^{-3}$ | $10^{-4}$ | $10^{-5}$ | $10^{-6}$ |
+|---|---|---|---|---|---|---|
+| 拒绝次数 | 0 | 0 | 0 | 0 | 0 | 0 |
+| KE/KE$_0$ | 0.9303 | 0.9372 | 0.9372 | 0.9372 | 0.9372 | 0.9372 |
+| $\max\lvert\rho-1\rvert/M^2$ | 0.113 | 0.102 | 0.101 | 0.103 | 0.035 | 0.106 |
+| $\lVert p_2-p_2^{\rm inc}\rVert_2$ | $1.45\times10^{-2}$ | $1.39\times10^{-2}$ | $1.40\times10^{-2}$ | $1.41\times10^{-2}$ | $1.41\times10^{-2}$ | $1.71\times10^{-2}$ |
+| $\lVert u_M-u_{M/10}\rVert_2$ | $1.8\times10^{-3}$ | $1.9\times10^{-6}$ | $1.6\times10^{-7}$ | $2.0\times10^{-9}$ | $3.8\times10^{-7}$ | |
+
+$M\le10^{-5}$ 的数字受双精度的底限制（C 页 V11 §11.8）。
 
 **Pelanti 8.2.1（NASG 水，±2 m/s，$t=3$ ms，$N=5000$，V8 时的结果，即 V10 之前）。** 中心压力，单位 Pa：
 

@@ -56,6 +56,8 @@ const double ramp_factor = 1.2;
 double DTFIX = 0.0;                   // > 0：固定时间步（时间收敛阶试验用）
 
 double NewtonTol = 1e-13;             // 相对 |P| + rho c_W^2 + P_E（B8）
+double P_REF = 0.0;                   // 压力未知量的参考值（B8）：Newton 的未知量是 P - P_REF。面压力差、面压力、动量通量都只含扰动量，
+                                      // 低马赫时 p0 ~ 1/M^2 的舍入不进入它们（否则经隐式算子放大为约 nu^2 eps p0 的压力噪声，devlog V11）
 int NewtonIter = 60;
 double GMREStol = 1e-13;              // 相对 |b|
 int GMRESiter = 4000;
@@ -550,7 +552,7 @@ struct FaceFlux { double M, Mt, E; };
 inline FaceFlux face_flux(const FaceVals& f) {
 	const double ML = (f.cL[2] + f.cL[3]) * f.wL, MR = (f.cR[2] + f.cR[3]) * f.wR, M = ML + MR;
 	FaceFlux F; F.M = M; F.Mt = f.utL * ML + f.utR * MR;
-	F.E = inc(f, 4) + inc(f, 5) + 0.5 * f.uf * f.uf * M + 0.5 * (f.utL * f.utL * ML + f.utR * f.utR * MR) + f.pf * f.uf;
+	F.E = inc(f, 4) + inc(f, 5) + 0.5 * f.uf * f.uf * M + 0.5 * (f.utL * f.utL * ML + f.utR * f.utR * MR) + (P_REF + f.pf) * f.uf;
 	return F;
 }
 
@@ -581,11 +583,11 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 	if (!(rho > 0)) return false;
 	ClIn in{}; in.atr[0] = X[0]; in.atr[1] = X[1]; in.mtr[0] = X[2]; in.mtr[1] = X[3]; in.etr[0] = X[4]; in.etr[1] = X[5];
 	in.s = s; in.rhoeC = E - 0.5 * (mx * mx + my * my) / rho; in.tau = S.tau; in.type = S.type[S.id(i, j)];
-	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = Pc; in.nodelta = false;
+	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = P_REF + Pc; in.nodelta = false;
 	ClOut o; if (!closure(in, o)) {
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
-	G = o.pbar - Pc;
+	G = (o.pbar - P_REF) - Pc;
 	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->type = in.type; }
 	return std::isfinite(G);
 }
@@ -624,12 +626,18 @@ void Pressure_Subsystem_AX(Eigen::VectorXd& Ax, const Eigen::VectorXd& x, const 
 	for(int r = 0; r < n; r++){ double s = 0; for(int q = 0; q < A[r].n; q++) s += A[r].val[q] * x[A[r].col[q]]; Ax[r] = s; }
 }
 
-// 2DEuler 的 GMRES_Solver（原函数实际是 BiCGStab）：加 Jacobi 预条件（用本格扰动的那个元素）与相对容差
+// 2DEuler 的 GMRES_Solver（原函数实际是 BiCGStab）：加两级预条件（Jacobi 用本格扰动的那个元素，粗空间为常数向量）与相对容差
 bool GMRES_Solver(Eigen::VectorXd& x, const Eigen::VectorXd& b, const std::vector<SpRow>& A){
 	const int n = (int)b.size(); Eigen::VectorXd dinv = Eigen::VectorXd::Constant(n, 1.0);
 	for (int r = 0; r < n; r++) if (A[r].n > 0 && A[r].val[0] != 0) dinv[r] = 1.0 / A[r].val[0];
 	auto dot = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& c) { double s = 0; for (int r = 0; r < n; r++) s += a[r] * c[r]; return s; };
-	x = Eigen::VectorXd::Zero(n); for (int r = 0; r < n; r++) x[r] = b[r] * dinv[r];
+	// 两级预条件（B8）：Jacobi + 常数向量的粗空间校正 M^{-1} r = D^{-1} r + 1 (1^T r)/(1^T A 1)（Nicolaides）。
+	// 面速度与动量只依赖压力差，P 的常数平移只使 G 变化 O(1)，而对角元约 1 + 4 nu^2：Jacobi 预条件后常数模态的特征值约 1/(4 nu^2)，
+	// M = 1e-6 时约 1e-10，BiCGStab 发散（devlog V11）。粗空间校正把它移到 1 附近，其余模态不变
+	double E = 0.0; for (int r = 0; r < n; r++) for (int q = 0; q < A[r].n; q++) E += A[r].val[q];
+	const double Einv = (E != 0.0 && std::isfinite(E)) ? 1.0 / E : 0.0;
+	auto prec = [&](const Eigen::VectorXd& in, Eigen::VectorXd& out) { double sr = 0.0; for (int r = 0; r < n; r++) sr += in[r]; const double cc = sr * Einv; for (int r = 0; r < n; r++) out[r] = dinv[r] * in[r] + cc; };
+	x = Eigen::VectorXd::Zero(n); prec(b, x);
 	Eigen::VectorXd r(n), r0(n), p = Eigen::VectorXd::Zero(n), v = Eigen::VectorXd::Zero(n), s(n), t(n), ph(n), sh(n), Ax(n);
 	Pressure_Subsystem_AX(Ax, x, A); for (int q = 0; q < n; q++) r[q] = b[q] - Ax[q]; r0 = r;
 	const double bn = std::sqrt(dot(b, b)) + 1e-300; double rho = 1, alpha = 1, omega = 1;
@@ -638,11 +646,11 @@ bool GMRES_Solver(Eigen::VectorXd& x, const Eigen::VectorXd& b, const std::vecto
 		const double rho1 = dot(r0, r); if (rho1 == 0) return false;
 		const double beta = (rho1 / rho) * (alpha / omega); rho = rho1;
 		for (int q = 0; q < n; q++) p[q] = r[q] + beta * (p[q] - omega * v[q]);
-		for (int q = 0; q < n; q++) ph[q] = dinv[q] * p[q];
+		prec(p, ph);
 		Pressure_Subsystem_AX(v, ph, A); alpha = rho / dot(r0, v);
 		for (int q = 0; q < n; q++) s[q] = r[q] - alpha * v[q];
 		if (std::sqrt(dot(s, s)) <= GMREStol * bn) { for (int q = 0; q < n; q++) x[q] += alpha * ph[q]; return true; }
-		for (int q = 0; q < n; q++) sh[q] = dinv[q] * s[q];
+		prec(s, sh);
 		Pressure_Subsystem_AX(t, sh, A); omega = dot(t, s) / dot(t, t);
 		for (int q = 0; q < n; q++) { x[q] += alpha * ph[q] + omega * sh[q]; r[q] = s[q] - omega * t[q]; }
 	}
@@ -657,17 +665,27 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 		for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) { double g; if (!residual_at(S, Q, i, j, 0, -1, 0, g)) return false; R[i + j * nx] = g; }
 		return true; };
 	// 残量范数：|G| / (|P| + K + P_E)；按 |P| 归一在 p << pi 时达不到（B8）
-	auto norm = [&](const std::vector<double>& R, const PField& Q) { double m = 0; for (int q = 0; q < n; q++) { const int i = q % nx, j = q / nx; m = std::max(m, std::fabs(R[q]) / (std::fabs(Q.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0)); } return m; };
+	auto norm = [&](const std::vector<double>& R, const PField& Q) { double m = 0; for (int q = 0; q < n; q++) { const int i = q % nx, j = q / nx; m = std::max(m, std::fabs(R[q]) / (std::fabs(P_REF + Q.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0)); } return m; };
 	if (!evalAll(P, G)) { iters = 0; resfinal = INF; return false; }
 	double res = norm(G, P);
 	const bool tri = (ny == 1 && x_bc != x_Periodic);
 	std::vector<SpRow> A(n); std::vector<double> lo(n), di(n), up(n);
+	// P 的自然尺度（B8）：s_q = N_q / D_q。N = |P| + K + P_E + 1 是残量尺度；D = 1 + (K + P_E) sum_f (tau/h_f) kp_f 是 dG/dP 对角元的尺度（约 1 + nu^2），
+	// s 就是残量所能分辨的压力变化。差分步长取 1e-7 s：步长取 1e-7 |P| 时扰动在本格引起的体积变化约 1e-7 nu^2/gamma，
+	// 低马赫时 nu ~ 1/M，M = 1e-5 时已是 O(1)，差分 Jacobian 失效（devlog V11）
+	std::vector<double> sc(n);
 	for (int it = 0; it < NewtonIter; it++) {
 		iters = it; resfinal = res;
-		if (VERBOSE >= 3) { int qm = 0; for (int q = 0; q < n; q++) if (std::fabs(G[q]) > std::fabs(G[qm])) qm = q; fprintf(stderr, "    newton it %d res %.3e  worst cell %d G %.4e P %.8e\n", it, res, qm, G[qm], P.P[qm]); }
+		if (VERBOSE >= 3) { int qm = 0; for (int q = 0; q < n; q++) if (std::fabs(G[q]) > std::fabs(G[qm])) qm = q; fprintf(stderr, "    newton it %d res %.3e  worst cell %d G %.4e P %.8e\n", it, res, qm, G[qm], P_REF + P.P[qm]); }
 		if (res < NewtonTol) return true;
+		for (int q = 0; q < n; q++) {
+			const int I = IG(q % nx), J = IG(q / nx); const double K = S.Kw[S.id(I, J)];
+			double D = S.rx * (S.kpx(I, J) + S.kpx(I - 1, J));
+			if (ny > 1) D += S.ry * (S.kpy(I, J) + S.kpy(I, J - 1));
+			sc[q] = (std::fabs(P_REF + P.P[q]) + K + 1.0) / (1.0 + K * D);
+		}
 		for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) {
-			const int r = i + j * nx; const double Pc = P.at(i, j), h = 1e-7 * (std::fabs(Pc) + 1.0);
+			const int r = i + j * nx; const double h = 1e-7 * sc[r];
 			double g1; if (!residual_at(S, P, i, j, h, -1, 0, g1)) return false;
 			SpRow& row = A[r]; row.n = 0; row.col[row.n] = r; row.val[row.n++] = (g1 - G[r]) / h;
 			// 邻格元素按 W, E, S, N 的固定次序存放；同列（边界虚格 = 本格，或周期小网格上重合的邻格）也分开存，不合并
@@ -675,7 +693,7 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 			for (int w = 0; w < 4; w++) {
 				if (ny == 1 && w >= 2) break;
 				const int c = M_P(IG(i) + dd[w][0], IG(j) + dd[w][1]);
-				const double hn = 1e-7 * (std::fabs(P.P[c]) + 1.0);
+				const double hn = 1e-7 * sc[c];
 				double g2; if (!residual_at(S, P, i, j, 0, w, hn, g2)) return false;
 				row.col[row.n] = c; row.val[row.n++] = (g2 - G[r]) / hn;
 			}
@@ -690,14 +708,16 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 		} else {
 			if (!GMRES_Solver(dP, rhs, A)) return false;
 		}
-		// 步长判据（B8，devlog V11）：P 的舍入 eps|P| 经面速度、体积通量与闭合放大约 nu^2 倍（nu = c tau/h），残量有一个约 nu^2 eps |P| 的舍入底；
-		// 低马赫时 nu 大（M = 0.001 时约 60），这个底高于容差，线搜索降不下去。Newton 步已在容差内时 P + dP 就是解。
+		// 步长判据（B8，devlog V11）：Newton 步相对未知量的大小 |P - P_REF| 与残量的分辨率 s 已在容差内时，P + dP 就是解。
+		// 残量可能有高于容差的舍入底（P 的舍入经面速度、体积通量与闭合放大约 nu^2 倍，nu = c tau/h），这时残量判据达不到，而这个判据可以。
+		// 尺度不用 |P| + K + P_E：低马赫时它比 s 大约 nu^2 倍，M = 1e-6 时第一步就被接受，残量停在 6e-12（devlog V11）
 		double sn = 0.0;
-		for (int q = 0; q < n; q++) { const int i = q % nx, j = q / nx; sn = std::max(sn, std::fabs(dP[q]) / (std::fabs(P.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0)); }
+		for (int q = 0; q < n; q++) sn = std::max(sn, std::fabs(dP[q]) / (std::fabs(P.P[q]) + sc[q]));
 		if (sn < NewtonTol) {
 			for (int q = 0; q < n; q++) P.P[q] += dP[q];
-			st_newton_it++; iters = it + 1; resfinal = res;
-			return evalAll(P, G);
+			st_newton_it++; iters = it + 1;
+			if (!evalAll(P, G)) return false;
+			resfinal = norm(G, P); return true;
 		}
 		double lam = 1.0; bool acc = false;
 		for (int ls = 0; ls < 40; ls++) {
@@ -844,7 +864,7 @@ void write_profile(Grid &u_con, const std::string &fn){
 	fprintf(f, "# x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2\n");
 	for (int j = g; j < nyCells + g; j++) for (int i = g; i < nxCells + g; i++) {
 		double o[15]; cell_diag(u_con.cell(i, j), o);
-		fprintf(f, "%.10e %.10e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.8e %.8e %.10e %.10e %.12e %.12e %.8e\n",
+		fprintf(f, "%.10e %.10e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.8e %.8e %.10e %.10e %.16e %.16e %.8e\n",
 			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11], o[12], o[13], o[14]);
 	}
 	fclose(f);
@@ -1014,7 +1034,11 @@ int main(int argc, char *argv[]){
 
 	auto t0 = std::chrono::steady_clock::now();
 	PField P{nxCells, nyCells, std::vector<double>((size_t)nxCells * nyCells, 0.0)};
-	for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) P.at(i, j) = pbar_of(u_con.cell(IG(i), IG(j)));
+	// P_REF：初始混合压力的最小值（B8）。取最小值而不是平均值：P - P_REF 的量级不超过当地压力，残量的舍入底不因参考值变大
+	P_REF = INF;
+	for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) P_REF = std::min(P_REF, pbar_of(u_con.cell(IG(i), IG(j))));
+	if (!std::isfinite(P_REF)) P_REF = 0.0;
+	for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) P.at(i, j) = pbar_of(u_con.cell(IG(i), IG(j))) - P_REF;
 	double dtprev = -1;
 	do{
 		// ---- 时间步（caldt）：物质 CFL；起步时首步为声学步长，之后每步至多放大 ramp_factor 倍（2DEuler 的 full_step），被限制的步用一阶

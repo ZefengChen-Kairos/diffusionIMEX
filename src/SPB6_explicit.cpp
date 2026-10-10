@@ -360,7 +360,7 @@ void write_profile(Grid &u_con, const std::string &fn){
 	fprintf(f, "# x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2\n");
 	for (int j = g; j < nyCells + g; j++) for (int i = g; i < nxCells + g; i++) {
 		double o[15]; cell_diag(u_con.cell(i, j), o);
-		fprintf(f, "%.10e %.10e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.8e %.8e %.10e %.10e %.12e %.12e %.8e\n",
+		fprintf(f, "%.10e %.10e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.8e %.8e %.10e %.10e %.16e %.16e %.8e\n",
 			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11], o[12], o[13], o[14]);
 	}
 	fclose(f);

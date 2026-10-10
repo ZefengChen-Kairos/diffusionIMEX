@@ -444,7 +444,10 @@ enum Test {
 	testRelax0DChem = 41,         // 0D 化学松弛：pT 平衡、过热（周期）
 	testGresho1 = 50,             // Gresho 涡（2DEuler 的 testGreshoVortex），单相极限（两相同为理想气体，alpha1 = 1/2），M = 0.1
 	testGresho2 = 51,             //   M = 0.01
-	testGresho3 = 52              //   M = 0.001（低马赫 AP 检验）
+	testGresho3 = 52,             //   M = 0.001（低马赫 AP 检验）
+	testGresho4 = 53,             //   M = 1e-4
+	testGresho5 = 54,             //   M = 1e-5
+	testGresho6 = 55              //   M = 1e-6
 };
 struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc; };
 static void set_SG(int k, double g, double pi, double q = 0, double qp = 0, double cv = 1000.0, double b = 0) { PH[k] = {g, pi, q, qp, cv, b}; }
@@ -467,7 +470,7 @@ static bool test_setup(int test, TestSetup& S) {
 	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; break;
 	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
-	case testGresho1: case testGresho2: case testGresho3:
+	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
 		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; break;
 	default: return false;
 	}
@@ -497,8 +500,9 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPel_Cavitation: { const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
 	case testRelax0DChem: { const double T0 = 380.0, p0 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
 	case testRelax0D: { const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
-	case testGresho1: case testGresho2: case testGresho3: {   // 2DEuler_TV.cpp 的 testGreshoVortex：rho = 1，p0 = 1/(gamma M^2)，最大速度 1（r = 0.2）
-		const double M = test == testGresho1 ? 1e-1 : (test == testGresho2 ? 1e-2 : 1e-3), p0 = 1.0 / (1.4 * M * M), r = std::sqrt(x * x + y * y);
+	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6: {   // 2DEuler_TV.cpp 的 testGreshoVortex：rho = 1，p0 = 1/(gamma M^2)，最大速度 1（r = 0.2）
+		static const double Ms[6] = {1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6};
+		const double M = Ms[test - testGresho1], p0 = 1.0 / (1.4 * M * M), r = std::sqrt(x * x + y * y);
 		double vel, p;
 		if (r < 0.2) { vel = 5 * r; p = p0 + 25.0 / 2.0 * r * r; }
 		else if (r < 0.4) { vel = 2 - 5 * r; p = p0 + 25.0 / 2.0 * r * r + 4 * (1 - 5 * r - std::log(0.2) + std::log(r)); }
