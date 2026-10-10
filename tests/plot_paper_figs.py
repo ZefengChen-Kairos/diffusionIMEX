@@ -83,7 +83,7 @@ def panel(ax, v, curves, lab, log=False, ylim=None):
         if s is not None and v in s: ax.plot(s['x'], s[v], **kw)
     ax.set_xlabel('x (m)'); ax.set_ylabel(lab); ax.set_xlim(0, 1)
     if log: ax.set_yscale('log')
-    if ylim: ax.set_ylim(*ylim)
+    if ylim: ax.set_ylim(*ylim); ax.ticklabel_format(axis='y', useOffset=False)
     ax.grid(alpha=0.25)
 
 
@@ -191,8 +191,9 @@ if want('pel4'):   # Fig. 4: p, u, alpha_2, Y_2 for five relaxation levels, 5000
            [(ex5, dict(color='k', lw=0.9), 'exact 5-eq.'), (ex4, dict(color='k', ls='--', lw=0.9), 'exact 4-eq.'),
             (exg, dict(color='k', ls=':', lw=1.2), 'exact pT->pTg')], P)
 if want('pel5'):   # Fig. 5: temperature and chemical potentials (cases with temperature equilibrium)
-    levels('pel5', 'Pelanti 2022 Fig. 5: temperatures and chemical potentials g_k (l solid, v dashed), t = 3 ms, 5000 cells', 'pel4',
-           [l for l in PEL_LEV if l[0] in ('pT', 'pTgf', 'pTg')], [('T12', 'T (K)'), ('g12', '$g_k$ (J/kg)')],
+    levels('pel5', 'Pelanti 2022 Fig. 5: temperatures and chemical potentials g_k (l solid, v dashed), t = 3 ms, 5000 cells\n'
+           'T axis as in the paper (352.92-353.01 K); the pTg dip goes off scale (exact pT->pTg: 352.63 K at x = 0.5)', 'pel4',
+           [l for l in PEL_LEV if l[0] in ('pT', 'pTgf', 'pTg')], [('T12', 'T (K)', False, (352.92, 353.01)), ('g12', '$g_k$ (J/kg)')],
            [(ex4, dict(color='k', lw=0.9), 'exact 4-eq.'), (exg, dict(color='grey', lw=0.9), 'exact pT->pTg')], P)
 P = PH['pel_d']
 if want('pel6'):   # Fig. 6: dodecane (NASG), p-relax and pTg-relax, 2000 cells, t = 473 us

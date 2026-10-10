@@ -34,9 +34,10 @@ for f in sys.argv[2:]:
         print('%-24s fan: L1 u %.4f p %.3e rho %.3f | vacuum edge %.4f: centre p %.3e rho %.3e alpha_g %.6f' % (
             tag, L1(d[:, 3], o['u'], m), L1(d[:, 2], o['p'], m), L1(d[:, 5], o['rho'], m), xv, d[len(x)//2, 2], d[len(x)//2, 5], d[len(x)//2, 6]))
     elif case in (3, 31):    # dodecane liquid-vapour tube; RELAX 0 (p only) vs 5-eq. exact solution
-        G = [2.35, 1.025]; PI = [4e8, 0.]
-        if case == 31: G = [1.206, 1.021]; PI = [1681e5, 0.]
-        o, ps, us = e5.solve(e5.Side([1 - 1e-8, 1e-8], [500., 2.], 0., 1e8, G, PI), e5.Side([1e-8, 1 - 1e-8], [500., 2.], 0., 1e5, G, PI), 0.75, 473e-6, x)
-        m = (x > 0.2) & (x < 0.8)
-        print('%-24s (p-relax exact) L1 p/1e5 %.3f u %.3f rho %.3f | plateau[0.2,0.8] L1 p/p* %.4f max|p-p*|/p* %.3f | min p %.3e' % (
-            tag, L1(d[:, 2], o['p']) / 1e5, L1(d[:, 3], o['u']), L1(d[:, 5], o['rho']), L1(d[:, 2], ps, m) / ps, np.max(np.abs(d[m, 2] - ps)) / ps, d[:, 2].min()))
+        G = [2.35, 1.025]; PI = [4e8, 0.]; B = [0., 0.]
+        if case == 31: G = [1.206, 1.021]; PI = [1681e5, 0.]; B = [7.51e-4, 0.]   # NASG: liquid covolume
+        o, ps, us = e5.solve(e5.Side([1 - 1e-8, 1e-8], [500., 2.], 0., 1e8, G, PI, B), e5.Side([1e-8, 1 - 1e-8], [500., 2.], 0., 1e5, G, PI, B), 0.75, 473e-6, x)
+        w = (0.2, 0.8) if case == 3 else (0.5, 0.85)          # plateau between the rarefaction tail and the contact
+        m = (x > w[0]) & (x < w[1])
+        print('%-24s (p-relax exact) L1 p/1e5 %.3f u %.3f rho %.3f | plateau[%.2f,%.2f] L1 p/p* %.4f max|p-p*|/p* %.3f | min p %.3e' % (
+            tag, L1(d[:, 2], o['p']) / 1e5, L1(d[:, 3], o['u']), L1(d[:, 5], o['rho']), w[0], w[1], L1(d[:, 2], ps, m) / ps, np.max(np.abs(d[m, 2] - ps)) / ps, d[:, 2].min()))
