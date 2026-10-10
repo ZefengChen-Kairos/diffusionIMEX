@@ -621,22 +621,27 @@ inline double pbar_cell_q(const double* Q) {
 	return a1 * p_ame(0, a1, Q[IM1], Q[IE1]) + (1 - a1) * p_ame(1, 1 - a1, Q[IM2], Q[IE2]);
 }
 
-// 显式步的局部松弛：力学（SPB 原文：Gibbs 关系 + 重初始化）然后热/化学（P-S / Pelanti，用统一闭合 s = 0）
-static bool relax_cell_explicit(double* Q, double dtloc) {
+// 显式步的局部松弛（A3）：力学（SPB 原文：Gibbs 关系 + 重初始化）然后热/化学（P-S / Pelanti，用统一闭合 s = 0）。
+// 瞬时松弛是投影（幂等），Heun 的每一级之后都做；有限速率（mu, theta, nu 有限）是对时间的积分，每个时间步只做一次（finite = true，
+// tau = dt）。若每级都做，Heun 的一步对 y' = -lambda y 给出 R(1/2 (y + R(R(y)))) = (1 - 2 lambda dt) y + O(dt^2)：速率放大约 2 倍。
+static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	const double rho = Q[IM1] + Q[IM2], rhoe = Q[IEN] - 0.5 * (Q[IMU] * Q[IMU] + Q[IMV] * Q[IMV]) / rho;
-	ClIn in{}; in.atr[0] = Q[IA1]; in.atr[1] = 1 - Q[IA1]; in.mtr[0] = Q[IM1]; in.mtr[1] = Q[IM2]; in.etr[0] = Q[IE1]; in.etr[1] = Q[IE2];
-	in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_cell_q(Q), 1.0);
-	ClOut o;
+	double a1 = Q[IA1], m1 = Q[IM1], m2 = Q[IM2], e1 = Q[IE1], e2 = Q[IE2];
 	const int mech = std::isinf(mu_rate) ? CL_P : CL_MU;
-	in.type = mech; in.nodelta = (SPB_EXACT && mech == CL_P);
-	if (!closure(in, o)) { st_cl_fail++; return false; }
-	double a1 = o.a[0], m1 = o.m[0], m2 = o.m[1], e1 = o.e[0], e2 = o.e[1];
-	if (in.nodelta) {   // SPB 3.4 重初始化：alpha 固定，用守恒总能由 (A2.3) 重算 p，再重置相内能
-		const double p = p_mix(a1, m1, m2, rhoe);
-		if (!(p + PH[0].pi > 0 && p + PH[1].pi > 0)) { st_cl_fail++; return false; }
-		e1 = eps_amp(0, a1, m1, p); e2 = eps_amp(1, 1 - a1, m2, p);
+	if (mech == CL_P || finite) {
+		ClIn in{}; in.atr[0] = a1; in.atr[1] = 1 - a1; in.mtr[0] = m1; in.mtr[1] = m2; in.etr[0] = e1; in.etr[1] = e2;
+		in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_cell_q(Q), 1.0);
+		in.type = mech; in.nodelta = (SPB_EXACT && mech == CL_P);
+		ClOut o; if (!closure(in, o)) { st_cl_fail++; return false; }
+		a1 = o.a[0]; m1 = o.m[0]; m2 = o.m[1]; e1 = o.e[0]; e2 = o.e[1];
+		if (in.nodelta) {   // SPB 3.4 重初始化：alpha 固定，用守恒总能由 (A2.3) 重算 p，再重置相内能
+			const double p = p_mix(a1, m1, m2, rhoe);
+			if (!(p + PH[0].pi > 0 && p + PH[1].pi > 0)) { st_cl_fail++; return false; }
+			e1 = eps_amp(0, a1, m1, p); e2 = eps_amp(1, 1 - a1, m2, p);
+		}
 	}
-	const int ty = closure_type_of(a1, m1, m2, e1, e2, rhoe);
+	int ty = closure_type_of(a1, m1, m2, e1, e2, rhoe);
+	if (!finite) { if (ty == CL_NU) ty = CL_PT; else if (ty == CL_THETA) ty = mech; }   // 级内只做瞬时部分（nu 有限时 theta = inf）
 	if (ty != mech) {
 		ClIn t2{}; t2.atr[0] = a1; t2.atr[1] = 1 - a1; t2.mtr[0] = m1; t2.mtr[1] = m2; t2.etr[0] = e1; t2.etr[1] = e2;
 		t2.s = 0; t2.rhoeC = rhoe; t2.tau = dtloc; t2.type = ty; t2.pguess = std::max(p_mix(a1, m1, m2, rhoe), 1.0);
@@ -648,7 +653,7 @@ static bool relax_cell_explicit(double* Q, double dtloc) {
 
 static void reconstruct_prim_minmod(const Grid& U, std::vector<Prim>& WL, std::vector<Prim>& WR, int dir, bool& ok);
 
-static bool explicit_step(Grid& U, double dtl) {
+static bool explicit_step(Grid& U, double dtl, bool finite) {
 	const int g = ghost_cells, nx = U.nx, ny = U.ny, NXT = nx + 2 * g, NYT = ny + 2 * g;
 	bound_cond_u(U);
 	std::vector<Prim> W((size_t)NXT * NYT);
@@ -677,7 +682,7 @@ static bool explicit_step(Grid& U, double dtl) {
 		for (int k = 0; k < NUM_VARS; k++) V(i, j, k) = U(i, j, k) + dU[k];
 		double Q[NUM_VARS]; for (int k = 0; k < NUM_VARS; k++) Q[k] = V(i, j, k);
 		if (!(Q[IA1] > 0 && Q[IA1] < 1 && Q[IM1] > 0 && Q[IM2] > 0)) return false;
-		if (!relax_cell_explicit(Q, dtl)) return false;
+		if (!relax_cell_explicit(Q, dtl, finite)) return false;
 		for (int k = 0; k < NUM_VARS; k++) V(i, j, k) = Q[k];
 	}
 	U = V; bound_cond_u(U); return true;
@@ -707,7 +712,7 @@ static void reconstruct_prim_minmod(const Grid& U, std::vector<Prim>& WL, std::v
 }
 
 // ==================================================================================================== MODE 1：TV 分裂 IMEX
-// ---- B3 显式算子：共用限制因子的 minmod（在守恒量上），BB 的 Rusanov（中心部分用格均值，耗散用重构值）
+// ---- B3 显式算子：共用限制因子的 minmod（在守恒量上）；MUSCL-Rusanov（中心部分与耗散都用重构面值），耗散速度取物质速度
 static void TVDReconstruction(const Grid& Q, int dir, std::vector<double>& sig, std::vector<double>* phis = nullptr) {
 	const int g = ghost_cells, NXT = Q.nx + 2 * g, NYT = Q.ny + 2 * g;
 	sig.assign((size_t)NXT * NYT * NUM_VARS, 0.0);
@@ -942,14 +947,20 @@ static bool imex_stage(const Grid& Qe_in, const Grid& Qs_in, double tau, Grid& U
 	std::vector<double> sx, sy, phx, phy; TVDReconstruction(Qe, 0, sx, &phx); if (ny > 1) TVDReconstruction(Qe, 1, sy, &phy);
 	// MUSCL-Rusanov：中心部分与耗散都用重构面值（对线性输运就是重构值的迎风通量，TVD，微量相保正）。
 	// BB 的“中心部分用格均值”形式 (CENTRAL_CELLAVG = 1) 对线性输运给出 u X_i + 1/4 u (sig_i + sig_{i+1})，含下游斜率，不是 TVD。
-	auto flux_face = [&](int i0, int j0, int i1, int j1, const std::vector<double>& sig, int dir, double a, double* F, double& ubar) {
+	auto face_states = [&](int i0, int j0, int i1, int j1, const std::vector<double>& sig, int dir, double* XL, double* XR, double& uL, double& uR) {
 		const size_t k0 = ((size_t)i0 + (size_t)j0 * NXT) * NUM_VARS, k1 = ((size_t)i1 + (size_t)j1 * NXT) * NUM_VARS;
-		double XL[NUM_VARS], XR[NUM_VARS];
 		for (int k = 0; k < NUM_VARS; k++) { XL[k] = Qe(i0, j0, k) + 0.5 * sig[k0 + k]; XR[k] = Qe(i1, j1, k) - 0.5 * sig[k1 + k]; }
 		const int kn = dir == 0 ? IMU : IMV;
-		double uL, uR;
 		if (CENTRAL_CELLAVG) { uL = Qe(i0, j0, kn) / (Qe(i0, j0, IM1) + Qe(i0, j0, IM2)); uR = Qe(i1, j1, kn) / (Qe(i1, j1, IM1) + Qe(i1, j1, IM2)); }
 		else { uL = XL[kn] / (XL[IM1] + XL[IM2]); uR = XR[kn] / (XR[IM1] + XR[IM2]); }
+	};
+	// 耗散速度 a_Omega 必须不小于中心部分所用面态的速度（B3 的单调性条件）：把格更新写成面值的组合，下游面值 X^R_{i+1/2} 的系数是
+	// r (a - u^R_{i+1/2}) / 2，a < u^R 时下游格的含量以负系数进入，微量相含量变负。MUSCL 的面速度 (rho u)^{L,R} / rho^{L,R} 不是格速度的
+	// 凸组合，可能超出 max|u_cell|（水-气界面：超出 0.34 m/s 就使界面格的微量气体质量变负）。
+	for (int j = g; j < ny + g; j++) for (int i = g - 1; i < nx + g; i++) { double XL[NUM_VARS], XR[NUM_VARS], uL, uR; face_states(i, j, i + 1, j, sx, 0, XL, XR, uL, uR); ax = std::max(ax, std::max(std::fabs(uL), std::fabs(uR))); }
+	if (ny > 1) for (int j = g - 1; j < ny + g; j++) for (int i = g; i < nx + g; i++) { double XL[NUM_VARS], XR[NUM_VARS], uL, uR; face_states(i, j, i, j + 1, sy, 1, XL, XR, uL, uR); ay = std::max(ay, std::max(std::fabs(uL), std::fabs(uR))); }
+	auto flux_face = [&](int i0, int j0, int i1, int j1, const std::vector<double>& sig, int dir, double a, double* F, double& ubar) {
+		double XL[NUM_VARS], XR[NUM_VARS], uL, uR; face_states(i0, j0, i1, j1, sig, dir, XL, XR, uL, uR);
 		for (int k = 0; k < NUM_VARS; k++) {
 			const double cL = CENTRAL_CELLAVG ? Qe(i0, j0, k) : XL[k], cR = CENTRAL_CELLAVG ? Qe(i1, j1, k) : XR[k];
 			F[k] = 0.5 * (cL * uL + cR * uR) - 0.5 * a * (XR[k] - XL[k]);
@@ -982,11 +993,9 @@ static bool imex_stage(const Grid& Qe_in, const Grid& Qs_in, double tau, Grid& U
 		S.ust(i, j) = S.Xs(i, j, IMU) / rho; S.vst(i, j) = S.Xs(i, j, IMV) / rho;
 	}
 	auto rhoS = [&](int i, int j) { return S.Xs(i, j, IM1) + S.Xs(i, j, IM2); };
-	// B4.1：面两侧各有质量 rho_k l_k 参与，l_k = min(c_k tau, dx/2)（声学影响域，不超过半格），阻抗 Zhat_k = rho_k l_k / tau。
-	// 两侧动量平衡 Zhat_L (u_f - u*_L) = P_L - p_f，Zhat_R (u_f - u*_R) = p_f - P_R 给出
-	//   u_f = (Zhat_L u*_L + Zhat_R u*_R - (P_R - P_L)) / (Zhat_L + Zhat_R)，p_f = (Zhat_R P_L + Zhat_L P_R - Zhat_L Zhat_R (u*_R - u*_L)) / (Zhat_L + Zhat_R)。
-	// tau -> 0：声学 Riemann 解（Godunov）；tau 大：半格动量平衡（压力项 = tau dP/(rhobar dx)，速度跳跃项的粘性 ~ dx^2/(4 tau) = O(物质速度 dx)）。
-	// c 用冻结声速（各松弛声速的上界，满足次特征条件）；X* 不可容许时取 c = inf（即 l = dx/2）。
+	// B4.1 声学项用的声速：冻结声速 c_f（各松弛闭合声速的上界，次特征条件，所以补足后的耗散不低于任何闭合的 Godunov 耗散）。
+	// 在显式预测态 X* 上计算；X* 不可容许时取 c = inf，于是 phi = 0，该面不加声学项（只剩半格动量平衡）。
+	// （早先试过的“半格质量取 rho min(c tau, dx/2)”的面平衡已弃用：大步长时耗散随 a_ii 变化，见 docs/devlog.md V3。）
 	auto cfz = [&](int i, int j) -> double {
 		const double a1 = S.Xs(i, j, IA1), a2 = S.a2s(i, j), m1 = S.Xs(i, j, IM1), m2 = S.Xs(i, j, IM2);
 		if (!(a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0)) return INF;
@@ -1238,14 +1247,15 @@ int main(int argc, char** argv) {
 			if (!std::isfinite(dt)) dt = CFL_ac * caldt(U, true);
 		}
 		dt = std::min(dt, time_stop - t);
+		if (!(dt > 1e-12 * time_stop)) { fprintf(stderr, "FAILED: time step underflow (dt = %.3e) at t = %.6e (step %ld)\n", dt, t, st_steps); output(U, out.c_str()); return 2; }
 		bool done = false;
 		for (int attempt = 0; attempt < 30 && !done; attempt++) {
 			if (MODE == 0) {
 				Grid V = U;
-				if (SpaceOrder < 2) done = explicit_step(V, dt);
-				else { Grid W = V; done = explicit_step(V, dt) && explicit_step(V, dt);
+				if (SpaceOrder < 2) done = explicit_step(V, dt, true);
+				else { Grid W = V; done = explicit_step(V, dt, false) && explicit_step(V, dt, false);   // Heun；有限速率松弛只在平均之后做一次（A3）
 					if (done) { for (size_t q = 0; q < V.data.size(); q++) V.data[q] = 0.5 * (V.data[q] + W.data[q]);
-						for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++) { double Q[NUM_VARS]; for (int k = 0; k < NUM_VARS; k++) Q[k] = V(i, j, k); if (!relax_cell_explicit(Q, dt)) { done = false; break; } for (int k = 0; k < NUM_VARS; k++) V(i, j, k) = Q[k]; }
+						for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++) { double Q[NUM_VARS]; for (int k = 0; k < NUM_VARS; k++) Q[k] = V(i, j, k); if (!relax_cell_explicit(Q, dt, true)) { done = false; break; } for (int k = 0; k < NUM_VARS; k++) V(i, j, k) = Q[k]; }
 						bound_cond_u(V); } }
 				if (done) U = V;
 			} else {
