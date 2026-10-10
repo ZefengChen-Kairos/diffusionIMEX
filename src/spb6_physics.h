@@ -161,21 +161,24 @@ enum ClosureType { CL_P = 0, CL_MU = 1, CL_PT = 2, CL_THETA = 3, CL_NU = 4, CL_P
 struct ClIn {
 	double atr[2], mtr[2], etr[2];   // 输运态（未压回单位体积）
 	double s;                        // 体积应变 s = 1 - sum atr
-	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2
+	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2；与 sum etr 之差（能量亏损）按质量分数分给两相（B5.2）
 	double tau;                      // 级的隐式步长 a_ii dt
 	double Z[2];                     // 有限 mu 时的阻抗（冻结）
 	int type;
-	bool nodelta;                    // 显式格式的 SPB 原文力学松弛：不含 lambda*delta（之后单独重初始化）
+	bool nodelta;                    // 不含能量亏损（只在 p-pTg 激活判据的预测里用）
 	double pguess;
 };
 struct ClOut { double a[2], m[2], e[2], p[2], T[2], pbar; };
 static const double YMIN = 1e-10;
 
-// (B6.2)：p 闭合中 alpha_k(p) 的系数
+// (B6.2)：p 闭合中 alpha_k(p) 的系数。能量亏损 delta（守恒混合内能与非守恒相内能之和的差，主要是被数值耗散的动能）
+// 按质量分数 lam_k = Y_k 分给两相（B5.2）：单速度模型里第 k 相的动能是 1/2 alpha_k rho_k |u|^2（P-S 2014 §2.2 的相总能形式），
+// 耗散的动能按质量分配。SPB 3.4 的重初始化（alpha 固定、整体平移 p）相当于 lam_k ∝ de_k/dp|alpha ∝ alpha_k/(gamma_k - 1)，
+// 把耗散的动能主要交给可压缩性最大的相（气/汽），质量极小的轻相因此被加热到 1e5-1e6 K（devlog V10）。
 struct PCoef { double A[2], B[2], N[2], lam[2]; };
 static bool p_coef(const ClIn& in, PCoef& c) {
 	double den = 0.0;
-	for (int k = 0; k < 2; k++) { c.lam[k] = in.nodelta ? 0.0 : dedp_am(k, in.atr[k], in.mtr[k]); den += c.lam[k]; }
+	for (int k = 0; k < 2; k++) { c.lam[k] = in.nodelta ? 0.0 : in.mtr[k]; den += c.lam[k]; }
 	if (!in.nodelta) { if (!(den > 0)) return false; for (int k = 0; k < 2; k++) c.lam[k] /= den; }
 	const double D0 = in.nodelta ? 0.0 : in.rhoeC - in.etr[0] - in.etr[1];
 	for (int k = 0; k < 2; k++) {
@@ -226,7 +229,7 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 	const double om[2] = {in.atr[0] / sa, in.atr[1] / sa};
 	const double ak[2] = {in.atr[0] / sa, in.atr[1] / sa};   // a_k = atr_k + om_k s = atr_k / (1 - s)
 	double lam[2], den = 0.0;
-	for (int k = 0; k < 2; k++) { lam[k] = dedp_am(k, in.atr[k], in.mtr[k]); den += lam[k]; }
+	for (int k = 0; k < 2; k++) { lam[k] = in.mtr[k]; den += lam[k]; }   // 能量亏损按质量分数分给两相（同 p_coef）
 	for (int k = 0; k < 2; k++) lam[k] /= den;
 	const double D0 = in.rhoeC - in.etr[0] - in.etr[1];
 	const double w1 = in.Z[1] / (in.Z[0] + in.Z[1]), w2 = 1.0 - w1;

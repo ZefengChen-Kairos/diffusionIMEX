@@ -1,7 +1,9 @@
 // =====================================================================================================================
 //  SPB6_explicit.cpp
 //  全显式参考格式（docs/derivation/A_model_EOS_explicit.md）：SPB 2009 的 HLLC + Godunov 更新（SPB 3.1-3.2），
-//  力学松弛 + 用总能重初始化（SPB 3.3-3.4），P-S 2014 / Pelanti 2022 的热、化学松弛（瞬时或有限速率）。
+//  力学松弛（SPB 3.3，p_I 取松弛后的 p），守恒总能与相内能之和的差（能量亏损）在松弛闭合里按质量分数分给两相
+//  （代替 SPB 3.4 的重初始化；P-S 2014 §2.2 的相总能形式、§3.1 的一致性 (ii)），
+//  P-S 2014 / Pelanti 2022 的热、化学松弛（瞬时或有限速率）。
 //
 //  与 SPB6_TV_IMEX.cpp 一样由 reference/code/2DEuler_TV.cpp 修改而来（全局设置、Grid/Array、TVDReconstruction、Update、
 //  u_initialization、bound_cond_u、caldt、bound_cond_array、VTK 输出、main 的时间循环），状态方程、闭合、算例在 spb6_physics.h（两个程序共用）。
@@ -302,7 +304,7 @@ double caldt(Grid &u_con, bool acoustic){
 
 
 // ==================================================================================================== 松弛（代替 2DEuler 的 PressureSubsystem）
-// 局部松弛（A3）：力学（SPB 原文：Gibbs 关系 + 重初始化）然后热/化学（P-S / Pelanti，用统一闭合 s = 0）。
+// 局部松弛（A3）：力学（SPB 3.3 的 Gibbs 关系，能量亏损按质量分数分给两相）然后热/化学（P-S / Pelanti，用统一闭合 s = 0）。
 // 瞬时松弛是投影（幂等），Heun 的每一级之后都做；有限速率（mu, theta, nu 有限）是对时间的积分，每个时间步只做一次（finite = true，
 // tau = dt）。若每级都做，Heun 的一步对 y' = -lambda y 给出 R(1/2 (y + R(R(y)))) = (1 - 2 lambda dt) y + O(dt^2)：速率放大约 2 倍。
 static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
@@ -312,14 +314,9 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	if (mech == CL_P || finite) {
 		ClIn in{}; in.atr[0] = a1; in.atr[1] = 1 - a1; in.mtr[0] = m1; in.mtr[1] = m2; in.etr[0] = e1; in.etr[1] = e2;
 		in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_of(Q), 1.0);
-		in.type = mech; in.nodelta = (mech == CL_P);
+		in.type = mech; in.nodelta = false;   // 守恒总能（"+1"）在闭合里：能量亏损按质量分数分给两相，代替 SPB 3.4 的重初始化（A3）
 		ClOut o; if (!closure(in, o)) { st_cl_fail++; return false; }
 		a1 = o.a[0]; m1 = o.m[0]; m2 = o.m[1]; e1 = o.e[0]; e2 = o.e[1];
-		if (in.nodelta) {   // SPB 3.4 重初始化：alpha 固定，用守恒总能由 (A2.3) 重算 p，再重置相内能
-			const double p = p_mix(a1, m1, m2, rhoe);
-			if (!(p + PH[0].pi > 0 && p + PH[1].pi > 0)) { st_cl_fail++; return false; }
-			e1 = eps_amp(0, a1, m1, p); e2 = eps_amp(1, 1 - a1, m2, p);
-		}
 	}
 	int ty = closure_type_of(a1, m1, m2, e1, e2, rhoe);
 	if (!finite) { if (ty == CL_NU) ty = CL_PT; else if (ty == CL_THETA) ty = mech; }   // 级内只做瞬时部分（nu 有限时 theta = inf）
