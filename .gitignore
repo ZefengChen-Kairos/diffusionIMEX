@@ -4,3 +4,4 @@ build/
 run/
 *.o
 __pycache__/
+src/spb6
