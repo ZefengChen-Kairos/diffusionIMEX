@@ -519,7 +519,7 @@ $$
 | 声学耗散 | 无（只有后向 Euler） | 声学 CFL < 1 时补足到 Godunov（B4.1），否则不变 |
 | 增量供体 | 按 $\Delta u$ 的符号 | 总通量对 $u_f$ 迎风（B4.2）；按 $\Delta u$ 取会产生相间逆流 |
 | 不可容许时 | 逐格限制 $Q^e$、退回一阶、压力下限 | 拒绝本步并减半 $\Delta t$，计数报告 |
-| 代码结构 | 一维专用 | `2DEuler_TV` 结构（`Grid`、`Qe/Qs/Hs`、二维） |
+| 代码结构 | 一维专用 | `2DEuler_TV` 结构（`Grid`、`Qe/Qs/Hs`、二维）；显式与 IMEX 是两个程序（`src/SPB6_explicit.cpp`、`src/SPB6_TV_IMEX.cpp`），共用 `src/spb6_common.h`；所有算例同一套格式与参数（V7） |
 
 ---
 
@@ -535,7 +535,7 @@ $$
   - `tests/exact5.py`：5 方程，SPB (II.5) 激波关系，有真空时给出真空；
   - `tests/exactfan.py`：$pT\to pTg$ 平衡扇。
 - 复现：
-  - `bash tests/run_suite.sh OUT all`；
+  - `bash tests/run_suite.sh OUT all`（编译并运行 `src/spb6_ex` 与 `src/spb6_imex`）；
   - `python3 tests/metrics.py CASE files`；
   - `python3 tests/relax0d.py`。
 
@@ -557,9 +557,11 @@ $$
 | SPB 5.1 环氧–尖晶石 | $L_1(u)$；$\rho^*$（精确 2527.5） | 3.70；2530 | 5.40；2547；0 次拒绝 |
 | SPB 5.2 | $\rho^*$（精确 3767） | 3953 | 3990；两者都不收敛到精确解，与 SPB 5.2 的结论一致 |
 | P-S ±2 m/s，$p$ / $pT$ / $pTg$ | 中心 $p$（精确 3969 / 11847 / 50310） | 3583 / 11331 / 50924 | 4075 / 11815 / 50571 |
-| P-S ±2 m/s，$pTg$ | 中心 $Y_v$（精确 $7.64\times10^{-4}$） | $1.7\times10^{-4}$ | $5.1\times10^{-4}$ |
+| P-S ±2 m/s，$pTg$ | 中心尖峰 $\alpha_v$ / $Y_v$（精确扇 0.735 / $7.64\times10^{-4}$；P-S 图 1，$N=5000$：约 0.33 / $1.3\times10^{-4}$） | $N=1000$：0.38 / $1.7\times10^{-4}$；$N=2000$：0.51 / $2.9\times10^{-4}$ | $N=1000$：0.65 / $5.1\times10^{-4}$；$N=2000$：0.72 / $7.2\times10^{-4}$；$N=5000$：0.74 / $7.8\times10^{-4}$ |
 | 十二烷 $pTg$ / $p$-$pTg$ | 对 $N=4000$ 显式：$L_1(u)$，$\max u$（参考 317.3） | 1.65，317.5 | 4.21，315.2 |
 | P-S ±500 m/s，$pTg$ | 中心 $p$（HEM 精确 664） | $3.0\times10^4$ | $9.3\times10^4$（未解决） |
+
+**P-S ±2 m/s 的中心尖峰。** 精确解（`tests/exactfan.py`）就是 P-S 的 $p$–$pT$–$pTg$ 模型（带 $T>T_{\rm sat}$ 激活）的解：先是 $pT$ 稀疏波降到 $p_{\rm sat}(T)$，再接 $pTg$ 蒸发扇，扇的特征速度只有几 m/s，所以 $x=0.5$ 处是宽约 1 cm 的尖峰。IMEX 的中心值随网格收敛到精确值；显式 HLLC 收敛得慢得多，P-S 图 1 的 $N=5000$ 值也明显偏低。这是低马赫耗散的差别：HLLC 对这个慢结构的耗散 $\sim c\Delta x$（$c\approx1500$ m/s），IMEX 只有物质速度耗散 $\sim|u|\Delta x$（$|u|\le2$ m/s）。
 
 **Pelanti 8.2.1（NASG 水，±2 m/s，$t=3$ ms，$N=5000$）。** 中心压力，单位 Pa：
 

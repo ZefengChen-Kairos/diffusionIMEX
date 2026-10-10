@@ -7,7 +7,7 @@ Reference ODEs (SG water/vapour of Pelanti-Shyue 2014, Table 1):
   finite mu      : d alpha1/dt = mu (p1-p2),  d eps1/dt = -pI mu (p1-p2),  pI = (Z2 p1 + Z1 p2)/(Z1+Z2)
   finite theta   : mu = inf; each phase isentropic except the heat Q = theta (T2-T1):  m_k T_k ds_k/dt = +-Q
   finite nu      : mu = theta = inf; dY2/dt = -(nu/rho)(g2 - g1) on the (p,T)-equilibrium manifold
-usage: python3 tests/relax0d.py [BIN]"""
+usage: python3 tests/relax0d.py [BIN]   (BIN defaults to src/spb6_imex, built from src/SPB6_TV_IMEX.cpp)"""
 import numpy as np, subprocess, sys, os, tempfile
 from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
@@ -53,10 +53,10 @@ def ref_nu(nu, t, Y0):
     s = solve_ivp(f, [0, t], [Y0], method='Radau', rtol=1e-12, atol=1e-14)
     p, T = pT_state(s.y[0, -1]); return dict(p=p, T=T, Y=s.y[0, -1])
 
-BIN = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'spb6')
+BIN = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'spb6_imex')
 def run(args):
     with tempfile.TemporaryDirectory() as d:
-        f = os.path.join(d, 'o.dat'); r = subprocess.run([BIN, 'case=40', 'N=4', 'mode=1', 'out=' + f] + args, capture_output=True, text=True)
+        f = os.path.join(d, 'o.dat'); r = subprocess.run([BIN, 'case=40', 'N=4', 'out=' + f] + args, capture_output=True, text=True)
         if r.returncode != 0: return None
         x = np.loadtxt(f); return dict(p=x[0, 2], a2=x[0, 6], Y=x[0, 7], T1=x[0, 12], T2=x[0, 13], p1=x[0, 14], p2=x[0, 15])
 
@@ -106,7 +106,7 @@ T0, p0 = 380.0, 0.8e5
 m1 = 0.8 / v_pT(0, p0, T0); m2 = 0.2 / v_pT(1, p0, T0); rho = m1 + m2; E = m1 * e_pT(0, p0, T0) + m2 * e_pT(1, p0, T0)
 def run41(args):
     with tempfile.TemporaryDirectory() as d:
-        f = os.path.join(d, 'o.dat'); r = subprocess.run([BIN, 'case=41', 'N=4', 'mode=1', 'out=' + f] + args, capture_output=True, text=True)
+        f = os.path.join(d, 'o.dat'); r = subprocess.run([BIN, 'case=41', 'N=4', 'out=' + f] + args, capture_output=True, text=True)
         if r.returncode != 0: return None
         x = np.loadtxt(f); return dict(p=x[0, 2], Y=x[0, 7], T=x[0, 12])
 nu = 1e-3
