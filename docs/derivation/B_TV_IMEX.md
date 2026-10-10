@@ -74,25 +74,31 @@ $$
 
 ---
 
-## B3. 显式算子（BB 2025 的耗散方式）
+## B3. 显式算子（MUSCL–Rusanov，耗散速度取物质速度）
 
 在显式级态 $Q^e$ 上，对 $X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,E\}$：
 
 $$
-F^e_{i+1/2}[X]=\tfrac12\big(X_iu_i+X_{i+1}u_{i+1}\big)^e-\tfrac12a_\Omega\big(X^{R}_{i+1/2}-X^{L}_{i+1/2}\big)^e,\qquad a_\Omega=\max_\Omega|u^e| .\tag{B3.1}
+F^e_{i+1/2}[X]=\tfrac12\big(X^{L}u^{L}+X^{R}u^{R}\big)-\tfrac12a_\Omega\big(X^{R}-X^{L}\big),\qquad a_\Omega=\max_\Omega|u^e| ,\tag{B3.1}
 $$
 
-- **中心部分**用格均值；**耗散**用重构的面值（BB (33)–(35)：minmod，中心部分不动）。
+$X^L=X_i+\tfrac12\sigma_{X,i}$，$X^R=X_{i+1}-\tfrac12\sigma_{X,i+1}$，$u^{L,R}=(\rho u)^{L,R}/\rho^{L,R}$。
+
 - **重构在被输运的守恒量上做，各量共用一个限制因子**。记 $\mathcal X=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,E)$，格 $i$ 的斜率为
   $$\sigma_{X,i}=\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad \phi_i=\min_{X\in\mathcal X}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1].$$
   - 对每个量，$|\sigma_X|$ 都不超过它自己的 minmod 斜率且同号，所以仍是 TVD。
   - 所有量的斜率是**同一个**系数乘中心差分，所以量之间的线性关系在面上原样成立。均匀 $p,u$ 时 $\varepsilon_k=c_k(p)\alpha_k+q_km_k$、$\rho u=u\rho$、$E=\sum\varepsilon_k+\tfrac12u^2\rho$ 在面值上同样成立（(E1)），这是 WB 所需的。
   - 重构不经过 EOS，所以 $Q^e$ 只需 $\rho>0$；这一点对 IMEX-RK 的外推级态很重要（B10）。
-- $\alpha_2$ 的面值取 $1-\alpha_1$，所以 $\sum_kF^e[\alpha_k]=\tfrac12(u_i+u_{i+1})^e\equiv\bar u^e_f$，耗散两相抵消。
+  - $\phi_i$ 也用来判断“所有被输运量在格 $i$ 都光滑”（B4.1 的二阶声学耗散）。
+- $\alpha_2$ 的面值取 $1-\alpha_1$，所以 $\sum_kF^e[\alpha_k]=\tfrac12(u^L+u^R)\equiv\bar u^e_f$，耗散两相抵消。
+
+**中心部分为什么也用重构值（与 BB (35) 不同）。** BB 的中心部分用格均值、只有耗散用重构值。对线性输运 $X_t+uX_x=0$（$u>0$，$a_\Omega=u$），BB 的通量是
+$$F=\tfrac12u(X_i+X_{i+1})-\tfrac12u(X^R-X^L)=uX_i+\tfrac14u(\sigma_i+\sigma_{i+1}),$$
+含下游格的斜率 $\sigma_{i+1}$，不是 TVD；微量相（$\alpha\sim10^{-8}$）界面处会把 $\alpha$ 推成负值（数值上观察到）。中心部分也用重构值时 $F=u(X_i+\tfrac12\sigma_i)$，就是 MUSCL 迎风通量，TVD。两者都是二阶。
 
 **与 BB 的对应：** BB (36)–(38) 要求，对 $\phi$ 加的人工耗散必须在内能方程里按 $\partial(\rho\phi e)/\partial\phi$ 缩放后同样加上，否则接触处出现压力振荡。本格式对 $\alpha_k$ 与 $\varepsilon_k$ 用同一个 $a_\Omega$ 和同一种重构；均匀 $p$ 时由 (E1) 有 $\Delta\varepsilon_k=\frac{p+\gamma\pi}{\gamma-1}\Delta\alpha_k+q\Delta m_k$，这正是 BB (38) 的缩放，而且对任意 $\alpha,m$ 分布都自动满足。
 
-BB (39) 的压力跳跃耗散（高马赫）作为可选项，按 BB 原式显式加在相能量上，默认关。
+BB (39) 的压力跳跃耗散（高马赫）作为可选项，按 BB 原式显式加在相能量上，默认关。声学耗散见 B4.1。
 
 显式更新：$X^*_i=X^s_i-r\,\delta_i[F^e[X]]$，$Q^s$ 是级的更新基底。
 
@@ -102,33 +108,58 @@ BB (39) 的压力跳跃耗散（高马赫）作为可选项，按 BB 原式显�
 
 $\rho^*_i=\sum_km^*_{k,i}$，$u^*_i=(\rho u)^*_i/\rho^*_i$。未知量是各格的混合压力 $P_i$。
 
-**面速度**（面上的动量方程，紧致模板）：
+### B4.1 面速度与面压力
 
+**(a) 压力加速度与动量的一致性。** 格速度 $u_i$ 是主变量，面速度由两侧格速度加上压力加速度给出。面两侧各半格以同一加速度运动，半格动量平衡（质量 $\rho_i\Delta x/2$、$\rho_{i+1}\Delta x/2$）给出
 $$
-u_f=\bar u^*_f-r\,\frac{P_{i+1}-P_i}{\bar\rho_f},\qquad \bar u^*_f=\tfrac12(u^*_i+u^*_{i+1}),\quad \bar\rho_f=\tfrac12(\rho^*_i+\rho^*_{i+1}).\tag{B4.1}
+a_f=-\frac{P_{i+1}-P_i}{\bar\rho_f\Delta x},\quad \bar\rho_f=\tfrac12(\rho^*_i+\rho^*_{i+1}),\qquad
+p_f=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}} .
 $$
+于是格的动量更新 $-r(p_{f,E}-p_{f,W})/\rho_i=\tfrac12\tau(a_E+a_W)$：格速度的压力增量是两侧面增量的平均，动量守恒，均匀 $P$ 时 $p_f=P$（WB）。（若 $p_f=\tfrac12(P_i+P_{i+1})$，轻格会以格密度承受面上的压力差，而面速度用的是面密度，二者不一致：1 GPa 水–气算例中气体格动能与面功不匹配，$(\rho e)^C<0$。）
+
+**(b) 声学耗散的补足。** 后向 Euler 作用在中心声学算子上，修正方程里 $p$ 与 $u$ 的耗散系数都是 $c^2\tau/2$；声学 Godunov（迎风）是 $c\Delta x/2$。声学 CFL $\nu=c\tau/\Delta x<1$ 时前者不足，强接触/激波处出现色散过冲：十二烷算例中界面后的液体速度过冲 13%，拉出张力，微量蒸汽空化（$p\to0$，与 $\Delta t$ 无关）；水–气算例 CFL $\le0.1$ 时界面格被抽空而失败。把差额 $\nu_{\rm add}=\tfrac{c\Delta x}2(1-\nu)^+$ 以声学 Riemann 解的形式补上：
+$$
+\boxed{\begin{aligned}
+u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\varphi_f\,\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
+p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\psi^u_f\,\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\big(u^*_{i+1}-u^*_i\big),
+\end{aligned}}\qquad \varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ ,\tag{B4.1}
+$$
+$Z=\rho^*c$，$\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$。
+
+- $\tau\to0$：$\varphi=1$，$u_f-\bar u^*=-\Delta P/(Z_i+Z_{i+1})$，$p_f-\bar p=-\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\Delta u$，就是声学 Riemann 解（Godunov）。
+- $c\tau\ge\Delta x$：$\varphi=0$，格式不变。低马赫时 $c\tau/\Delta x=\mathrm{CFL}/M\gg1$，所以 AP 性质（B7）与低马赫精度不受影响。
+- 补的是差额，所以耗散率与级步长 $\tau=a_{ii}\Delta t$ 无关（上界 $c\Delta x/2$），不随 IMEX 表变化。
+- 速度跳跃项是显式粘性，$\nu_{\rm add}\tau/\Delta x^2=\tfrac12\nu(1-\nu)\le\tfrac18$，稳定；压力项对 $P$ 隐式、线性。
+- **$c$ 取冻结声速。** $\rho c_{\rm frozen}\ge\rho c$ 对所有松弛闭合（Wood、$pT$、$pTg$）成立（次特征条件），所以补足后的耗散对任何闭合都不低于其波的 Godunov 耗散。用 Wood 声速试过：数值混合区里 $Z$ 很小，$\Delta P/(Z_i+Z_{i+1})$ 很大，把界面推得过快（水–气 $\max u/u^*=1.11$，激波超前 20 格），舍弃。
+- **二阶：** $\psi_f=1-(1-\psi^{\rm mm}_f)\min(\phi_i,\phi_{i+1})$，$\psi^{\rm mm}_f=1-\frac{\sigma_i+\sigma_{i+1}}{2D_f}$（$D_f$ 为面跳跃，$\sigma$ 为 minmod 斜率，所以 $\psi^{\rm mm}\in[0,1]$，光滑区 $O(\Delta x)$）；$P$ 的斜率取上一次的压力场（Newton 初猜），$u$ 的取 $u^*$，残量对 $P$ 仍是线性的。$\phi$ 是 B3 的共用限制因子：只有所有被输运量都光滑时才降到二阶。接触间断处 $p,u$ 连续（$\psi^{\rm mm}\to0$）但阻抗跳跃，若只看 $p,u$，耗散在最需要的地方被关掉（水–气 CFL 0.05 时界面格气体质量变负，数值上观察到）。
+- **舍弃的另一条路：** 让两侧参与面动量平衡的质量取 $\rho\min(c\tau,\Delta x/2)$（声学影响域，不超过半格），$\tau$ 小时同样是 Godunov，$\tau$ 大时是带非弹性碰撞项的半格平衡。但大步长时它每一级都把格速度换成两侧面速度的平均（$\tfrac14\delta^2u$），耗散率 $\propto\Delta x^2/\tau$ 随 $a_{ii}$ 变化（LSDIRK2 是后向 Euler 的 3.4 倍），空化管的熵误差因此成倍增大。
 
 **增量**（参考速度就是显式中心通量里用的那个面速度）：
 
 $$
-\Delta u_f=u_f-\bar u^e_f,\qquad \bar u^e_f=\tfrac12(u^e_i+u^e_{i+1}).\tag{B4.2}
+\Delta u_f=u_f-\bar u^e_f,\qquad \bar u^e_f=\tfrac12(u^L+u^R)^e .\tag{B4.2}
 $$
 
-**增量通量：** $\hat X_f\Delta u_f$。$\hat X_f$ 是供体格（按 $\Delta u_f$ 的符号取上游格 $d$）**单位体积**的内容：
+### B4.2 增量通量：总通量对 $u_f$ 迎风
 
+一步内面扫过的体积是 $u_f\tau$，其中的物质来自 $u_f$ 的上游格。显式部分已经按 $\bar u^e_f$ 从**它的**上游格扫过 $\bar u^e_f\tau$（Rusanov 在 $a_\Omega\ge|u|$ 时就是迎风加耗散），增量只需补足差额：
 $$
-\hat X_f=\frac{X^*_d}{\sum_j\alpha^*_{j,d}},\qquad X\in\{\alpha_k,m_k,\varepsilon_k\}.
+I_f[X]=\hat X_{i}\big[(u_f)^+-(\bar u^e_f)^+\big]+\hat X_{i+1}\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\tag{B4.2'}
 $$
+$(\cdot)^\pm=\max/\min(\cdot,0)$，$\hat X_j=X^*_j/\sum_l\alpha^*_{l,j}$ 是格 $j$ **单位体积**的内容。
 
-- 显式输运之后，供体格内的物质占体积 $\sum_j\alpha^*_{j,d}=1-r\delta_d[\bar u^e]\neq1$。增量通量搬走的是体积 $r\Delta u_f$ 的这种物质，所以要按单位体积归一。
-- 于是 $\sum_k\hat\alpha_{k,f}=1$，(B4.4) 严格成立。
-- 三个量用同一个归一因子，比值 $\rho_k,e_k$ 不变（R3）。
-- 增量 $\Delta u_f=O(\tau)$，所以供体格的一阶面值在光滑区只带来 $O(\Delta x\,\tau)$ 的误差。
+- 同号（$u_f$ 与 $\bar u^e_f$ 同向）：$I_f=\hat X_{\rm up}\Delta u_f$。$\Delta u_f<0$ 时退回的是显式部分扫过来的**同一种**物质。
+- 反向：退回显式扫过的全部，再从另一侧扫 $u_f\tau$。
+- $\sum_k\hat\alpha_{k,j}=1$，两项系数之和为 $\Delta u_f$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；同一系数用于 $\alpha_k,m_k,\varepsilon_k$，R3 不变；$I_f$ 对 $P$ 连续（分段线性）。
+- **旧写法的错误：** 若按 $\Delta u_f$ 的符号取供体，$\Delta u_f<0$ 而 $u_f>0$ 时，增量从**下游**格取物质。显式部分把 L 的物质扫进 R，增量却从 R 退回 R 的物质，等于在面上交换两种物质：单速度模型里不该有的相间逆流（液–汽界面处把汽送进液体）。
+- 显式通量中 $a_\Omega>|u|$ 的那部分是 Rusanov 的数值耗散，保持不变。
+
+**动量与总能的增量。** 记 $M_{L}=\sum_k\hat m_{k,i}\big[(u_f)^+-(\bar u^e_f)^+\big]$、$M_R=\sum_k\hat m_{k,i+1}\big[(u_f)^--(\bar u^e_f)^-\big]$，$\hat M_f=M_L+M_R$。增量质量携带新时间层的法向面速度 $u_f$，切向速度取各自供体格的 $v^*$。
 
 输运态为
 
 $$
-X^{\rm tr}_i=X^*_i-r\,\delta_i[\hat X_f\Delta u_f],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\}.\tag{B4.3}
+X^{\rm tr}_i=X^*_i-r\,\delta_i[I_f[X]],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\}.\tag{B4.3}
 $$
 
 **体积应变**（显式中心通量与增量合起来恰好是 $u_f$；散度对压力完全隐式）：
@@ -137,24 +168,23 @@ $$
 s_i\equiv1-\sum_k\alpha^{\rm tr}_{k,i}=r\,\delta_i[\bar u^e_f+\Delta u_f]=r\,\delta_i[u_f].\tag{B4.4}
 $$
 
-**动量与总能**（守恒，R1）。面压力取 $p_f=\tfrac12(P_i+P_{i+1})$，$\hat M_f=\sum_k\hat m_{k,f}\Delta u_f$：
+**动量与总能**（守恒，R1），$p_f$ 取 (B4.1)：
 
 $$
 \begin{aligned}
 (\rho u)^{n+1}_i&=(\rho u)^*_i-r\,\delta_i[p_f]-r\,\delta_i[u_f\hat M_f],\\
-E^{n+1}_i&=E^*_i-r\,\delta_i\Big[\textstyle\sum_k\hat\varepsilon_{k,f}\Delta u_f+\tfrac12u_f^2\hat M_f+p_fu_f\Big].
+E^{n+1}_i&=E^*_i-r\,\delta_i\Big[\textstyle\sum_kI_f[\varepsilon_k]+\tfrac12u_f^2\hat M_f+\tfrac12(v_L^{*2}M_L+v_R^{*2}M_R)+p_fu_f\Big].
 \end{aligned}\tag{B4.5}
 $$
 
 - 增量质量携带新时间层面速度 $u_f$：在均匀加速度场中 $u$ 保持均匀。
-- 动量压力项 $-r\delta[p_f]=-\tfrac r2(P_{i+1}-P_{i-1})$。
 - 守恒的混合内能：
 
 $$
 \rho^{n+1}_i=\sum_km^{\rm tr}_{k,i},\qquad (\rho e)^C_i=E^{n+1}_i-\frac{\big((\rho u)^{n+1}_i\big)^2}{2\rho^{n+1}_i}.\tag{B4.6}
 $$
 
-$X^{\rm tr}_i$、$s_i$、$(\rho e)^C_i$ 都只依赖 $(P_{i-1},P_i,P_{i+1})$。
+$X^{\rm tr}_i$、$s_i$、$(\rho e)^C_i$ 都只依赖 $(P_{i-1},P_i,P_{i+1})$。声学补足中被耗散的动能经 $E$ 进入 $(\rho e)^C$，由 B5.2 的 $\delta$ 分给各相（熵增，方向正确）。
 
 ---
 
@@ -340,7 +370,7 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
 
 **单调性：**
 
-- $\partial s_i/\partial P_i=r^2(1/\bar\rho_{i+1/2}+1/\bar\rho_{i-1/2})>0$，且 $\partial\bar p^{\rm cl}/\partial s<0$：膨胀降压（E5）。
+- $\partial s_i/\partial P_i=r^2(1/\bar\rho_{i+1/2}+1/\bar\rho_{i-1/2})+r\sum_f\varphi_f\psi^P_f/(Z_i+Z_{i\pm1})>0$（B4.1 的补足项只增加对角占优），且 $\partial\bar p^{\rm cl}/\partial s<0$：膨胀降压（E5）。
 - $\partial E_i/\partial P_i\approx-r^2\,2\bar p/\bar\rho<0$。
 
 所以 $\partial G_i/\partial P_i<-1$，相邻项 $O(r^2\rho c^2/\bar\rho)$，矩阵是 $I-\tau^2\partial_x(c^2\partial_x)$ 型：对角占优的 M 矩阵。
@@ -350,7 +380,7 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
 - Newton。Jacobian 用逐格差分：扰动三个（五个）压力，各算一次局部闭合。
 - 一维用 Thomas；二维用 BiCGStab + Jacobi 预条件（`2DEuler_TV` 风格，但用相对容差）。
 - 线搜索保证可容许性：$X^{\rm tr}$ 为正、局部闭合有解。
-- 收敛判据：$\max_i|G_i|/(|P_i|+p_{\rm ref})<10^{-10}$。
+- 收敛判据：$\max_i|G_i|/(|P_i|+K_i+P_{E,i})<10^{-13}$，$K=\rho c_W^2$（Wood 体积模量，$G/K$ 就是体积约束残量 $\sum\alpha-1$），$P_E=\sum_k(|\varepsilon_k|+|m_kq_k|)/\sum_k\partial\varepsilon_k/\partial p$（$X^*$ 处）。理由：闭合给出的压力只精确到 $\varepsilon_{\rm mach}(p+\pi)$，守恒总能的舍入 $\varepsilon_{\rm mach}|E|$ 又经 $\lambda_k\delta$ 进入各相压力，所以 $G$ 的可达精度是 $\varepsilon_{\rm mach}\max(K,P_E)$。按 $|P|$ 归一时 $p\ll\pi$ 的格子永远达不到容差：环氧–尖晶石（$\pi=1.41\times10^{11}$）算例因此每步都被拒绝（3659 次拒绝、13906 步），改后 0 次拒绝、119 步，每级 3 次 Newton。
 
 **步长控制（不是补丁，而是可容许性条件）：** 以下任一情况发生时，拒绝本步，$\Delta t\leftarrow\Delta t/2$ 重算：
 - $Q^e$ 出现 $\rho\le0$（显式通量只需要这一条，B3）；
@@ -368,7 +398,7 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
 设 $u\equiv u_0$、$p_k\equiv p$，$\alpha_k,\rho_k$ 任意（各相温度也可以任意）。
 
 1. **显式：** 由 (E1)，格均值满足 $\varepsilon_k=c_k(p)\alpha_k+q_km_k$、$\rho u=u_0\rho$；共用限制因子的重构保持这些线性关系，所以面值也满足。(B3.1) 对 $X$ 线性，所以 $\varepsilon^*_k=c_k\alpha^*_k+q_km^*_k$，$(\rho u)^*=u_0\rho^*$，$E^*=\sum\varepsilon^*_k+\tfrac12\rho^*u_0^2$。
-2. **隐式：** 取 $P\equiv p$。$\bar u^*_f=u_0=\bar u^e_f$，所以 $\Delta u_f=0$，$u_f=u_0$，$s=0$，$X^{\rm tr}=X^*$。$(\rho u)^{n+1}=u_0\rho^*$，$E^{n+1}=E^*-r\delta[pu_0]=E^*$，所以 $(\rho e)^C=\sum\varepsilon^*_k$，$D_0=0$，$\delta=0$。
+2. **隐式：** 取 $P\equiv p$。$\bar u^*_f=u_0=\bar u^e_f$，(B4.1) 的两个压力项与速度跳跃项都为零，所以 $u_f=u_0$、$p_f=p$，$\Delta u_f=0$，(B4.2') 的增量为零，$s=0$，$X^{\rm tr}=X^*$。$(\rho u)^{n+1}=u_0\rho^*$，$E^{n+1}=E^*-r\delta[pu_0]=E^*$，所以 $(\rho e)^C=\sum\varepsilon^*_k$，$D_0=0$，$\delta=0$。
 3. **闭合：**
    - $p$ 闭合：$p$ 处 $\alpha_k=\alpha^*_k$ 满足 (B6.1) 与 EOS，$\sum\alpha^*_k=1$，由根唯一，$\bar p^{\rm cl}=p$，$G=0$。
    - $\mu$ 有限：$R=0$，$p_1=p_2=p$ 满足 (B6.3)。
@@ -444,6 +474,8 @@ $$
 | 松弛 | 瞬时（$p$、$pT$、$pTg$）在闭合里；有限速率没有 | 一个闭合，$\mu,\theta,\nu$ 是参数（B6），两端极限严格（B7） |
 | 全局残量 | $\sum\alpha-1$ 或能量残量，按闭合类型不同 | $G=\bar p^{\rm cl}-P$，所有闭合同一形式 |
 | 传质判据 | 上一级的标记（滞后） | 本级显式预测态，级内冻结 |
-| 显式耗散 | 中心部分也用重构值 | BB 的做法：中心部分用格均值，耗散用重构值 |
+| 显式耗散 | 中心部分也用重构值 | 同样中心部分也用重构值（BB 的格均值中心部分不是 TVD，B3）；耗散速度取物质速度 |
+| 声学耗散 | 无（只有后向 Euler） | 声学 CFL < 1 时补足到 Godunov（B4.1），否则不变 |
+| 增量供体 | 按 $\Delta u$ 的符号 | 总通量对 $u_f$ 迎风（B4.2）；按 $\Delta u$ 取会产生相间逆流 |
 | 不可容许时 | 逐格限制 $Q^e$、退回一阶、压力下限 | 拒绝本步并减半 $\Delta t$，计数报告 |
 | 代码结构 | 一维专用 | `2DEuler_TV` 结构（`Grid`、`Qe/Qs/Hs`、二维） |
