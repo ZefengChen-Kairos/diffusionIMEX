@@ -140,6 +140,11 @@ struct HFace { double F[5], ustar, ua1, ue[2]; };   // F: m1, m2, normal mom, ta
 // 相 Hugoniot (II.8) 的 NASG 形式: e* - e + 1/2 (p* + p)(v* - v) = 0 对 p* 线性
 static double hugoniot_p(int k, double p, double v, double vs) {
 	const Phase& P = PH[k];
+	if (P.kind) {   // (A2.8)：MG 相，对 p* 仍线性
+		double pr0, d0, er0, prs, ds, ers; mg_ref(k, 1.0 / v, pr0, d0, er0); mg_ref(k, 1.0 / vs, prs, ds, ers);
+		const double e = er0 + (p - pr0) * v / P.G;
+		return (e - ers + prs * vs / P.G - 0.5 * p * (vs - v)) / (vs / P.G + 0.5 * (vs - v));
+	}
 	const double num = (p + P.g * P.pi) * (v - P.b) - P.g * P.pi * (vs - P.b) - 0.5 * (P.g - 1.0) * p * (vs - v);
 	const double den = (vs - P.b) + 0.5 * (P.g - 1.0) * (vs - v);
 	return num / den;
@@ -172,7 +177,7 @@ static HFace HLLC(const Prim& L, const Prim& R, int dir) {
 	const double ak[2] = {K.a1, 1 - K.a1}, rk[2] = {K.r1, K.r2}, pk[2] = {K.p1, K.p2};
 	for (int k = 0; k < 2; k++) {
 		const double v0 = 1.0 / rk[k], vs = 1.0 / (rk[k] * fac);
-		double ps = hugoniot_p(k, pk[k], v0, vs); if (!(ps + PH[k].pi > 0) || !std::isfinite(ps)) ps = pk[k];
+		double ps = hugoniot_p(k, pk[k], v0, vs); if (!std::isfinite(ps) || !p_admissible(k, ak[k], ak[k] * rk[k] * fac, ps)) ps = pk[k];
 		f.ue[k] = eps_amp(k, ak[k], ak[k] * rk[k] * fac, ps) * SM;
 	}
 	return f;

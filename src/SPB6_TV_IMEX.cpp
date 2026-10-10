@@ -756,7 +756,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		const double a1 = S.Xs(i, j, IA1), a2 = S.a2s(i, j), m1 = S.Xs(i, j, IM1), m2 = S.Xs(i, j, IM2);
 		if (!(a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0)) return INF;
 		const double p1 = p_ame(0, a1, m1, S.Xs(i, j, IE1)), p2 = p_ame(1, a2, m2, S.Xs(i, j, IE2));
-		if (!(p1 + PH[0].pi > 0 && p2 + PH[1].pi > 0)) return INF;
+		if (!(p_admissible(0, a1, m1, p1) && p_admissible(1, a2, m2, p2))) return INF;
 		const double c21 = c2_rp(0, m1 / a1, p1), c22 = c2_rp(1, m2 / a2, p2);
 		const double c2 = (m1 * c21 + m2 * c22) / (m1 + m2);
 		return c2 > 0 ? std::sqrt(c2) : INF; };
@@ -768,9 +768,9 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		double K = std::max(PH[0].pi, PH[1].pi), PE = 0.0;
 		if (a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0) {
 			const double p1 = p_ame(0, a1, m1, S.Xs(i, j, IE1)), p2 = p_ame(1, a2, m2, S.Xs(i, j, IE2));
-			if (p1 + PH[0].pi > 0 && p2 + PH[1].pi > 0) K = 1.0 / ((a1 / sa) / (m1 / a1 * c2_rp(0, m1 / a1, p1)) + (a2 / sa) / (m2 / a2 * c2_rp(1, m2 / a2, p2)));
+			if (p_admissible(0, a1, m1, p1) && p_admissible(1, a2, m2, p2)) K = 1.0 / ((a1 / sa) / (m1 / a1 * c2_rp(0, m1 / a1, p1)) + (a2 / sa) / (m2 / a2 * c2_rp(1, m2 / a2, p2)));
 			const double dd = dedp_am(0, a1, m1) + dedp_am(1, a2, m2);
-			if (dd > 0) PE = (std::fabs(S.Xs(i, j, IE1)) + std::fabs(m1 * PH[0].q) + std::fabs(S.Xs(i, j, IE2)) + std::fabs(m2 * PH[1].q)) / dd;
+			if (dd > 0) PE = (std::fabs(S.Xs(i, j, IE1)) + eps_round(0, a1, m1) + std::fabs(S.Xs(i, j, IE2)) + eps_round(1, a2, m2)) / dd;
 		}
 		S.Kw[S.id(i, j)] = K + PE;
 	}

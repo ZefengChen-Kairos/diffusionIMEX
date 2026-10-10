@@ -76,6 +76,51 @@ $$
 
 **饱和线：** $g_1(p,T)=g_2(p,T)$ 在 $T$ 上用带区间的 Newton 解出 $T_{\rm sat}(p)$。SG 下这条曲线只在 $v_2(p,T_{\rm sat})>v_1(p,T_{\rm sat})$ 的一段上是真的相平衡；端点 $p_c$ 处 $v_1=v_2$（十二烷 SG：$p_c\approx1.39\times10^7$ Pa）。
 
+
+### A2.1 Mie–Grüneisen 相（V12：Cochran–Chan、JWL）
+
+SPB §4.2 的硝基甲烷（Cochran–Chan）与 Pelanti §4.1–4.2 的 JWL 都是 MG 形式（Pelanti (27)）：
+
+$$
+p(\rho,e)=\Gamma\rho\big(e-\varepsilon_r(\rho)\big)+p_r(\rho),\qquad \Gamma=\text{常数} .\tag{A2.4}
+$$
+
+- Cochran–Chan（SPB §4.2）：$x=\rho/\rho_{\rm ref}$，$p_r=A_1x^{E_1}-A_2x^{E_2}$，$\varepsilon_r=\dfrac{A_1x^{E_1-1}}{\rho_{\rm ref}(E_1-1)}-\dfrac{A_2x^{E_2-1}}{\rho_{\rm ref}(E_2-1)}$。
+- JWL（Pelanti (29)）：$p_r=a\,e^{-r_1\rho_0/\rho}+b\,e^{-r_2\rho_0/\rho}$，$\varepsilon_r=\dfrac{a}{r_1\rho_0}e^{-r_1\rho_0/\rho}+\dfrac{b}{r_2\rho_0}e^{-r_2\rho_0/\rho}-\varepsilon_0$。
+- 两者的参考曲线都是等熵线：$\varepsilon_r'(\rho)=p_r(\rho)/\rho^2$（直接求导可验）。下面所有公式只用这一条。NASG 也是 MG 形式（$\Gamma=(\gamma-1)/(1-\rho b)$，$\varepsilon_r=q$，$p_r=-\gamma\pi$），但 $\Gamma$ 依赖 $\rho$；代码里 NASG 保留 (A2.2) 的闭式，逐位不变。
+
+**按相体积写：** $\rho_k=m_k/\alpha_k$，
+
+$$
+\varepsilon_k(\alpha_k,m_k,p)=m_k\varepsilon_r(\rho_k)+\alpha_k\frac{p-p_r(\rho_k)}{\Gamma_k} .\tag{A2.5}
+$$
+
+**声速：** $c^2=(\partial p/\partial\rho)_e+\frac{p}{\rho^2}(\partial p/\partial e)_\rho$，用 $\varepsilon_r'=p_r/\rho^2$：
+
+$$
+c^2=\frac{(\Gamma+1)(p-p_r(\rho))}{\rho}+p_r'(\rho) .\tag{A2.6}
+$$
+
+可容许条件是 $c^2>0$（代替 SG 的 $p+\pi>0$）。
+
+**混合压力（Pelanti (28)）：** (A2.5) 在固定 $\alpha_k,m_k$ 时对 $p$ 线性，
+
+$$
+p=\frac{\rho e-\sum_k\big(m_k\varepsilon_r(\rho_k)-\alpha_kp_r(\rho_k)/\Gamma_k\big)}{\sum_k\alpha_k/\Gamma_k},\qquad \frac{\partial\varepsilon_k}{\partial p}\Big|_{\alpha,m}=\frac{\alpha_k}{\Gamma_k} .\tag{A2.7}
+$$
+
+**五个角色（A2 的表）对 MG 的变化：**
+- (E1) 不再成立：固定 $p$ 时 $\varepsilon_k$ 对 $(\alpha_k,m_k)$ 不仿射（$\rho_k$ 进 $\varepsilon_r,p_r$）。但若每相的密度 $\rho_k$ 在界面两侧相同（初值里微量相取与主相同一个 $\rho_k$），输运只改变 $\alpha_k$、$m_k$ 的比例而不改变 $\rho_k$，$\varepsilon_k$ 对 $\alpha_k$ 线性，WB 仍成立。SPB §3.2.2 末与 §4.2 正是这样做的（同一种流体当两相）。
+- (E2) 不再显式：(A2.5) 对 $\alpha_k$ 的反解要一维求根（A6、B6.1）。
+- (E3)(E4) 不用：MG 相只做力学松弛（SPB 4.2、Pelanti 8.1 都只有力学松弛）。代码里 MG 相与热、化学松弛的组合会报错。
+- (E5) 见下：力学闭合的单调性由 $c^2>0$ 保证。
+
+**相 Hugoniot（显式 HLLC 的相能量，SPB (II.8)）：** $e^*-e+\tfrac12(p^*+p)(v^*-v)=0$，代入 (A2.4) 对 $p^*$ 仍线性：
+
+$$
+p^*\Big(\frac{v^*}{\Gamma}+\frac{v^*-v}{2}\Big)=e-\varepsilon_r(\rho^*)+\frac{p_r(\rho^*)v^*}{\Gamma}-\frac{p\,(v^*-v)}{2} .\tag{A2.8}
+$$
+
 ---
 
 ## A3. 全显式格式：总流程（SPB §3.5 + P-S §4 / Pelanti §5）

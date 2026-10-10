@@ -18,6 +18,8 @@ both spb10 "case=6 N=1000"                                         # Fig. 10: wa
 both spb12 "case=0 N=1000"                                         # Fig. 12: expansion tube (cavitation)
 both spb19 "case=12 N=500"                                         # Fig. 19: epoxy-spinel, 1e10 Pa
 both spb20 "case=13 N=500"                                         # Fig. 20: epoxy-spinel, 2e11 Pa
+both spb6  "case=60 N=500"                                         # Figs. 6-7: nitromethane, Cochran-Chan (V12)
+both pel1  "case=61 N=500"                                         # Pelanti 2022 Fig. 1: JWL gases | NASG water (V12)
 for r in 0 2 3; do both ps3_r$r "case=3 N=2000 relax=$r"; done     # P-S 2014 Fig. 3: dodecane (SG), t = 473 us
 for r in 0 2; do both pel6_r$r "case=31 N=2000 relax=$r"; done     # Pelanti 2022 Fig. 6: dodecane (NASG), t = 473 us
 for r in 0 1 2 3; do both ps2_r$r "case=2 N=5000 relax=$r"; done   # P-S 2014 Fig. 2: +-500 m/s, t = 0.58 ms

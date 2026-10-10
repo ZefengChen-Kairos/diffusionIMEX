@@ -37,25 +37,65 @@ int VERBOSE = 0;
 long st_cl_fail = 0;
 
 // ==================================================================================================== 状态方程（NASG；b = 0 为 SG）
-struct Phase { double g, pi, q, qp, cv, b; };
+// kind = 0: NASG（b = 0 为 SG），参数 g, pi, q, qp, cv, b。
+// kind = 1: Cochran-Chan，kind = 2: JWL（A2.1，V12）：p = G rho (e - er(rho)) + pr(rho)，G 常数，er' = pr/rho^2。
+//   CC：pr = c1 x^e1 - c2 x^e2，x = rho/rr；JWL：pr = c1 exp(-e1 rr/rho) + c2 exp(-e2 rr/rho)，er 再减 e0。cv > 0 时 T = (e - er)/cv（只作输出）
+struct Phase { double g, pi, q, qp, cv, b; int kind = 0; double G = 0, c1 = 0, c2 = 0, e1 = 0, e2 = 0, rr = 0, e0 = 0; };
 Phase PH[2];
+inline bool is_mg(int k) { return PH[k].kind != 0; }
+inline bool mg_any() { return is_mg(0) || is_mg(1); }
+// MG 参考曲线：pr(rho)、pr'(rho)、er(rho)
+inline void mg_ref(int k, double r, double& pr, double& dpr, double& er) {
+	const Phase& P = PH[k];
+	if (P.kind == 1) {
+		const double x = r / P.rr, t1 = P.c1 * std::pow(x, P.e1), t2 = P.c2 * std::pow(x, P.e2);
+		pr = t1 - t2; dpr = (P.e1 * t1 - P.e2 * t2) / r; er = (t1 / (P.e1 - 1.0) - t2 / (P.e2 - 1.0)) / r;
+	} else {
+		const double t1 = P.c1 * std::exp(-P.e1 * P.rr / r), t2 = P.c2 * std::exp(-P.e2 * P.rr / r);
+		pr = t1 + t2; dpr = (P.e1 * t1 + P.e2 * t2) * P.rr / (r * r); er = t1 / (P.e1 * P.rr) + t2 / (P.e2 * P.rr) - P.e0;
+	}
+}
 
-inline double eps_amp(int k, double a, double m, double p) { const Phase& P = PH[k]; return (p + P.g * P.pi) * (a - m * P.b) / (P.g - 1.0) + m * P.q; }   // (A2.2)
-inline double p_ame(int k, double a, double m, double e) { const Phase& P = PH[k]; return (e - m * P.q) * (P.g - 1.0) / (a - m * P.b) - P.g * P.pi; }
-inline double T_amp(int k, double a, double m, double p) { const Phase& P = PH[k]; return (a / m - P.b) * (p + P.pi) / ((P.g - 1.0) * P.cv); }
+inline double eps_amp(int k, double a, double m, double p) { const Phase& P = PH[k];
+	if (P.kind) { double pr, dpr, er; mg_ref(k, m / a, pr, dpr, er); return m * er + a * (p - pr) / P.G; }   // (A2.5)
+	return (p + P.g * P.pi) * (a - m * P.b) / (P.g - 1.0) + m * P.q; }   // (A2.2)
+inline double p_ame(int k, double a, double m, double e) { const Phase& P = PH[k];
+	if (P.kind) { double pr, dpr, er; mg_ref(k, m / a, pr, dpr, er); return P.G * (e - m * er) / a + pr; }
+	return (e - m * P.q) * (P.g - 1.0) / (a - m * P.b) - P.g * P.pi; }
+inline double T_amp(int k, double a, double m, double p) { const Phase& P = PH[k];
+	if (P.kind) { if (!(P.cv > 0)) return NAN; double pr, dpr, er; mg_ref(k, m / a, pr, dpr, er); return (a * (p - pr) / (P.G * m)) / P.cv; }
+	return (a / m - P.b) * (p + P.pi) / ((P.g - 1.0) * P.cv); }
 inline double v_pT(int k, double p, double T) { const Phase& P = PH[k]; return (P.g - 1.0) * P.cv * T / (p + P.pi) + P.b; }
 inline double e_pT(int k, double p, double T) { const Phase& P = PH[k]; return P.cv * T * (p + P.g * P.pi) / (p + P.pi) + P.q; }
 inline double s_pT(int k, double p, double T) { const Phase& P = PH[k]; return P.cv * (P.g * std::log(T) - (P.g - 1.0) * std::log(p + P.pi)) + P.qp; }
 inline double g_pT(int k, double p, double T) { const Phase& P = PH[k]; return P.g * P.cv * T + P.b * p + P.q - T * s_pT(k, p, T); }
-inline double c2_rp(int k, double r, double p) { const Phase& P = PH[k]; return P.g * (p + P.pi) / (r * (1.0 - r * P.b)); }
-inline double dedp_am(int k, double a, double m) { const Phase& P = PH[k]; return (a - m * P.b) / (P.g - 1.0); }    // d eps_k / d p |_{alpha,m}
+inline double c2_rp(int k, double r, double p) { const Phase& P = PH[k];
+	if (P.kind) { double pr, dpr, er; mg_ref(k, r, pr, dpr, er); return (P.G + 1.0) * (p - pr) / r + dpr; }   // (A2.6)
+	return P.g * (p + P.pi) / (r * (1.0 - r * P.b)); }
+inline double dedp_am(int k, double a, double m) { const Phase& P = PH[k];
+	if (P.kind) return a / P.G;
+	return (a - m * P.b) / (P.g - 1.0); }    // d eps_k / d p |_{alpha,m}
 
 // 混合压力 (A2.3)：给定 alpha_k, m_k 与混合内能
 inline double p_mix(double a1, double m1, double m2, double rhoe) {
 	const double a[2] = {a1, 1.0 - a1}, m[2] = {m1, m2};
 	double num = rhoe, den = 0.0;
-	for (int k = 0; k < 2; k++) { num -= m[k] * PH[k].q + PH[k].g * PH[k].pi * dedp_am(k, a[k], m[k]); den += dedp_am(k, a[k], m[k]); }
+	for (int k = 0; k < 2; k++) {
+		if (is_mg(k)) { double pr, dpr, er; mg_ref(k, m[k] / a[k], pr, dpr, er); num -= m[k] * er - a[k] * pr / PH[k].G; }   // (A2.7)
+		else num -= m[k] * PH[k].q + PH[k].g * PH[k].pi * dedp_am(k, a[k], m[k]);
+		den += dedp_am(k, a[k], m[k]);
+	}
 	return num / den;
+}
+// 相状态可容许：NASG 为 p + pi > 0；MG 为 c^2 > 0（A2.1）
+inline bool p_admissible(int k, double a, double m, double p) {
+	if (is_mg(k)) return std::isfinite(p) && c2_rp(k, m / a, p) > 0;
+	return p + PH[k].pi > 0;
+}
+// 相内能 eps_k 的舍入尺度里除 |eps_k| 外的部分（B8 的 P_E）：NASG |m q|；MG |m er| + |alpha pr / G|
+inline double eps_round(int k, double a, double m) {
+	if (is_mg(k)) { double pr, dpr, er; mg_ref(k, m / a, pr, dpr, er); return std::fabs(m * er) + std::fabs(a * pr / PH[k].G); }
+	return std::fabs(m * PH[k].q);
 }
 
 // ------------------------------------------------------------------ 饱和线 Tsat(p)：g1(p,T) = g2(p,T)，取 s2 > s1 的物理分支（f = g1 - g2 对 T 递增）
@@ -194,7 +234,9 @@ inline double dalpha_p(const PCoef& c, int k, double p) { const Phase& P = PH[k]
 static double plo_mix() { return std::max(-PH[0].pi, -PH[1].pi); }
 
 // B6.1  mu = inf：sum_k alpha_k(p) = 1，严格递减，安全 Newton
+static bool closure_p_mg(const ClIn& in, ClOut& o);
 static bool closure_p(const ClIn& in, ClOut& o) {
+	if (mg_any()) return closure_p_mg(in, o);
 	PCoef c; if (!p_coef(in, c)) return false;
 	for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;
 	const double plo = plo_mix();
@@ -218,6 +260,74 @@ static bool closure_p(const ClIn& in, ClOut& o) {
 	for (int k = 0; k < 2; k++) {
 		o.a[k] = alpha_p(c, in, k, p); o.m[k] = in.mtr[k];
 		if (!(o.a[k] > o.m[k] * PH[k].b)) return false;
+		o.e[k] = eps_amp(k, o.a[k], o.m[k], p); o.p[k] = p; o.T[k] = T_amp(k, o.a[k], o.m[k], p);
+	}
+	o.pbar = p; return std::isfinite(p);
+}
+
+// B6.1 的 MG 推广（V12）：MG 相的 alpha_k(p) 是 f(alpha) = m er(m/alpha) + alpha (p - pr)/G + p alpha - A - B p 的根，
+// f' = rho c^2 / G > 0；NASG 相仍用 (B6.2) 的闭式。外层 Phi(p) = sum alpha_k(p) - 1 用带区间的 Newton（区间从初猜向两侧扩张）
+static bool alpha_mg(int k, double m, double A, double B, double p, double guess, double& al, double& dal) {
+	const Phase& P = PH[k];
+	auto F = [&](double a, double& df) { double pr, dpr, er; const double r = m / a; mg_ref(k, r, pr, dpr, er);
+		df = ((P.G + 1.0) * (p - pr) + r * dpr) / P.G; return m * er + a * (p - pr) / P.G + p * a - A - B * p; };
+	double lo = guess, hi = guess, d; double flo = F(lo, d), fhi = flo;
+	if (!std::isfinite(flo)) return false;
+	if (flo < 0) { for (int it = 0; it < 200 && fhi < 0; it++) { lo = hi; flo = fhi; hi *= 2.0; fhi = F(hi, d); if (!std::isfinite(fhi)) return false; } if (fhi < 0) return false; }
+	else { for (int it = 0; it < 200 && flo > 0; it++) { hi = lo; fhi = flo; lo *= 0.5; flo = F(lo, d); if (!std::isfinite(flo) || d <= 0) return false; } if (flo > 0) return false; }
+	double a = (flo == 0) ? lo : (fhi == 0 ? hi : (guess > lo && guess < hi ? guess : std::sqrt(lo * hi)));
+	for (int it = 0; it < 200; it++) {
+		double df; const double fa = F(a, df);
+		if (fa == 0) break;
+		if (fa < 0) lo = a; else hi = a;
+		double an = (df > 0) ? a - fa / df : -1.0;
+		if (!(an > lo && an < hi)) an = std::sqrt(lo * hi);
+		if (std::fabs(an - a) <= 4e-16 * a || hi - lo <= 4e-16 * hi) { a = an; break; }
+		a = an;
+	}
+	double df; F(a, df); if (!(df > 0)) return false;
+	al = a; dal = -(a / P.G + a - B) / df; return true;
+}
+static bool closure_p_mg(const ClIn& in, ClOut& o) {
+	PCoef c; if (!p_coef(in, c)) return false;
+	double ag[2] = {in.atr[0] / (in.atr[0] + in.atr[1]), in.atr[1] / (in.atr[0] + in.atr[1])};
+	auto Phi = [&](double p, double& dPhi, bool upd) -> double {   // NaN: 该 p 下某相无解（p 太低）
+		double s = -1.0; dPhi = 0.0; double an[2];
+		for (int k = 0; k < 2; k++) {
+			double a, da;
+			if (is_mg(k)) { if (!alpha_mg(k, in.mtr[k], c.A[k], c.B[k], p, ag[k], a, da)) return NAN; }   // MG 相 q = 0：A = eps^tr + lam D0
+			else { if (!(p + PH[k].pi > 0) || !(c.N[k] > 0)) return NAN; a = alpha_p(c, in, k, p); da = dalpha_p(c, k, p); }
+			an[k] = a; s += a; dPhi += da;
+		}
+		if (upd) { ag[0] = an[0]; ag[1] = an[1]; }
+		return s; };
+	double p = in.pguess, d;
+	double f = Phi(p, d, true);
+	double scale = 1e-6 * (std::fabs(p) + 1e5);
+	double lo, hi, flo, fhi;
+	if (!std::isfinite(f) || f > 0) {   // p 太低：向上找 Phi < 0
+		lo = p; flo = f; hi = p;
+		for (int it = 0; it < 300; it++) { hi = p + scale; fhi = Phi(hi, d, false); if (std::isfinite(fhi) && fhi <= 0) break; if (std::isfinite(fhi)) { lo = hi; flo = fhi; } scale *= 2.0; }
+		if (!(std::isfinite(fhi) && fhi <= 0)) return false;
+	} else {
+		hi = p; fhi = f; lo = p;
+		for (int it = 0; it < 300; it++) { lo = p - scale; flo = Phi(lo, d, false); if (std::isfinite(flo) && flo >= 0) break; if (!std::isfinite(flo)) { scale *= 0.5; if (scale < 1e-300) return false; continue; } hi = lo; fhi = flo; scale *= 2.0; }
+		if (!(std::isfinite(flo) && flo >= 0)) return false;
+	}
+	p = (std::isfinite(f) && in.pguess >= lo && in.pguess <= hi) ? in.pguess : 0.5 * (lo + hi);
+	for (int it = 0; it < 300; it++) {
+		double df; const double fp = Phi(p, df, true);
+		if (fp == 0.0) break;
+		if (!std::isfinite(fp) || fp > 0) lo = p; else hi = p;
+		double pn = (std::isfinite(fp) && df < 0) ? p - fp / df : 0.5 * (lo + hi);
+		if (!(pn > lo && pn < hi)) pn = 0.5 * (lo + hi);
+		if (std::fabs(pn - p) <= 2e-16 * (std::fabs(p) + std::fabs(pn)) || hi - lo <= 4e-16 * (std::fabs(hi) + std::fabs(lo))) { p = pn; break; }
+		p = pn;
+	}
+	double df; if (!std::isfinite(Phi(p, df, true))) return false;
+	for (int k = 0; k < 2; k++) {
+		o.a[k] = ag[k]; o.m[k] = in.mtr[k];
+		if (!p_admissible(k, o.a[k], o.m[k], p)) return false;
 		o.e[k] = eps_amp(k, o.a[k], o.m[k], p); o.p[k] = p; o.T[k] = T_amp(k, o.a[k], o.m[k], p);
 	}
 	o.pbar = p; return std::isfinite(p);
@@ -370,6 +480,7 @@ static bool closure(const ClIn& in, ClOut& o) {
 	for (int k = 0; k < 2; k++) if (!(in.atr[k] > 0) || !(in.mtr[k] > 0) || !std::isfinite(in.etr[k])) return false;
 	if (!std::isfinite(in.rhoeC) || !std::isfinite(in.s)) return false;
 	bool ok = false;
+	if (mg_any() && in.type != CL_P) return false;   // MG 相只做力学松弛（A2.1）
 	switch (in.type) {
 		case CL_P: ok = closure_p(in, o); break;
 		case CL_MU: ok = closure_mu(in, o); break;
@@ -409,7 +520,7 @@ static bool prim_of(const double* Q, Prim& w) {
 	if (!(a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0)) return false;
 	w.a1 = a1; w.rho = m1 + m2; w.r1 = m1 / a1; w.r2 = m2 / a2; w.u = Q[IMU] / w.rho; w.v = Q[IMV] / w.rho;
 	w.p1 = p_ame(0, a1, m1, Q[IE1]); w.p2 = p_ame(1, a2, m2, Q[IE2]);
-	if (!(w.p1 + PH[0].pi > 0 && w.p2 + PH[1].pi > 0)) return false;
+	if (!(p_admissible(0, a1, m1, w.p1) && p_admissible(1, a2, m2, w.p2))) return false;
 	w.cf = std::sqrt((m1 * c2_rp(0, w.r1, w.p1) + m2 * c2_rp(1, w.r2, w.p2)) / w.rho);
 	return true;
 }
@@ -447,7 +558,9 @@ enum Test {
 	testGresho3 = 52,             //   M = 0.001（低马赫 AP 检验）
 	testGresho4 = 53,             //   M = 1e-4
 	testGresho5 = 54,             //   M = 1e-5
-	testGresho6 = 55              //   M = 1e-6
+	testGresho6 = 55,             //   M = 1e-6
+	testSPB_Nitromethane = 60,    // SPB 2009 4.2  硝基甲烷激波管（Cochran-Chan，同一流体当两相），20 GPa / 0.2 MPa
+	testPel_JWLWater = 61         // Pelanti 2022 8.1.1  爆轰气体（JWL）-水（NASG）激波管
 };
 struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc; };
 static void set_SG(int k, double g, double pi, double q = 0, double qp = 0, double cv = 1000.0, double b = 0) { PH[k] = {g, pi, q, qp, cv, b}; }
@@ -472,6 +585,13 @@ static bool test_setup(int test, TestSetup& S) {
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
 		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; break;
+	case testSPB_Nitromethane:   // SPB 4.2：Gamma = 1.19，rho_ref = 1134，A1 = 0.819181e9，A2 = 1.50835e9，E1 = 4.52969，E2 = 1.42144；界面位置论文未写，取 0.5 m
+		for (int k = 0; k < 2; k++) { PH[k] = Phase{}; PH[k].kind = 1; PH[k].G = 1.19; PH[k].rr = 1134.0; PH[k].c1 = 0.819181e9; PH[k].c2 = 1.50835e9; PH[k].e1 = 4.52969; PH[k].e2 = 1.42144; PH[k].g = 2.19; }
+		S.tend = 67e-6; break;
+	case testPel_JWLWater:       // Pelanti 表 2（JWL）与表 3（NASG 液态水）；[-10, 10] m，t = 0.9 ms
+		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
+		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
+		S.x0 = -10.0; S.x1 = 10.0; S.tend = 0.9e-3; break;
 	default: return false;
 	}
 	return true;
@@ -487,6 +607,8 @@ static void test_state(int test, double x, double y, double* Q) {
 		const double T0 = 354.728, U0 = test == testPS_Cavitation2 ? 2.0 : 500.0, u = x < 0.5 ? -U0 : U0;
 		setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
 	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
+	case testSPB_Nitromethane: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1134.0, 1200.0, 0, 0, L ? 20e9 : 0.2e6, L ? 20e9 : 0.2e6); break; }
+	case testPel_JWLWater: { const bool L = x < 0.0; setcell(L ? 1 - 1e-8 : 1e-8, 2000.0, 1044.0, 0, 0, L ? 4.6406e10 : 1e5, L ? 4.6406e10 : 1e5); break; }
 	case testSPB_Interface: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
 	case testSPB_WaterAir: case testSPB_WaterAirTPa: {
 		const bool L = x < 0.75; const double pL = test == testSPB_WaterAir ? 1e9 : 1e12, ra = test == testSPB_WaterAir ? 1.0 : 10.0;
@@ -521,7 +643,7 @@ static void cell_diag(const double* Q, double* o) {
 	if (ok) {
 		cw = std::sqrt(1.0 / (rho * (a1 / (w.r1 * c2_rp(0, w.r1, w.p1)) + (1 - a1) / (w.r2 * c2_rp(1, w.r2, w.p2)))));
 		T1 = T_amp(0, a1, m1, w.p1); T2 = T_amp(1, 1 - a1, m2, w.p2);
-		if (T1 > 0 && T2 > 0 && PH[0].cv > 0) dg = g_pT(0, w.p1, T1) - g_pT(1, w.p2, T2);
+		if (T1 > 0 && T2 > 0 && PH[0].cv > 0 && !mg_any()) dg = g_pT(0, w.p1, T1) - g_pT(1, w.p2, T2);
 	}
 	o[0] = ok ? a1 * w.p1 + (1 - a1) * w.p2 : NAN; o[1] = ok ? w.u : NAN; o[2] = ok ? w.v : NAN; o[3] = rho; o[4] = 1 - a1; o[5] = m2 / rho;
 	o[6] = ok ? w.r1 : NAN; o[7] = ok ? w.r2 : NAN; o[8] = ok ? w.cf : NAN; o[9] = cw; o[10] = T1; o[11] = T2; o[12] = ok ? w.p1 : NAN; o[13] = ok ? w.p2 : NAN; o[14] = dg;

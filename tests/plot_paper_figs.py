@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, H)
-import exact5 as e5, exact_relaxed as er
+import exact5 as e5, exact_relaxed as er, exact_mg as emg
 
 RUN = sys.argv[1] if len(sys.argv) > 1 else os.path.join(H, '..', 'run', 'figs')
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(H, '..', 'docs', 'figures')
@@ -42,11 +42,11 @@ def load(name):
 
 
 def derived(s, P):   # quantities plotted in the papers
-    s['pbar'] = s['p'] / 1e5; s['a1'] = 1 - s['a2']
+    s['pbar'] = s['p'] / 1e5; s['a1'] = 1 - s['a2']; s['pGPa'] = s['p'] / 1e9
     with np.errstate(invalid='ignore', divide='ignore'):
         if 'cf' in s: s['Mf'] = np.abs(s['u']) / s['cf']
         if 'cw' in s: s['Mw'] = np.abs(s['u']) / s['cw']
-        if 'T1' in s:
+        if 'T1' in s and P is not None:
             s['dT'] = s['T2'] - s['T1']
             p1 = s.get('p1', s['p']); p2 = s.get('p2', s['p'])
             s['g1'] = gibbs(P, 0, p1, s['T1']); s['g2'] = gibbs(P, 1, p2, s['T2'])
@@ -81,7 +81,8 @@ def ic_rho(P, p, T): return [1 / er.Fan(P, p, T, 0.5).v(k, p, T) for k in (0, 1)
 def panel(ax, v, curves, lab, log=False, ylim=None):
     for s, kw in curves:
         if s is not None and v in s: ax.plot(s['x'], s[v], **kw)
-    ax.set_xlabel('x (m)'); ax.set_ylabel(lab); ax.set_xlim(0, 1)
+    xs = [s['x'] for s, kw in curves if s is not None and v in s]
+    ax.set_xlabel('x (m)'); ax.set_ylabel(lab); ax.set_xlim(min(x[0] for x in xs), max(x[-1] for x in xs)) if xs else ax.set_xlim(0, 1)
     if log: ax.set_yscale('log')
     if ylim: ax.set_ylim(*ylim); ax.ticklabel_format(axis='y', useOffset=False)
     ax.grid(alpha=0.25)
@@ -92,7 +93,7 @@ def single(name, title, cases, var, exact, ncol=2):
     E, I = load(cases + '_E'), load(cases + '_I'); P = exact[1]
     E = derived(E, P) if E else None; I = derived(I, P) if I else None
     nr = (len(var) + ncol - 1) // ncol; fig, axs = plt.subplots(nr, ncol, figsize=(4.6 * ncol, 2.9 * nr), squeeze=False)
-    curves = [(exact[0], dict(color='k', lw=1.0, label='exact (5-eq.)')), (E, dict(color='tab:blue', label='explicit')),
+    curves = [(exact[0], dict(color='k', lw=1.0, label='exact (5-eq.)' if P is not None else 'exact (Euler)')), (E, dict(color='tab:blue', label='explicit')),
               (I, dict(color='tab:red', ls='--', label='IMEX'))]
     for ax, (v, lab, *opt) in zip(axs.flat, var): panel(ax, v, curves, lab, *opt)
     for ax in list(axs.flat)[len(var):]: ax.axis('off')
@@ -123,6 +124,20 @@ def two_phase(ax, v, curves):   # liquid solid, vapour dashed (Pelanti Figs. 5-6
 
 
 def want(n): return not ONLY or n in ONLY
+
+
+def exact_mg(case, x0, x1, n=4000):
+    """Euler exact solution with the MG EOS of the case (tests/exact_mg.py)"""
+    eL, sL, eR, sR, xd, t = emg.CASES[case]
+    L = emg.Side(eL(), *sL, -1); R = emg.Side(eR(), *sR, +1); ps, us, rL, rR = emg.solve(L, R)
+    x = np.linspace(x0, x1, n); o = emg.sample(L, R, ps, us, rL, rR, (x - xd) / t)
+    a1 = np.where(x < xd + us * t, 1.0, 0.0)
+    return {'x': x, 'rho': o[:, 0], 'u': o[:, 1], 'p': o[:, 2], 'a2': 1 - a1, 'pbar': o[:, 2] / 1e5, 'a1': a1, 'pGPa': o[:, 2] / 1e9}
+
+
+def gpa(s):
+    if s: s['pGPa'] = s['p'] / 1e9
+    return s
 
 
 # ---------------------------------------------------------------------------------------------------- SPB 2009 (Saurel, Petitpas, Berry)
@@ -202,3 +217,25 @@ if want('pel6'):   # Fig. 6: dodecane (NASG), p-relax and pTg-relax, 2000 cells,
            [('r0', 'p-relax', dict(color='darkviolet')), ('r2', 'pTg-relax', dict(color='b'))],
            [('rho', r'$\rho$ (kg/m$^3$)', True), ('u', 'u (m/s)'), ('Y2', '$Y_2$'), ('p', 'p (Pa)', True), ('a2', r'$\alpha_2$'), ('T12', '$T_k$ (K)', False, (300, 1200))],
            [(ex, dict(color='k', lw=0.9), 'exact 5-eq.')], P)
+
+
+# ---------------------------------------------------------------------------------------------------- Mie-Grueneisen (V12)
+if want('spb6'):   # SPB 2009 Figs. 6-7: nitromethane (Cochran-Chan), 20 GPa | 0.2 MPa, 500 cells, t = 67 us
+    ex = exact_mg(60, 0, 1)
+    single('spb6', 'SPB 2009 Fig. 6: nitromethane shock tube (Cochran-Chan), 20 GPa | 0.2 MPa, t = 67 us, 500 cells', 'spb6',
+           [('pGPa', 'pressure (GPa)'), ('u', 'velocity (m/s)'), ('rho', 'density (kg/m$^3$)'), ('a1', 'volume fraction of "phase" 1')],
+           (ex, None))
+    E, I = gpa(load('spb6_E')), gpa(load('spb6_I'))
+    if E and I:
+        fig, axs = plt.subplots(1, 2, figsize=(9.2, 3.0))
+        for ax, (v, lab, ylim) in zip(axs, [('pGPa', 'pressure (GPa)', (9.6, 10.0)), ('u', 'velocity (m/s)', (1740, 1790))]):
+            for s_, kw in ((ex, dict(color='k', lw=1.0, label='exact')), (E, dict(color='tab:blue', marker='.', ms=3, label='explicit')), (I, dict(color='tab:red', ls='--', marker='x', ms=3, label='IMEX'))):
+                ax.plot(s_['x'], s_[v], **kw)
+            ax.set_xlim(0.55, 0.75); ax.set_ylim(*ylim); ax.set_xlabel('x (m)'); ax.set_ylabel(lab); ax.grid(alpha=0.25)
+        axs[0].legend(); fig.suptitle('SPB 2009 Fig. 7: magnified around the contact (x = 0.5 + u* t = 0.619 m)\n' + BOTH, fontsize=9)
+        fig.tight_layout(); fig.savefig(os.path.join(OUT, 'spb7.png'), dpi=110); plt.close(fig); print('wrote spb7')
+if want('pel1'):   # Pelanti 2022 Fig. 1: detonation gases (JWL) | water (NASG), 500 cells, t = 0.9 ms
+    ex = exact_mg(61, -10, 10)
+    single('pel1', 'Pelanti 2022 Fig. 1: JWL detonation gases | NASG water, 4.64e10 Pa | 1e5 Pa, t = 0.9 ms, 500 cells', 'pel1',
+           [('rho', 'density (kg/m$^3$)'), ('u', 'velocity (m/s)'), ('pGPa', 'pressure (GPa)'), ('a1', 'volume fraction of gas')],
+           (ex, None))

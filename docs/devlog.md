@@ -25,6 +25,7 @@
 | V10 | 5da4d88 | 10-10 | 能量亏损按质量分数分给两相（B5.2）；显式去掉 SPB 3.4 重初始化 | P-S ±500 m/s 起步尖峰；SPB 4.5 中心压力；4.3.1 过冲 |
 | V11 | 8fcd3d5 | 10-10 | 声学补足项的速度部分改为顶点散度形式（B4.1(c)）；速度单独重构（B3）；Newton 步长判据（B8）；Gresho 涡；低马赫 AP 分析（定理 3） | 你的问题“声学补足项会不会导致不 AP”；Gresho $M=0.1,0.01,0.001$ |
 | V11.1 | ed4f01b 之后的提交 | 10-10 | 求解器与 $M$ 无关（B8）：压力扰动未知量 $P-P_{\rm ref}$、按 $P$ 的自然尺度取差分步长与步长判据、两级预条件；输出改为全精度；固定 $\Delta t$ 的 Gresho $M=10^{-1}\ldots10^{-6}$（V11 §11.8） | 你的问题“这个能修好吗”“保持 AP 是底线” |
+| V12 | 0a2d904 之后的提交 | 10-10 | Mie–Grüneisen 相（Cochran–Chan、JWL）：A2.1、B6.1 的 MG 推广；一般 EOS 的精确 Riemann 解（`tests/exact_mg.py`）；SPB 图 6/7、Pelanti 图 1 | 你的要求“继续做 MG 状态方程” |
 
 ---
 
@@ -957,6 +958,37 @@ Cauchy 差一栏是该行的 $M$ 与 $M/10$ 之差；$p_2=p-\overline{p}_{r>0.45
 - **一维测试集（$N=1000$，24 个 IMEX 算例）与 V11 比：** 步数、一阶步数、拒绝次数全部相同；SPB 4.1/4.3.1/4.3.2/4.5/5.1/5.2、十二烷、P-S 与 Pelanti 的 $p$、$pT$、$pT(f)$、$pTg(f)$ 的指标到所列位数不变；只有欠分辨的 $pTg$ 中心尖峰有变化（Pelanti $pTg$ 中心 $p$ 47954 → 47889，精确扇 47724；P-S ±2 m/s $p$-$pTg$ 的 $\alpha_v$ 0.682 → 0.720）。终残量现在都不超过容差（以前日志的 `maxres` 记的是步长判据接受前的残量，最大 $7.7\times10^{-13}$）。显式程序只改了输出位数（数值差 $<5\times10^{-13}$，即旧输出的 12 位）。
 - **二维检查（V8）照旧：** 6 个一维算例（SPB 4.3.1、4.5、5.1，P-S ±2 m/s $pTg$、±500 m/s $p$，十二烷 $p$）放在 $200\times4$ 网格上，各行逐位相同，$v\equiv0$。
 
+
+## V12 Mie–Grüneisen 状态方程（你的要求：“继续做 MG 状态方程和 2d 算例”）
+
+### 12.1 推导（A2.1、B6.1）
+
+- Cochran–Chan（SPB §4.2）与 JWL（Pelanti §4.2）都是 $p=\Gamma\rho(e-\varepsilon_r(\rho))+p_r(\rho)$，$\Gamma$ 常数，参考曲线是等熵线 $\varepsilon_r'=p_r/\rho^2$（两者都直接验证，数值差 $10^{-8}$）。所有公式只用这一条：声速 $c^2=(\Gamma+1)(p-p_r)/\rho+p_r'$（与差分 $c^2=p_\rho+pp_e/\rho^2$ 相对差 $6\times10^{-9}$），混合压力就是 Pelanti (28)，相 Hugoniot 对 $p^*$ 仍线性（A2.8）。
+- 力学闭合（B6.1）：MG 相的 $\alpha_k(p)$ 不再显式，是 $f_k(\alpha)=0$ 的根，$f_k'=\rho_kc_k^2/\Gamma_k>0$，单调、唯一。外层 $\sum\alpha_k(p)=1$ 用带区间的 Newton。
+- WB 的条件：(E1) 对 MG 不成立，但每相密度在界面两侧相同时 $\varepsilon_k$ 对 $\alpha_k$ 线性，WB 照旧。SPB 4.2 把同一流体当两相、各相密度均匀，正是为此（SPB §3.2.2 末）。
+- MG 相只做力学松弛（两篇论文的 MG 算例都只有力学松弛）；与热、化学松弛组合时闭合报错，不静默。
+
+### 12.2 实现
+
+- `spb6_physics.h`：`Phase` 加 `kind`（0 NASG，1 Cochran–Chan，2 JWL）与 MG 参数；`eps_amp`、`p_ame`、`c2_rp`、`dedp_am`、`p_mix` 对 MG 分支，NASG 走原来的闭式；可容许条件 `p_admissible`（NASG $p+\pi>0$，MG $c^2>0$）代替各处的 $p+\pi>0$；B8 残量尺度里的 $|m_kq_k|$ 换成 `eps_round`；`closure_p_mg`。
+- 显式程序：HLLC 相能量的 Hugoniot 对 MG 用 (A2.8)。
+- 回归：NASG/SG 算例（SPB 4.3.1 显式与 IMEX、5.1、十二烷、P-S ±2 m/s $pTg$）输出逐字节不变。
+
+### 12.3 结果（$N=500$，与一般 EOS 的精确 Euler 解比）
+
+精确解（`tests/exact_mg.py`，稀疏波沿等熵线积分，激波用 Hugoniot）：硝基甲烷 $p^*=9.827$ GPa、$u^*=1770.6$ m/s（SPB 图 7 约 9.82 GPa、1770 m/s）；JWL–水 $p^*=2.191\times10^{10}$ Pa、$u^*=2397$ m/s（Pelanti 图 1 约 $2.2\times10^{10}$、2400）。
+
+| 算例 | 程序 | 步数 / 拒绝 | $L_1(p)/p^*$ | $L_1(u)/u^*$ | $L_1(\rho)$ 相对 | $\max u$ |
+|---|---|---|---|---|---|---|
+| SPB 4.2 硝基甲烷 | 显式 | 586 / 0 | 0.0015 | 0.0031 | 0.0039 | 1772.0 |
+| | IMEX | 299 / 0（每级 3.0 次 Newton） | 0.0030 | 0.0063 | 0.0051 | 1772.6 |
+| Pelanti 8.1.1 JWL–水 | 显式 | 1268 / 0 | 0.0017 | 0.0025 | 0.0009 | 2465（激波处 3% 尖峰） |
+| | IMEX | 271 / 0（每级 3.2 次 Newton） | 0.0030 | 0.0054 | 0.0019 | 2402 |
+
+- 接触间断两侧压力、速度都没有振荡（图 `spb7.png`：9.6–10 GPa、1740–1790 m/s 的放大）。
+- IMEX 硝基甲烷的 $\mathrm{d}M_1/M=7.7\times10^{-8}$（显式 $3\times10^{-11}$）：隐式声波瞬时传到边界，透射边界上有极小的质量通量；不是守恒性错误（NASG 算例都是 $10^{-15}$）。
+- 图：`docs/figures/spb6.png`、`spb7.png`、`pel1.png`。
+
 ---
 
 ## 汇总：所有机制错误与修改（不含代码 typo）
@@ -1049,6 +1081,6 @@ Cauchy 差一栏是该行的 $M$ 与 $M/10$ 之差；$p_2=p-\overline{p}_{r>0.45
 
 ## 下一步
 
-1. Mie–Grüneisen EOS（Cochran–Chan、JWL）与精确 Riemann 解：SPB 图 6/7（硝基甲烷）、Pelanti 图 1（JWL–水）。
+1. ~~Mie–Grüneisen EOS（Cochran–Chan、JWL）与精确 Riemann 解：SPB 图 6/7（硝基甲烷）、Pelanti 图 1（JWL–水）~~：V12 完成。
 2. 二维笛卡尔网格算例：SPB 激波–氦泡、SPB/P-S 空化 Richtmyer–Meshkov、P-S 汽泡压缩、Pelanti UNDEX。
 3. 第 1、3、4、7、8 个未解决问题。

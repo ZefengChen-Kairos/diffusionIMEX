@@ -10,7 +10,7 @@
 
 本章记号同 A 章。一个 IMEX-RK 级内的隐式步长记 $\tau=a_{ii}\Delta t$，$r=\tau/\Delta x$。
 
-本页与 Notion 页 B 同步（2026-10-10，V11.1）。每一处修改的来由与被否定的做法见“C. 开发记录”（`docs/devlog.md`）。
+本页与 Notion 页 B 同步（2026-10-10，V12）。每一处修改的来由与被否定的做法见“C. 开发记录”（`docs/devlog.md`）。
 
 ---
 
@@ -358,6 +358,26 @@ $$
 - **单调性：** $\alpha_k'(p)=-\dfrac{(\gamma_k-1)N_k}{\gamma_k(p+\pi_k)^2}$，$N_k=A_k-(B_k-m_kb_k)\pi_k$。若 $\varepsilon^{\rm tr}_k$ 是某压力 $p^{\rm tr}_k>-\pi_k$ 下的状态，则 $\varepsilon^{\rm tr}_k-m_kq_k-(\alpha^{\rm tr}_k-m_kb_k)\pi_k=(\alpha^{\rm tr}_k-m_kb_k)\frac{p^{\rm tr}_k+\pi_k}{\gamma_k-1}>0$；可容许条件 $N_k>0$ 就是这个量加上 $\lambda_k(D_0-s\pi_k)$ 后仍为正。
 - **存在唯一：** $p\downarrow\max_k(-\pi_k)$ 时 $\Phi\to+\infty$；$p\to\infty$ 时 $\Phi\to\sum_k\frac{(\gamma_k-1)B_k+m_kb_k}{\gamma_k}-1<\sum_kB_k-1=0$（因为 $m_kb_k<B_k$）。所以根存在且唯一，用带区间的 Newton 求解。
 - 输出 $\bar p^{\rm cl}=p$。
+
+**MG 相（V12，A2.1）。** (B6.1) 不变，只是 $\varepsilon_k$ 换成 (A2.5)。对 MG 相，$\alpha_k(p)$ 是
+
+$$
+f_k(\alpha)=m_k\varepsilon_r(m_k/\alpha)+\alpha\frac{p-p_r(m_k/\alpha)}{\Gamma_k}+p\,\alpha-A_k-B_kp=0,\qquad A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0
+$$
+
+的根（$B_k$ 同 (B6.2)）。用 $\varepsilon_r'=p_r/\rho^2$、$d\rho/d\alpha=-\rho/\alpha$：
+
+$$
+f_k'(\alpha)=\frac{(\Gamma_k+1)(p-p_r)+\rho_kp_r'}{\Gamma_k}=\frac{\rho_kc_k^2}{\Gamma_k}>0 ,
+$$
+
+所以只要 $c_k^2>0$，$f_k$ 严格递增，根唯一，带区间的 Newton（在 $\ln\alpha$ 上）求解。外层 $\Phi(p)=\sum\alpha_k(p)-1$：
+
+$$
+\alpha_k'(p)=-\frac{\partial f_k/\partial p}{f_k'}=-\frac{\Gamma_k\big[\alpha_k(1+1/\Gamma_k)-B_k\big]}{\rho_kc_k^2},
+$$
+
+$s=0$、$\delta=0$ 时 $B_k=\alpha^{\rm tr}_k$，在 $\alpha_k=\alpha^{\rm tr}_k$ 附近为 $-\alpha_k/(\rho_kc_k^2)<0$（等熵压缩率）。$\Phi$ 一般不再有 SG 那样的全局单调证明，所以外层用带区间的 Newton，区间从初猜向两侧几何扩张；某个 $p$ 下 $\alpha_k(p)$ 无解（$c_k^2\le0$）当作 $\Phi=+\infty$（$p$ 太低）。B8 的残量尺度里 $K$ 用 Wood 体积模量（同前），$P_E$ 的分子把 $|m_kq_k|$ 换成 $|m_k\varepsilon_r|+|\alpha_kp_r/\Gamma_k|$（$\varepsilon_k$ 舍入的来源）。
 
 ### B6.2 有限 $\mu$，$\theta=\nu=0$：两压力闭合
 
@@ -720,6 +740,8 @@ $M=0.001$ 时 $\rho-1\in[-1.1\times10^{-7},3.6\times10^{-8}]$，即 $O(M^2)$。
 | $\lVert u_M-u_{M/10}\rVert_2$ | $1.8\times10^{-3}$ | $1.9\times10^{-6}$ | $1.6\times10^{-7}$ | $2.0\times10^{-9}$ | $3.8\times10^{-7}$ | |
 
 $M\le10^{-5}$ 的数字受双精度的底限制（C 页 V11 §11.8）。
+
+**Mie–Grüneisen 激波管（V12，$N=500$，与一般 EOS 的精确 Euler 解比）。** SPB 4.2 硝基甲烷（Cochran–Chan，20 GPa | 0.2 MPa，67 μs）：精确 $p^*=9.827$ GPa、$u^*=1770.6$ m/s；$L_1(p)/p^*$ 显式 0.0015、IMEX 0.0030，$L_1(u)/u^*$ 0.0031 / 0.0063。Pelanti 8.1.1（JWL 爆轰气体 | NASG 水，0.9 ms）：精确 $p^*=2.191\times10^{10}$ Pa、$u^*=2397$ m/s；$L_1(p)/p^*$ 0.0017 / 0.0030，$L_1(u)/u^*$ 0.0025 / 0.0054。两者接触处都没有振荡（图 `spb6.png`、`spb7.png`、`pel1.png`）。
 
 **Pelanti 8.2.1（NASG 水，±2 m/s，$t=3$ ms，$N=5000$，V8 时的结果，即 V10 之前）。** 中心压力，单位 Pa：
 
