@@ -84,7 +84,7 @@ $$
 
 1. **双曲步**：在每个面上解 HLLC Riemann 问题（A4），用 Godunov 型格式更新全部 7 个量（A5）。输出记上标 $0$。
 2. **力学松弛**（$\mu\to\infty$，全场）：解 (A6.3) 得 $\alpha_k^*,p^*$。
-3. **重初始化（“+1”）**：用守恒的 $E$ 和 $\alpha_k^*$ 由 (A2.3) 重算 $p$，再按 (A2.2) 重置 $\varepsilon_k$。
+3. **混合能量一致（“+1”，V10）**：第 2 步的闭合直接用守恒的混合内能 $\rho e=E-\tfrac12(\rho u)^2/\rho$，它与相内能之和的差 $\delta$ 按质量分数分给两相（A6）。SPB §3.4 原文是在 $\alpha$ 固定下用 (A2.3) 重算 $p$（重初始化）；V10 起不用，理由见 A6。
 4. **热松弛**（界面格 $\epsilon_I\le\alpha_1\le1-\epsilon_I$）：$pT$ 平衡（A7.1），或有限速率 $\theta$（A7.3）。
 5. **化学松弛**（界面格，且液体亚稳 $T>T_{\rm sat}(p)$）：$pTg$ 平衡（A7.2），或有限速率 $\nu$（A7.4）。
 
@@ -158,7 +158,18 @@ $$
 
 （取 $\hat p_I=p_I^0$ 时为 SPB (III.4)：$v_k-b_k=(v_k^0-b_k)\dfrac{p_k^0+\gamma_k\pi_k+(\gamma_k-1)\hat p_I}{p+\gamma_k\pi_k+(\gamma_k-1)\hat p_I}$。）$\sum_k\alpha_k(p)$ 对 $p$ 严格递减（(E5)，B6.1 证明），根唯一，带区间的 Newton 解。
 
-**重初始化：** $\rho e=E-\tfrac12(\rho u)^2/\rho$，$\alpha_k=\alpha_k^*$，用 (A2.3) 求 $p$，再按 (A2.2) 重置 $\varepsilon_k$。
+**混合能量一致（V10 起代替 SPB §3.4 的重初始化）。** 双曲步后守恒的 $\rho e=E-\tfrac12(\rho u)^2/\rho$ 与 $\sum_k\varepsilon^0_k$ 差 $\delta$（主要是数值耗散掉的动能）。把 $\delta$ 按质量分数 $Y_k$ 加进 (A6.2)：
+
+$$
+\varepsilon_k-\varepsilon_k^0=-p\,(\alpha_k-\alpha_k^0)+Y_k\delta ,\qquad \delta=\rho e-\sum_j\varepsilon^0_j ,\tag{A6.4}
+$$
+
+即 (A6.3) 中 $\varepsilon^0_k$ 换成 $\varepsilon^0_k+Y_k\delta$。由 $\sum\alpha_k=\sum\alpha_k^0=1$，$\sum_k\varepsilon_k=\rho e$。这就是 B5 的统一闭合在 $s=0$ 时的特例（B5.2、B6.1）。
+
+- SPB §3.4 的重初始化（$\alpha$ 固定，用 (A2.3) 重算 $p$，再按 (A2.2) 重置 $\varepsilon_k$）等价于按 $\partial\varepsilon_k/\partial p|_\alpha\propto\alpha_k/(\gamma_k-1)$ 分配 $\delta$：耗散的动能主要进了可压缩性最大、质量极小的气或汽，微量相被加热到 $10^5$–$10^6$ K（C. 开发记录 V10）。
+- 在用相总能写的模型里（P-S 2014 §2.2）第 $k$ 相的动能是 $\tfrac12\alpha_k\rho_k|\mathbf u|^2$，所以按质量分配。这也满足 P-S 2014 §3.1 的条件 (ii)。
+- 效果（$N=1000$）：SPB 4.3.1 显式 $L_1(u)$ 2.91 → 1.82；P-S ±500 m/s、只 $p$ 松弛的起步尖峰消失（P-S 图 2 没有）；SPB 4.5 中心压力约 2200 Pa → 小于 1 Pa（SPB §4.5 说中心“压力约为 0”，5 方程精确解是真空）。
+- 灵感来源：P-S 2014 §2.2、§3.1。
 
 ---
 
@@ -211,4 +222,4 @@ Pelanti §7.2.3 用 4 方程模型的 ODE（71），冻结系数，得 $\Delta g
 
 显式格式的松弛步就是 B5 节统一闭合在“**没有体积应变**”（$s=0$）、输运态取双曲步结果时的特例：A6 是 $\mu=\infty$ 的力学闭合，A7.1/A7.2 是 $\theta,\nu=\infty$，A7.3/A7.4 是有限速率。
 
-SPB 的“松弛 → 用总能重初始化”这两步分开做；IMEX 闭合把这两步合成一个方程组（B5.3）。两者等价：SPB 的重初始化在 $\alpha$ 固定时整体平移 $p$，就是按同样的 $\lambda_k$ 分配 $\delta$（B5.2）。显式程序 `src/SPB6_explicit.cpp` 只实现 SPB 原文的两步（V6 之前的 `spbexact=0` 对照开关已在 V7 删除）。
+SPB 原文把“松弛 → 用总能重初始化”分两步做，相当于按 $\lambda_k\propto\alpha_k/(\gamma_k-1)$ 分配 $\delta$。V10 起显式程序 `src/SPB6_explicit.cpp` 与 IMEX 都用同一个闭合（B5.3）、按质量分数分配 $\delta$（A6）；显式程序的力学松弛就是 $s=0$ 的 $p$ 闭合（B6.1）。
