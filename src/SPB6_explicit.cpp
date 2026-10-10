@@ -29,7 +29,13 @@
 
 enum Reconstruction{NoRecon, Minmod};
 
-Test test = testSPB_WaterAir;
+Test test = testSPB_WaterAir;         // 切换算例：改这里（或命令行 case=N）。每个算例的区域、状态方程、各边边界条件、终止时间、论文网格、松弛档位
+                                      // 都在 spb6_physics.h 的 test_setup / test_state 里，命令行 N= ny= relax= tend= 可覆盖。
+                                      // 一维：0 SPB 4.5 空化管 | 1, 2 P-S ±2 / ±500 m/s 水 | 3 十二烷 SG | 4 SPB 4.1 界面平移 | 5, 6 SPB 4.3.1 / 4.3.2 水-气
+                                      //       12, 13 SPB 5.1 / 5.2 环氧-尖晶石 | 20, 21 光滑解 | 30 Pelanti 8.2.1 | 31 十二烷 NASG | 40, 41 0D 松弛
+                                      //       60 SPB 4.2 硝基甲烷（Cochran-Chan）| 61 Pelanti 8.1.1 JWL-水
+                                      // 二维：50-55 Gresho 涡（M = 1e-1 ... 1e-6）| 70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
+                                      //       72 P-S 5.4 十二烷汽泡压缩（relax 2）| 73 Pelanti 8.1.2 近壁水下爆炸
 x_boundary_condition x_bc;
 y_boundary_condition y_bc;
 int nxCells = 1000;
@@ -189,9 +195,14 @@ bool Update(Grid &u_new, Grid &u_con, PrimGrid &w, PrimGrid &w_xL, PrimGrid &w_x
 	const int g = ghost_cells, nx = nxCells, ny = nyCells, NXT = nx + 2 * g, NYT = ny + 2 * g;
 	const double rx = h / dx, ry = h / dy;
 	std::vector<HFace> FX((size_t)NXT * NYT), FY;
+	#pragma omp parallel for schedule(static)
 	for (int j = g; j < ny + g; j++) for (int i = g - 1; i < nx + g; i++) FX[i + (size_t)j * NXT] = HLLC(w_xR(i, j), w_xL(i + 1, j), 0);
-	if (ny > 1) { FY.resize((size_t)NXT * NYT); for (int j = g - 1; j < ny + g; j++) for (int i = g; i < nx + g; i++) FY[i + (size_t)j * NXT] = HLLC(w_yR(i, j), w_yL(i, j + 1), 1); }
+	if (ny > 1) { FY.resize((size_t)NXT * NYT);
+		#pragma omp parallel for schedule(static)
+		for (int j = g - 1; j < ny + g; j++) for (int i = g; i < nx + g; i++) FY[i + (size_t)j * NXT] = HLLC(w_yR(i, j), w_yL(i, j + 1), 1); }
 	copy(u_new, u_con);
+	bool ok = true;   // 各格独立（OpenMP，逐位不变）
+	#pragma omp parallel for schedule(static) reduction(&&:ok)
 	for (int j = g; j < ny + g; j++) for (int i = g; i < nx + g; i++) {
 		const Prim& wc = w(i, j);
 		const HFace& fp = FX[i + (size_t)j * NXT], & fm = FX[i - 1 + (size_t)j * NXT];
@@ -207,22 +218,26 @@ bool Update(Grid &u_new, Grid &u_con, PrimGrid &w, PrimGrid &w_xL, PrimGrid &w_x
 			for (int k = 0; k < 2; k++) dU[IE1 + k] -= ry * ((gp.ue[k] - gm.ue[k]) + ak[k] * pk[k] * (gp.ustar - gm.ustar));
 		}
 		for (int k = 0; k < NUM_VARS; k++) u_new(i, j, k) = u_con(i, j, k) + dU[k];
-		if (!(u_new(i, j, IA1) > 0 && u_new(i, j, IA1) < 1 && u_new(i, j, IM1) > 0 && u_new(i, j, IM2) > 0)) return false;
+		if (!(u_new(i, j, IA1) > 0 && u_new(i, j, IA1) < 1 && u_new(i, j, IM1) > 0 && u_new(i, j, IM2) > 0)) ok = false;
 	}
-	return true;
+	return ok;
 }
 
 
 // 原始变量 (alpha1, rho1, rho2, u, v, p1, p2) 的 minmod 重构（SPB 附录 C）；w 为格平均的原始变量
 bool TVDReconstruction(Grid &u_con, PrimGrid &w, PrimGrid &w_xL, PrimGrid &w_xR, PrimGrid &w_yL, PrimGrid &w_yR){
 	const int g = ghost_cells, NXT = nxCells + 2 * g, NYT = nyCells + 2 * g;
-	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) if (!prim_of(u_con.cell(i, j), w(i, j))) return false;
+	bool ok = true;
+	#pragma omp parallel for schedule(static) reduction(&&:ok)
+	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) if (!prim_of(u_con.cell(i, j), w(i, j))) ok = false;
+	if (!ok) return false;
 	w_xL.data = w.data; w_xR.data = w.data; w_yL.data = w.data; w_yR.data = w.data;
 	SpaceOrder = recon == NoRecon ? 1 : 2;
 	if (recon == NoRecon) return true;
 	auto mm = [](double a, double b) { return a * b > 0 ? (std::fabs(a) < std::fabs(b) ? a : b) : 0.0; };
 	for (int dir = 0; dir < (nyCells > 1 ? 2 : 1); dir++) {
 		PrimGrid &WL = dir == 0 ? w_xL : w_yL, &WR = dir == 0 ? w_xR : w_yR;
+		#pragma omp parallel for schedule(static)
 		for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) {
 			int im = i, ip = i, jm = j, jp = j;
 			if (dir == 0) { im = i - 1; ip = i + 1; if (im < 0 || ip >= NXT) continue; } else { jm = j - 1; jp = j + 1; if (jm < 0 || jp >= NYT) continue; }
@@ -248,7 +263,14 @@ void u_initialization(Grid &u){
 			double x = x_0 + (i - ghost_cells + 0.5) * dx;
 			double y = y_0 + (j - ghost_cells + 0.5) * dy;
 			double Q[NUM_VARS];
-			test_state(test, x, y, Q);
+			if (SUBCELL <= 1) test_state(test, x, y, Q);
+			else {   // 格平均：SUBCELL x SUBCELL 个子点上守恒量的平均（圆形区域，二维算例）
+				for (int k = 0; k < NUM_VARS; k++) Q[k] = 0.0;
+				for (int a = 0; a < SUBCELL; a++) for (int b = 0; b < SUBCELL; b++) {
+					double Qs[NUM_VARS]; test_state(test, x + ((a + 0.5) / SUBCELL - 0.5) * dx, y + ((b + 0.5) / SUBCELL - 0.5) * dy, Qs);
+					for (int k = 0; k < NUM_VARS; k++) Q[k] += Qs[k] / (SUBCELL * SUBCELL);
+				}
+			}
 			for(int k = 0; k < NUM_VARS; k++) u(i,j,k) = Q[k];
 		}
 	}
@@ -257,39 +279,7 @@ void u_initialization(Grid &u){
 
 // 透射：复制边界格；固壁：镜像，只把法向动量取负；周期：绕回。一维时 y 向只复制。
 void bound_cond_u(Grid &u){
-	const int g = ghost_cells, nx = u.nxCells, ny = u.nyCells;
-	for(int j = 0; j < ny + 2 * g; j++){
-		for(int q = 0; q < g; q++){
-			int iL = g - 1 - q, iR = nx + g + q, sL, sR;
-			switch(x_bc){
-				case x_Periodic: sL = nx + g - 1 - q; sR = g + q; break;
-				case x_Reflective: sL = g + q; sR = nx + g - 1 - q; break;
-				default: sL = g; sR = nx + g - 1; break;
-			}
-			for(int k = 0; k < NUM_VARS; k++){ u(iL, j, k) = u(sL, j, k); u(iR, j, k) = u(sR, j, k); }
-			if(x_bc == x_Reflective){ u(iL, j, IMU) = -u(iL, j, IMU); u(iR, j, IMU) = -u(iR, j, IMU); }
-		}
-	}
-	if(ny > 1 || y_bc == y_Periodic){
-		for(int i = 0; i < nx + 2 * g; i++){
-			for(int q = 0; q < g; q++){
-				int jL = g - 1 - q, jR = ny + g + q, sL, sR;
-				switch(y_bc){
-					case y_Periodic: sL = ny + g - 1 - q; sR = g + q; break;
-					case y_Reflective: sL = g + q; sR = ny + g - 1 - q; break;
-					default: sL = g; sR = ny + g - 1; break;
-				}
-				for(int k = 0; k < NUM_VARS; k++){ u(i, jL, k) = u(i, sL, k); u(i, jR, k) = u(i, sR, k); }
-				if(y_bc == y_Reflective){ u(i, jL, IMV) = -u(i, jL, IMV); u(i, jR, IMV) = -u(i, jR, IMV); }
-			}
-		}
-	}else{
-		for(int i = 0; i < nx + 2 * g; i++){
-			for(int q = 0; q < g; q++){
-				for(int k = 0; k < NUM_VARS; k++){ u(i, g - 1 - q, k) = u(i, g, k); u(i, g + 1 + q, k) = u(i, g, k); }
-			}
-		}
-	}
+	bc_apply(u, u.nxCells, u.nyCells, ghost_cells);   // spb6_physics.h：每一边单独的透射 / 固壁（含活塞速度）/ 周期
 }
 
 
@@ -316,11 +306,26 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	const double rho = Q[IM1] + Q[IM2], rhoe = Q[IEN] - 0.5 * (Q[IMU] * Q[IMU] + Q[IMV] * Q[IMV]) / rho;
 	double a1 = Q[IA1], m1 = Q[IM1], m2 = Q[IM2], e1 = Q[IE1], e2 = Q[IE2];
 	const int mech = std::isinf(mu_rate) ? CL_P : CL_MU;
+	// 松弛 ODE（A6.2）要求起点是可容许的相状态。SPB 的 Godunov 相能量更新不保证这一点：激波穿过界面时，微量相（alpha ~ 1e-7）的
+	// 输运态可以落到 p_k + pi_k <= 0（二维空化 RM，devlog V13），这时 (A6.3) 无根。对这样的相按 SPB 3.4 的重初始化定义起点：
+	// 在输运的 alpha_k、m_k 下取混合压力 (A2.3) 的状态；能量差进入能量亏损 delta（总能守恒）。可容许的格不受影响（1D 算例逐位不变）
+	{
+		const double ak[2] = {a1, 1 - a1}, mk[2] = {m1, m2}; double* ek[2] = {&e1, &e2};
+		for (int k = 0; k < 2; k++)
+			if (!p_admissible(k, ak[k], mk[k], p_ame(k, ak[k], mk[k], *ek[k]))) {
+				const double pm = p_mix(a1, m1, m2, rhoe);
+				if (p_admissible(k, ak[k], mk[k], pm)) *ek[k] = eps_amp(k, ak[k], mk[k], pm);
+			}
+	}
 	if (mech == CL_P || finite) {
 		ClIn in{}; in.atr[0] = a1; in.atr[1] = 1 - a1; in.mtr[0] = m1; in.mtr[1] = m2; in.etr[0] = e1; in.etr[1] = e2;
 		in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_of(Q), 1.0);
 		in.type = mech; in.nodelta = false;   // 守恒总能（"+1"）在闭合里：能量亏损按质量分数分给两相，代替 SPB 3.4 的重初始化（A3）
-		ClOut o; if (!closure(in, o)) { st_cl_fail++; return false; }
+		ClOut o; if (!closure(in, o)) {
+			#pragma omp atomic
+			st_cl_fail++;
+			if (VERBOSE >= 3) fprintf(stderr, "  closure fail: a1 %.6e m1 %.6e m2 %.6e e1 %.6e e2 %.6e rhoe %.6e p1 %.4e p2 %.4e\n", a1, m1, m2, e1, e2, rhoe, p_ame(0, a1, m1, e1), p_ame(1, 1 - a1, m2, e2));
+			return false; }
 		a1 = o.a[0]; m1 = o.m[0]; m2 = o.m[1]; e1 = o.e[0]; e2 = o.e[1];
 	}
 	int ty = closure_type_of(a1, m1, m2, e1, e2, rhoe);
@@ -328,14 +333,20 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	if (ty != mech) {
 		ClIn t2{}; t2.atr[0] = a1; t2.atr[1] = 1 - a1; t2.mtr[0] = m1; t2.mtr[1] = m2; t2.etr[0] = e1; t2.etr[1] = e2;
 		t2.s = 0; t2.rhoeC = rhoe; t2.tau = dtloc; t2.type = ty; t2.pguess = std::max(p_mix(a1, m1, m2, rhoe), 1.0);
-		ClOut o2; if (!closure(t2, o2)) { st_cl_fail++; } else { a1 = o2.a[0]; m1 = o2.m[0]; m2 = o2.m[1]; e1 = o2.e[0]; e2 = o2.e[1]; }
+		ClOut o2; if (!closure(t2, o2)) {
+			#pragma omp atomic
+			st_cl_fail++;
+		} else { a1 = o2.a[0]; m1 = o2.m[0]; m2 = o2.m[1]; e1 = o2.e[0]; e2 = o2.e[1]; }
 	}
 	Q[IA1] = a1; Q[IM1] = m1; Q[IM2] = m2; Q[IE1] = e1; Q[IE2] = e2;
 	return true;
 }
 bool RelaxationSubsystem(Grid &u_con, double h, bool finite){
+	bool ok = true;
+	#pragma omp parallel for schedule(static) reduction(&&:ok)
 	for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++)
-		if (!relax_cell_explicit(u_con.cell(i, j), h, finite)) return false;
+		if (!relax_cell_explicit(u_con.cell(i, j), h, finite)) ok = false;
+	if (!ok) return false;
 	bound_cond_u(u_con);
 	return true;
 }
@@ -365,8 +376,9 @@ void write_profile(Grid &u_con, const std::string &fn){
 	fprintf(f, "# x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2\n");
 	for (int j = g; j < nyCells + g; j++) for (int i = g; i < nxCells + g; i++) {
 		double o[15]; cell_diag(u_con.cell(i, j), o);
-		fprintf(f, "%.10e %.10e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.8e %.8e %.10e %.10e %.16e %.16e %.8e\n",
-			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11], o[12], o[13], o[14]);
+		const int P = OUTPREC, Q = std::min(OUTPREC, 8), R = std::min(OUTPREC, 10);
+		fprintf(f, "%.10e %.10e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e\n",
+			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, P, o[0], P, o[1], P, o[2], P, o[3], P, o[4], P, o[5], P, o[6], P, o[7], Q, o[8], Q, o[9], R, o[10], R, o[11], P, o[12], P, o[13], Q, o[14]);
 	}
 	fclose(f);
 }
@@ -466,25 +478,42 @@ static void conserved_totals(Grid &U, double M[3]) {
 }
 
 
+// 压力探针：最近格的混合压力随时间（Pelanti 8.1.2 图 3）
+void probe_write(Grid& u_con, bool first){
+	const int i = std::min(nxCells - 1, std::max(0, (int)std::floor((PROBE_X - x_0) / dx))), j = std::min(nyCells - 1, std::max(0, (int)std::floor((PROBE_Y - y_0) / dy)));
+	double o[15]; cell_diag(u_con.cell(i + ghost_cells, j + ghost_cells), o);
+	FILE* f = fopen((out_file + ".probe").c_str(), first ? "w" : "a"); if (!f) return;
+	fprintf(f, "%.10e %.10e\n", t, o[0]); fclose(f);
+}
+
 int main(int argc, char *argv[]){
-	double tend_override = -1;
+	double tend_override = -1; bool gotN = false, gotNy = false, gotRelax = false;
 	for (int a = 1; a < argc; a++) {
 		char key[64]; char val[256]; if (sscanf(argv[a], "%63[^=]=%255s", key, val) != 2) { fprintf(stderr, "bad arg %s\n", argv[a]); return 1; }
 		std::string k(key); const double d = atof(val); const bool isinf_val = std::string(val) == "inf";
-		if (k == "case") test = (Test)(int)d; else if (k == "N" || k == "nx") nxCells = (int)d; else if (k == "ny") nyCells = (int)d;
+		if (k == "case") test = (Test)(int)d; else if (k == "N" || k == "nx") { nxCells = (int)d; gotN = true; } else if (k == "ny") { nyCells = (int)d; gotNy = true; }
 		else if (k == "cfl") CFL = d; else if (k == "order") recon = (int)d < 2 ? NoRecon : Minmod; else if (k == "tend") tend_override = d; else if (k == "out") out_file = val;
-		else if (k == "relax") RELAX_LEVEL = (int)d; else if (k == "epsI") EPS_I = d;
+		else if (k == "relax") { RELAX_LEVEL = (int)d; gotRelax = true; } else if (k == "epsI") EPS_I = d;
 		else if (k == "mu") mu_rate = isinf_val ? INF : d; else if (k == "theta") theta_rate = isinf_val ? INF : d; else if (k == "nu") nu_rate = isinf_val ? INF : d;
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "vtk") vtk_dir = val;
+		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
+		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
 	}
 	SpaceOrder = recon == NoRecon ? 1 : 2;
-	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
-	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
 
 	TestSetup TS; if (!test_setup(test, TS)) { fprintf(stderr, "unknown case %d\n", (int)test); return 1; }
+	// 算例自带的网格与松弛档位（论文的设置）；命令行 N= ny= relax= 覆盖
+	if (!gotN && TS.nx > 0) nxCells = TS.nx;
+	if (!gotNy && TS.ny > 0) nyCells = TS.ny;
+	if (!gotRelax && TS.relax >= 0) RELAX_LEVEL = TS.relax;
+
+	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
+	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
+	if (RELAX_LEVEL > 0 && !mg_any()) build_sat();   // 饱和线表在并行循环之前建好（Tsat 惰性构造不是线程安全的）
 	x_0 = TS.x0; x_1 = TS.x1; y_0 = TS.y0; y_1 = TS.y1; time_stop = TS.tend; x_bc = TS.xbc; y_bc = TS.ybc;
+	apply_bc_setup(TS);
 	if (tend_override > 0) time_stop = tend_override;
 	dx = (x_1 - x_0) / nxCells;
 	dy = (y_1 - y_0) / nyCells;
@@ -501,8 +530,9 @@ int main(int argc, char *argv[]){
 	IntermediatePlotIntermediatePlot(u_con, u_pri, timestep, plotINTERVAL, IntermediatePlotTimes, false);
 
 	auto t0 = std::chrono::steady_clock::now();
+	if (HAS_PROBE) probe_write(u_con, true);
 	do{
-		dt = std::min(CFL * caldt(u_con, true), time_stop - t);
+		dt = std::min(CFL * caldt(u_con, true), time_stop - t); dt = snap_limit(t, dt);
 		if (!(dt > 1e-12 * time_stop)) { fprintf(stderr, "FAILED: time step underflow (dt = %.3e) at t = %.6e (step %ld)\n", dt, t, st_steps); write_profile(u_con, out_file); return 2; }
 		bool done = false;
 		for (int attempt = 0; attempt < 30 && !done; attempt++) {
@@ -521,6 +551,8 @@ int main(int argc, char *argv[]){
 		}
 		if (!done) { fprintf(stderr, "FAILED at t = %.6e (step %ld)\n", t, st_steps); write_profile(u_con, out_file); return 2; }
 		t = t + dt; st_steps++; timestep++;
+		if (SNAPI < SNAP.size() && t >= SNAP[SNAPI] * (1 - 1e-12)) { write_profile(u_con, snap_name(out_file, SNAPI)); SNAPI++; }
+		if (HAS_PROBE) probe_write(u_con, false);
 		if (VERBOSE > 1 && st_steps % 50 == 0) fprintf(stderr, "step %ld t %.4e dt %.3e\n", st_steps, t, dt);
 		IntermediatePlotIntermediatePlot(u_con, u_pri, timestep, plotINTERVAL, IntermediatePlotTimes, t >= time_stop * (1 - 1e-12));
 	}while(t < time_stop * (1 - 1e-12));

@@ -560,38 +560,103 @@ enum Test {
 	testGresho5 = 54,             //   M = 1e-5
 	testGresho6 = 55,             //   M = 1e-6
 	testSPB_Nitromethane = 60,    // SPB 2009 4.2  硝基甲烷激波管（Cochran-Chan，同一流体当两相），20 GPa / 0.2 MPa
-	testPel_JWLWater = 61         // Pelanti 2022 8.1.1  爆轰气体（JWL）-水（NASG）激波管
+	testPel_JWLWater = 61,        // Pelanti 2022 8.1.1  爆轰气体（JWL）-水（NASG）激波管
+	testSPB_HeBubble = 70,        // SPB 2009 4.6  二维：空气中 Mach 1.5 激波打氦气泡（Layes & Le Métayer）
+	testSPB_RM = 71,              // SPB 2009 4.7  二维：空化 Richtmyer-Meshkov（水 | 气，-200 m/s 撞左壁）
+	testPS_BubbleComp = 72,       // P-S 2014 5.4  二维：活塞压缩十二烷汽泡（SG，热、化学松弛）
+	testPel_UNDEX = 73            // Pelanti 2022 8.1.2  二维：近壁水下爆炸（JWL 气泡 | NASG 水）
 };
-struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc; };
+struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc;
+	int bc[4] = {-1, -1, -1, -1};      // 每一边（左、右、下、上）单独给：BC_TRANS / BC_WALL；-1 表示用 xbc / ybc
+	double bcu[4] = {0, 0, 0, 0};      // 固壁的法向速度（沿 +x / +y 方向；活塞）
+	int sub = 1;                       // 初值的子格采样数（每方向）：圆形区域的格平均
+	int nx = -1, ny = -1, relax = -1; };   // 论文的网格与松弛档位（命令行 N= ny= relax= 覆盖）
+enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2 };
+int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
+// 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
+std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
+static void parse_list(const std::string& v, std::vector<double>& out) { size_t a = 0; while (a < v.size()) { size_t b = v.find(',', a); if (b == std::string::npos) b = v.size(); out.push_back(std::atof(v.substr(a, b - a).c_str())); a = b + 1; } }
+inline double snap_limit(double t, double dt) { if (SNAPI < SNAP.size() && t + dt > SNAP[SNAPI]) return SNAP[SNAPI] - t; return dt; }
+inline std::string snap_name(const std::string& out, size_t k) { std::string b = out; if (b.size() > 4 && b.substr(b.size() - 4) == ".dat") b = b.substr(0, b.size() - 4); return b + "_s" + std::to_string(k) + ".dat"; }
+static void apply_bc_setup(const TestSetup& S) {
+	const int dx_ = S.xbc == x_Periodic ? BC_PERIODIC : (S.xbc == x_Reflective ? BC_WALL : BC_TRANS);
+	const int dy_ = S.ybc == y_Periodic ? BC_PERIODIC : (S.ybc == y_Reflective ? BC_WALL : BC_TRANS);
+	for (int q = 0; q < 4; q++) { BCS[q] = S.bc[q] >= 0 ? S.bc[q] : (q < 2 ? dx_ : dy_); BCU[q] = S.bcu[q]; }
+	SUBCELL = S.sub;
+}
+// 边界条件（两个程序共用）：透射复制边界格；固壁镜像，法向速度取 2 u_w - u（u_w = 0 时就是取负；总能随动能改）；周期绕回。
+// side: 0 左 1 右 2 下 3 上。一维（ny = 1 且 y 非周期）时 y 向只复制
+template <class GridT> static void bc_apply(GridT& u, int nx, int ny, int g) {
+	auto ghost = [&](int i, int j, int si, int sj, int side) {
+		for (int k = 0; k < 8; k++) u(i, j, k) = u(si, sj, k);
+		if (BCS[side] != BC_WALL) return;
+		const int kn = side < 2 ? IMU : IMV; const double rho = u(i, j, IM1) + u(i, j, IM2);
+		if (BCU[side] == 0.0) { u(i, j, kn) = -u(i, j, kn); return; }
+		const double mn = 2.0 * rho * BCU[side] - u(si, sj, kn);
+		u(i, j, IEN) += 0.5 * (mn * mn - u(si, sj, kn) * u(si, sj, kn)) / rho; u(i, j, kn) = mn; };
+	for (int j = 0; j < ny + 2 * g; j++)
+		for (int q = 0; q < g; q++) {
+			const int iL = g - 1 - q, iR = nx + g + q;
+			const int sL = BCS[0] == BC_PERIODIC ? nx + g - 1 - q : (BCS[0] == BC_WALL ? g + q : g);
+			const int sR = BCS[1] == BC_PERIODIC ? g + q : (BCS[1] == BC_WALL ? nx + g - 1 - q : nx + g - 1);
+			ghost(iL, j, sL, j, 0); ghost(iR, j, sR, j, 1);
+		}
+	if (ny > 1 || BCS[2] == BC_PERIODIC) {
+		for (int i = 0; i < nx + 2 * g; i++)
+			for (int q = 0; q < g; q++) {
+				const int jL = g - 1 - q, jR = ny + g + q;
+				const int sL = BCS[2] == BC_PERIODIC ? ny + g - 1 - q : (BCS[2] == BC_WALL ? g + q : g);
+				const int sR = BCS[3] == BC_PERIODIC ? g + q : (BCS[3] == BC_WALL ? ny + g - 1 - q : ny + g - 1);
+				ghost(i, jL, i, sL, 2); ghost(i, jR, i, sR, 3);
+			}
+	} else {
+		for (int i = 0; i < nx + 2 * g; i++)
+			for (int q = 0; q < g; q++)
+				for (int k = 0; k < 8; k++) { u(i, g - 1 - q, k) = u(i, g, k); u(i, g + 1 + q, k) = u(i, g, k); }
+	}
+}
 static void set_SG(int k, double g, double pi, double q = 0, double qp = 0, double cv = 1000.0, double b = 0) { PH[k] = {g, pi, q, qp, cv, b}; }
 static double rho_pT(int k, double p, double T) { return 1.0 / v_pT(k, p, T); }
 // 状态方程、区域、边界、终止时间
 static bool test_setup(int test, TestSetup& S) {
 	S.x0 = 0; S.x1 = 1; S.y0 = 0; S.y1 = 1; S.xbc = x_Transmissive; S.ybc = y_Transmissive;
 	switch (test) {
-	case testSPB_Cavitation: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1.85e-3; break;
+	case testSPB_Cavitation: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1.85e-3; S.nx = 1000; break;
 	case testPS_Cavitation2: case testPS_Cavitation500:
 		set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0);
-		S.tend = test == testPS_Cavitation2 ? 3.2e-3 : 0.58e-3; break;
-	case testDodecaneSG: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.tend = 473e-6; break;
-	case testSPB_Interface: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 2.79e-3; break;
-	case testSPB_WaterAir: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 240e-6; break;
-	case testSPB_WaterAirTPa: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 8.3e-6; break;
-	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = test == testSPB_EpoxySpinel ? 80e-6 : 34e-6; break;
+		S.tend = test == testPS_Cavitation2 ? 3.2e-3 : 0.58e-3; S.nx = 5000; break;
+	case testDodecaneSG: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.tend = 473e-6; S.nx = 2000; break;
+	case testSPB_Interface: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 2.79e-3; S.nx = 200; break;
+	case testSPB_WaterAir: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 240e-6; S.nx = 1000; break;
+	case testSPB_WaterAirTPa: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 8.3e-6; S.nx = 1000; break;
+	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = test == testSPB_EpoxySpinel ? 80e-6 : 34e-6; S.nx = 500; break;
 	case testSmoothGas: set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.tend = 5e-4; break;
 	case testSmoothWater: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1e-4; break;
-	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; break;
-	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; break;
+	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; S.nx = 5000; break;
+	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; S.nx = 2000; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
-		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; break;
+		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; S.nx = 80; S.ny = 80; break;
 	case testSPB_Nitromethane:   // SPB 4.2：Gamma = 1.19，rho_ref = 1134，A1 = 0.819181e9，A2 = 1.50835e9，E1 = 4.52969，E2 = 1.42144；界面位置论文未写，取 0.5 m
 		for (int k = 0; k < 2; k++) { PH[k] = Phase{}; PH[k].kind = 1; PH[k].G = 1.19; PH[k].rr = 1134.0; PH[k].c1 = 0.819181e9; PH[k].c2 = 1.50835e9; PH[k].e1 = 4.52969; PH[k].e2 = 1.42144; PH[k].g = 2.19; }
-		S.tend = 67e-6; break;
+		S.tend = 67e-6; S.nx = 500; break;
 	case testPel_JWLWater:       // Pelanti 表 2（JWL）与表 3（NASG 液态水）；[-10, 10] m，t = 0.9 ms
 		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
 		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
-		S.x0 = -10.0; S.x1 = 10.0; S.tend = 0.9e-3; break;
+		S.x0 = -10.0; S.x1 = 10.0; S.tend = 0.9e-3; S.nx = 500; break;
+	case testSPB_HeBubble:   // 区域 0.3 x 0.08 m，气泡直径 0.04 m（论文）；气泡中心 (0.2, 0.04)、激波初位置 x = 0.221 m（论文未给，取 t = 0 时激波刚到气泡右缘）
+		set_SG(0, 1.4, 0); set_SG(1, 1.67, 0); S.x0 = 0; S.x1 = 0.3; S.y0 = 0; S.y1 = 0.08; S.tend = 600e-6;
+		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.sub = 4; S.nx = 600; S.ny = 160; break;
+	case testSPB_RM:         // 3 m x 1 m；左、上、下为固壁，右为出流；水 SG (4.4, 6e8)，气 gamma = 1.8（SPB；P-S 用 1.4）
+		set_SG(0, 4.4, 6e8); set_SG(1, 1.8, 0); S.x0 = 0; S.x1 = 3; S.y0 = 0; S.y1 = 1; S.tend = 8.6e-3;
+		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.bc[0] = BC_WALL; S.sub = 4; S.nx = 300; S.ny = 100; break;   // P-S 5.3 的网格（SPB 用 900 x 400：N=900 ny=400）
+	case testPS_BubbleComp:  // 单位正方形，汽泡半径 0.2 m 居中；四周固壁，左壁为活塞 100 m/s（网格不动：活塞面固定在 x = 0，液体从该面进入）
+		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45);
+		S.tend = 1.2e-3; S.xbc = x_Reflective; S.ybc = y_Reflective; S.bcu[0] = 100.0; S.sub = 4; S.nx = 200; S.ny = 200; S.relax = 2; break;
+	case testPel_UNDEX:      // [-1.35, 1.35] x [-1.5, 0] m，y = 0 为固壁，其余透射；气泡中心 (0, -0.32) m，半径 0.05 m
+		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
+		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
+		S.x0 = -1.35; S.x1 = 1.35; S.y0 = -1.5; S.y1 = 0.0; S.tend = 0.4e-3; S.xbc = x_Transmissive; S.ybc = y_Transmissive; S.bc[3] = BC_WALL; S.sub = 4; S.nx = 721; S.ny = 400; break;
 	default: return false;
 	}
 	return true;
@@ -609,6 +674,22 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
 	case testSPB_Nitromethane: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1134.0, 1200.0, 0, 0, L ? 20e9 : 0.2e6, L ? 20e9 : 0.2e6); break; }
 	case testPel_JWLWater: { const bool L = x < 0.0; setcell(L ? 1 - 1e-8 : 1e-8, 2000.0, 1044.0, 0, 0, L ? 4.6406e10 : 1e5, L ? 4.6406e10 : 1e5); break; }
+	case testSPB_HeBubble: {   // 空气 1.29 kg/m3、101325 Pa；氦 0.167 kg/m3；激波右侧为 Mach 1.5 波后状态（理想气体 Rankine-Hugoniot），向左运动
+		const double g = 1.4, Ms = 1.5, p0 = 101325.0, r0 = 1.29, c0 = std::sqrt(g * p0 / r0);
+		const double p1 = p0 * (1 + 2 * g / (g + 1) * (Ms * Ms - 1)), r1 = r0 * (g + 1) * Ms * Ms / ((g - 1) * Ms * Ms + 2), u1 = -Ms * c0 * (1 - r0 / r1);
+		const bool in = (x - 0.2) * (x - 0.2) + (y - 0.04) * (y - 0.04) < 0.02 * 0.02;
+		if (x > 0.221) setcell(1 - 1e-6, r1, 0.167, u1, 0, p1, p1);
+		else setcell(in ? 1e-6 : 1 - 1e-6, r0, 0.167, 0, 0, p0, p0);
+		break; }
+	case testSPB_RM: {         // 水在左：x < 1.2 + sqrt(0.36 - (y - 0.5)^2)（半径 0.6 m、圆心 (1.2, 0.5) 的圆弧凸向气体）；全场 u = -200 m/s，p = 1 atm
+		const double dy_ = y - 0.5, xi = 1.2 + std::sqrt(std::max(0.0, 0.36 - dy_ * dy_)); const bool W = x < xi;
+		setcell(W ? 1 - 1e-6 : 1e-6, 1000.0, 100.0, -200.0, 0, 101325.0, 101325.0); break; }
+	case testPS_BubbleComp: {  // p = 1e5 Pa、T = 600 K：rho_l = 458.338、rho_v = 3.408；汽泡内 alpha_l = 1e-6，液体中 alpha_v = 1e-6
+		const bool in = (x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5) < 0.04;
+		setcell(in ? 1e-6 : 1 - 1e-6, rho_pT(0, 1e5, 600.0), rho_pT(1, 1e5, 600.0), 0, 0, 1e5, 1e5); break; }
+	case testPel_UNDEX: {      // 与 8.1.1 同样的两个状态；气泡内 alpha_gas = 1 - 1e-6
+		const bool in = x * x + (y + 0.32) * (y + 0.32) < 0.05 * 0.05;
+		setcell(in ? 1 - 1e-6 : 1e-6, 2000.0, 1044.0, 0, 0, in ? 4.6406e10 : 1e5, in ? 4.6406e10 : 1e5); break; }
 	case testSPB_Interface: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
 	case testSPB_WaterAir: case testSPB_WaterAirTPa: {
 		const bool L = x < 0.75; const double pL = test == testSPB_WaterAir ? 1e9 : 1e12, ra = test == testSPB_WaterAir ? 1.0 : 10.0;

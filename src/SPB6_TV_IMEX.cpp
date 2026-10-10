@@ -38,7 +38,13 @@ enum Reconstruction{NoRecon, Minmod};
 enum dtCalculation{Fullydt, IMEXdt};
 
 dtCalculation caltimestep = IMEXdt;   // IMEXdt: 物质 CFL（起步除外）；Fullydt: 一直用声学 CFL
-Test test = testSPB_WaterAir;
+Test test = testSPB_WaterAir;         // 切换算例：改这里（或命令行 case=N）。每个算例的区域、状态方程、各边边界条件、终止时间、论文网格、松弛档位
+                                      // 都在 spb6_physics.h 的 test_setup / test_state 里，命令行 N= ny= relax= tend= 可覆盖。
+                                      // 一维：0 SPB 4.5 空化管 | 1, 2 P-S ±2 / ±500 m/s 水 | 3 十二烷 SG | 4 SPB 4.1 界面平移 | 5, 6 SPB 4.3.1 / 4.3.2 水-气
+                                      //       12, 13 SPB 5.1 / 5.2 环氧-尖晶石 | 20, 21 光滑解 | 30 Pelanti 8.2.1 | 31 十二烷 NASG | 40, 41 0D 松弛
+                                      //       60 SPB 4.2 硝基甲烷（Cochran-Chan）| 61 Pelanti 8.1.1 JWL-水
+                                      // 二维：50-55 Gresho 涡（M = 1e-1 ... 1e-6）| 70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
+                                      //       72 P-S 5.4 十二烷汽泡压缩（relax 2）| 73 Pelanti 8.1.2 近壁水下爆炸
 x_boundary_condition x_bc;
 y_boundary_condition y_bc;
 int nxCells = 1000;
@@ -389,7 +395,14 @@ void u_initialization(Grid &u){
 			double x = x_0 + (i - ghost_cells + 0.5) * dx;
 			double y = y_0 + (j - ghost_cells + 0.5) * dy;
 			double Q[NUM_VARS];
-			test_state(test, x, y, Q);
+			if (SUBCELL <= 1) test_state(test, x, y, Q);
+			else {   // 格平均：SUBCELL x SUBCELL 个子点上守恒量的平均（圆形区域，二维算例）
+				for (int k = 0; k < NUM_VARS; k++) Q[k] = 0.0;
+				for (int a = 0; a < SUBCELL; a++) for (int b = 0; b < SUBCELL; b++) {
+					double Qs[NUM_VARS]; test_state(test, x + ((a + 0.5) / SUBCELL - 0.5) * dx, y + ((b + 0.5) / SUBCELL - 0.5) * dy, Qs);
+					for (int k = 0; k < NUM_VARS; k++) Q[k] += Qs[k] / (SUBCELL * SUBCELL);
+				}
+			}
 			for(int k = 0; k < NUM_VARS; k++) u(i,j,k) = Q[k];
 		}
 	}
@@ -398,39 +411,7 @@ void u_initialization(Grid &u){
 
 // 透射：复制边界格；固壁：镜像，只把法向动量取负（2DEuler 原来两个动量分量都取负）；周期：绕回。一维时 y 向只复制。
 void bound_cond_u(Grid &u){
-	const int g = ghost_cells, nx = u.nxCells, ny = u.nyCells;
-	for(int j = 0; j < ny + 2 * g; j++){
-		for(int q = 0; q < g; q++){
-			int iL = g - 1 - q, iR = nx + g + q, sL, sR;
-			switch(x_bc){
-				case x_Periodic: sL = nx + g - 1 - q; sR = g + q; break;
-				case x_Reflective: sL = g + q; sR = nx + g - 1 - q; break;
-				default: sL = g; sR = nx + g - 1; break;
-			}
-			for(int k = 0; k < NUM_VARS; k++){ u(iL, j, k) = u(sL, j, k); u(iR, j, k) = u(sR, j, k); }
-			if(x_bc == x_Reflective){ u(iL, j, IMU) = -u(iL, j, IMU); u(iR, j, IMU) = -u(iR, j, IMU); }
-		}
-	}
-	if(ny > 1 || y_bc == y_Periodic){
-		for(int i = 0; i < nx + 2 * g; i++){
-			for(int q = 0; q < g; q++){
-				int jL = g - 1 - q, jR = ny + g + q, sL, sR;
-				switch(y_bc){
-					case y_Periodic: sL = ny + g - 1 - q; sR = g + q; break;
-					case y_Reflective: sL = g + q; sR = ny + g - 1 - q; break;
-					default: sL = g; sR = ny + g - 1; break;
-				}
-				for(int k = 0; k < NUM_VARS; k++){ u(i, jL, k) = u(i, sL, k); u(i, jR, k) = u(i, sR, k); }
-				if(y_bc == y_Reflective){ u(i, jL, IMV) = -u(i, jL, IMV); u(i, jR, IMV) = -u(i, jR, IMV); }
-			}
-		}
-	}else{
-		for(int i = 0; i < nx + 2 * g; i++){
-			for(int q = 0; q < g; q++){
-				for(int k = 0; k < NUM_VARS; k++){ u(i, g - 1 - q, k) = u(i, g, k); u(i, g + 1 + q, k) = u(i, g, k); }
-			}
-		}
-	}
+	bc_apply(u, u.nxCells, u.nyCells, ghost_cells);   // spb6_physics.h：每一边单独的透射 / 固壁（含活塞速度）/ 周期
 }
 
 
@@ -450,19 +431,23 @@ double caldt(Grid &u_con, bool acoustic){
 
 void bound_cond_array(Array &u, int sign_x = 1, int sign_y = 1){
 	const int g = ghost_cells, nx = u.nxCells, ny = u.nyCells;
+	auto src = [&](int side, int q, int n, double sg, int& sL, double& fs) {   // 每一边单独（BCS）
+		fs = 1.0;
+		if (BCS[side] == BC_PERIODIC) sL = (side % 2 == 0) ? n + g - 1 - q : g + q;
+		else if (BCS[side] == BC_WALL) { sL = (side % 2 == 0) ? g + q : n + g - 1 - q; fs = sg; }
+		else sL = (side % 2 == 0) ? g : n + g - 1; };
 	for(int j = 0; j < ny + 2 * g; j++){
 		for(int q = 0; q < g; q++){
-			int iL = g - 1 - q, iR = nx + g + q, sL, sR; double fs = 1.0;
-			if(x_bc == x_Periodic){ sL = nx + g - 1 - q; sR = g + q; } else if(x_bc == x_Reflective){ sL = g + q; sR = nx + g - 1 - q; fs = sign_x; } else{ sL = g; sR = nx + g - 1; }
-			u(iL, j) = fs * u(sL, j); u(iR, j) = fs * u(sR, j);
+			int sL, sR; double fL, fR; src(0, q, nx, sign_x, sL, fL); src(1, q, nx, sign_x, sR, fR);
+			u(g - 1 - q, j) = fL * u(sL, j); u(nx + g + q, j) = fR * u(sR, j);
 		}
 	}
 	for(int i = 0; i < nx + 2 * g; i++){
 		for(int q = 0; q < g; q++){
-			int jL = g - 1 - q, jR = ny + g + q, sL, sR; double fs = 1.0;
-			if(ny == 1 && y_bc != y_Periodic){ sL = g; sR = g; }
-			else if(y_bc == y_Periodic){ sL = ny + g - 1 - q; sR = g + q; } else if(y_bc == y_Reflective){ sL = g + q; sR = ny + g - 1 - q; fs = sign_y; } else{ sL = g; sR = ny + g - 1; }
-			u(i, jL) = fs * u(i, sL); u(i, jR) = fs * u(i, sR);
+			int sL, sR; double fL, fR;
+			if(ny == 1 && BCS[2] != BC_PERIODIC){ sL = g; sR = g; fL = fR = 1.0; }
+			else { src(2, q, ny, sign_y, sL, fL); src(3, q, ny, sign_y, sR, fR); }
+			u(i, g - 1 - q) = fL * u(i, sL); u(i, ny + g + q) = fR * u(i, sR);
 		}
 	}
 }
@@ -493,7 +478,9 @@ static bool project_cell(Grid& U, int i, int j, int type) {
 void RelaxationActivation(Grid& U) {
 	const int nx = U.nxCells, ny = U.nyCells;
 	STEP_TYPE.assign((size_t)nx * ny, CL_P);
-	for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) {
+	#pragma omp parallel for schedule(static)
+	for (int q = 0; q < nx * ny; q++) {
+		const int i = q % nx, j = q / nx;
 		int ty = cell_type_U(U, IG(i), IG(j));
 		if (!project_cell(U, IG(i), IG(j), ty)) ty = std::isinf(mu_rate) ? CL_P : CL_MU;
 		STEP_TYPE[(size_t)i + (size_t)j * nx] = ty;
@@ -527,13 +514,16 @@ struct StageData {
 // wL + wR = du，故 sum_k alphahat 的增量 = du（B4.4 不变）；I_f 对 P 连续（分段线性）。
 struct FaceVals { double uf, du, pf, wL, wR, utL, utR; const double* cL; const double* cR; };
 inline void face_weights(FaceVals& f, double ube) { f.wL = std::max(f.uf, 0.0) - std::max(ube, 0.0); f.wR = std::min(f.uf, 0.0) - std::min(ube, 0.0); }
-inline bool is_wall_x(const StageData& S, int i) { return x_bc == x_Reflective && (i == ghost_cells - 1 || i == S.nx + ghost_cells - 1); }
-inline bool is_wall_y(const StageData& S, int j) { return y_bc == y_Reflective && (j == ghost_cells - 1 || j == S.ny + ghost_cells - 1); }
+// 固壁面：返回边号（0 左 1 右 2 下 3 上），否则 -1
+inline int wall_x(const StageData& S, int i) { if (i == ghost_cells - 1 && BCS[0] == BC_WALL) return 0; if (i == S.nx + ghost_cells - 1 && BCS[1] == BC_WALL) return 1; return -1; }
+inline int wall_y(const StageData& S, int j) { if (j == ghost_cells - 1 && BCS[2] == BC_WALL) return 2; if (j == S.ny + ghost_cells - 1 && BCS[3] == BC_WALL) return 3; return -1; }
 // x 面 (i+1/2, j)，左格压力 PL，右格压力 PR（B4.1, B4.2）
 inline void face_x(const StageData& S, int i, int j, double PL, double PR, FaceVals& f) {
 	f.pf = S.wLx(i, j) * PL + (1.0 - S.wLx(i, j)) * PR - S.pvx(i, j);
 	f.cL = &S.cont[S.id(i, j) * 6]; f.cR = &S.cont[S.id(i + 1, j) * 6]; f.utL = S.vst(i, j); f.utR = S.vst(i + 1, j);
-	if (is_wall_x(S, i)) { f.uf = 0.0; f.du = 0.0; f.wL = f.wR = 0.0; return; }
+	if (const int w = wall_x(S, i); w >= 0) {   // 固壁：面速度 = 壁速度（静止壁 0；活塞时体积通量从虚格进入）
+		if (BCU[w] == 0.0) { f.uf = 0.0; f.du = 0.0; f.wL = f.wR = 0.0; return; }
+		f.uf = BCU[w]; f.du = f.uf - S.ubex(i, j); face_weights(f, S.ubex(i, j)); return; }
 	f.uf = S.ubsx(i, j) - S.kpx(i, j) * (PR - PL);
 	f.du = f.uf - S.ubex(i, j);
 	face_weights(f, S.ubex(i, j));
@@ -541,7 +531,9 @@ inline void face_x(const StageData& S, int i, int j, double PL, double PR, FaceV
 inline void face_y(const StageData& S, int i, int j, double PL, double PR, FaceVals& f) {
 	f.pf = S.wLy(i, j) * PL + (1.0 - S.wLy(i, j)) * PR - S.pvy(i, j);
 	f.cL = &S.cont[S.id(i, j) * 6]; f.cR = &S.cont[S.id(i, j + 1) * 6]; f.utL = S.ust(i, j); f.utR = S.ust(i, j + 1);
-	if (is_wall_y(S, j)) { f.uf = 0.0; f.du = 0.0; f.wL = f.wR = 0.0; return; }
+	if (const int w = wall_y(S, j); w >= 0) {
+		if (BCU[w] == 0.0) { f.uf = 0.0; f.du = 0.0; f.wL = f.wR = 0.0; return; }
+		f.uf = BCU[w]; f.du = f.uf - S.ubey(i, j); face_weights(f, S.ubey(i, j)); return; }
 	f.uf = S.ubsy(i, j) - S.kpy(i, j) * (PR - PL);
 	f.du = f.uf - S.ubey(i, j);
 	face_weights(f, S.ubey(i, j));
@@ -623,20 +615,30 @@ struct SpRow { int n = 0; int col[5]; double val[5]; };
 // 2DEuler 的 Pressure_Subsystem_AX：算子乘向量。这里的算子是 G(P) 的差分 Jacobian（逐行固定次序求和）
 void Pressure_Subsystem_AX(Eigen::VectorXd& Ax, const Eigen::VectorXd& x, const std::vector<SpRow>& A){
 	const int n = (int)A.size();
+	#pragma omp parallel for schedule(static)
 	for(int r = 0; r < n; r++){ double s = 0; for(int q = 0; q < A[r].n; q++) s += A[r].val[q] * x[A[r].col[q]]; Ax[r] = s; }
+}
+// 求和按固定大小的块（块内顺序、块间顺序都固定）：结果与线程数无关、逐位可重复
+template <class F> static double block_sum(int n, F term) {
+	const int B = 4096, nb = (n + B - 1) / B; std::vector<double> part(nb, 0.0);
+	#pragma omp parallel for schedule(static)
+	for (int c = 0; c < nb; c++) { double s = 0; const int e = std::min(n, (c + 1) * B); for (int r = c * B; r < e; r++) s += term(r); part[c] = s; }
+	double s = 0; for (int c = 0; c < nb; c++) s += part[c]; return s;
 }
 
 // 2DEuler 的 GMRES_Solver（原函数实际是 BiCGStab）：加两级预条件（Jacobi 用本格扰动的那个元素，粗空间为常数向量）与相对容差
 bool GMRES_Solver(Eigen::VectorXd& x, const Eigen::VectorXd& b, const std::vector<SpRow>& A){
 	const int n = (int)b.size(); Eigen::VectorXd dinv = Eigen::VectorXd::Constant(n, 1.0);
 	for (int r = 0; r < n; r++) if (A[r].n > 0 && A[r].val[0] != 0) dinv[r] = 1.0 / A[r].val[0];
-	auto dot = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& c) { double s = 0; for (int r = 0; r < n; r++) s += a[r] * c[r]; return s; };
+	auto dot = [&](const Eigen::VectorXd& a, const Eigen::VectorXd& c) { return block_sum(n, [&](int r) { return a[r] * c[r]; }); };
 	// 两级预条件（B8）：Jacobi + 常数向量的粗空间校正 M^{-1} r = D^{-1} r + 1 (1^T r)/(1^T A 1)（Nicolaides）。
 	// 面速度与动量只依赖压力差，P 的常数平移只使 G 变化 O(1)，而对角元约 1 + 4 nu^2：Jacobi 预条件后常数模态的特征值约 1/(4 nu^2)，
 	// M = 1e-6 时约 1e-10，BiCGStab 发散（devlog V11）。粗空间校正把它移到 1 附近，其余模态不变
-	double E = 0.0; for (int r = 0; r < n; r++) for (int q = 0; q < A[r].n; q++) E += A[r].val[q];
+	const double E = block_sum(n, [&](int r) { double e = 0; for (int q = 0; q < A[r].n; q++) e += A[r].val[q]; return e; });
 	const double Einv = (E != 0.0 && std::isfinite(E)) ? 1.0 / E : 0.0;
-	auto prec = [&](const Eigen::VectorXd& in, Eigen::VectorXd& out) { double sr = 0.0; for (int r = 0; r < n; r++) sr += in[r]; const double cc = sr * Einv; for (int r = 0; r < n; r++) out[r] = dinv[r] * in[r] + cc; };
+	auto prec = [&](const Eigen::VectorXd& in, Eigen::VectorXd& out) { const double cc = block_sum(n, [&](int r) { return in[r]; }) * Einv;
+		#pragma omp parallel for schedule(static)
+		for (int r = 0; r < n; r++) out[r] = dinv[r] * in[r] + cc; };
 	x = Eigen::VectorXd::Zero(n); prec(b, x);
 	Eigen::VectorXd r(n), r0(n), p = Eigen::VectorXd::Zero(n), v = Eigen::VectorXd::Zero(n), s(n), t(n), ph(n), sh(n), Ax(n);
 	Pressure_Subsystem_AX(Ax, x, A); for (int q = 0; q < n; q++) r[q] = b[q] - Ax[q]; r0 = r;
@@ -645,13 +647,16 @@ bool GMRES_Solver(Eigen::VectorXd& x, const Eigen::VectorXd& b, const std::vecto
 		if (std::sqrt(dot(r, r)) <= GMREStol * bn) return true;
 		const double rho1 = dot(r0, r); if (rho1 == 0) return false;
 		const double beta = (rho1 / rho) * (alpha / omega); rho = rho1;
+		#pragma omp parallel for schedule(static)
 		for (int q = 0; q < n; q++) p[q] = r[q] + beta * (p[q] - omega * v[q]);
 		prec(p, ph);
 		Pressure_Subsystem_AX(v, ph, A); alpha = rho / dot(r0, v);
+		#pragma omp parallel for schedule(static)
 		for (int q = 0; q < n; q++) s[q] = r[q] - alpha * v[q];
 		if (std::sqrt(dot(s, s)) <= GMREStol * bn) { for (int q = 0; q < n; q++) x[q] += alpha * ph[q]; return true; }
 		prec(s, sh);
 		Pressure_Subsystem_AX(t, sh, A); omega = dot(t, s) / dot(t, t);
+		#pragma omp parallel for schedule(static)
 		for (int q = 0; q < n; q++) { x[q] += alpha * ph[q] + omega * sh[q]; r[q] = s[q] - omega * t[q]; }
 	}
 	return std::sqrt(dot(r, r)) <= 1e3 * GMREStol * bn;
@@ -662,8 +667,10 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 	const int nx = P.nx, ny = P.ny, n = nx * ny;
 	std::vector<double> G(n), Gn(n); Eigen::VectorXd dP(n), rhs(n); PField Pn = P;
 	auto evalAll = [&](const PField& Q, std::vector<double>& R) -> bool {
-		for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) { double g; if (!residual_at(S, Q, i, j, 0, -1, 0, g)) return false; R[i + j * nx] = g; }
-		return true; };
+		bool ok = true;   // 各格独立（OpenMP；每格的算术与串行相同，结果逐位不变）
+		#pragma omp parallel for schedule(static) reduction(&&:ok)
+		for (int q = 0; q < n; q++) { double g; if (!residual_at(S, Q, q % nx, q / nx, 0, -1, 0, g)) ok = false; else R[q] = g; }
+		return ok; };
 	// 残量范数：|G| / (|P| + K + P_E)；按 |P| 归一在 p << pi 时达不到（B8）
 	auto norm = [&](const std::vector<double>& R, const PField& Q) { double m = 0; for (int q = 0; q < n; q++) { const int i = q % nx, j = q / nx; m = std::max(m, std::fabs(R[q]) / (std::fabs(P_REF + Q.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0)); } return m; };
 	if (!evalAll(P, G)) { iters = 0; resfinal = INF; return false; }
@@ -684,9 +691,11 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 			if (ny > 1) D += S.ry * (S.kpy(I, J) + S.kpy(I, J - 1));
 			sc[q] = (std::fabs(P_REF + P.P[q]) + K + 1.0) / (1.0 + K * D);
 		}
-		for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) {
-			const int r = i + j * nx; const double h = 1e-7 * sc[r];
-			double g1; if (!residual_at(S, P, i, j, h, -1, 0, g1)) return false;
+		bool jok = true;
+		#pragma omp parallel for schedule(static) reduction(&&:jok)
+		for (int r = 0; r < n; r++) {
+			const int i = r % nx, j = r / nx; const double h = 1e-7 * sc[r];
+			double g1; if (!residual_at(S, P, i, j, h, -1, 0, g1)) { jok = false; continue; }
 			SpRow& row = A[r]; row.n = 0; row.col[row.n] = r; row.val[row.n++] = (g1 - G[r]) / h;
 			// 邻格元素按 W, E, S, N 的固定次序存放；同列（边界虚格 = 本格，或周期小网格上重合的邻格）也分开存，不合并
 			const int dd[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
@@ -694,10 +703,11 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 				if (ny == 1 && w >= 2) break;
 				const int c = M_P(IG(i) + dd[w][0], IG(j) + dd[w][1]);
 				const double hn = 1e-7 * sc[c];
-				double g2; if (!residual_at(S, P, i, j, 0, w, hn, g2)) return false;
+				double g2; if (!residual_at(S, P, i, j, 0, w, hn, g2)) { jok = false; break; }
 				row.col[row.n] = c; row.val[row.n++] = (g2 - G[r]) / hn;
 			}
 		}
+		if (!jok) return false;
 		for (int q = 0; q < n; q++) rhs[q] = -G[q];
 		if (tri) {
 			for (int r = 0; r < n; r++) { lo[r] = up[r] = di[r] = 0; for (int q = 0; q < A[r].n; q++) { const int c = A[r].col[q]; if (c == r) di[r] += A[r].val[q]; else if (c == r - 1) lo[r] = A[r].val[q]; else if (c == r + 1) up[r] = A[r].val[q]; } }
@@ -840,12 +850,16 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 	if (ok) st_maxres = std::max(st_maxres, res);
 	if (!ok) { if (VERBOSE) fprintf(stderr, "  Newton failed: it %d res %.3e tau %.3e\n", iters, res, tau); return false; }
 	// 终态
-	for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) {
-		double Gv; CellOut o; if (!residual_at(S, P, i, j, 0, -1, 0, Gv, &o)) return false;
+	bool fok = true;
+	#pragma omp parallel for schedule(static) reduction(&&:fok)
+	for (int q = 0; q < nx * ny; q++) {
+		const int i = q % nx, j = q / nx;
+		double Gv; CellOut o; if (!residual_at(S, P, i, j, 0, -1, 0, Gv, &o)) { fok = false; continue; }
 		const int I = IG(i), J = IG(j);
 		u_con(I, J, IA1) = o.cl.a[0]; u_con(I, J, IM1) = o.cl.m[0]; u_con(I, J, IM2) = o.cl.m[1]; u_con(I, J, IMU) = o.mx; u_con(I, J, IMV) = o.my;
 		u_con(I, J, IE1) = o.cl.e[0]; u_con(I, J, IE2) = o.cl.e[1]; u_con(I, J, IEN) = o.E;
 	}
+	if (!fok) return false;
 	bound_cond_u(u_con);
 	st_stage++;
 	return true;
@@ -864,8 +878,9 @@ void write_profile(Grid &u_con, const std::string &fn){
 	fprintf(f, "# x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2\n");
 	for (int j = g; j < nyCells + g; j++) for (int i = g; i < nxCells + g; i++) {
 		double o[15]; cell_diag(u_con.cell(i, j), o);
-		fprintf(f, "%.10e %.10e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.8e %.8e %.10e %.10e %.16e %.16e %.8e\n",
-			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11], o[12], o[13], o[14]);
+		const int P = OUTPREC, Q = std::min(OUTPREC, 8), R = std::min(OUTPREC, 10);
+		fprintf(f, "%.10e %.10e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e %.*e\n",
+			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, P, o[0], P, o[1], P, o[2], P, o[3], P, o[4], P, o[5], P, o[6], P, o[7], Q, o[8], Q, o[9], R, o[10], R, o[11], P, o[12], P, o[13], Q, o[14]);
 	}
 	fclose(f);
 }
@@ -965,29 +980,45 @@ static void conserved_totals(Grid &U, double M[3]) {
 }
 
 
+// 压力探针：最近格的混合压力随时间（Pelanti 8.1.2 图 3）
+void probe_write(Grid& u_con, bool first){
+	const int i = std::min(nxCells - 1, std::max(0, (int)std::floor((PROBE_X - x_0) / dx))), j = std::min(nyCells - 1, std::max(0, (int)std::floor((PROBE_Y - y_0) / dy)));
+	double o[15]; cell_diag(u_con.cell(i + ghost_cells, j + ghost_cells), o);
+	FILE* f = fopen((out_file + ".probe").c_str(), first ? "w" : "a"); if (!f) return;
+	fprintf(f, "%.10e %.10e\n", t, o[0]); fclose(f);
+}
+
 int main(int argc, char *argv[]){
 	// ---- 命令行（2DEuler 用全局变量；这里允许 key=value 覆盖）
-	double tend_override = -1;
+	double tend_override = -1; bool gotN = false, gotNy = false, gotRelax = false;
 	for (int a = 1; a < argc; a++) {
 		char key[64]; char val[256]; if (sscanf(argv[a], "%63[^=]=%255s", key, val) != 2) { fprintf(stderr, "bad arg %s\n", argv[a]); return 1; }
 		std::string k(key); const double d = atof(val); const bool isinf_val = std::string(val) == "inf";
-		if (k == "case") test = (Test)(int)d; else if (k == "N" || k == "nx") nxCells = (int)d; else if (k == "ny") nyCells = (int)d;
+		if (k == "case") test = (Test)(int)d; else if (k == "N" || k == "nx") { nxCells = (int)d; gotN = true; } else if (k == "ny") { nyCells = (int)d; gotNy = true; }
 		else if (k == "cfl") CFL = d; else if (k == "order") recon = (int)d < 2 ? NoRecon : Minmod; else if (k == "tend") tend_override = d; else if (k == "out") out_file = val;
-		else if (k == "relax") RELAX_LEVEL = (int)d; else if (k == "epsI") EPS_I = d;
+		else if (k == "relax") { RELAX_LEVEL = (int)d; gotRelax = true; } else if (k == "epsI") EPS_I = d;
 		else if (k == "mu") mu_rate = isinf_val ? INF : d; else if (k == "theta") theta_rate = isinf_val ? INF : d; else if (k == "nu") nu_rate = isinf_val ? INF : d;
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val;
+		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
+		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
 	}
 	SpaceOrder = recon == NoRecon ? 1 : 2;
-	// 松弛档位的默认速率（relax >= 1 时热松弛默认瞬时，relax = 2, 3 化学默认瞬时；可由 theta=, nu= 覆盖为有限值）
-	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
-	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
 
 	// ---- 算例：区域、边界、终止时间、状态方程（2DEuler main 里的 switch(test)，定义在 spb6_physics.h）
 	TestSetup TS; if (!test_setup(test, TS)) { fprintf(stderr, "unknown case %d\n", (int)test); return 1; }
+	// 算例自带的网格与松弛档位（论文的设置）；命令行 N= ny= relax= 覆盖
+	if (!gotN && TS.nx > 0) nxCells = TS.nx;
+	if (!gotNy && TS.ny > 0) nyCells = TS.ny;
+	if (!gotRelax && TS.relax >= 0) RELAX_LEVEL = TS.relax;
+	// 松弛档位的默认速率（relax >= 1 时热松弛默认瞬时，relax = 2, 3 化学默认瞬时；可由 theta=, nu= 覆盖为有限值）
+	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
+	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
+	if (RELAX_LEVEL > 0 && !mg_any()) build_sat();   // 饱和线表在并行循环之前建好（Tsat 惰性构造不是线程安全的）
 	x_0 = TS.x0; x_1 = TS.x1; y_0 = TS.y0; y_1 = TS.y1; time_stop = TS.tend; x_bc = TS.xbc; y_bc = TS.ybc;
+	apply_bc_setup(TS);
 	if (tend_override > 0) time_stop = tend_override;
 	dx = (x_1 - x_0) / nxCells;
 	dy = (y_1 - y_0) / nyCells;
@@ -1033,6 +1064,7 @@ int main(int argc, char *argv[]){
 	};
 
 	auto t0 = std::chrono::steady_clock::now();
+	if (HAS_PROBE) probe_write(u_con, true);
 	PField P{nxCells, nyCells, std::vector<double>((size_t)nxCells * nyCells, 0.0)};
 	// P_REF：初始混合压力的最小值（B8）。取最小值而不是平均值：P - P_REF 的量级不超过当地压力，残量的舍入底不因参考值变大
 	P_REF = INF;
@@ -1049,7 +1081,7 @@ int main(int argc, char *argv[]){
 			if (RAMP) { if (dtprev < 0) dtprev = CFL_ac * caldt(u_con, true) / ramp_factor; if (dt > ramp_factor * dtprev) { dt = ramp_factor * dtprev; ramping = true; } }
 			if (!std::isfinite(dt)) dt = CFL_ac * caldt(u_con, true);
 		}
-		dt = std::min(dt, time_stop - t);
+		dt = std::min(dt, time_stop - t); dt = snap_limit(t, dt);
 		if (!(dt > 1e-12 * time_stop)) { fprintf(stderr, "FAILED: time step underflow (dt = %.3e) at t = %.6e (step %ld)\n", dt, t, st_steps); write_profile(u_con, out_file); return 2; }
 
 		bool done = false;
@@ -1099,6 +1131,8 @@ int main(int argc, char *argv[]){
 		}
 		if (!done) { fprintf(stderr, "FAILED at t = %.6e (step %ld)\n", t, st_steps); write_profile(u_con, out_file); return 2; }
 		t = t + dt; dtprev = dt; st_steps++; timestep++;
+		if (SNAPI < SNAP.size() && t >= SNAP[SNAPI] * (1 - 1e-12)) { write_profile(u_con, snap_name(out_file, SNAPI)); SNAPI++; }
+		if (HAS_PROBE) probe_write(u_con, false);
 		if (VERBOSE > 1 && st_steps % 50 == 0) fprintf(stderr, "step %ld t %.4e dt %.3e newton it %ld\n", st_steps, t, dt, st_newton_it);
 		IntermediatePlotIntermediatePlot(u_con, u_pri, timestep, plotINTERVAL, IntermediatePlotTimes, t >= time_stop * (1 - 1e-12));
 	}while(t < time_stop * (1 - 1e-12));

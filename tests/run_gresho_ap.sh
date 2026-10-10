@@ -8,8 +8,8 @@ H=$(cd "$(dirname "$0")/.." && pwd)
 OUT=${1:-$H/run/gresho_ap}; WHAT=${2:-all}
 mkdir -p "$OUT"
 EX="$H/src/spb6_ex"; IM="$H/src/spb6_imex"
-g++ -O2 -std=c++17 "$H/src/SPB6_explicit.cpp" -o "$EX" || exit 1
-g++ -O2 -std=c++17 -I/usr/include/eigen3 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
+g++ -O2 -std=c++17 -fopenmp "$H/src/SPB6_explicit.cpp" -o "$EX" || exit 1
+g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
 jobs_list=()
 for c in 50 51 52 53 54 55; do jobs_list+=("im_$c|I|case=$c N=80 ny=80 dt=0.0025"); done
 if [ "$WHAT" != noex ]; then for c in 50 51; do jobs_list+=("ex_$c|E|case=$c N=80 ny=80"); done; fi
