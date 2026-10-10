@@ -56,7 +56,7 @@ double x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1, dx = 1, dy = 1;
 int TESTCASE = 5;
 
 // 松弛设置
-double mu_rate = INF, theta_rate = 0.0, nu_rate = 0.0;   // 力学 / 热 / 化学 速率（INF = 瞬时）
+double mu_rate = INF, theta_rate = -1.0, nu_rate = -1.0;   // 力学 / 热 / 化学 速率（INF = 瞬时；-1 = 未给定，按松弛档位取默认）
 int RELAX_LEVEL = 0;        // 0: p;  1: p-pT;  2: p-pT-pTg;  3: p-pTg（P-S 的第四档）
 double EPS_I = 0.0;         // 热/化学松弛只在 eps_I <= alpha1 <= 1 - eps_I 的格子打开
 int SPB_EXACT = 1;          // MODE 0 的力学松弛: 1 = SPB 原文（松弛后用总能重初始化，分两步）; 0 = 统一闭合（s = 0）
@@ -71,6 +71,7 @@ int STEPACT = 1;             // 1 = 每步开始按 U^n 激活并投影到平衡
 double NEWTON_TOL = 1e-13;   // 相对 |P| + rho c_W^2 + P_E
 int NEWTON_MAX = 60;
 int VERBOSE = 0;
+double DTFIX = 0.0;          // > 0：固定时间步（时间收敛阶试验用；不做起步斜坡）
 int DUMP = 0;                // 调试：前 DUMP 步每步输出 out.stepN
 
 // 统计
@@ -324,11 +325,26 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 	};
 	double R = 0.0, p1, p2;
 	if (in.tau * mu_rate > 0) {
-		const double Rlo = -(ak[0] - in.mtr[0] * PH[0].b) * (1 - 1e-13), Rhi = (ak[1] - in.mtr[1] * PH[1].b) * (1 - 1e-13);
-		auto F = [&](double r) { double q1, q2; if (!solve(r, q1, q2)) return (double)NAN; return r - in.tau * mu_rate * (q1 - q2); };
-		const double fl = F(Rlo), fh = F(Rhi);
-		if (!(fl < 0 && fh > 0)) return false;
-		if (!brent(F, Rlo, Rhi, fl, fh, 1e-16 * (Rhi - Rlo), R)) return false;
+		// F(R) = R - tau mu (p1 - p2) 在可容许的连通区间上单调增（R 增大：相 1 膨胀降压、相 2 压缩升压）。
+		// 松弛使 |p1 - p2| 减小，所以根在 0 与 R1 = tau mu (p1 - p2)(R=0) 之间。注意 (-a1, a2) 的端点不能当区间：
+		// 压缩相的功按终态 p_I 计（后向 Euler），2x2 方程组在体积到 0 之前就奇异（SG 时 R = a2/gamma2），F 在端点不定号。
+		// 若 R1 不可容许，奇点处 F -> 被压缩相一侧的无穷大（符号正确），向 0 二分即可得到可容许的区间。
+		auto Fa = [&](double r, double& f) -> bool {
+			double q1, q2; if (!solve(r, q1, q2)) return false;
+			const double a1 = ak[0] + r, a2 = ak[1] - r;
+			if (!(a1 > in.mtr[0] * PH[0].b && a2 > in.mtr[1] * PH[1].b && q1 + PH[0].pi > 0 && q2 + PH[1].pi > 0)) return false;
+			f = r - in.tau * mu_rate * (q1 - q2); return std::isfinite(f); };
+		double f0; if (!Fa(0.0, f0)) return false;
+		if (f0 != 0.0) {
+			double lo = 0.0, flo = f0, hi = -f0, fhi = NAN; bool ok = false;
+			for (int it = 0; it < 200; it++) {
+				if (Fa(hi, fhi)) { if (fhi * flo < 0) { ok = true; break; } lo = hi; flo = fhi; hi = lo + (lo - 0.0 == 0 ? -f0 : (lo)); }   // 同号：根在更远处（不应出现，防御）
+				else hi = 0.5 * (lo + hi);   // 不可容许：向 lo 收缩
+			}
+			if (!ok) return false;
+			auto F = [&](double r) { double f; return Fa(r, f) ? f : (double)NAN; };
+			if (!brent(F, std::min(lo, hi), std::max(lo, hi), lo < hi ? flo : fhi, lo < hi ? fhi : flo, 1e-16 * (std::fabs(lo) + std::fabs(hi)) + 1e-300, R)) return false;
+		}
 	}
 	if (!solve(R, p1, p2)) return false;
 	const double pp[2] = {p1, p2};
@@ -387,7 +403,13 @@ static bool closure_nu(const ClIn& in, ClOut& o) {
 	const double rho = in.mtr[0] + in.mtr[1], eC = in.rhoeC / rho, tn = in.tau * nu_rate;
 	auto Yof = [&](double p, double& Y, double& T) -> bool {
 		auto R = [&](double y) { const double TT = T_from_energy(p, y, eC); if (!(TT > 0)) return (double)NAN; return rho * y - in.mtr[1] + tn * (g_pT(1, p, TT) - g_pT(0, p, TT)); };
-		const double ya = YMIN, yb = 1.0 - YMIN; const double Ra = R(ya), Rb = R(yb);
+		// 可容许区间：T(p, y) > 0 <=> eC - q1 - y (q2 - q1) > 0（分母为正）。q2 > q1 时 y 有上界、q2 < q1 时有下界。
+		// T -> 0+ 时 g_k -> q_k + b_k p，R 在该端的符号由 q2 - q1 决定，与单调性（B6.5）一致，所以区间取可容许部分即可。
+		double ya = YMIN, yb = 1.0 - YMIN;
+		const double dq = PH[1].q - PH[0].q, yT = dq != 0.0 ? (eC - PH[0].q) / dq : INF;
+		if (dq > 0) yb = std::min(yb, yT * (1.0 - 1e-12)); else if (dq < 0) ya = std::max(ya, yT * (1.0 + 1e-12));
+		if (!(ya < yb)) return false;
+		const double Ra = R(ya), Rb = R(yb);
 		if (!std::isfinite(Ra) || !std::isfinite(Rb)) return false;
 		if (Ra >= 0) Y = ya; else if (Rb <= 0) Y = yb; else if (!brent(R, ya, yb, Ra, Rb, 1e-16, Y)) return false;
 		T = T_from_energy(p, Y, eC); return T > 0;
@@ -1107,6 +1129,9 @@ static void init_case(Grid& U) {
 			setcell(i, j, a1, TESTCASE == 20 ? 2.0 : 1000.0, 1.0, u, 0, p, p); break; }
 		case 30: { // Pelanti 2022 8.2.1：NASG 水空化管 +-2 m/s，T = 353 K，p = 1e5，alpha_v = 1e-2
 			const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(i, j, 1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
+		case 41: { // 0D 化学松弛：pT 平衡、过热（T > Tsat(p)），化学势不等（周期）
+			const double T0 = 380.0, p0 = 0.8e5;
+			setcell(i, j, 1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
 		case 40: { // 0D 松弛：u = 0，均匀非平衡态（周期）
 			const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5;
 			setcell(i, j, 1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
@@ -1130,7 +1155,7 @@ static void setup_case() {
 	case 21: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 1e-4; break;
 	case 30: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; time_stop = 3e-3; break;
 	case 31: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; time_stop = 473e-6; if (EPS_I == 0) EPS_I = 1e-4; break;
-	case 40: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); time_stop = 1e-4; x_bc = x_Periodic; break;
+	case 40: case 41: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); time_stop = 1e-4; x_bc = x_Periodic; break;
 	default: fprintf(stderr, "unknown case %d\n", TESTCASE); exit(1);
 	}
 }
@@ -1167,12 +1192,12 @@ int main(int argc, char** argv) {
 		else if (k == "tend") tend_override = d; else if (k == "out") out = val; else if (k == "ramp") RAMP = (int)d;
 		else if (k == "relax") RELAX_LEVEL = (int)d; else if (k == "epsI") EPS_I = d; else if (k == "spbexact") SPB_EXACT = (int)d;
 		else if (k == "mu") mu_rate = (std::string(val) == "inf") ? INF : d; else if (k == "theta") theta_rate = (std::string(val) == "inf") ? INF : d; else if (k == "nu") nu_rate = (std::string(val) == "inf") ? INF : d;
-		else if (k == "tol") NEWTON_TOL = d; else if (k == "verbose") VERBOSE = (int)d; else if (k == "cavg") CENTRAL_CELLAVG = (int)d; else if (k == "isen") ISEN = (int)d; else if (k == "incdonor") INCDONOR = (int)d; else if (k == "acoustic") ACOUSTIC = (int)d; else if (k == "cspeed") CSPEED = (int)d; else if (k == "acord") ACORD = (int)d; else if (k == "stepact") STEPACT = (int)d; else if (k == "dump") DUMP = (int)d;
+		else if (k == "tol") NEWTON_TOL = d; else if (k == "verbose") VERBOSE = (int)d; else if (k == "cavg") CENTRAL_CELLAVG = (int)d; else if (k == "isen") ISEN = (int)d; else if (k == "incdonor") INCDONOR = (int)d; else if (k == "acoustic") ACOUSTIC = (int)d; else if (k == "cspeed") CSPEED = (int)d; else if (k == "acord") ACORD = (int)d; else if (k == "stepact") STEPACT = (int)d; else if (k == "dump") DUMP = (int)d; else if (k == "dt") DTFIX = d;
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
 	}
 	// 松弛档位的默认速率：relax>=1 时热松弛默认瞬时，relax>=2 化学默认瞬时（可由 theta=, nu= 覆盖为有限值）
-	if (RELAX_LEVEL >= 1 && theta_rate == 0.0) theta_rate = INF;
-	if ((RELAX_LEVEL == 2 || RELAX_LEVEL == 3) && nu_rate == 0.0) nu_rate = INF;
+	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
+	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
 	setup_case(); if (tend_override > 0) time_stop = tend_override;
 	if (getenv("SELFTEST")) {   // 闭合自检：p = 1e5 的状态，s = 0，应返回 1e5
 		const double a1 = 1 - 1e-8, p0 = 1e5, r1 = 1000, r2 = 10;
@@ -1187,7 +1212,7 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 	dx = (x_1 - x_0) / nxCells; dy = (y_1 - y_0) / nyCells;
-	if (RELAX_LEVEL > 0 || TESTCASE == 40) build_sat();
+	if (RELAX_LEVEL > 0 || TESTCASE == 40 || TESTCASE == 41) build_sat();
 	Grid U(nxCells, nyCells); init_case(U);
 	double M0[3] = {0, 0, 0}; for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++) { M0[0] += U(i, j, IM1); M0[1] += U(i, j, IM2); M0[2] += U(i, j, IEN); }
 
@@ -1205,7 +1230,8 @@ int main(int argc, char** argv) {
 	for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) P.at(i, j) = pbar_cell(U, IG(i), IG(j));
 	while (t < time_stop * (1 - 1e-12)) {
 		bool ramping = false;
-		if (MODE == 0) dt = CFL * caldt(U, true);
+		if (DTFIX > 0) dt = DTFIX;
+		else if (MODE == 0) dt = CFL * caldt(U, true);
 		else {
 			dt = CFL * caldt(U, false);
 			if (RAMP) { if (dtprev < 0) dtprev = CFL_ac * caldt(U, true) / 1.2; if (dt > 1.2 * dtprev) { dt = 1.2 * dtprev; ramping = true; } }
