@@ -2,7 +2,7 @@
   pT  : pT-relaxed (4-equation) model, frozen Y: one pT-isentropic fan down to u = 0 (Pelanti 2022 Fig. 4 "exact 4-eq.");
   pTg : activation-limited model (P-S 2014 p-pT-pTg, Pelanti 2022 pTg): pT isentrope while T < Tsat(p), then, after a constant
         state, the pTg (HEM) isentrope with T = Tsat(p) down to u = 0 (the characteristic speed drops from c_pT to c_pTg).
-Phases: NASG (g, pi, q, qp, cv, b) as in src/spb6_common.h (b = 0: stiffened gas); phase 0 liquid, phase 1 vapour.
+Phases: NASG (g, pi, q, qp, cv, b) as in src/spb6_physics.h (b = 0: stiffened gas); phase 0 liquid, phase 1 vapour.
 Generalises tests/exactfan.py (P-S SG water) to NASG and to the 4-equation model; derivatives are analytic.
 usage: F = Fan(PH, p0, T0, av); x, p, u, Y, a, T = F.full(U0, t, chem)"""
 import numpy as np
@@ -15,7 +15,7 @@ class Fan:
         s.PH = [tuple(map(float, P)) for P in PH]; s.p0, s.T0, s.av = p0, T0, av
         m = [(1 - av) / s.v(0, p0, T0), av / s.v(1, p0, T0)]; s.rho0 = sum(m); s.Y0 = m[1] / s.rho0
 
-    # phase EOS (as src/spb6_common.h): v(p,T), e(p,T), s(p,T), g = h - T s, and partial derivatives
+    # phase EOS (as src/spb6_physics.h): v(p,T), e(p,T), s(p,T), g = h - T s, and partial derivatives
     def v(s, k, p, T): g, pi, q, qp, cv, b = s.PH[k]; return (g - 1) * cv * T / (p + pi) + b
     def e(s, k, p, T): g, pi, q, qp, cv, b = s.PH[k]; return cv * T * (p + g * pi) / (p + pi) + q
     def s_(s, k, p, T): g, pi, q, qp, cv, b = s.PH[k]; return cv * (g * np.log(T) - (g - 1) * np.log(p + pi)) + qp

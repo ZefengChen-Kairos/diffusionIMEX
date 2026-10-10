@@ -7,4 +7,4 @@ __pycache__/
 src/spb6*
 
 # headers are sources, not binaries
-!src/spb6_common.h
+!src/*.h

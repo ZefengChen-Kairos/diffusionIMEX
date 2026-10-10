@@ -8,7 +8,7 @@ OUT=${1:-$H/run/suite}; WHAT=${2:-all}
 mkdir -p "$OUT"
 EX="$H/src/spb6_ex"; IM="$H/src/spb6_imex"
 g++ -O2 -std=c++17 "$H/src/SPB6_explicit.cpp" -o "$EX" || exit 1
-g++ -O2 -std=c++17 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
+g++ -O2 -std=c++17 -I/usr/include/eigen3 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
 jobs_list=()
 add() { jobs_list+=("$1|$2|$3"); }   # name|E or I|args
 both() { add "${1}_ex" E "$2"; add "${1}_im" I "$2"; }

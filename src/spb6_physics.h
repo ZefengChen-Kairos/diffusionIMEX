@@ -1,9 +1,9 @@
 // =====================================================================================================================
-//  spb6_common.h
-//  Saurel-Petitpas-Berry (JCP 228 (2009) 1678) 6+1 方程两相模型（单速度、双压力 + 冗余总能）的共用部分：
-//  状态方程（NASG；b = 0 为 SG）、饱和线、标量求根、统一局部闭合（B5, B6；速率 mu, theta, nu 为参数）、
-//  松弛档位与激活判据、边界条件、算例、输出、命令行参数。
-//  两个程序共用本文件，算法本身在各自的源文件里：
+//  spb6_physics.h
+//  SPB 2009 的 6+1 方程两相模型（单速度、双压力 + 冗余总能）的物理部分，显式与 IMEX 两个程序共用：
+//    状态方程（NASG；b = 0 为 SG）、饱和线、标量求根、统一局部闭合（推导 B5、B6；速率 mu, theta, nu 为参数）、
+//    松弛档位与激活判据、单元原始变量、算例（初值、区域、边界、终止时间）、输出用的单元诊断量。
+//  两个程序都直接由 reference/code/2DEuler_TV.cpp 修改而来（网格、边界、时间步、输出、主循环在各自的文件里）：
 //    SPB6_explicit.cpp  全显式参考格式（docs/derivation/A_model_EOS_explicit.md）
 //    SPB6_TV_IMEX.cpp   TV 分裂 IMEX（docs/derivation/B_TV_IMEX.md）
 //  所有算例用同一套格式与参数；算例只给出状态方程、初值、边界与终止时间。
@@ -21,49 +21,20 @@
 #include <algorithm>
 #include <functional>
 #include <limits>
-#include <chrono>
 
 #define NUM_VARS 8
 enum { IA1 = 0, IM1 = 1, IM2 = 2, IMU = 3, IMV = 4, IE1 = 5, IE2 = 6, IEN = 7 };
 static const double INF = std::numeric_limits<double>::infinity();
 
-// ------------------------------------------------------------------ 全局参数（2DEuler_TV 风格：全局变量，main 里可由命令行覆盖）
 enum x_boundary_condition { x_Transmissive, x_Reflective, x_Periodic };
 enum y_boundary_condition { y_Transmissive, y_Reflective, y_Periodic };
-x_boundary_condition x_bc = x_Transmissive;
-y_boundary_condition y_bc = y_Transmissive;
 
-int nxCells = 1000, nyCells = 1;
-const int ghost_cells = 2;
-int SpaceOrder = 2;         // 1 或 2（minmod）
-double CFL = 0.2;           // IMEX: 物质 CFL；显式: 声学 CFL（显式程序的默认值在其 main 里设为 0.4）
-double time_stop = 1e-3, t = 0, dt = 0;
-double x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1, dx = 1, dy = 1;
-int TESTCASE = 5;
-
-// 松弛设置
+// 松弛设置（所有算例相同；命令行可改速率与档位）
 double mu_rate = INF, theta_rate = -1.0, nu_rate = -1.0;   // 力学 / 热 / 化学 速率（INF = 瞬时；-1 = 未给定，按松弛档位取默认）
 int RELAX_LEVEL = 0;        // 0: p;  1: p-pT;  2: p-pT-pTg;  3: p-pTg（P-S 的第四档）
 double EPS_I = 1e-4;        // 热/化学松弛只在 eps_I <= alpha1 <= 1 - eps_I 的格子打开（P-S 2014、Pelanti 2022 8.2.2；所有算例相同）
 int VERBOSE = 0;
-
-// 统计
-long st_steps = 0, st_reject = 0, st_cl_fail = 0;
-
-// ------------------------------------------------------------------ 数据结构（同 2DEuler_TV：AoS，i 为快指标；用 vector 避免手写拷贝）
-struct Grid {
-	int nx, ny; std::vector<double> data;
-	Grid(int x = 1, int y = 1) : nx(x), ny(y), data((size_t)(x + 2 * ghost_cells) * (y + 2 * ghost_cells) * NUM_VARS, 0.0) {}
-	inline double  operator()(int i, int j, int k) const { return data[NUM_VARS * ((size_t)i + (size_t)j * (nx + 2 * ghost_cells)) + k]; }
-	inline double& operator()(int i, int j, int k)       { return data[NUM_VARS * ((size_t)i + (size_t)j * (nx + 2 * ghost_cells)) + k]; }
-};
-struct Array {
-	int nx, ny; std::vector<double> data;
-	Array(int x = 1, int y = 1, double v = 0.0) : nx(x), ny(y), data((size_t)(x + 2 * ghost_cells) * (y + 2 * ghost_cells), v) {}
-	inline double  operator()(int i, int j) const { return data[(size_t)i + (size_t)j * (nx + 2 * ghost_cells)]; }
-	inline double& operator()(int i, int j)       { return data[(size_t)i + (size_t)j * (nx + 2 * ghost_cells)]; }
-};
-inline int IG(int i) { return i + ghost_cells; }   // 内部格 i (0-based) -> 带虚格下标
+long st_cl_fail = 0;
 
 // ==================================================================================================== 状态方程（NASG；b = 0 为 SG）
 struct Phase { double g, pi, q, qp, cv, b; };
@@ -427,49 +398,14 @@ static int closure_type_of(double a1, double m1, double m2, double e1, double e2
 	return therm;
 }
 
-// ==================================================================================================== 边界条件（2DEuler_TV 的 bound_cond_u）
-static void bound_cond_u(Grid& U) {
-	const int g = ghost_cells, nx = U.nx, ny = U.ny;
-	for (int j = 0; j < ny + 2 * g; j++) for (int q = 0; q < g; q++) {
-		int iL = g - 1 - q, iR = nx + g + q, sL, sR;
-		if (x_bc == x_Periodic) { sL = nx + g - 1 - q; sR = g + q; }
-		else if (x_bc == x_Reflective) { sL = g + q; sR = nx + g - 1 - q; }
-		else { sL = g; sR = nx + g - 1; }
-		for (int k = 0; k < NUM_VARS; k++) { U(iL, j, k) = U(sL, j, k); U(iR, j, k) = U(sR, j, k); }
-		if (x_bc == x_Reflective) { U(iL, j, IMU) = -U(iL, j, IMU); U(iR, j, IMU) = -U(iR, j, IMU); }
-	}
-	if (ny > 1 || y_bc == y_Periodic) for (int i = 0; i < nx + 2 * g; i++) for (int q = 0; q < g; q++) {
-		int jL = g - 1 - q, jR = ny + g + q, sL, sR;
-		if (y_bc == y_Periodic) { sL = ny + g - 1 - q; sR = g + q; }
-		else if (y_bc == y_Reflective) { sL = g + q; sR = ny + g - 1 - q; }
-		else { sL = g; sR = ny + g - 1; }
-		for (int k = 0; k < NUM_VARS; k++) { U(i, jL, k) = U(i, sL, k); U(i, jR, k) = U(i, sR, k); }
-		if (y_bc == y_Reflective) { U(i, jL, IMV) = -U(i, jL, IMV); U(i, jR, IMV) = -U(i, jR, IMV); }
-	}
-	else for (int i = 0; i < nx + 2 * g; i++) for (int q = 0; q < g; q++) for (int k = 0; k < NUM_VARS; k++) { U(i, g - 1 - q, k) = U(i, g, k); U(i, g + 1 + q, k) = U(i, g, k); }
-}
-inline void bound_cond_array(Array& A, int sign_x = 1, int sign_y = 1) {
-	const int g = ghost_cells, nx = A.nx, ny = A.ny;
-	for (int j = 0; j < ny + 2 * g; j++) for (int q = 0; q < g; q++) {
-		int iL = g - 1 - q, iR = nx + g + q, sL, sR; double fs = 1.0;
-		if (x_bc == x_Periodic) { sL = nx + g - 1 - q; sR = g + q; } else if (x_bc == x_Reflective) { sL = g + q; sR = nx + g - 1 - q; fs = sign_x; } else { sL = g; sR = nx + g - 1; }
-		A(iL, j) = fs * A(sL, j); A(iR, j) = fs * A(sR, j);
-	}
-	for (int i = 0; i < nx + 2 * g; i++) for (int q = 0; q < g; q++) {
-		int jL = g - 1 - q, jR = ny + g + q, sL, sR; double fs = 1.0;
-		if (ny == 1 && y_bc != y_Periodic) { sL = g; sR = g; }
-		else if (y_bc == y_Periodic) { sL = ny + g - 1 - q; sR = g + q; } else if (y_bc == y_Reflective) { sL = g + q; sR = ny + g - 1 - q; fs = sign_y; } else { sL = g; sR = ny + g - 1; }
-		A(i, jL) = fs * A(i, sL); A(i, jR) = fs * A(i, sR);
-	}
-}
-
-// ==================================================================================================== 单元工具
+// ==================================================================================================== 单元原始变量
 struct Prim { double a1, r1, r2, u, v, p1, p2, rho, cf; };
-static bool cell_prim(const Grid& U, int i, int j, Prim& w) {
-	const double a1 = U(i, j, IA1), a2 = 1 - a1, m1 = U(i, j, IM1), m2 = U(i, j, IM2);
+// 守恒量 Q -> 原始变量（不可容许时返回 false）
+static bool prim_of(const double* Q, Prim& w) {
+	const double a1 = Q[IA1], a2 = 1 - a1, m1 = Q[IM1], m2 = Q[IM2];
 	if (!(a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0)) return false;
-	w.a1 = a1; w.rho = m1 + m2; w.r1 = m1 / a1; w.r2 = m2 / a2; w.u = U(i, j, IMU) / w.rho; w.v = U(i, j, IMV) / w.rho;
-	w.p1 = p_ame(0, a1, m1, U(i, j, IE1)); w.p2 = p_ame(1, a2, m2, U(i, j, IE2));
+	w.a1 = a1; w.rho = m1 + m2; w.r1 = m1 / a1; w.r2 = m2 / a2; w.u = Q[IMU] / w.rho; w.v = Q[IMV] / w.rho;
+	w.p1 = p_ame(0, a1, m1, Q[IE1]); w.p2 = p_ame(1, a2, m2, Q[IE2]);
 	if (!(w.p1 + PH[0].pi > 0 && w.p2 + PH[1].pi > 0)) return false;
 	w.cf = std::sqrt((m1 * c2_rp(0, w.r1, w.p1) + m2 * c2_rp(1, w.r2, w.p2)) / w.rho);
 	return true;
@@ -480,132 +416,93 @@ static void prim2cell(const Prim& w, double* Q) {
 	Q[IE1] = eps_amp(0, w.a1, m1, w.p1); Q[IE2] = eps_amp(1, a2, m2, w.p2);
 	Q[IEN] = Q[IE1] + Q[IE2] + 0.5 * rho * (w.u * w.u + w.v * w.v);
 }
-inline double pbar_cell(const Grid& U, int i, int j) {
-	const double a1 = U(i, j, IA1);
-	return a1 * p_ame(0, a1, U(i, j, IM1), U(i, j, IE1)) + (1 - a1) * p_ame(1, 1 - a1, U(i, j, IM2), U(i, j, IE2));
+inline double pbar_of(const double* Q) {
+	const double a1 = Q[IA1];
+	return a1 * p_ame(0, a1, Q[IM1], Q[IE1]) + (1 - a1) * p_ame(1, 1 - a1, Q[IM2], Q[IE2]);
 }
 
-// ==================================================================================================== 时间步长（caldt）
-static double max_speed(const Grid& U, bool acoustic, double& ux, double& uy) {
-	ux = uy = 0; const int g = ghost_cells;
-	for (int j = g; j < U.ny + g; j++) for (int i = g; i < U.nx + g; i++) {
-		Prim w; if (!cell_prim(U, i, j, w)) continue;
-		const double c = acoustic ? w.cf : 0.0;
-		ux = std::max(ux, std::fabs(w.u) + c); uy = std::max(uy, std::fabs(w.v) + c);
-	}
-	return 0;
-}
-static double caldt(const Grid& U, bool acoustic) {
-	double ux, uy; max_speed(U, acoustic, ux, uy);
-	double rate = ux / dx + (U.ny > 1 ? uy / dy : 0.0);
-	return rate > 0 ? 1.0 / rate : INF;
-}
-
-// ==================================================================================================== 算例
+// ==================================================================================================== 算例（两个程序共用）
+// 编号沿用测试脚本（case=N）；初值按论文，参数出处见 docs/results.md。
+enum Test {
+	testSPB_Cavitation = 0,       // SPB 2009 4.5   空化管，水/空气 alpha_air = 1e-2，-+100 m/s
+	testPS_Cavitation2 = 1,       // P-S 2014 5.1   水空化管 -+2 m/s，T = 354.728 K
+	testPS_Cavitation500 = 2,     // P-S 2014 5.1   水空化管 -+500 m/s
+	testDodecaneSG = 3,           // P-S 2014 5.2   十二烷液-汽激波管（SG）
+	testSPB_Interface = 4,        // SPB 2009 4.1   界面平移（WB）
+	testSPB_WaterAir = 5,         // SPB 2009 4.3.1 水-气激波管 1 GPa
+	testSPB_WaterAirTPa = 6,      // SPB 2009 4.3.2 水-气激波管 1 TPa
+	testSPB_EpoxySpinel = 12,     // SPB 2009 5.1   环氧-尖晶石 1e10 Pa
+	testSPB_EpoxySpinelExt = 13,  // SPB 2009 5.2   环氧-尖晶石 2e11 Pa
+	testSmoothGas = 20,           // 光滑解（时间收敛阶），两相理想气体
+	testSmoothWater = 21,         // 光滑解，水-气
+	testPel_Cavitation = 30,      // Pelanti 2022 8.2.1 NASG 水空化管 -+2 m/s，T = 353 K
+	testDodecaneNASG = 31,        // Pelanti 2022 8.2.2 十二烷液-汽激波管（NASG）
+	testRelax0D = 40,             // 0D 松弛：均匀非平衡态（周期）
+	testRelax0DChem = 41          // 0D 化学松弛：pT 平衡、过热（周期）
+};
+struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc; };
 static void set_SG(int k, double g, double pi, double q = 0, double qp = 0, double cv = 1000.0, double b = 0) { PH[k] = {g, pi, q, qp, cv, b}; }
 static double rho_pT(int k, double p, double T) { return 1.0 / v_pT(k, p, T); }
-
-static void init_case(Grid& U) {
-	const int g = ghost_cells;
-	auto setcell = [&](int i, int j, double a1, double r1, double r2, double u, double v, double p1, double p2) {
-		Prim w; w.a1 = a1; w.r1 = r1; w.r2 = r2; w.u = u; w.v = v; w.p1 = p1; w.p2 = p2; double Q[NUM_VARS]; prim2cell(w, Q);
-		for (int k = 0; k < NUM_VARS; k++) U(i, j, k) = Q[k]; };
-	for (int j = g; j < U.ny + g; j++) for (int i = g; i < U.nx + g; i++) {
-		const double x = x_0 + (i - g + 0.5) * dx, y = y_0 + (j - g + 0.5) * dy; (void)y;
-		switch (TESTCASE) {
-		case 0: { // SPB 4.5 空化管：水/空气 alpha_air = 1e-2，+-100 m/s（空气密度论文未给，取 1）
-			const double u = x < 0.5 ? -100.0 : 100.0; setcell(i, j, 1 - 1e-2, 1000.0, 1.0, u, 0, 1e5, 1e5); break; }
-		case 1: case 2: { // P-S 2014 水空化管 +-2 / +-500 m/s, T = 354.728 K
-			const double T0 = 354.728, U0 = TESTCASE == 1 ? 2.0 : 500.0, u = x < 0.5 ? -U0 : U0;
-			setcell(i, j, 1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
-		case 3: case 31: { // 十二烷液-汽激波管 (P-S 5.2 / Pelanti 8.2.2)
-			const bool L = x < 0.75; setcell(i, j, L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
-		case 4: { // SPB 4.1 界面平移
-			const bool L = x < 0.5; setcell(i, j, L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
-		case 5: case 6: { // SPB 4.3.1 / 4.3.2 水-气激波管
-			const bool L = x < 0.75; const double pL = TESTCASE == 5 ? 1e9 : 1e12, ra = TESTCASE == 5 ? 1.0 : 10.0;
-			setcell(i, j, L ? 1 - 1e-6 : 1e-6, 1000.0, ra, 0, 0, L ? pL : 1e5, L ? pL : 1e5); break; }
-		case 12: case 13: { // SPB 5.1 / 5.2 环氧-尖晶石
-			const double pL = TESTCASE == 12 ? 1e10 : 2e11; const double p = x < 0.6 ? pL : 1e5;
-			setcell(i, j, 0.5954, 1185.0, 3622.0, 0, 0, p, p); break; }
-		case 20: case 21: { // 光滑解（时间收敛阶）
-			const double gs = std::exp(-(x - 0.5) * (x - 0.5) / 0.01), u = 50.0 * gs, a1 = 0.5 + 0.2 * std::sin(2 * M_PI * x), p = 1e5 * (1 + 0.2 * gs);
-			setcell(i, j, a1, TESTCASE == 20 ? 2.0 : 1000.0, 1.0, u, 0, p, p); break; }
-		case 30: { // Pelanti 2022 8.2.1：NASG 水空化管 +-2 m/s，T = 353 K，p = 1e5，alpha_v = 1e-2
-			const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(i, j, 1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
-		case 41: { // 0D 化学松弛：pT 平衡、过热（T > Tsat(p)），化学势不等（周期）
-			const double T0 = 380.0, p0 = 0.8e5;
-			setcell(i, j, 1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
-		case 40: { // 0D 松弛：u = 0，均匀非平衡态（周期）
-			const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5;
-			setcell(i, j, 1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
-		}
-	}
-	bound_cond_u(U);
-}
-static void setup_case() {
-	x_0 = 0; x_1 = 1; y_0 = 0; y_1 = 1; x_bc = x_Transmissive; y_bc = y_Transmissive;
-	switch (TESTCASE) {
-	case 0: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 1.85e-3; break;
-	case 1: case 2:
+// 状态方程、区域、边界、终止时间
+static bool test_setup(int test, TestSetup& S) {
+	S.x0 = 0; S.x1 = 1; S.y0 = 0; S.y1 = 1; S.xbc = x_Transmissive; S.ybc = y_Transmissive;
+	switch (test) {
+	case testSPB_Cavitation: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1.85e-3; break;
+	case testPS_Cavitation2: case testPS_Cavitation500:
 		set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0);
-		time_stop = TESTCASE == 1 ? 3.2e-3 : 0.58e-3; break;
-	case 3: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); time_stop = 473e-6; break;
-	case 4: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 2.79e-3; break;
-	case 5: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 240e-6; break;
-	case 6: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 8.3e-6; break;
-	case 12: case 13: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); time_stop = TESTCASE == 12 ? 80e-6 : 34e-6; break;
-	case 20: set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); time_stop = 5e-4; break;
-	case 21: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); time_stop = 1e-4; break;
-	case 30: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; time_stop = 3e-3; break;
-	case 31: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; time_stop = 473e-6; break;
-	case 40: case 41: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); time_stop = 1e-4; x_bc = x_Periodic; break;
-	default: fprintf(stderr, "unknown case %d\n", TESTCASE); exit(1);
+		S.tend = test == testPS_Cavitation2 ? 3.2e-3 : 0.58e-3; break;
+	case testDodecaneSG: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.tend = 473e-6; break;
+	case testSPB_Interface: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 2.79e-3; break;
+	case testSPB_WaterAir: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 240e-6; break;
+	case testSPB_WaterAirTPa: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 8.3e-6; break;
+	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = test == testSPB_EpoxySpinel ? 80e-6 : 34e-6; break;
+	case testSmoothGas: set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.tend = 5e-4; break;
+	case testSmoothWater: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1e-4; break;
+	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; break;
+	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; break;
+	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
+	default: return false;
 	}
-}
-
-// ==================================================================================================== 输出
-static void output(const Grid& U, const char* fn) {
-	FILE* f = fopen(fn, "w"); if (!f) return;
-	const int g = ghost_cells;
-	fprintf(f, "# x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2\n");
-	for (int j = g; j < U.ny + g; j++) for (int i = g; i < U.nx + g; i++) {
-		Prim w; const bool ok = cell_prim(U, i, j, w);
-		const double a1 = U(i, j, IA1), m1 = U(i, j, IM1), m2 = U(i, j, IM2), rho = m1 + m2;
-		const double p = ok ? a1 * w.p1 + (1 - a1) * w.p2 : NAN;
-		double cw = NAN, T1 = NAN, T2 = NAN, dg = NAN;
-		if (ok) {
-			cw = std::sqrt(1.0 / (rho * (a1 / (w.r1 * c2_rp(0, w.r1, w.p1)) + (1 - a1) / (w.r2 * c2_rp(1, w.r2, w.p2)))));
-			T1 = T_amp(0, a1, m1, w.p1); T2 = T_amp(1, 1 - a1, m2, w.p2);
-			if (T1 > 0 && T2 > 0 && PH[0].cv > 0) dg = g_pT(0, w.p1, T1) - g_pT(1, w.p2, T2);
-		}
-		fprintf(f, "%.10e %.10e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.12e %.8e %.8e %.10e %.10e %.12e %.12e %.8e\n",
-			x_0 + (i - g + 0.5) * dx, y_0 + (j - g + 0.5) * dy, p, ok ? w.u : NAN, ok ? w.v : NAN, rho, 1 - a1, m2 / rho, ok ? w.r1 : NAN, ok ? w.r2 : NAN, ok ? w.cf : NAN, cw, T1, T2, ok ? w.p1 : NAN, ok ? w.p2 : NAN, dg);
-	}
-	fclose(f);
-}
-
-// ==================================================================================================== 命令行（两个程序共用的键）
-// 键：case, N (nx), ny, cfl, order, tend, out, relax, epsI, mu, theta, nu (可写 inf), verbose
-struct CommonArgs { std::string out = "out.dat"; double tend_override = -1; };
-static bool parse_common(const std::string& k, const char* val, double d, CommonArgs& A) {
-	if (k == "case") TESTCASE = (int)d; else if (k == "N" || k == "nx") nxCells = (int)d; else if (k == "ny") nyCells = (int)d;
-	else if (k == "cfl") CFL = d; else if (k == "order") SpaceOrder = (int)d; else if (k == "tend") A.tend_override = d; else if (k == "out") A.out = val;
-	else if (k == "relax") RELAX_LEVEL = (int)d; else if (k == "epsI") EPS_I = d;
-	else if (k == "mu") mu_rate = (std::string(val) == "inf") ? INF : d; else if (k == "theta") theta_rate = (std::string(val) == "inf") ? INF : d; else if (k == "nu") nu_rate = (std::string(val) == "inf") ? INF : d;
-	else if (k == "verbose") VERBOSE = (int)d;
-	else return false;
 	return true;
 }
-// 松弛档位的默认速率（relax>=1 时热松弛默认瞬时，relax>=2 化学默认瞬时；可由 theta=, nu= 覆盖为有限值），算例、网格、饱和线
-static void setup_common(const CommonArgs& A) {
-	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
-	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
-	setup_case(); if (A.tend_override > 0) time_stop = A.tend_override;
-	dx = (x_1 - x_0) / nxCells; dy = (y_1 - y_0) / nyCells;
-	if (RELAX_LEVEL > 0) build_sat();
+// 点 (x, y) 处的初值（守恒量）
+static void test_state(int test, double x, double y, double* Q) {
+	(void)y;
+	auto setcell = [&](double a1, double r1, double r2, double u, double v, double p1, double p2) {
+		Prim w; w.a1 = a1; w.r1 = r1; w.r2 = r2; w.u = u; w.v = v; w.p1 = p1; w.p2 = p2; prim2cell(w, Q); };
+	switch (test) {
+	case testSPB_Cavitation: { const double u = x < 0.5 ? -100.0 : 100.0; setcell(1 - 1e-2, 1000.0, 1.0, u, 0, 1e5, 1e5); break; }   // 空气密度论文未给，取 1
+	case testPS_Cavitation2: case testPS_Cavitation500: {
+		const double T0 = 354.728, U0 = test == testPS_Cavitation2 ? 2.0 : 500.0, u = x < 0.5 ? -U0 : U0;
+		setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
+	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
+	case testSPB_Interface: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
+	case testSPB_WaterAir: case testSPB_WaterAirTPa: {
+		const bool L = x < 0.75; const double pL = test == testSPB_WaterAir ? 1e9 : 1e12, ra = test == testSPB_WaterAir ? 1.0 : 10.0;
+		setcell(L ? 1 - 1e-6 : 1e-6, 1000.0, ra, 0, 0, L ? pL : 1e5, L ? pL : 1e5); break; }
+	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: {
+		const double pL = test == testSPB_EpoxySpinel ? 1e10 : 2e11; const double p = x < 0.6 ? pL : 1e5;
+		setcell(0.5954, 1185.0, 3622.0, 0, 0, p, p); break; }
+	case testSmoothGas: case testSmoothWater: {
+		const double gs = std::exp(-(x - 0.5) * (x - 0.5) / 0.01), u = 50.0 * gs, a1 = 0.5 + 0.2 * std::sin(2 * M_PI * x), p = 1e5 * (1 + 0.2 * gs);
+		setcell(a1, test == testSmoothGas ? 2.0 : 1000.0, 1.0, u, 0, p, p); break; }
+	case testPel_Cavitation: { const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
+	case testRelax0DChem: { const double T0 = 380.0, p0 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
+	case testRelax0D: { const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
+	}
 }
-static void conserved_totals(const Grid& U, double M[3]) {
-	M[0] = M[1] = M[2] = 0;
-	for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++) { M[0] += U(i, j, IM1); M[1] += U(i, j, IM2); M[2] += U(i, j, IEN); }
+
+// ==================================================================================================== 输出用的单元诊断量
+// 列：p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2
+static void cell_diag(const double* Q, double* o) {
+	Prim w; const bool ok = prim_of(Q, w);
+	const double a1 = Q[IA1], m1 = Q[IM1], m2 = Q[IM2], rho = m1 + m2;
+	double cw = NAN, T1 = NAN, T2 = NAN, dg = NAN;
+	if (ok) {
+		cw = std::sqrt(1.0 / (rho * (a1 / (w.r1 * c2_rp(0, w.r1, w.p1)) + (1 - a1) / (w.r2 * c2_rp(1, w.r2, w.p2)))));
+		T1 = T_amp(0, a1, m1, w.p1); T2 = T_amp(1, 1 - a1, m2, w.p2);
+		if (T1 > 0 && T2 > 0 && PH[0].cv > 0) dg = g_pT(0, w.p1, T1) - g_pT(1, w.p2, T2);
+	}
+	o[0] = ok ? a1 * w.p1 + (1 - a1) * w.p2 : NAN; o[1] = ok ? w.u : NAN; o[2] = ok ? w.v : NAN; o[3] = rho; o[4] = 1 - a1; o[5] = m2 / rho;
+	o[6] = ok ? w.r1 : NAN; o[7] = ok ? w.r2 : NAN; o[8] = ok ? w.cf : NAN; o[9] = cw; o[10] = T1; o[11] = T2; o[12] = ok ? w.p1 : NAN; o[13] = ok ? w.p2 : NAN; o[14] = dg;
 }

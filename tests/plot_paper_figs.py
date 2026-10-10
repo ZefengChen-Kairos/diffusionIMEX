@@ -19,7 +19,7 @@ EXPL = 'explicit (HLLC + relaxation, Heun, CFL 0.4)'
 IMEX = 'IMEX (TV-split, LSDIRK2, material CFL 0.2)'
 BOTH = 'explicit = HLLC + relaxation, Heun, CFL 0.4;  IMEX = TV-split, LSDIRK2, material CFL 0.2'
 
-# ---------------------------------------------------------------------------------------------------- EOS of the cases (src/spb6_common.h)
+# ---------------------------------------------------------------------------------------------------- EOS of the cases (src/spb6_physics.h)
 PH = {'spb_wa': [(4.4, 6e8, 0, 0, 1000., 0), (1.4, 0, 0, 0, 1000., 0)],
       'spb_es': [(2.43, 5.3e9, 0, 0, 1000., 0), (1.62, 141e9, 0, 0, 1000., 0)],
       'ps_w': [(2.35, 1e9, -1167e3, 0.0, 1816.0, 0.0), (1.43, 0.0, 2030e3, -23.4e3, 1040.0, 0.0)],

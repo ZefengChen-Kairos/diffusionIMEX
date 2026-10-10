@@ -9,7 +9,7 @@ OUT=${1:-$H/run/figs}; NPAR=${2:-4}; SEL=${3:-.}
 mkdir -p "$OUT"
 EX="$H/src/spb6_ex"; IM="$H/src/spb6_imex"
 g++ -O2 -std=c++17 "$H/src/SPB6_explicit.cpp" -o "$EX" || exit 1
-g++ -O2 -std=c++17 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
+g++ -O2 -std=c++17 -I/usr/include/eigen3 "$H/src/SPB6_TV_IMEX.cpp" -o "$IM" || exit 1
 jobs_list=()
 both() { jobs_list+=("${1}_E|E|$2" "${1}_I|I|$2"); }
 both spb5  "case=4 N=200"                                          # SPB 2009 Fig. 5: interface advection
