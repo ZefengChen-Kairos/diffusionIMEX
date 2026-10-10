@@ -64,7 +64,7 @@ $$
 | (E2) | (A2.2) 对 $\alpha_k$ 可显式反解 | 离散 Gibbs 闭合是代数的（A5、B5 节） |
 | (E3) | $v(p,T)$、$e(p,T)$ 显式，$e$ 对 $T$ 线性 | $pT$、$pTg$、有限速率 $\theta,\nu$ 闭合中 $T$ 显式（B6 节） |
 | (E4) | $g_1(p,T)=g_2(p,T)$ 给出饱和线 $T_{\rm sat}(p)$ | $pTg$ 闭合、传质判据 |
-| (E5) | 凸性：$c_k^2>0$、$\partial v/\partial p|_T<0$、$c_p>0$ | 所有局部闭合的残量对 $p$ 单调、根唯一（B6 节） |
+| (E5) | 凸性：$c_k^2>0$、$\partial v/\partial p\vert _T<0$、$c_p>0$ | 所有局部闭合的残量对 $p$ 单调、根唯一（B6 节） |
 
 **混合压力（SPB (II.4) 的 NASG 推广）：** 给定 $\alpha_k,m_k$ 和混合内能 $\rho e=\sum\varepsilon_k$，按 (A2.2) 对 $p$ 线性：
 
