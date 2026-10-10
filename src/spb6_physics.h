@@ -441,7 +441,10 @@ enum Test {
 	testPel_Cavitation = 30,      // Pelanti 2022 8.2.1 NASG 水空化管 -+2 m/s，T = 353 K
 	testDodecaneNASG = 31,        // Pelanti 2022 8.2.2 十二烷液-汽激波管（NASG）
 	testRelax0D = 40,             // 0D 松弛：均匀非平衡态（周期）
-	testRelax0DChem = 41          // 0D 化学松弛：pT 平衡、过热（周期）
+	testRelax0DChem = 41,         // 0D 化学松弛：pT 平衡、过热（周期）
+	testGresho1 = 50,             // Gresho 涡（2DEuler 的 testGreshoVortex），单相极限（两相同为理想气体，alpha1 = 1/2），M = 0.1
+	testGresho2 = 51,             //   M = 0.01
+	testGresho3 = 52              //   M = 0.001（低马赫 AP 检验）
 };
 struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc; };
 static void set_SG(int k, double g, double pi, double q = 0, double qp = 0, double cv = 1000.0, double b = 0) { PH[k] = {g, pi, q, qp, cv, b}; }
@@ -464,6 +467,8 @@ static bool test_setup(int test, TestSetup& S) {
 	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; break;
 	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
+	case testGresho1: case testGresho2: case testGresho3:
+		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; break;
 	default: return false;
 	}
 	return true;
@@ -492,6 +497,14 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPel_Cavitation: { const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
 	case testRelax0DChem: { const double T0 = 380.0, p0 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
 	case testRelax0D: { const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
+	case testGresho1: case testGresho2: case testGresho3: {   // 2DEuler_TV.cpp 的 testGreshoVortex：rho = 1，p0 = 1/(gamma M^2)，最大速度 1（r = 0.2）
+		const double M = test == testGresho1 ? 1e-1 : (test == testGresho2 ? 1e-2 : 1e-3), p0 = 1.0 / (1.4 * M * M), r = std::sqrt(x * x + y * y);
+		double vel, p;
+		if (r < 0.2) { vel = 5 * r; p = p0 + 25.0 / 2.0 * r * r; }
+		else if (r < 0.4) { vel = 2 - 5 * r; p = p0 + 25.0 / 2.0 * r * r + 4 * (1 - 5 * r - std::log(0.2) + std::log(r)); }
+		else { vel = 0; p = p0 - 2 + 4 * std::log(2.0); }
+		const double ux = r < 1e-14 ? 0.0 : -vel * y / r, uy = r < 1e-14 ? 0.0 : vel * x / r;
+		setcell(0.5, 1.0, 1.0, ux, uy, p, p); break; }
 	}
 }
 

@@ -304,24 +304,29 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 }
 
 
-// B3：重构在被输运的守恒量上做，各量共用一个限制因子 phi_i = min_X minmod(dX_L, dX_R)/(中心差分)，斜率 = phi_i * 中心差分。
-// 共用一个系数，量之间的线性关系（均匀 p、u 时 eps_k = c_k(p) alpha_k + q_k m_k 等）在面值上原样成立，这是 WB 所需的。
-// “模板内为常数（到舍入）”的判据用该量的舍入尺度 S_X（B3 的表；devlog V8）：
-//   alpha_1：1；rho u, rho v：|rho u| + rho c_f；eps_k, E：sum |eps_k| + 1/2 rho |u|^2；m_k：自身大小。
+// B3：体积输运量 (alpha_1, m_1, m_2, eps_1, eps_2) 共用一个限制因子 phi_i = min_X minmod(dX_L, dX_R)/(中心差分)，斜率 = phi_i * 中心差分。
+// 共用一个系数，量之间的线性关系（均匀 p 时 eps_k = c_k(p) alpha_k + q_k m_k）在面值上原样成立，这是 WB 所需的。
+// 速度 (u, v) 是单速度模型里独立的原始变量，各分量单独 minmod（2DEuler 的 TVDReconstruction 对原始变量逐个限制）；
+// 面上的动量与总能由面值组装：(rho u)^f = rho^f u^f，E^f = sum eps_k^f + 1/2 rho^f |u^f|^2。均匀 u 时速度斜率为 0，面速度就是 u（WB 不变）。
+// 若速度也共用 phi，任一量的极值会使所有量降为一阶：二维涡里 rho u 沿 x = 0 取极值，v 在其梯度最大处被降为一阶（devlog V11）。
+// “模板内为常数（到舍入）”的判据用该量的舍入尺度 S_X（B3 的表；devlog V8、V11）：
+//   alpha_1：1；m_k：自身大小；eps_k：sum |eps_k| + 1/2 rho |u|^2；u, v：|u| + c_f。
+// phi_x/phi_y 存 min(体积输运量的 phi, 速度的光滑比)：B4.1 的二阶 psi 用它判断“所有量都光滑”。
 void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_yR){
 	const int g = ghost_cells, NXT = nxCells + 2 * g, NYT = nyCells + 2 * g;
 	w_xL.data = u_con.data; w_xR.data = u_con.data; w_yL.data = u_con.data; w_yR.data = u_con.data;
 	std::fill(phi_x->data.begin(), phi_x->data.end(), 0.0); std::fill(phi_y->data.begin(), phi_y->data.end(), 0.0);
 	SpaceOrder = recon == NoRecon ? 1 : 2;
 	if(recon == NoRecon) return;
-	std::vector<double> msc((size_t)NXT * NYT, 0.0), esc((size_t)NXT * NYT, 0.0);
+	std::vector<double> vsc((size_t)NXT * NYT, 0.0), esc((size_t)NXT * NYT, 0.0);
 	for(int j = 0; j < NYT; j++){
 		for(int i = 0; i < NXT; i++){
 			Prim w; const double rho = u_con(i,j,IM1) + u_con(i,j,IM2), mm = std::hypot(u_con(i,j,IMU), u_con(i,j,IMV)); const size_t c = (size_t)i + (size_t)j * NXT;
-			msc[c] = mm + (prim_of(u_con.cell(i, j), w) ? rho * w.cf : 0.0);
+			vsc[c] = (rho > 0 ? mm / rho : 0.0) + (prim_of(u_con.cell(i, j), w) ? w.cf : 0.0);
 			esc[c] = std::fabs(u_con(i,j,IE1)) + std::fabs(u_con(i,j,IE2)) + (rho > 0 ? 0.5 * mm * mm / rho : 0.0);
 		}
 	}
+	const int VOL[5] = {IA1, IM1, IM2, IE1, IE2};
 	for(int dir = 0; dir < (nyCells > 1 ? 2 : 1); dir++){
 		Grid &wL = dir == 0 ? w_xL : w_yL, &wR = dir == 0 ? w_xR : w_yR;
 		Array &phis = dir == 0 ? *phi_x : *phi_y;
@@ -332,12 +337,12 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 				else{ ja = j - 1; jb = j + 1; if(ja < 0 || jb >= NYT) continue; }
 				const size_t ca = (size_t)ia + (size_t)ja * NXT, cc = (size_t)i + (size_t)j * NXT, cb = (size_t)ib + (size_t)jb * NXT;
 				double phi = 1.0;
-				for(int k = 0; k < NUM_VARS; k++){
+				for(int q = 0; q < 5; q++){
+					const int k = VOL[q];
 					const double xa = u_con(ia,ja,k), xc = u_con(i,j,k), xb = u_con(ib,jb,k);
 					double sc;
 					if(k == IA1) sc = 3.0;
 					else if(k == IM1 || k == IM2) sc = std::fabs(xa) + std::fabs(xc) + std::fabs(xb);
-					else if(k == IMU || k == IMV) sc = msc[ca] + msc[cc] + msc[cb];
 					else sc = esc[ca] + esc[cc] + esc[cb];
 					const double a = xc - xa, b = xb - xc, tiny = 1e-12 * sc + 1e-300;
 					if(std::fabs(a) <= tiny && std::fabs(b) <= tiny) continue;          // 该量在模板内（到舍入）为常数：不约束
@@ -345,12 +350,30 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 					const double c = 0.5 * (a + b), m = std::fabs(a) < std::fabs(b) ? a : b;
 					phi = std::min(phi, m / c);
 				}
-				for(int k = 0; k < NUM_VARS; k++){
+				for(int q = 0; q < 5; q++){
+					const int k = VOL[q];
 					const double sig = phi * 0.5 * (u_con(ib,jb,k) - u_con(ia,ja,k));
 					wL(i,j,k) = u_con(i,j,k) - 0.5 * sig;
 					wR(i,j,k) = u_con(i,j,k) + 0.5 * sig;
 				}
-				phis(i,j) = phi;
+				// 速度：各分量单独 minmod；sm 为速度的光滑比（极值处 0，模板内为常数时不约束）
+				const double ra = u_con(ia,ja,IM1) + u_con(ia,ja,IM2), rc = u_con(i,j,IM1) + u_con(i,j,IM2), rb = u_con(ib,jb,IM1) + u_con(ib,jb,IM2);
+				const double tiny = 1e-12 * (vsc[ca] + vsc[cc] + vsc[cb]) + 1e-300;
+				double vL[2], vR[2], sm = 1.0;
+				for(int d = 0; d < 2; d++){
+					const int k = d == 0 ? IMU : IMV;
+					const double va = u_con(ia,ja,k) / ra, vc = u_con(i,j,k) / rc, vb = u_con(ib,jb,k) / rb, a = vc - va, b = vb - vc;
+					double sl = 0.0;
+					if(!(std::fabs(a) <= tiny && std::fabs(b) <= tiny)){
+						if(a * b > 0){ sl = std::fabs(a) < std::fabs(b) ? a : b; sm = std::min(sm, sl / (0.5 * (a + b))); }
+						else sm = 0.0;
+					}
+					vL[d] = vc - 0.5 * sl; vR[d] = vc + 0.5 * sl;
+				}
+				const double rL = wL(i,j,IM1) + wL(i,j,IM2), rR = wR(i,j,IM1) + wR(i,j,IM2);
+				wL(i,j,IMU) = rL * vL[0]; wL(i,j,IMV) = rL * vL[1]; wL(i,j,IEN) = wL(i,j,IE1) + wL(i,j,IE2) + 0.5 * rL * (vL[0] * vL[0] + vL[1] * vL[1]);
+				wR(i,j,IMU) = rR * vR[0]; wR(i,j,IMV) = rR * vR[1]; wR(i,j,IEN) = wR(i,j,IE1) + wR(i,j,IE2) + 0.5 * rR * (vR[0] * vR[0] + vR[1] * vR[1]);
+				phis(i,j) = std::min(phi, sm);
 			}
 		}
 	}
@@ -667,6 +690,15 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 		} else {
 			if (!GMRES_Solver(dP, rhs, A)) return false;
 		}
+		// 步长判据（B8，devlog V11）：P 的舍入 eps|P| 经面速度、体积通量与闭合放大约 nu^2 倍（nu = c tau/h），残量有一个约 nu^2 eps |P| 的舍入底；
+		// 低马赫时 nu 大（M = 0.001 时约 60），这个底高于容差，线搜索降不下去。Newton 步已在容差内时 P + dP 就是解。
+		double sn = 0.0;
+		for (int q = 0; q < n; q++) { const int i = q % nx, j = q / nx; sn = std::max(sn, std::fabs(dP[q]) / (std::fabs(P.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0)); }
+		if (sn < NewtonTol) {
+			for (int q = 0; q < n; q++) P.P[q] += dP[q];
+			st_newton_it++; iters = it + 1; resfinal = res;
+			return evalAll(P, G);
+		}
 		double lam = 1.0; bool acc = false;
 		for (int ls = 0; ls < 40; ls++) {
 			for (int q = 0; q < n; q++) Pn.P[q] = P.P[q] + lam * dP[q];
@@ -731,8 +763,24 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		if (SpaceOrder < 2) return 1.0;
 		const double D = xR - xL; if (D == 0.0) return 1.0;
 		return 1.0 - 0.5 * (minmod(xL - xm, D) + minmod(D, xp - xR)) / D; };
-	// B4.1：u_f = ubar* - tau dP/(rhobar h) - phi psi_P dP/(Z_L + Z_R)，p_f = (rho_R P_L + rho_L P_R)/(rho_L + rho_R) - phi psi_u Z_L Z_R/(Z_L + Z_R) du*，
+	// B4.1：u_f = ubar* - tau dP/(rhobar h) - phi psi_P dP/(Z_L + Z_R)，p_f = (rho_R P_L + rho_L P_R)/(rho_L + rho_R) - phi psi_u Z_L Z_R/(Z_L + Z_R) D*，
 	// phi = (1 - c tau/h)^+：时间步分辨声波时把声学耗散补足到 Godunov（c tau/h >= 1 时为 0，低马赫/大步长不受影响）
+	// B4.1(c)：速度跳跃 D* 取面两端两个顶点散度的平均乘 h（体粘性形式）。x 面 (i+1/2, j)：
+	//   D = [2 (u_{i+1,j} - u_{i,j}) + (u_{i+1,j+1} - u_{i,j+1}) + (u_{i+1,j-1} - u_{i,j-1})]/4 + (dx/dy) [(v_{i,j+1} - v_{i,j-1}) + (v_{i+1,j+1} - v_{i+1,j-1})]/4
+	// 声学子系统只通过散度看见速度：无散场在这一项的核里，低马赫时它不作用在涡上（逐维的法向跳跃 u_{i+1} - u_i 会，devlog V11）。
+	// 一维与 y 向均匀时 D = u_{i+1} - u_i（逐位：0.25 (2d + (d + d)) = d）。
+	auto dil_jump = [&](int i, int j, bool ydir) -> double {
+		if (!ydir) {
+			const double d = S.ust(i + 1, j) - S.ust(i, j);
+			if (ny == 1 || j < 1 || j + 1 >= NYT) return d;
+			return 0.25 * (2.0 * d + ((S.ust(i + 1, j + 1) - S.ust(i, j + 1)) + (S.ust(i + 1, j - 1) - S.ust(i, j - 1))))
+				+ 0.25 * (dx / dy) * ((S.vst(i, j + 1) - S.vst(i, j - 1)) + (S.vst(i + 1, j + 1) - S.vst(i + 1, j - 1)));
+		}
+		const double d = S.vst(i, j + 1) - S.vst(i, j);
+		if (i < 1 || i + 1 >= NXT) return d;
+		return 0.25 * (2.0 * d + ((S.vst(i + 1, j + 1) - S.vst(i + 1, j)) + (S.vst(i - 1, j + 1) - S.vst(i - 1, j))))
+			+ 0.25 * (dy / dx) * ((S.ust(i + 1, j) - S.ust(i - 1, j)) + (S.ust(i + 1, j + 1) - S.ust(i - 1, j + 1)));
+	};
 	auto set_face = [&](int iL, int jL, int iR, int jR, double hh, bool ydir, double& ubs, double& kp, double& wL, double& pv) {
 		const double rL = rhoS(iL, jL), rR = rhoS(iR, jR);
 		const double uL = ydir ? S.vst(iL, jL) : S.ust(iL, jL), uR = ydir ? S.vst(iR, jR) : S.ust(iR, jR);
@@ -752,7 +800,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			psiU = 1.0 - (1.0 - psi_face(V(im, jm), uL, uR, V(ip, jp))) * phis;
 		}
 		const double ZL = rL * cL, ZR = rR * cR;
-		kp += phi * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * (uR - uL);
+		kp += phi * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
 	};
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT - 1; i++) set_face(i, j, i + 1, j, dx, false, S.ubsx(i, j), S.kpx(i, j), S.wLx(i, j), S.pvx(i, j));
 	if (ny > 1) for (int j = 0; j < NYT - 1; j++) for (int i = 0; i < NXT; i++) set_face(i, j, i, j + 1, dy, true, S.ubsy(i, j), S.kpy(i, j), S.wLy(i, j), S.pvy(i, j));
