@@ -34,5 +34,9 @@ Sub-cell initialisation 4 x 4 in cells cut by the bubble.
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
+| `shock_helium_t134us.dat.gz` | t = 134 us | `case=70 snap=134e-6,274e-6,344e-6,554e-6` | case 70 mode 1 order 2 rk 2 N 600 CFL 0.2 / steps 3395 (rk1 23, mood 0) rejects 0 / stages 6767 newton it 14246 (2.11/stage) maxres 9.98e-14 / closure fails 0 / dM1/M 5.28e-01 dM2/M 4.24e-06 dE/E 8.57e-01 / wall 2349.72 s |
+| `shock_helium_t274us.dat.gz` | t = 274 us | `case=70 snap=134e-6,274e-6,344e-6,554e-6` | case 70 mode 1 order 2 rk 2 N 600 CFL 0.2 / steps 3395 (rk1 23, mood 0) rejects 0 / stages 6767 newton it 14246 (2.11/stage) maxres 9.98e-14 / closure fails 0 / dM1/M 5.28e-01 dM2/M 4.24e-06 dE/E 8.57e-01 / wall 2349.72 s |
+| `shock_helium_t344us.dat.gz` | t = 344 us | `case=70 snap=134e-6,274e-6,344e-6,554e-6` | case 70 mode 1 order 2 rk 2 N 600 CFL 0.2 / steps 3395 (rk1 23, mood 0) rejects 0 / stages 6767 newton it 14246 (2.11/stage) maxres 9.98e-14 / closure fails 0 / dM1/M 5.28e-01 dM2/M 4.24e-06 dE/E 8.57e-01 / wall 2349.72 s |
+| `shock_helium_t554us.dat.gz` | t = 554 us | `case=70 snap=134e-6,274e-6,344e-6,554e-6` | case 70 mode 1 order 2 rk 2 N 600 CFL 0.2 / steps 3395 (rk1 23, mood 0) rejects 0 / stages 6767 newton it 14246 (2.11/stage) maxres 9.98e-14 / closure fails 0 / dM1/M 5.28e-01 dM2/M 4.24e-06 dE/E 8.57e-01 / wall 2349.72 s |
 
 2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `x y p u v rho alpha2 Y2 T1 T2`, 8 significant digits, one line per cell.

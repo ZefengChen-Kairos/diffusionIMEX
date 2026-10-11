@@ -30,5 +30,6 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
+| `cavitating_RM_t2ms.dat.gz` | t = 2 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | FAILED: empty log |
 
 2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `x y p u v rho alpha2 Y2 T1 T2`, 8 significant digits, one line per cell.
