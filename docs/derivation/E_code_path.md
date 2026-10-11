@@ -1,4 +1,4 @@
-# E. 唯一代码路径（最终版，V13）：从输入到输出
+# E. 唯一代码路径（最终版，V14）：从输入到输出
 
 本章把最终固定下来的**唯一**代码路径从头到尾写一遍：每一步用哪个公式、在代码哪个函数、为什么这样选（推导节号）。程序里没有对照开关：所有算例走同一条路径，只有算例自带的物理参数、区域、边界、网格、终止时间不同。
 
@@ -8,22 +8,22 @@
 
 ---
 
-## E0. 固定的设置（所有算例相同）
+## E0. 固定的设置（除 CFL 与 Rusanov 速度按算例外，所有算例相同）
 
 | 项 | IMEX | 显式参考 |
 |---|---|---|
 | 时间积分 | LSDIRK2(2,2,2)（$\gamma=1-1/\sqrt2$，`rk=2`）；起步斜坡内的步用后向 Euler | Heun（二阶 SSP-RK） |
-| 时间步 | 物质 CFL：$\Delta t=0.2/(\max\lvert u\rvert/\Delta x+\max\lvert v\rvert/\Delta y)$ | 声学 CFL：$\Delta t=0.4/(\max(\lvert u\rvert+c_f)/\Delta x+\dots)$ |
+| 时间步 | 物质 CFL：$\Delta t=C/(\max\lvert u\rvert/\Delta x+\max\lvert v\rvert/\Delta y)$，$C=0.2$；十二烷 SG（算例 3）与 SPB 5.1（算例 12）$C=0.05$（`TestSetup::cfl`，B10） | 声学 CFL：$\Delta t=0.4/(\max(\lvert u\rvert+c_f)/\Delta x+\dots)$ |
 | 起步 | 首步取声学 CFL 0.4 的步长，之后每步至多放大 1.2 倍，被限制的步用一阶 | — |
 | 空间 | 二阶 MUSCL（minmod），B3 | 原始变量 minmod（SPB 附录 C） |
-| 通量 | Rusanov，耗散速度为全局物质速度 $a_\Omega$（BB (27)） | HLLC（SPB 3.1.2） |
+| 通量 | Rusanov，耗散速度为逐面局部物质速度 $\max(\lvert u^L_f\rvert,\lvert u^R_f\rvert)$；SPB 5.2（算例 13）取全场最大 $a_\Omega$（BB (27)）（`TestSetup::rus`，B3） | HLLC（SPB 3.1.2） |
 | 压力/声学 | 隐式（B4–B8） | 显式（HLLC） |
 | 松弛 | 统一闭合，在隐式压力方程里（B5、B6） | 每级之后的瞬时投影 + 每步一次有限速率（A3） |
 | Newton 容差 | $10^{-13}$（相对 $\lvert P\rvert+K+P_E$），至多 60 次 | — |
 | 线性解法 | 一维非周期 Thomas；其余 BiCGStab + 两级预条件，相对容差 $10^{-13}$，至多 4000 次 | — |
 | 界面判据 $\epsilon_I$ | $10^{-4}$（热、化学松弛只在 $\epsilon_I\le\alpha_1\le1-\epsilon_I$ 的格） | 同左 |
 
-CFL 是两个程序各自的唯一值（IMEX 0.2、显式 0.4），所有算例相同；命令行 `cfl=` 只用于收敛阶等专门试验。
+显式参考程序的 CFL（0.4）所有算例相同。IMEX 的 CFL 与 Rusanov 速度按算例写在 `test_setup` 里（V14，你允许“CFL 可以不同测试不一样”“Rusanov speed 用 local 或者 global 根据不同的 test 选择”）；命令行 `cfl=`、`rus=` 可覆盖。收敛阶试验另加 `limiter=0`（不限制的中心斜率，B10）。
 
 ---
 
@@ -41,7 +41,7 @@ CFL 是两个程序各自的唯一值（IMEX 0.2、显式 0.4），所有算例�
 
 ## E2. 一个时间步（IMEX，`main` 的时间循环）
 
-1. **步长。** `caldt`（物质速度）× CFL 0.2；起步斜坡（首步为声学步长 / 1.2，之后每步至多 ×1.2）；截到终止时间与输出时刻（`snap=`）。
+1. **步长。** `caldt`（物质速度）× 本算例的 CFL；起步斜坡（首步为声学步长 / 1.2，之后每步至多 ×1.2）；截到终止时间与输出时刻（`snap=`）。
 2. **激活与投影（B6.7，`RelaxationActivation`）。** 按 $U^n$ 判断每格的闭合类型（$p$ / 有限 $\mu$ / $pT$ / 有限 $\theta$ / 有限 $\nu$ / $pTg$；判据：界面格 $\epsilon_I\le\alpha_1\le1-\epsilon_I$，化学松弛另要 $T>T_{\rm sat}(p)$），瞬时类型把 $U^n$ 投影到其平衡流形（$s=0$ 的同一个闭合）。本步各级冻结这些类型。
 3. **各级**（LSDIRK2 两级；Butcher 表 `Ae`、`Ai` 为 2DEuler 的形式）：
    1. $Q^e=U^n+\Delta t\sum_{r<s}a^e_{sr}H_r$，$Q^s=U^n+\Delta t\sum_{r<s}a^i_{sr}H_r$，填虚格；$\tau=a^i_{ss}\Delta t$。
@@ -49,7 +49,7 @@ CFL 是两个程序各自的唯一值（IMEX 0.2、显式 0.4），所有算例�
    3. 显式部分（E3.2，`Update`）：$X^*=Q^s-\tau\,\nabla\cdot F^{\rm Rus}(Q^e)$。
    4. 隐式部分（E4，`PressureSubsystem`）：由 $X^*$ 解全局压力方程，得本级终态 $U_s$。
    5. $H_s=(U_s-Q^s)/\tau$。
-4. **接受或拒绝。** 任一级出现可容许性失败（$Q^e$ 的 $\rho\le0$、闭合输入不可容许、Newton 不收敛）时拒绝本步，$\Delta t\leftarrow\Delta t/2$ 重算，至多 30 次；$\Delta t<10^{-12}t_{\rm end}$ 时报告失败（B8 的步长控制）。接受时 $U^{n+1}=U_{\rm last}$（刚性精确），压力场 $P$ 留作下一步的 Newton 初猜。
+4. **接受、降阶或拒绝。** 任一级出现可容许性失败（$Q^e$ 的 $\rho\le0$、闭合输入不可容许、Newton 不收敛）时，先在同一步长上用一阶（单级后向 Euler，$Q^s=Q^e$，B3 保正）重算这一步（MOOD，记为 `mood`，B10）；仍失败才拒绝，$\Delta t\leftarrow\Delta t/2$ 重算，至多 30 次；$\Delta t<10^{-12}t_{\rm end}$ 时报告失败（B8 的步长控制）。接受时 $U^{n+1}=U_{\rm last}$（刚性精确），压力场 $P$ 留作下一步的 Newton 初猜。
 5. 输出：`snap=` 时刻的剖面、`probe=` 的压力历史；结束时写剖面与统计行（步数、一阶步、拒绝、每级 Newton 次数、终残量最大值、守恒误差、用时）。
 
 ---
@@ -64,8 +64,8 @@ CFL 是两个程序各自的唯一值（IMEX 0.2、显式 0.4），所有算例�
 
 ### E3.2 Rusanov 通量（`RusanovC_x/y`、`Update`）
 
-- 中心部分与耗散都用重构面值：$F=\tfrac12(F(Q_L)+F(Q_R))-\tfrac12a_\Omega(Q_R-Q_L)$，**不含压力**（TV 分裂，B1）：对流通量 $(\alpha_1u,\ m_ku,\ \rho u^2,\ \rho uv,\ \varepsilon_ku,\ Eu)$。
-- 耗散速度 $a_\Omega$：全局的物质速度最大值，且不小于所有面态速度（V6，Rusanov 单调性条件）；x、y 方向各一个。
+- 中心部分与耗散都用重构面值：$F=\tfrac12(F(Q_L)+F(Q_R))-\tfrac12a_f(Q_R-Q_L)$，**不含压力**（TV 分裂，B1）：对流通量 $(\alpha_1u,\ m_ku,\ \rho u^2,\ \rho uv,\ \varepsilon_ku,\ Eu)$。
+- 耗散速度：默认 $a_f=\max(\lvert u^L_f\rvert,\lvert u^R_f\rvert)$（本面两侧面态的法向速度，V14）；`rus=0` 时取全场最大 $a_\Omega$（不小于所有面态速度，V6），x、y 方向各一个。两者都满足 B3 的逐面保正条件。
 - $\alpha_2$ 单独输运（`a2_star`），面体积通量和 $\bar u^e_f=\tfrac12(u_L+u_R)$ 记下（`ube`），给隐式增量用。
 
 ---
@@ -87,7 +87,7 @@ $$
 
 - $\bar\rho_f=\tfrac12(\rho_L+\rho_R)$，$w_L=\rho_R/(\rho_L+\rho_R)$（密度加权面压力，半格动量平衡）。
 - 声学补足的权 $\varphi=(1-\tau\min(c_L,c_R)/h)^+$：时间步分辨声波时才补到 Godunov 的耗散，低马赫 / 大步长时为 0（B4.1(b)）。
-- 二阶化 $\psi=1-(1-\psi_{\rm face})\phi_f$：$\psi_{\rm face}$ 由上一级压力（或 $u^*$）的 minmod 给出，只在共用限制因子允许二阶处（$\phi_f>0$）降低耗散。
+- 二阶化：压力项 $\psi^P=1-(1-\psi_{\rm face}[P])\phi_f$，$\psi_{\rm face}[P]$ 由上一级压力的 minmod 给出，只在共用限制因子允许二阶处（$\phi_f>0$）降低耗散（接触保护）；速度项 $\psi^u=\psi_{\rm face}[u^*]$，只看速度自身（体粘性，V14）。`limiter=0` 时 $\psi_{\rm face}$ 用中心斜率（$\psi D=X^R-X^L$，截到 $[0,1]$）。
 - 速度跳跃 $D^*_f$ 用面两端两个顶点散度的平均乘 $h$（B4.1(c)，V11）：一维与 y 向均匀时就是 $u_{i+1}-u_i$；二维中无散场在它的核里，低马赫一致。
 - 固壁面：$u_f=u_w$（静止壁 0；活塞时体积通量从虚格进入）。
 
@@ -147,4 +147,4 @@ $$
 
 ## E8. 这条路径上的已知限制（C 页“仍未解决”）
 
-光滑区收敛阶（IMEX 约 1.2–1.4）；SPB 4.3.2 的尾部误差；±500 m/s $pTg$ 的起步加热；十二烷微量汽相的拒绝；SPB 4.5 扇区误差；$M\le10^{-5}$ 的双精度底；活塞为固定网格近似。
+SPB 4.3.2 的尾部误差（V14 后 $L_1(u)$ 44，显式 HLLC 17）；$M\le10^{-5}$ 的双精度底（不修）；活塞为固定网格近似；NASG 十二烷平台窗口误差（0.070）。V14 解决了光滑区收敛阶（`limiter=0` 时 $L_1$、$L_2$ 都是 2）、±500 m/s 起步加热、SPB 4.5 扇区误差、十二烷微量汽相的拒绝。
