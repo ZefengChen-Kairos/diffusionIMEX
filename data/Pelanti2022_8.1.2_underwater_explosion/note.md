@@ -30,5 +30,6 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
+| `wall_pressure_history.dat` | Fig. 3: pressure at the wall centre (0, 0) vs time (columns: t [s], p [Pa]) | `case=73 snap=0.03e-3,0.06e-3,0.08e-3,0.21e-3,0.3e-3 probe=0,-1e-6` | FAILED: empty log |
 
 2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `x y p u v rho alpha2 Y2 T1 T2`, 8 significant digits, one line per cell.

@@ -34,5 +34,8 @@ P-S use a moving boundary; here the grid is fixed and the liquid enters through 
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
+| `bubble_compression_t0.4ms.dat.gz` | t = 0.4 ms | `case=72 snap=0.4e-3,0.8e-3,1.2e-3` | case 72 mode 1 order 2 rk 2 N 200 CFL 0.2 / steps 760 (rk1 61, mood 17) rejects 4 / stages 1480 newton it 3968 (2.68/stage) maxres 9.96e-14 / closure fails 0 / dM1/M 1.29e-01 dM2/M 8.42e+00 dE/E 1.52e-01 / wall 425.15 s |
+| `bubble_compression_t0.8ms.dat.gz` | t = 0.8 ms | `case=72 snap=0.4e-3,0.8e-3,1.2e-3` | case 72 mode 1 order 2 rk 2 N 200 CFL 0.2 / steps 760 (rk1 61, mood 17) rejects 4 / stages 1480 newton it 3968 (2.68/stage) maxres 9.96e-14 / closure fails 0 / dM1/M 1.29e-01 dM2/M 8.42e+00 dE/E 1.52e-01 / wall 425.15 s |
+| `bubble_compression_t1.2ms.dat.gz` | t = 1.2 ms | `case=72 snap=0.4e-3,0.8e-3,1.2e-3` | case 72 mode 1 order 2 rk 2 N 200 CFL 0.2 / steps 760 (rk1 61, mood 17) rejects 4 / stages 1480 newton it 3968 (2.68/stage) maxres 9.96e-14 / closure fails 0 / dM1/M 1.29e-01 dM2/M 8.42e+00 dE/E 1.52e-01 / wall 425.15 s |
 
 2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `x y p u v rho alpha2 Y2 T1 T2`, 8 significant digits, one line per cell.

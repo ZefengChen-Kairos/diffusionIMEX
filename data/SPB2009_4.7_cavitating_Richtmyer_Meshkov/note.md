@@ -30,5 +30,10 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
+| `cavitating_RM_t2ms.dat.gz` | t = 2 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | case 71 mode 1 order 2 rk 2 N 300 CFL 0.2 / steps 2316 (rk1 350, mood 162) rejects 41 / stages 4427 newton it 17204 (3.89/stage) maxres 1.73e-12 / closure fails 0 / dM1/M -4.04e-02 dM2/M 6.17e-02 dE/E -5.12e-02 / wall 832.16 s |
+| `cavitating_RM_t3.1ms.dat.gz` | t = 3.1 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | case 71 mode 1 order 2 rk 2 N 300 CFL 0.2 / steps 2316 (rk1 350, mood 162) rejects 41 / stages 4427 newton it 17204 (3.89/stage) maxres 1.73e-12 / closure fails 0 / dM1/M -4.04e-02 dM2/M 6.17e-02 dE/E -5.12e-02 / wall 832.16 s |
+| `cavitating_RM_t4.8ms.dat.gz` | t = 4.8 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | case 71 mode 1 order 2 rk 2 N 300 CFL 0.2 / steps 2316 (rk1 350, mood 162) rejects 41 / stages 4427 newton it 17204 (3.89/stage) maxres 1.73e-12 / closure fails 0 / dM1/M -4.04e-02 dM2/M 6.17e-02 dE/E -5.12e-02 / wall 832.16 s |
+| `cavitating_RM_t6.4ms.dat.gz` | t = 6.4 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | case 71 mode 1 order 2 rk 2 N 300 CFL 0.2 / steps 2316 (rk1 350, mood 162) rejects 41 / stages 4427 newton it 17204 (3.89/stage) maxres 1.73e-12 / closure fails 0 / dM1/M -4.04e-02 dM2/M 6.17e-02 dE/E -5.12e-02 / wall 832.16 s |
+| `cavitating_RM_t8.6ms.dat.gz` | t = 8.6 ms | `case=71 snap=2e-3,3.1e-3,4.8e-3,6.4e-3,8.6e-3` | case 71 mode 1 order 2 rk 2 N 300 CFL 0.2 / steps 2316 (rk1 350, mood 162) rejects 41 / stages 4427 newton it 17204 (3.89/stage) maxres 1.73e-12 / closure fails 0 / dM1/M -4.04e-02 dM2/M 6.17e-02 dE/E -5.12e-02 / wall 832.16 s |
 
 2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `x y p u v rho alpha2 Y2 T1 T2`, 8 significant digits, one line per cell.
