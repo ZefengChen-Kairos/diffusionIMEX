@@ -117,7 +117,8 @@ def levels(name, title, prefix, lev, var, exacts, P):
             panel(axs[i, j], v, curves, lab, *opt)
             if v in ('T12', 'g12'): two_phase(axs[i, j], v, curves)
         axs[0, j].set_title(head); axs[0, j].legend(loc='best', ncol=2)
-    fig.suptitle(title, fontsize=10); fig.tight_layout(rect=(0, 0, 1, 1 - 0.35 / fig.get_figheight())); fig.savefig(os.path.join(OUT, name + '.png'), dpi=110); plt.close(fig); print('wrote', name)
+    import textwrap; title = textwrap.fill(title, 95)
+    fig.suptitle(title, fontsize=9); fig.tight_layout(rect=(0, 0, 1, 1 - (0.2 + 0.15 * title.count('\n')) / fig.get_figheight())); fig.savefig(os.path.join(OUT, name + '.png'), dpi=110); plt.close(fig); print('wrote', name)
 
 
 def two_phase(ax, v, curves):   # liquid solid, vapour dashed (Pelanti Figs. 5-6)

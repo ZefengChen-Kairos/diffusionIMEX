@@ -159,7 +159,8 @@ for folder, paper, fig, desc, case, st, files, extra in T:
     if any(not o.endswith('.gz') and not r.endswith('.probe') for r, o, _ in files):
         note += ['1D/2D profile columns (`%s`, one line per cell, full precision):' % COLS1, '', COLS_DOC, '']
     open(os.path.join(d, 'note.md'), 'w').write('\n'.join(note))
-    index.append('| [%s](%s/note.md) | %s | %s | %s | %s |' % (folder, folder, paper.split(',')[0], fig, st['N'], cfl))
+    short = {'SPB2009': 'Saurel, Petitpas & Berry 2009', 'PS2014': 'Pelanti & Shyue 2014', 'Pelanti2022': 'Pelanti 2022', 'Gresho': "Gresho vortex (user's 2DEuler_TV.cpp)"}[folder.split('_')[0]]
+    index.append('| [%s](%s/note.md) | %s | %s | %s | %s |' % (folder, folder, short, fig, st['N'], cfl))
 open(os.path.join(DATA, 'README.md'), 'w').write('\n'.join([
     '# Data of the IMEX reproductions of the paper figures (V14)', '',
     'One folder per test; each has the data files and `note.md` (paper, figure, cells, CFL and all settings, command, run statistics).',
