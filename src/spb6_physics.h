@@ -570,10 +570,13 @@ struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boun
 	int bc[4] = {-1, -1, -1, -1};      // 每一边（左、右、下、上）单独给：BC_TRANS / BC_WALL；-1 表示用 xbc / ybc
 	double bcu[4] = {0, 0, 0, 0};      // 固壁的法向速度（沿 +x / +y 方向；活塞）
 	int sub = 1;                       // 初值的子格采样数（每方向）：圆形区域的格平均
-	int nx = -1, ny = -1, relax = -1; };   // 论文的网格与松弛档位（命令行 N= ny= relax= 覆盖）
+	int nx = -1, ny = -1, relax = -1;  // 论文的网格与松弛档位（命令行 N= ny= relax= 覆盖）
+	double cfl = -1;                   // IMEX 的物质 CFL（-1：程序默认 0.2）。声波本身是要解的结构时取小（B10，devlog V14）
+	int rus = -1; };                   // IMEX 显式 Rusanov 的耗散速度：1 每个面局部，0 全场最大（-1：默认 1）（B3，devlog V14）
 enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2 };
 int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
+int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
 static void parse_list(const std::string& v, std::vector<double>& out) { size_t a = 0; while (a < v.size()) { size_t b = v.find(',', a); if (b == std::string::npos) b = v.size(); out.push_back(std::atof(v.substr(a, b - a).c_str())); a = b + 1; } }
 inline double snap_limit(double t, double dt) { if (SNAPI < SNAP.size() && t + dt > SNAP[SNAPI]) return SNAP[SNAPI] - t; return dt; }
@@ -625,11 +628,15 @@ static bool test_setup(int test, TestSetup& S) {
 	case testPS_Cavitation2: case testPS_Cavitation500:
 		set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0);
 		S.tend = test == testPS_Cavitation2 ? 3.2e-3 : 0.58e-3; S.nx = 5000; break;
-	case testDodecaneSG: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.tend = 473e-6; S.nx = 2000; break;
+	case testDodecaneSG: set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.tend = 473e-6; S.nx = 2000;
+		S.cfl = 0.05; break;   // 液体中 1e8 Pa 的稀疏波是要解的结构：物质 CFL 0.2 时其声学 Courant 数约 0.9，LSDIRK2 的色散使平台压力偏低（devlog V14）
 	case testSPB_Interface: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 2.79e-3; S.nx = 200; break;
 	case testSPB_WaterAir: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 240e-6; S.nx = 1000; break;
 	case testSPB_WaterAirTPa: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 8.3e-6; S.nx = 1000; break;
-	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = test == testSPB_EpoxySpinel ? 80e-6 : 34e-6; S.nx = 500; break;
+	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = test == testSPB_EpoxySpinel ? 80e-6 : 34e-6; S.nx = 500;
+		if (test == testSPB_EpoxySpinel) S.cfl = 0.05;   // 5.1：激波与稀疏波都是声学结构（u << c），同上（devlog V14）
+		else S.rus = 0;                                  // 5.2：全场最大的 Rusanov 速度更好（L1(u) 118 对 124，devlog V14）
+		break;
 	case testSmoothGas: set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.tend = 5e-4; break;
 	case testSmoothWater: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1e-4; break;
 	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; S.nx = 5000; break;

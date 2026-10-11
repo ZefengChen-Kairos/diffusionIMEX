@@ -234,7 +234,7 @@ bool TVDReconstruction(Grid &u_con, PrimGrid &w, PrimGrid &w_xL, PrimGrid &w_xR,
 	w_xL.data = w.data; w_xR.data = w.data; w_yL.data = w.data; w_yR.data = w.data;
 	SpaceOrder = recon == NoRecon ? 1 : 2;
 	if (recon == NoRecon) return true;
-	auto mm = [](double a, double b) { return a * b > 0 ? (std::fabs(a) < std::fabs(b) ? a : b) : 0.0; };
+	auto mm = [](double a, double b) { if (!LIMITER) return 0.5 * (a + b); return a * b > 0 ? (std::fabs(a) < std::fabs(b) ? a : b) : 0.0; };
 	for (int dir = 0; dir < (nyCells > 1 ? 2 : 1); dir++) {
 		PrimGrid &WL = dir == 0 ? w_xL : w_yL, &WR = dir == 0 ? w_xR : w_yR;
 		#pragma omp parallel for schedule(static)
@@ -496,7 +496,7 @@ int main(int argc, char *argv[]){
 		else if (k == "relax") { RELAX_LEVEL = (int)d; gotRelax = true; } else if (k == "epsI") EPS_I = d;
 		else if (k == "mu") mu_rate = isinf_val ? INF : d; else if (k == "theta") theta_rate = isinf_val ? INF : d; else if (k == "nu") nu_rate = isinf_val ? INF : d;
 		else if (k == "verbose") VERBOSE = (int)d;
-		else if (k == "vtk") vtk_dir = val;
+		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }

@@ -39,7 +39,7 @@ enum dtCalculation{Fullydt, IMEXdt};
 
 dtCalculation caltimestep = IMEXdt;   // IMEXdt: 物质 CFL（起步除外）；Fullydt: 一直用声学 CFL
 Test test = testSPB_WaterAir;         // 切换算例：改这里（或命令行 case=N）。每个算例的区域、状态方程、各边边界条件、终止时间、论文网格、松弛档位
-                                      // 都在 spb6_physics.h 的 test_setup / test_state 里，命令行 N= ny= relax= tend= 可覆盖。
+                                      // 都在 spb6_physics.h 的 test_setup / test_state 里，物质 CFL 与 Rusanov 耗散速度（局部/全场）也按算例给（TestSetup::cfl、rus）；命令行 N= ny= relax= tend= cfl= rus= 可覆盖。
                                       // 一维：0 SPB 4.5 空化管 | 1, 2 P-S ±2 / ±500 m/s 水 | 3 十二烷 SG | 4 SPB 4.1 界面平移 | 5, 6 SPB 4.3.1 / 4.3.2 水-气
                                       //       12, 13 SPB 5.1 / 5.2 环氧-尖晶石 | 20, 21 光滑解 | 30 Pelanti 8.2.1 | 31 十二烷 NASG | 40, 41 0D 松弛
                                       //       60 SPB 4.2 硝基甲烷（Cochran-Chan）| 61 Pelanti 8.1.1 JWL-水
@@ -73,11 +73,12 @@ int timestep = 0;
 
 double x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1;
 double dx, dy;
-double vx_max, vy_max;                // Rusanov 耗散速度 a_Omega（x、y 方向）
+double vx_max, vy_max;                // Rusanov 耗散速度 a_Omega（x、y 方向，全场最大）
+int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0：全场最大 vx_max（按算例，TestSetup::rus；B3）
 
 std::string out_file = "out.dat", vtk_dir = "";
 long st_steps = 0, st_reject = 0, st_newton_it = 0, st_newton_calls = 0, st_stage = 0, st_rk1 = 0;
-double st_maxres = 0;
+double st_maxres = 0; long st_mood = 0;
 
 
 struct Tensor
@@ -211,15 +212,17 @@ void ucon2upri(Grid &u_pri,Grid &u_con){
 	}
 }
 
-// B3.1：中心部分与耗散都用重构面值（MUSCL-Rusanov），耗散速度为全局的 vx_max（物质速度，不小于面态速度）
+// B3.1：中心部分与耗散都用重构面值（MUSCL-Rusanov）。耗散速度是物质速度：RUS_LOCAL = 1 时取本面两侧面态速度的最大值
+// （B3 的保正条件是逐面的 a_f >= |u^L_f|, |u^R_f|），= 0 时取全场最大 vx_max（devlog V14）
 void RusanovC_x(double *flux, double *QL, double *QR){
 	double fL_c[NUM_VARS], fR_c[NUM_VARS];
 
 	f_convective(fL_c, QL);
 	f_convective(fR_c, QR);
+	const double a = RUS_LOCAL ? std::max(std::fabs(QL[IMU] / (QL[IM1] + QL[IM2])), std::fabs(QR[IMU] / (QR[IM1] + QR[IM2]))) : vx_max;
 
 	for(int k = 0; k < NUM_VARS; k++){
-		flux[k] = 0.5 * (fL_c[k] + fR_c[k]) - 0.5 * vx_max * (QR[k] - QL[k]);
+		flux[k] = 0.5 * (fL_c[k] + fR_c[k]) - 0.5 * a * (QR[k] - QL[k]);
 	}
 }
 
@@ -228,9 +231,10 @@ void RusanovC_y(double *flux, double *QL, double *QR){
 
 	g_convective(gL_c, QL);
 	g_convective(gR_c, QR);
+	const double a = RUS_LOCAL ? std::max(std::fabs(QL[IMV] / (QL[IM1] + QL[IM2])), std::fabs(QR[IMV] / (QR[IM1] + QR[IM2]))) : vy_max;
 
 	for(int k = 0; k < NUM_VARS; k++){
-		flux[k] = 0.5 * (gL_c[k] + gR_c[k]) - 0.5 * vy_max * (QR[k] - QL[k]);
+		flux[k] = 0.5 * (gL_c[k] + gR_c[k]) - 0.5 * a * (QR[k] - QL[k]);
 	}
 }
 
@@ -353,6 +357,7 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 					else if(k == IM1 || k == IM2) sc = std::fabs(xa) + std::fabs(xc) + std::fabs(xb);
 					else sc = esc[ca] + esc[cc] + esc[cb];
 					const double a = xc - xa, b = xb - xc, tiny = 1e-12 * sc + 1e-300;
+					if(!LIMITER) break;                                                   // 不限制（收敛阶试验）：phi = 1，斜率为中心差分
 					if(std::fabs(a) <= tiny && std::fabs(b) <= tiny) continue;          // 该量在模板内（到舍入）为常数：不约束
 					if(a * b <= 0){ phi = 0.0; break; }                                   // 极值点：minmod 斜率为 0
 					const double c = 0.5 * (a + b), m = std::fabs(a) < std::fabs(b) ? a : b;
@@ -372,7 +377,8 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 					const int k = d == 0 ? IMU : IMV;
 					const double va = u_con(ia,ja,k) / ra, vc = u_con(i,j,k) / rc, vb = u_con(ib,jb,k) / rb, a = vc - va, b = vb - vc;
 					double sl = 0.0;
-					if(!(std::fabs(a) <= tiny && std::fabs(b) <= tiny)){
+					if(!LIMITER) sl = 0.5 * (a + b);
+					else if(!(std::fabs(a) <= tiny && std::fabs(b) <= tiny)){
 						if(a * b > 0){ sl = std::fabs(a) < std::fabs(b) ? a : b; sm = std::min(sm, sl / (0.5 * (a + b))); }
 						else sm = 0.0;
 					}
@@ -792,6 +798,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 	auto psi_face = [&](double xm, double xL, double xR, double xp) {
 		if (SpaceOrder < 2) return 1.0;
 		const double D = xR - xL; if (D == 0.0) return 1.0;
+		if (!LIMITER) return std::min(1.0, std::max(0.0, 1.0 - 0.25 * ((xR - xm) + (xp - xL)) / D));   // 中心斜率：psi D = X^R - X^L
 		return 1.0 - 0.5 * (minmod(xL - xm, D) + minmod(D, xp - xR)) / D; };
 	// B4.1：u_f = ubar* - tau dP/(rhobar h) - phi psi_P dP/(Z_L + Z_R)，p_f = (rho_R P_L + rho_L P_R)/(rho_L + rho_R) - phi psi_u Z_L Z_R/(Z_L + Z_R) D*，
 	// phi = (1 - c tau/h)^+：时间步分辨声波时把声学耗散补足到 Godunov（c tau/h >= 1 时为 0，低马赫/大步长不受影响）
@@ -822,12 +829,14 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		const int di = iR - iL, dj = jR - jL, im = iL - di, jm = jL - dj, ip = iR + di, jp = jR + dj;
 		double psiP = 1.0, psiU = 1.0;
 		if (im >= 0 && jm >= 0 && ip < NXT && jp < NYT) {
-			// 只在所有被输运量都光滑处（共用限制因子 phi > 0，B3）才把耗散降到二阶：接触间断处 p、u 连续但阻抗跳跃，phi = 0 保持一阶耗散
+			// 压力项：只在所有被输运量都光滑处（共用限制因子 phi > 0，B3）才降到二阶：接触间断处 p、u 连续但阻抗跳跃，phi = 0 保持一阶耗散。
+			// 速度项（体粘性，作用在散度上）：只看 u 自身的光滑性。乘共用 phi 时，空化扇区里 alpha、m、eps 的极值使它变成一阶体粘性，
+			// 把膨胀的动能变成内能（P-S ±500 m/s 的起步加热、SPB 4.5 的扇区误差，devlog V14）
 			const Array& ph = ydir ? phy : phx;
 			const double phis = std::min(ph(iL, jL), ph(iR, jR));
 			psiP = 1.0 - (1.0 - psi_face(Pold(im, jm), Pold(iL, jL), Pold(iR, jR), Pold(ip, jp))) * phis;
 			const Array& V = ydir ? S.vst : S.ust;
-			psiU = 1.0 - (1.0 - psi_face(V(im, jm), uL, uR, V(ip, jp))) * phis;
+			psiU = psi_face(V(im, jm), uL, uR, V(ip, jp));
 		}
 		const double ZL = rL * cL, ZR = rR * cR;
 		kp += phi * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
@@ -990,17 +999,17 @@ void probe_write(Grid& u_con, bool first){
 
 int main(int argc, char *argv[]){
 	// ---- 命令行（2DEuler 用全局变量；这里允许 key=value 覆盖）
-	double tend_override = -1; bool gotN = false, gotNy = false, gotRelax = false;
+	double tend_override = -1; bool gotN = false, gotNy = false, gotRelax = false, gotCFL = false, gotRus = false;
 	for (int a = 1; a < argc; a++) {
 		char key[64]; char val[256]; if (sscanf(argv[a], "%63[^=]=%255s", key, val) != 2) { fprintf(stderr, "bad arg %s\n", argv[a]); return 1; }
 		std::string k(key); const double d = atof(val); const bool isinf_val = std::string(val) == "inf";
 		if (k == "case") test = (Test)(int)d; else if (k == "N" || k == "nx") { nxCells = (int)d; gotN = true; } else if (k == "ny") { nyCells = (int)d; gotNy = true; }
-		else if (k == "cfl") CFL = d; else if (k == "order") recon = (int)d < 2 ? NoRecon : Minmod; else if (k == "tend") tend_override = d; else if (k == "out") out_file = val;
+		else if (k == "cfl") { CFL = d; gotCFL = true; } else if (k == "order") recon = (int)d < 2 ? NoRecon : Minmod; else if (k == "tend") tend_override = d; else if (k == "out") out_file = val;
 		else if (k == "relax") { RELAX_LEVEL = (int)d; gotRelax = true; } else if (k == "epsI") EPS_I = d;
 		else if (k == "mu") mu_rate = isinf_val ? INF : d; else if (k == "theta") theta_rate = isinf_val ? INF : d; else if (k == "nu") nu_rate = isinf_val ? INF : d;
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
-		else if (k == "vtk") vtk_dir = val;
+		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1013,6 +1022,8 @@ int main(int argc, char *argv[]){
 	if (!gotN && TS.nx > 0) nxCells = TS.nx;
 	if (!gotNy && TS.ny > 0) nyCells = TS.ny;
 	if (!gotRelax && TS.relax >= 0) RELAX_LEVEL = TS.relax;
+	if (!gotCFL && TS.cfl > 0) CFL = TS.cfl;
+	if (!gotRus && TS.rus >= 0) RUS_LOCAL = TS.rus;
 	// 松弛档位的默认速率（relax >= 1 时热松弛默认瞬时，relax = 2, 3 化学默认瞬时；可由 theta=, nu= 覆盖为有限值）
 	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
 	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
@@ -1086,7 +1097,8 @@ int main(int argc, char *argv[]){
 
 		bool done = false;
 		for (int attempt = 0; attempt < 30 && !done; attempt++) {
-			const int rk = (RAMP && ramping) ? 1 : RKs; if (rk == 1) st_rk1++;
+			const bool lowered = attempt == 1 && RKs > 1 && !(RAMP && ramping);   // 上一次尝试不可容许：同一步长改用一阶（B10 的 MOOD 回退）
+			const int rk = ((RAMP && ramping) || lowered) ? 1 : RKs; if (rk == 1) st_rk1++; if (lowered) st_mood++;
 			set_tab(rk);
 			if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // B6.7
 			copy(u_con_n,u_con);
@@ -1127,6 +1139,9 @@ int main(int argc, char *argv[]){
 				}
 			}
 			if (ok) { copy(u_con, Ust); P = Pst; done = true; }
+			// 不可容许的处理（B10）：先在同一步长上改用一阶（后向 Euler 级 Qs = Qe，显式预测满足 B3 的保正条件）；仍不可容许才减半步长。
+			// IMEX-RK 第二级的 X* = Qs - r div F(Qe) 中 Qs != Qe，B3 的保正论证不成立，微量相可变负（十二烷，devlog V14）
+			if (!done && attempt == 0 && RKs > 1 && !(RAMP && ramping)) continue;
 			if (!done) { st_reject++; dt *= 0.5; if (VERBOSE) fprintf(stderr, "reject: t %.4e new dt %.3e\n", t, dt); }
 		}
 		if (!done) { fprintf(stderr, "FAILED at t = %.6e (step %ld)\n", t, st_steps); write_profile(u_con, out_file); return 2; }
@@ -1141,8 +1156,8 @@ int main(int argc, char *argv[]){
 	double M1[3]; conserved_totals(u_con, M1);
 	if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // 输出前同样做激活投影（P-S：输出的是松弛后的态）
 	write_profile(u_con, out_file);
-	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
-		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_cl_fail,
+	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
+		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
 	return 0;
 }
