@@ -201,7 +201,7 @@ enum ClosureType { CL_P = 0, CL_MU = 1, CL_PT = 2, CL_THETA = 3, CL_NU = 4, CL_P
 struct ClIn {
 	double atr[2], mtr[2], etr[2];   // 输运态（未压回单位体积）
 	double s;                        // 体积应变 s = 1 - sum atr
-	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2；与 sum etr 之差（能量亏损）按质量分数分给两相（B5.2）
+	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2；与 sum etr 之差（能量亏损）分给两相（B5.2，delta_lam）
 	double tau;                      // 级的隐式步长 a_ii dt
 	double Z[2];                     // 有限 mu 时的阻抗（冻结）
 	int type;
@@ -215,12 +215,24 @@ static const double YMIN = 1e-10;
 // 按质量分数 lam_k = Y_k 分给两相（B5.2）：单速度模型里第 k 相的动能是 1/2 alpha_k rho_k |u|^2（P-S 2014 §2.2 的相总能形式），
 // 耗散的动能按质量分配。SPB 3.4 的重初始化（alpha 固定、整体平移 p）相当于 lam_k ∝ de_k/dp|alpha ∝ alpha_k/(gamma_k - 1)，
 // 把耗散的动能主要交给可压缩性最大的相（气/汽），质量极小的轻相因此被加热到 1e5-1e6 K（devlog V10）。
+// 能量亏损的分配系数（B5.2）：D0 >= 0 按质量分数；D0 < 0（要从相内能里扣掉能量，V14）按各相在可容许界之上的能量
+// E_k = eps_k - m_k q_k - (alpha_k - m_k b_k) pi_k = (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1) 分配，各相的 p_k + pi_k 同乘 (1 + D0/sum E) > 0，
+// 扣完仍可容许。按质量分配时，膨胀到真空的微量气体（E_k -> 0）会被扣成负能量（空化 RM，devlog V14）。MG 相仍按质量（只做力学松弛）
+static void delta_lam(const ClIn& in, double D0, double lam[2]) {
+	double den = 0.0;
+	for (int k = 0; k < 2; k++) { lam[k] = in.mtr[k]; den += lam[k]; }
+	for (int k = 0; k < 2; k++) lam[k] = den > 0 ? lam[k] / den : 0.5;
+	if (D0 < 0.0 && !mg_any()) {
+		double Ek[2], sE = 0.0;
+		for (int k = 0; k < 2; k++) { Ek[k] = std::max(0.0, in.etr[k] - in.mtr[k] * PH[k].q - (in.atr[k] - in.mtr[k] * PH[k].b) * PH[k].pi); sE += Ek[k]; }
+		if (sE > 0.0) for (int k = 0; k < 2; k++) lam[k] = Ek[k] / sE;
+	}
+}
 struct PCoef { double A[2], B[2], N[2], lam[2]; };
 static bool p_coef(const ClIn& in, PCoef& c) {
-	double den = 0.0;
-	for (int k = 0; k < 2; k++) { c.lam[k] = in.nodelta ? 0.0 : in.mtr[k]; den += c.lam[k]; }
-	if (!in.nodelta) { if (!(den > 0)) return false; for (int k = 0; k < 2; k++) c.lam[k] /= den; }
+	if (!in.nodelta && !(in.mtr[0] + in.mtr[1] > 0)) return false;
 	const double D0 = in.nodelta ? 0.0 : in.rhoeC - in.etr[0] - in.etr[1];
+	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0; else delta_lam(in, D0, c.lam);
 	for (int k = 0; k < 2; k++) {
 		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + c.lam[k] * D0;
 		c.B[k] = in.atr[k] + c.lam[k] * in.s;
@@ -338,10 +350,8 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 	const double sa = in.atr[0] + in.atr[1];
 	const double om[2] = {in.atr[0] / sa, in.atr[1] / sa};
 	const double ak[2] = {in.atr[0] / sa, in.atr[1] / sa};   // a_k = atr_k + om_k s = atr_k / (1 - s)
-	double lam[2], den = 0.0;
-	for (int k = 0; k < 2; k++) { lam[k] = in.mtr[k]; den += lam[k]; }   // 能量亏损按质量分数分给两相（同 p_coef）
-	for (int k = 0; k < 2; k++) lam[k] /= den;
 	const double D0 = in.rhoeC - in.etr[0] - in.etr[1];
+	double lam[2]; delta_lam(in, D0, lam);   // 同 p_coef
 	const double w1 = in.Z[1] / (in.Z[0] + in.Z[1]), w2 = 1.0 - w1;
 	auto solve = [&](double R, double& p1, double& p2) -> bool {
 		const double a1 = ak[0] + R, a2 = ak[1] - R;
@@ -656,10 +666,12 @@ static bool test_setup(int test, TestSetup& S) {
 		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.sub = 4; S.nx = 600; S.ny = 160; break;
 	case testSPB_RM:         // 3 m x 1 m；左、上、下为固壁，右为出流；水 SG (4.4, 6e8)，气 gamma = 1.8（SPB；P-S 用 1.4）
 		set_SG(0, 4.4, 6e8); set_SG(1, 1.8, 0); S.x0 = 0; S.x1 = 3; S.y0 = 0; S.y1 = 1; S.tend = 8.6e-3;
-		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.bc[0] = BC_WALL; S.sub = 4; S.nx = 300; S.ny = 100; break;   // P-S 5.3 的网格（SPB 用 900 x 400：N=900 ny=400）
+		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.bc[0] = BC_WALL; S.sub = 4; S.nx = 300; S.ny = 100;
+		S.rus = 0; break;   // 全场最大 Rusanov 速度（局部时 18842 次拒绝，devlog V14）   // P-S 5.3 的网格（SPB 用 900 x 400：N=900 ny=400）
 	case testPS_BubbleComp:  // 单位正方形，汽泡半径 0.2 m 居中；四周固壁，左壁为活塞 100 m/s（网格不动：活塞面固定在 x = 0，液体从该面进入）
 		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45);
-		S.tend = 1.2e-3; S.xbc = x_Reflective; S.ybc = y_Reflective; S.bcu[0] = 100.0; S.sub = 4; S.nx = 200; S.ny = 200; S.relax = 2; break;
+		S.tend = 1.2e-3; S.xbc = x_Reflective; S.ybc = y_Reflective; S.bcu[0] = 100.0; S.sub = 4; S.nx = 200; S.ny = 200; S.relax = 2;
+		S.rus = 0; break;   // 全场最大 Rusanov 速度（局部时界面旁微量汽相质量为负的舍入，devlog V14）
 	case testPel_UNDEX:      // [-1.35, 1.35] x [-1.5, 0] m，y = 0 为固壁，其余透射；气泡中心 (0, -0.32) m，半径 0.05 m
 		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
 		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
