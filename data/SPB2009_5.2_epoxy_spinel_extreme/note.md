@@ -21,7 +21,7 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V14), code commit `622bda6`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V14), code commit `c4d60d3`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (global maximum speed, `rus=0`); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
@@ -30,7 +30,7 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
-| `epoxy_spinel_extreme_t34us.dat` | t = 34 us | `case=13 N=500` | case 13 mode 1 order 2 rk 2 N 500 CFL 0.2 / steps 364 (rk1 5, mood 0) rejects 0 / stages 723 newton it 2169 (3.00/stage) maxres 4.86e-14 / closure fails 0 / dM1/M 1.77e-08 dM2/M 1.77e-08 dE/E 3.55e-08 / wall 3.00 s |
+| `epoxy_spinel_extreme_t34us.dat` | t = 34 us | `case=13 N=500` | case 13 mode 1 order 2 rk 2 N 500 CFL 0.2 / steps 364 (rk1 5, mood 0) rejects 0 / stages 723 newton it 2170 (3.00/stage) maxres 6.04e-14 / closure fails 0 / dM1/M 1.77e-08 dM2/M 1.77e-08 dE/E 3.56e-08 / wall 3.37 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 

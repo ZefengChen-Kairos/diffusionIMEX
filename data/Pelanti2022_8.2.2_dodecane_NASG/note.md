@@ -21,7 +21,7 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V14), code commit `622bda6`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V14), code commit `c4d60d3`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
@@ -30,8 +30,8 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
-| `p_relax.dat` | p | `case=31 N=2000 relax=0` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1145 (rk1 5, mood 0) rejects 0 / stages 2285 newton it 4579 (2.00/stage) maxres 7.69e-14 / closure fails 0 / dM1/M -9.00e-15 dM2/M 2.61e-15 dE/E -3.79e-14 / wall 28.55 s |
-| `pTg_relax.dat` | pTg | `case=31 N=2000 relax=2` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1326 (rk1 5, mood 0) rejects 0 / stages 2647 newton it 5311 (2.01/stage) maxres 8.22e-14 / closure fails 0 / dM1/M -5.41e-04 dM2/M 4.05e-01 dE/E -4.02e-14 / wall 37.20 s |
+| `p_relax.dat` | p | `case=31 N=2000 relax=0` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1145 (rk1 5, mood 0) rejects 0 / stages 2285 newton it 4579 (2.00/stage) maxres 7.65e-14 / closure fails 0 / dM1/M -1.15e-14 dM2/M 2.73e-15 dE/E -3.88e-14 / wall 30.17 s |
+| `pTg_relax.dat` | pTg | `case=31 N=2000 relax=2` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1327 (rk1 5, mood 0) rejects 0 / stages 2649 newton it 5312 (2.01/stage) maxres 9.59e-14 / closure fails 0 / dM1/M -5.41e-04 dM2/M 4.06e-01 dE/E -4.08e-14 / wall 38.44 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 
