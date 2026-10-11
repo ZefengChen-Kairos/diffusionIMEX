@@ -16,7 +16,7 @@
 | 时间步 | 物质 CFL：$\Delta t=C/(\max\lvert u\rvert/\Delta x+\max\lvert v\rvert/\Delta y)$，$C=0.2$；十二烷 SG（算例 3）与 SPB 5.1（算例 12）$C=0.05$（`TestSetup::cfl`，B10） | 声学 CFL：$\Delta t=0.4/(\max(\lvert u\rvert+c_f)/\Delta x+\dots)$ |
 | 起步 | 首步取声学 CFL 0.4 的步长，之后每步至多放大 1.2 倍，被限制的步用一阶 | — |
 | 空间 | 二阶 MUSCL（minmod），B3 | 原始变量 minmod（SPB 附录 C） |
-| 通量 | Rusanov，耗散速度为逐面局部物质速度 $\max(\lvert u^L_f\rvert,\lvert u^R_f\rvert)$；SPB 5.2（算例 13）取全场最大 $a_\Omega$（BB (27)）（`TestSetup::rus`，B3） | HLLC（SPB 3.1.2） |
+| 通量 | Rusanov，耗散速度为逐面局部物质速度 $\max(\lvert u^L_f\rvert,\lvert u^R_f\rvert)$；SPB 5.2、空化 RM、汽泡压缩（算例 13、71、72）取全场最大 $a_\Omega$（BB (27)）（`TestSetup::rus`，B3） | HLLC（SPB 3.1.2） |
 | 压力/声学 | 隐式（B4–B8） | 显式（HLLC） |
 | 松弛 | 统一闭合，在隐式压力方程里（B5、B6） | 每级之后的瞬时投影 + 每步一次有限速率（A3） |
 | Newton 容差 | $10^{-13}$（相对 $\lvert P\rvert+K+P_E$），至多 60 次 | — |
@@ -110,7 +110,7 @@ $$
 
 ## E5. 统一闭合（B5、B6，`closure` in `spb6_physics.h`）
 
-所有闭合共用离散 Gibbs 关系 (B6.1) $\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\lambda_k\delta$，能量亏损 $\delta=D_0+ps$ 按质量分数 $\lambda_k=Y_k$ 分给两相（V10，B5.2）。按格的类型：
+所有闭合共用离散 Gibbs 关系 (B6.1) $\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\lambda_k\delta$，能量亏损 $\delta=D_0+ps$ 分给两相（B5.2，`delta_lam`）：$D_0\ge0$ 按质量分数 $\lambda_k=Y_k$（V10），$D_0<0$ 按各相在可容许界之上的能量 $E_k=(p_k+\pi_k)(\alpha_k-m_kb_k)/(\gamma_k-1)$（V14，扣完仍可容许）。按格的类型：
 
 | 类型 | 速率 | 方程 | 节 |
 |---|---|---|---|

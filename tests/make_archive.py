@@ -113,7 +113,7 @@ T = [
   'Cases 50-55, fixed time step `dt=0.0025` (no CFL, no start-up ramp).'),
 ]
 CFL = {3: '0.05', 12: '0.05'}
-RUS = {13: 'global maximum speed, `rus=0`'}
+RUS = {13: 'global maximum speed, `rus=0`', 71: 'global maximum speed, `rus=0`', 72: 'global maximum speed, `rus=0`'}
 ARGS = {}   # command line per raw name, from tests/run_archive.sh
 for line in open(os.path.join(H, 'run_archive.sh')):
     for m in re.finditer(r'"(\w+)\|([^"]+)"', line): ARGS[m.group(1)] = m.group(2)

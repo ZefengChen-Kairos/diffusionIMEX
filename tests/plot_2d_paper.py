@@ -7,7 +7,8 @@ from plot_2d import field, LAB, CMAP
 
 RUN, OUT = sys.argv[1], sys.argv[2]; ONLY = sys.argv[3:]
 os.makedirs(OUT, exist_ok=True)
-SETUP = 'IMEX: TV-split, LSDIRK2, material CFL 0.2, local Rusanov speed'
+SETUP = 'IMEX: TV-split, LSDIRK2, material CFL 0.2, %s Rusanov speed'
+RUS = {'rm': 'global', 'bub': 'global'}
 FIGS = {   # name: (title, times, variables, figure file)
     'he': ('SPB 2009 Figs. 13-14: Mach 1.5 shock in air / helium bubble, 600 x 160', ['134', '274', '344', '554'], ['schlieren', 'a1'], 'spb13'),
     'rm': ('SPB 2009 Figs. 15-17: cavitating Richtmyer-Meshkov, 300 x 100 (P-S grid)', ['2', '3.1', '4.8', '6.4', '8.6'], ['rho', 'a1'], 'spb16'),
@@ -32,7 +33,7 @@ for name, (title, times, vars_, fig_name) in FIGS.items():
                 ax.set_aspect('equal'); ax.tick_params(labelsize=6)
                 if v != 'schlieren': fig.colorbar(im, ax=ax, fraction=0.046 * max(asp, 0.3), pad=0.02).ax.tick_params(labelsize=6)
                 ax.set_title('%s, t = %s %s: %s' % (lab, tt, UNIT[name], LAB.get(v, v)), fontsize=7)
-    fig.suptitle(title + '\n' + SETUP, fontsize=9); fig.tight_layout(); fig.savefig(os.path.join(OUT, fig_name + '.png'), dpi=100); plt.close(fig); print('wrote', fig_name)
+    fig.suptitle(title + '\n' + SETUP % RUS.get(name, 'local'), fontsize=9); fig.tight_layout(); fig.savefig(os.path.join(OUT, fig_name + '.png'), dpi=100); plt.close(fig); print('wrote', fig_name)
 
 if (not ONLY or 'undex' in ONLY):   # Pelanti Fig. 3: pressure history at the wall centre (0, 0)
     pr = [('IMEX', os.path.join(RUN, 'undex.dat.probe'))]
@@ -41,5 +42,5 @@ if (not ONLY or 'undex' in ONLY):   # Pelanti Fig. 3: pressure history at the wa
         for (lab, f), kw in zip(pr, (dict(color='tab:red'),)):
             d = np.loadtxt(f); ax.plot(d[:, 0] * 1e3, d[:, 1] / 1e9, label=lab, **kw)
         ax.set_xlabel('t (ms)'); ax.set_ylabel('p at (0, 0) (GPa)'); ax.grid(alpha=0.3); ax.legend()
-        ax.set_title('Pelanti 2022 Fig. 3: wall pressure at the centre (0, 0)\n' + SETUP, fontsize=8)
+        ax.set_title('Pelanti 2022 Fig. 3: wall pressure at the centre (0, 0)\n' + SETUP % 'local', fontsize=8)
         fig.tight_layout(); fig.savefig(os.path.join(OUT, 'pel3.png'), dpi=110); plt.close(fig); print('wrote pel3')
