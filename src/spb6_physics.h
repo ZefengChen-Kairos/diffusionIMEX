@@ -569,6 +569,7 @@ enum Test {
 	testGresho4 = 53,             //   M = 1e-4
 	testGresho5 = 54,             //   M = 1e-5
 	testGresho6 = 55,             //   M = 1e-6
+	testVortexBB = 56,            // Battisti-Boscheri 4.1 两相等熵涡（Hu-Shu 型，周期，平移一周回到初值：精确解就是初值）；背景压力 p0 = VORTEX_P0（命令行 p0=）
 	testSPB_Nitromethane = 60,    // SPB 2009 4.2  硝基甲烷激波管（Cochran-Chan，同一流体当两相），20 GPa / 0.2 MPa
 	testPel_JWLWater = 61,        // Pelanti 2022 8.1.1  爆轰气体（JWL）-水（NASG）激波管
 	testSPB_HeBubble = 70,        // SPB 2009 4.6  二维：空气中 Mach 1.5 激波打氦气泡（Layes & Le Métayer）
@@ -586,6 +587,7 @@ struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boun
 enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2 };
 int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
+double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4）
 int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
 static void parse_list(const std::string& v, std::vector<double>& out) { size_t a = 0; while (a < v.size()) { size_t b = v.find(',', a); if (b == std::string::npos) b = v.size(); out.push_back(std::atof(v.substr(a, b - a).c_str())); a = b + 1; } }
@@ -654,6 +656,9 @@ static bool test_setup(int test, TestSetup& S) {
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
 		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; S.nx = 80; S.ny = 80; break;
+	case testVortexBB:   // Battisti-Boscheri 4.1：[-5, 5]^2 周期，gamma_f = 1.35（相 1）、gamma_s = 1.4（相 2），平移 (2, 2)，t = 5 正好一周
+		set_SG(0, 1.35, 0); set_SG(1, 1.4, 0); S.x0 = -5; S.x1 = 5; S.y0 = -5; S.y1 = 5; S.tend = 5.0; S.xbc = x_Periodic; S.ybc = y_Periodic;
+		S.sub = 4; S.nx = 40; S.ny = 40; S.relax = 0; break;   // 初值取 4 x 4 子点的格平均（误差按格平均比较）
 	case testSPB_Nitromethane:   // SPB 4.2：Gamma = 1.19，rho_ref = 1134，A1 = 0.819181e9，A2 = 1.50835e9，E1 = 4.52969，E2 = 1.42144；界面位置论文未写，取 0.5 m
 		for (int k = 0; k < 2; k++) { PH[k] = Phase{}; PH[k].kind = 1; PH[k].G = 1.19; PH[k].rr = 1134.0; PH[k].c1 = 0.819181e9; PH[k].c2 = 1.50835e9; PH[k].e1 = 4.52969; PH[k].e2 = 1.42144; PH[k].g = 2.19; }
 		S.tend = 67e-6; S.nx = 500; break;
@@ -722,6 +727,14 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPel_Cavitation: { const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
 	case testRelax0DChem: { const double T0 = 380.0, p0 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
 	case testRelax0D: { const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
+	case testVortexBB: {   // Hu-Shu 涡（eps = 5），T = p0 + dT，rho = (T / p0)^(1/(gamma-1))，p = rho T（gamma = 1.4）：dp/dr = rho u_theta^2 / r 与 p0 无关，
+		// 速度扰动与 p0 无关，密度扰动 ~ 1/p0（与论文表 1 中 L2(rho_s phi_s) 随 p0 减小、L2(动量)、L2(phi_s) 不变一致）。
+		// 单速度模型要求两相同压（否则 (p1 - p2) grad alpha 破坏径向平衡）：两相取同一 rho、p，alpha2 为被动输运的光滑分布。
+		// div u = 0、alpha 与熵沿流线不变，故平移解精确（devlog V15）。Dumbser 等 [67] 的 BN 原设置（两速度、两压力）在单速度模型里不可用。
+		const double g = 1.4, eps = 5.0, p0 = VORTEX_P0, r2 = x * x + y * y;
+		const double du = eps / (2 * M_PI) * std::exp(0.5 * (1 - r2)), dT = -(g - 1) * eps * eps / (8 * g * M_PI * M_PI) * std::exp(1 - r2);
+		const double T = p0 + dT, rho = std::pow(T / p0, 1.0 / (g - 1)), p = rho * T, a2 = 0.5 + 0.25 * std::exp(0.5 * (1 - r2));
+		setcell(1 - a2, rho, rho, 2.0 - du * y, 2.0 + du * x, p, p); break; }
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6: {   // 2DEuler_TV.cpp 的 testGreshoVortex：rho = 1，p0 = 1/(gamma M^2)，最大速度 1（r = 0.2）
 		static const double Ms[6] = {1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6};
 		const double M = Ms[test - testGresho1], p0 = 1.0 / (1.4 * M * M), r = std::sqrt(x * x + y * y);

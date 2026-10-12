@@ -43,7 +43,7 @@ Test test = testSPB_WaterAir;         // 切换算例：改这里（或命令行
                                       // 一维：0 SPB 4.5 空化管 | 1, 2 P-S ±2 / ±500 m/s 水 | 3 十二烷 SG | 4 SPB 4.1 界面平移 | 5, 6 SPB 4.3.1 / 4.3.2 水-气
                                       //       12, 13 SPB 5.1 / 5.2 环氧-尖晶石 | 20, 21 光滑解 | 30 Pelanti 8.2.1 | 31 十二烷 NASG | 40, 41 0D 松弛
                                       //       60 SPB 4.2 硝基甲烷（Cochran-Chan）| 61 Pelanti 8.1.1 JWL-水
-                                      // 二维：50-55 Gresho 涡（M = 1e-1 ... 1e-6）| 70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
+                                      // 二维：50-55 Gresho 涡（M = 1e-1 ... 1e-6）| 56 两相等熵涡（Battisti-Boscheri 4.1，p0=）| 70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
                                       //       72 P-S 5.4 十二烷汽泡压缩（relax 2）| 73 Pelanti 8.1.2 近壁水下爆炸
 x_boundary_condition x_bc;
 y_boundary_condition y_bc;
@@ -1010,6 +1010,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
+		else if (k == "p0") VORTEX_P0 = d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1042,6 +1043,7 @@ int main(int argc, char *argv[]){
 	u_initialization(u_con);
 	bound_cond_u(u_con);
 	double M0[3]; conserved_totals(u_con, M0);
+	Grid u_init(nxCells, nyCells); copy(u_init, u_con);   // 算例 56：平移一周后的精确格平均就是初值
 
 	const int plotINTERVAL = 0;
 	std::vector<double> IntermediatePlotTimes = {0.25 * time_stop, 0.5 * time_stop, 0.75 * time_stop, time_stop};
@@ -1156,6 +1158,16 @@ int main(int argc, char *argv[]){
 	double M1[3]; conserved_totals(u_con, M1);
 	if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // 输出前同样做激活投影（P-S：输出的是松弛后的态）
 	write_profile(u_con, out_file);
+	if (test == testVortexBB) {   // L2 = sqrt(sum e^2 dx dy)（论文表 1 的量：alpha2 rho2、alpha2 rho2 u、alpha2；另加 p、u）
+		double e[5] = {0, 0, 0, 0, 0};
+		for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) {
+			const double* Q = u_con.cell(IG(i), IG(j)); const double* Q0 = u_init.cell(IG(i), IG(j));
+			const double u1 = Q[IMU] / (Q[IM1] + Q[IM2]), u0 = Q0[IMU] / (Q0[IM1] + Q0[IM2]);
+			const double d[5] = {Q[IM2] - Q0[IM2], Q[IM2] * u1 - Q0[IM2] * u0, Q0[IA1] - Q[IA1], pbar_of(Q) - pbar_of(Q0), u1 - u0};
+			for (int k = 0; k < 5; k++) e[k] += d[k] * d[k] * dx * dy;
+		}
+		printf("L2 p0 %g N %d | a2r2 %.4e a2r2u %.4e a2 %.4e p %.4e u %.4e\n", VORTEX_P0, nxCells, std::sqrt(e[0]), std::sqrt(e[1]), std::sqrt(e[2]), std::sqrt(e[3]), std::sqrt(e[4]));
+	}
 	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
 		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
