@@ -93,7 +93,7 @@ T = [
   [('pel811', 'JWL_water_t0.9ms.dat', 't = 0.9 ms')], 'Exact solution: `python3 tests/exact_mg.py 61 -10 10 N` (p* = 2.191e10 Pa, u* = 2397 m/s).'),
  ('Pelanti2022_8.1.2_underwater_explosion', 'Pelanti (2022), Sec. 8.1.2', 'Figs. 2-3',
   'Gas bubble (JWL state of 8.1.1, radius 0.05 m, centre (0, -0.32) m) in water below a rigid wall at y = 0.',
-  73, dict(N='721 x 400', dom='[-1.35, 1.35] x [-1.5, 0] m', bc='top (y = 0) wall, others transmissive', eos='as Pelanti2022_8.1.1_JWL_water', relax='p'),
+  73, dict(N='361 x 200 (half the paper grid 721 x 400: the IMEX run on the paper grid takes about 14 h; `N=721 ny=400` reproduces it)', dom='[-1.35, 1.35] x [-1.5, 0] m', bc='top (y = 0) wall, others transmissive', eos='as Pelanti2022_8.1.1_JWL_water', relax='p'),
   [('undex_s0', 'UNDEX_t0.03ms.dat.gz', 't = 0.03 ms'), ('undex_s1', 'UNDEX_t0.06ms.dat.gz', 't = 0.06 ms'), ('undex_s2', 'UNDEX_t0.08ms.dat.gz', 't = 0.08 ms'),
    ('undex_s3', 'UNDEX_t0.21ms.dat.gz', 't = 0.21 ms'), ('undex_s4', 'UNDEX_t0.3ms.dat.gz', 't = 0.3 ms'), ('undex.dat.probe', 'wall_pressure_history.dat', 'Fig. 3: pressure at the wall centre (0, 0) vs time (columns: t [s], p [Pa])')], ''),
  ('Pelanti2022_8.2.1_water_cavitation', 'Pelanti (2022), Sec. 8.2.1', 'Figs. 4-5',

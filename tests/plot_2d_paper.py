@@ -13,7 +13,7 @@ FIGS = {   # name: (title, times, variables, figure file)
     'he': ('SPB 2009 Figs. 13-14: Mach 1.5 shock in air / helium bubble, 600 x 160', ['134', '274', '344', '554'], ['schlieren', 'a1'], 'spb13'),
     'rm': ('SPB 2009 Figs. 15-17: cavitating Richtmyer-Meshkov, 300 x 100 (P-S grid)', ['2', '3.1', '4.8', '6.4', '8.6'], ['rho', 'a1'], 'spb16'),
     'bub': ('P-S 2014 Fig. 5: dodecane vapour bubble compressed by a piston (100 m/s), relax 2, 200 x 200', ['0.4', '0.8', '1.2'], ['Y2', 'pbar'], 'ps5'),
-    'undex': ('Pelanti 2022 Fig. 2: underwater explosion near a wall, 721 x 400', ['0.03', '0.06', '0.08', '0.21', '0.3'], ['logp', 'a1'], 'pel2'),
+    'undex': ('Pelanti 2022 Fig. 2: underwater explosion near a wall, 361 x 200 (half the paper grid)', ['0.03', '0.06', '0.08', '0.21', '0.3'], ['logp', 'a1'], 'pel2'),
 }
 UNIT = {'he': 'us', 'rm': 'ms', 'bub': 'ms', 'undex': 'ms'}
 

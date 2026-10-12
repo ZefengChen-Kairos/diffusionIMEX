@@ -675,7 +675,7 @@ static bool test_setup(int test, TestSetup& S) {
 	case testPel_UNDEX:      // [-1.35, 1.35] x [-1.5, 0] m，y = 0 为固壁，其余透射；气泡中心 (0, -0.32) m，半径 0.05 m
 		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
 		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
-		S.x0 = -1.35; S.x1 = 1.35; S.y0 = -1.5; S.y1 = 0.0; S.tend = 0.4e-3; S.xbc = x_Transmissive; S.ybc = y_Transmissive; S.bc[3] = BC_WALL; S.sub = 4; S.nx = 721; S.ny = 400; break;
+		S.x0 = -1.35; S.x1 = 1.35; S.y0 = -1.5; S.y1 = 0.0; S.tend = 0.4e-3; S.xbc = x_Transmissive; S.ybc = y_Transmissive; S.bc[3] = BC_WALL; S.sub = 4; S.nx = 361; S.ny = 200; break;   // 论文网格 721 x 400（N=721 ny=400）IMEX 约 14 h；默认用一半分辨率（devlog V14）
 	default: return false;
 	}
 	return true;

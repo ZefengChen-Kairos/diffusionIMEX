@@ -139,6 +139,7 @@ $$
 
 - 每一边单独：透射、固壁（法向速度 $2u_w-u$，可带活塞速度）、周期（`bc_apply`，两个程序共用）。
 - 初值：圆形区域 $4\times4$ 子点平均。
+- 网格：各算例的论文网格（`TestSetup::nx, ny`）；只有 Pelanti 8.1.2 水下爆炸默认用一半分辨率 $361\times200$（论文 $721\times400$ 的 IMEX 运行约 14 h，`N=721 ny=400` 可复现）。
 - 每个算例的区域、状态方程、各边边界、终止时间、论文网格、松弛档位都在 `test_setup` / `test_state`；切换算例改 `Test test = ...;` 或 `case=N`（清单见程序顶部）。
 - OpenMP：逐格循环与 BiCGStab；结果与线程数无关，一维输出与串行逐字节相同。
 - 输出列：`x y p u v rho alpha2 Y2 rho1 rho2 c_f c_W T1 T2 p1 p2 g1-g2`（`prec=` 有效位数，默认 16）。
