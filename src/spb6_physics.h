@@ -215,17 +215,32 @@ static const double YMIN = 1e-10;
 // 按质量分数 lam_k = Y_k 分给两相（B5.2）：单速度模型里第 k 相的动能是 1/2 alpha_k rho_k |u|^2（P-S 2014 §2.2 的相总能形式），
 // 耗散的动能按质量分配。SPB 3.4 的重初始化（alpha 固定、整体平移 p）相当于 lam_k ∝ de_k/dp|alpha ∝ alpha_k/(gamma_k - 1)，
 // 把耗散的动能主要交给可压缩性最大的相（气/汽），质量极小的轻相因此被加热到 1e5-1e6 K（devlog V10）。
-// 能量亏损的分配系数（B5.2）：D0 >= 0 按质量分数；D0 < 0（要从相内能里扣掉能量，V14）按各相在可容许界之上的能量
-// E_k = eps_k - m_k q_k - (alpha_k - m_k b_k) pi_k = (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1) 分配，各相的 p_k + pi_k 同乘 (1 + D0/sum E) > 0，
-// 扣完仍可容许。按质量分配时，膨胀到真空的微量气体（E_k -> 0）会被扣成负能量（空化 RM，devlog V14）。MG 相仍按质量（只做力学松弛）
+// 能量亏损的分配系数（B5.2）：D0 >= 0 按质量分数 Y_k。D0 < 0（要从相内能里扣掉能量）时第 k 相扣 d_k = E_k (1 - exp(-Y_k kappa / E_k))，
+// sum_k d_k = |D0| 定 kappa，E_k = eps_k - m_k q_k - (alpha_k - m_k b_k) pi_k = (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1) 是可容许界之上的能量。
+// d_k < E_k：扣完各相仍可容许（膨胀到真空的微量气体 E_k -> 0 时 d_k -> 0；按质量扣会扣成负能量，空化 RM，devlog V14）。
+// |D0| -> 0 时 d_k = Y_k |D0| + O(D0^2)：lam_k = d_k / |D0| 在 D0 = 0 处连续且一阶导数连续。V14 的 lam_k = E_k / sum E 在 D0 = 0 处跳变，
+// lam 又乘体积应变 s（B6.2 的 B_k），残量 G(P) 在 D0 过零的格上不连续，光滑流中 Newton 停在 1e-11 而触发 MOOD 回退（等熵涡，devlog V15）。
+// kappa 的方程 f(kappa) = sum d_k - |D0| 单调增、凹，f(|D0|) <= 0：从 kappa = |D0| 起的 Newton 单调收敛。|D0| >= sum E 时无可容许解，退回 E_k / sum E。
+// MG 相仍按质量（只做力学松弛）
 static void delta_lam(const ClIn& in, double D0, double lam[2]) {
 	double den = 0.0;
 	for (int k = 0; k < 2; k++) { lam[k] = in.mtr[k]; den += lam[k]; }
 	for (int k = 0; k < 2; k++) lam[k] = den > 0 ? lam[k] / den : 0.5;
 	if (D0 < 0.0 && !mg_any()) {
-		double Ek[2], sE = 0.0;
+		double Ek[2], sE = 0.0; const double a = -D0;
 		for (int k = 0; k < 2; k++) { Ek[k] = std::max(0.0, in.etr[k] - in.mtr[k] * PH[k].q - (in.atr[k] - in.mtr[k] * PH[k].b) * PH[k].pi); sE += Ek[k]; }
-		if (sE > 0.0) for (int k = 0; k < 2; k++) lam[k] = Ek[k] / sE;
+		if (!(sE > 0.0)) return;
+		if (a >= sE) { for (int k = 0; k < 2; k++) lam[k] = Ek[k] / sE; return; }
+		const double Y[2] = {lam[0], lam[1]};
+		auto dk = [&](int k, double kap, double& dd) { if (Ek[k] <= 0.0) { dd = 0.0; return 0.0; } const double e = std::exp(-Y[k] * kap / Ek[k]); dd = Y[k] * e; return Ek[k] * (1.0 - e); };
+		double kap = a;
+		for (int it = 0; it < 100; it++) {
+			double d0, d1, f0 = dk(0, kap, d0), f1 = dk(1, kap, d1); const double f = f0 + f1 - a, df = d0 + d1;
+			if (!(df > 0)) break;
+			const double kn = kap - f / df; const bool conv = std::fabs(kn - kap) <= 1e-15 * kn; kap = kn; if (conv) break;
+		}
+		double dd, d[2] = {dk(0, kap, dd), dk(1, kap, dd)}; const double sd = d[0] + d[1];
+		if (sd > 0.0) for (int k = 0; k < 2; k++) lam[k] = d[k] / sd;   // 归一：sum lam = 1 逐位成立
 	}
 }
 struct PCoef { double A[2], B[2], N[2], lam[2]; };
