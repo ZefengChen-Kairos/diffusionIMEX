@@ -187,7 +187,7 @@ if want('spb8'):   # Fig. 8: water-air shock tube 1 GPa / 0.1 MPa, 1000 cells, t
     single('spb8', 'SPB 2009 Fig. 8: water-air shock tube, 1 GPa | 0.1 MPa, t = 240 us, 1000 cells', 'spb8',
            [('pbar', 'pressure (bar)'), ('u', 'velocity (m/s)'), ('rho', 'mixture density (kg/m$^3$)'), ('a1', 'volume fraction of water')], (ex, P))
 if want('spb10'):  # Fig. 10: water-air shock tube 1 TPa, air 10 kg/m3, 1000 cells, t = 8.3 us
-    ex = exact5(P, (1 - 1e-6, 1000., 10., 0., 1e12), (1e-6, 1000., 10., 0., 1e5), 0.75, 8.3e-6)
+    ex = exact5(P, (1 - 1e-6, 1000., 10., 0., 1e12), (1e-6, 1000., 10., 0., 1e5), 0.6, 8.3e-6)   # interface 0.6 m (inferred from the paper's Fig. 10)
     single('spb10', 'SPB 2009 Fig. 10: water-air shock tube, 1 TPa | 0.1 MPa, t = 8.3 us, 1000 cells', 'spb10',
            [('pbar', 'pressure (bar)'), ('u', 'velocity (m/s)'), ('Mw', 'Mach number (Wood sound speed)'), ('rho', 'mixture density (kg/m$^3$)'),
             ('a1', 'volume fraction of water')], (ex, P))

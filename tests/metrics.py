@@ -12,9 +12,9 @@ case = int(sys.argv[1])
 for f in sys.argv[2:]:
     d = np.loadtxt(f); x = d[:, 0]; tag = os.path.basename(f)
     if case in (5, 6):   # SPB 4.3.1 / 4.3.2: nearly pure phases -> two-SG Euler exact solution
-        pl, ra, t = (1e9, 1.0, 240e-6) if case == 5 else (1e12, 10.0, 8.3e-6)
-        r, u, p, ps, us = esg.solve(1000, 0, pl, 4.4, 6e8, ra, 0, 1e5, 1.4, 0, 0.75, t, x)
-        g = (x > 0.75 + us * t + 2e-3) & (r < 100)            # shocked gas (between contact and shock)
+        pl, ra, t, x0 = (1e9, 1.0, 240e-6, 0.75) if case == 5 else (1e12, 10.0, 8.3e-6, 0.6)   # 4.3.2: interface 0.6 m (paper Fig. 10)
+        r, u, p, ps, us = esg.solve(1000, 0, pl, 4.4, 6e8, ra, 0, 1e5, 1.4, 0, x0, t, x)
+        g = (x > x0 + us * t + 2e-3) & (r < 100)            # shocked gas (between contact and shock)
         xs = x[np.where(d[:, 3] > 0.5 * us)[0].max()]          # numerical shock: last cell with u > u*/2
         xse = x[np.where(u > 0.5 * us)[0].max()] if (u > 0.5 * us).any() else np.nan
         print('%-24s L1 u %8.2f rho %7.3f p/p* %.4f | max u/u* %.4f | gas L1 p/p* %s | shock x %.4f (exact %.4f) | min p %.3e' % (

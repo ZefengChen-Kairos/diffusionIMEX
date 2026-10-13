@@ -723,7 +723,9 @@ static void test_state(int test, double x, double y, double* Q) {
 		setcell(in ? 1 - 1e-6 : 1e-6, 2000.0, 1044.0, 0, 0, in ? 4.6406e10 : 1e5, in ? 4.6406e10 : 1e5); break; }
 	case testSPB_Interface: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
 	case testSPB_WaterAir: case testSPB_WaterAirTPa: {
-		const bool L = x < 0.75; const double pL = test == testSPB_WaterAir ? 1e9 : 1e12, ra = test == testSPB_WaterAir ? 1.0 : 10.0;
+		// 4.3.1 界面 0.75 m（正文）；4.3.2 正文说“同 4.3.1”，但论文图 10 的波位置（稀疏波头 0.035、波尾 0.765、接触 0.857、激波 0.910，t = 8.3 us）
+		// 反推出界面在 0.59-0.60 m，取 0.6 m（devlog V15 §15.8）
+		const bool L = x < (test == testSPB_WaterAir ? 0.75 : 0.6); const double pL = test == testSPB_WaterAir ? 1e9 : 1e12, ra = test == testSPB_WaterAir ? 1.0 : 10.0;
 		setcell(L ? 1 - 1e-6 : 1e-6, 1000.0, ra, 0, 0, L ? pL : 1e5, L ? pL : 1e5); break; }
 	case testSPB_EpoxySpinel: case testSPB_EpoxySpinelExt: {
 		const double pL = test == testSPB_EpoxySpinel ? 1e10 : 2e11; const double p = x < 0.6 ? pL : 1e5;
