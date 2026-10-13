@@ -121,6 +121,32 @@ def levels(name, title, prefix, lev, var, exacts, P):
     fig.suptitle(title, fontsize=9); fig.tight_layout(rect=(0, 0, 1, 1 - (0.2 + 0.15 * title.count('\n')) / fig.get_figheight())); fig.savefig(os.path.join(OUT, name + '.png'), dpi=110); plt.close(fig); print('wrote', name)
 
 
+
+def paper_style(name, title, prefix, lev, var, P, ncol=2):
+    """the paper's own figure: only the numerical curves of the relaxation levels the paper shows (no exact solutions)"""
+    nr = (len(var) + ncol - 1) // ncol; fig, axs = plt.subplots(nr, ncol, figsize=(4.8 * ncol, 3.0 * nr), squeeze=False)
+    curves = []
+    for key, l, kw in lev:
+        s_ = load('%s_%s' % (prefix, key)); curves.append((derived(s_, P) if s_ else None, dict(kw, label=l)))
+    for ax, (v, lab, *opt) in zip(axs.flat, var): panel(ax, v, curves, lab, *opt)
+    for ax in list(axs.flat)[len(var):]: ax.axis('off')
+    axs.flat[0].legend(loc='best'); fig.suptitle(title + '\n' + imex_lab(name), fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_figheight())); fig.savefig(os.path.join(OUT, name + '.png'), dpi=110); plt.close(fig); print('wrote', name)
+
+
+def vs_exact(name, title, s, P, ex, exlab, var, centre):
+    """one relaxation level against its exact solution; pressure also on a log axis; centre values written in each panel"""
+    s = derived(s, P) if s else None
+    fig, axs = plt.subplots(1, len(var), figsize=(3.6 * len(var), 3.2), squeeze=False)
+    for ax, (v, lab, *opt) in zip(axs.flat, var):
+        panel(ax, v, [(ex, dict(color='k', ls=':', lw=1.3, label=exlab)), (s, dict(color='b', lw=1.0, label='IMEX'))], lab, *opt)
+        if centre and s is not None and v in s:
+            i = len(s['x']) // 2; j = len(ex['x']) // 2
+            ax.text(0.5, 0.04, 'x = 0.5: IMEX %.4g, exact %.4g' % (s[v][i], ex[v][j]), transform=ax.transAxes, ha='center', fontsize=7,
+                    bbox=dict(fc='w', ec='0.7', lw=0.5))
+    axs.flat[0].legend(loc='upper right'); fig.suptitle(title, fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 1 - 0.35 / fig.get_figheight())); fig.savefig(os.path.join(OUT, name + '.png'), dpi=110); plt.close(fig); print('wrote', name)
+
 def two_phase(ax, v, curves):   # liquid solid, vapour dashed (Pelanti Figs. 5-6)
     k1, k2 = ('T1', 'T2') if v == 'T12' else ('g1', 'g2')
     for s, kw in curves:
@@ -190,6 +216,12 @@ for nm, U0, t, fig in (('ps1', 2., 3.2e-3, 1), ('ps2', 500., 0.58e-3, 2)):
            [('p', 'p (Pa)'), ('u', 'u (m/s)'), ('a2', r'$\alpha_v$'), ('Y2', '$Y_v$')],
            [(ex5, dict(color='k', lw=0.9), 'exact 5-eq. (p)'), (ex4, dict(color='k', ls='--', lw=0.9), 'exact 4-eq. (pT)'),
             (exg, dict(color='k', ls=':', lw=1.2), 'exact pT->pTg')], P)
+    # as in the paper: only the four relaxation levels
+    paper_style(nm + '_paper', 'Pelanti & Shyue 2014 Fig. %d as in the paper: |u| = %g m/s, t = %g ms, 5000 cells, four relaxation levels' % (fig, U0, t * 1e3), nm,
+                PS_LEV, [('p', 'p (Pa)'), ('u', 'u (m/s)'), ('a2', r'$\alpha_v$'), ('Y2', '$Y_v$')], P)
+    # p-pT-pTg against its exact solution (pT -> pTg fan), pressure also on a log axis
+    vs_exact(nm + '_exact', 'Pelanti & Shyue 2014 Fig. %d, p-pT-pTg level against the exact pT->pTg fan (IMEX, 5000 cells)' % fig, load(nm + '_r2'), P, exg,
+             'exact pT->pTg', [('p', 'p (Pa)'), ('p', 'p (Pa), log axis', True), ('Y2', '$Y_v$')], True)
 P = PH['ps_d']
 if want('ps3'):    # Fig. 3: dodecane liquid-vapour shock tube, 2000 cells, t = 473 us
     ex = exact5(P, (1 - 1e-8, 500., 2., 0., 1e8), (1e-8, 500., 2., 0., 1e5), 0.75, 473e-6)
@@ -211,12 +243,28 @@ if want('pel4'):   # Fig. 4: p, u, alpha_2, Y_2 for five relaxation levels, 5000
            PEL_LEV, [('p', 'p (Pa)'), ('u', 'u (m/s)'), ('a2', r'$\alpha_2$'), ('Y2', '$Y_2$')],
            [(ex5, dict(color='k', lw=0.9), 'exact 5-eq.'), (ex4, dict(color='k', ls='--', lw=0.9), 'exact 4-eq.'),
             (exg, dict(color='k', ls=':', lw=1.2), 'exact pT->pTg')], P)
-if want('pel5'):   # Fig. 5: temperature and chemical potentials (cases with temperature equilibrium)
-    levels('pel5', 'Pelanti 2022 Fig. 5: temperatures and chemical potentials g_k (l solid, v dashed), t = 3 ms, 5000 cells. '
-           'Top: full T range (exact pT->pTg dip 352.63 K at x = 0.5); middle: the T axis of the paper (352.92-353.01 K)', 'pel4',
-           [l for l in PEL_LEV if l[0] in ('pT', 'pTgf', 'pTg')],
-           [('T12', 'T (K)', False, (352.55, 353.02)), ('T12', 'T (K), paper axis', False, (352.92, 353.01)), ('g12', '$g_k$ (J/kg)')],
-           [(ex4, dict(color='k', lw=0.9), 'exact 4-eq.'), (exg, dict(color='grey', lw=0.9), 'exact pT->pTg')], P)
+if want('pel4'):
+    paper_style('pel4_paper', 'Pelanti 2022 Fig. 4 as in the paper: NASG water, |u| = 2 m/s, t = 3 ms, 5000 cells, five relaxation levels', 'pel4',
+                PEL_LEV, [('p', 'p (Pa)'), ('u', 'u (m/s)'), ('a2', r'$\alpha_2$'), ('Y2', '$Y_2$')], P)
+    vs_exact('pel4_exact', 'Pelanti 2022 Fig. 4, pTg level against the exact pT->pTg fan (IMEX, 5000 cells)', load('pel4_pTg'), P, exg,
+             'exact pT->pTg', [('p', 'p (Pa)'), ('a2', r'$\alpha_2$'), ('Y2', '$Y_2$')], True)
+if want('pel5'):   # Fig. 5: temperature and chemical potentials; T_l = T_v in all three levels, so one T line per level
+    L5 = [('pT', 'pT', dict(color='darkgreen')), ('pTgf', 'pTg(f)', dict(color='deepskyblue')), ('pTg', 'pTg', dict(color='navy'))]
+    S5 = [(k, l, kw, derived(load('pel4_' + k), P)) for k, l, kw in L5]
+    fig = plt.figure(figsize=(10.5, 6.6)); gs = fig.add_gridspec(2, 2, width_ratios=(1.6, 1))
+    a0 = fig.add_subplot(gs[0, 0]); a1 = fig.add_subplot(gs[0, 1]); a2 = fig.add_subplot(gs[1, :])
+    for ax, xl, yl in ((a0, (0, 1), (352.92, 353.01)), (a1, (0.48, 0.52), (352.55, 353.01))):
+        ax.plot(ex4['x'], ex4['T1'], color='k', ls='--', lw=0.9, label='exact 4-eq. (pT)')
+        ax.plot(exg['x'], exg['T1'], color='0.5', ls=':', lw=1.4, label='exact pT->pTg')
+        for k, l, kw, s_ in S5:
+            if s_: ax.plot(s_['x'], s_['T1'], label=l, lw=1.2, **kw)
+        ax.set_xlim(*xl); ax.set_ylim(*yl); ax.ticklabel_format(axis='y', useOffset=False); ax.grid(alpha=0.25); ax.set_xlabel('x (m)'); ax.set_ylabel('T (K)')
+    a0.set_title('T (liquid = vapour), axis of the paper', fontsize=9); a1.set_title('centre, full range', fontsize=9); a0.legend(loc='lower left', fontsize=7)
+    for k, l, kw, s_ in S5:
+        if s_: a2.plot(s_['x'], s_['g1'], ls='-', label=l + ' liquid', **kw); a2.plot(s_['x'], s_['g2'], ls='--', label=l + ' vapour', **kw)
+    a2.set_xlim(0, 1); a2.set_xlabel('x (m)'); a2.set_ylabel('$g_k$ (J/kg)'); a2.grid(alpha=0.25); a2.legend(loc='lower left', ncol=3, fontsize=7)
+    fig.suptitle('Pelanti 2022 Fig. 5: temperature and chemical potentials, NASG water, t = 3 ms, 5000 cells\n' + imex_lab('pel5'), fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.94)); fig.savefig(os.path.join(OUT, 'pel5.png'), dpi=110); plt.close(fig); print('wrote pel5')
 P = PH['pel_d']
 if want('pel6'):   # Fig. 6: dodecane (NASG), p-relax and pTg-relax, 2000 cells, t = 473 us
     ex = exact5(P, (1 - 1e-8, 500., 2., 0., 1e8), (1e-8, 500., 2., 0., 1e5), 0.75, 473e-6)
