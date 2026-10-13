@@ -108,7 +108,7 @@ def single(name, title, cases, var, exact, ncol=2):
 
 def levels(name, title, prefix, lev, var, exacts, P):
     """several relaxation levels (IMEX), levels in the colours of the paper, exact solutions in black"""
-    fig, axs = plt.subplots(len(var), 1, figsize=(6.2, 2.75 * len(var)), squeeze=False)
+    fig, axs = plt.subplots(len(var), 1, figsize=(6.6, 3.1 * len(var)), squeeze=False)
     for j, (kind, head) in enumerate((('I', imex_lab(name)),)):
         curves = [(s, dict(kw, label=l)) for s, kw, l in exacts]
         for key, l, kw in lev:
@@ -212,9 +212,10 @@ if want('pel4'):   # Fig. 4: p, u, alpha_2, Y_2 for five relaxation levels, 5000
            [(ex5, dict(color='k', lw=0.9), 'exact 5-eq.'), (ex4, dict(color='k', ls='--', lw=0.9), 'exact 4-eq.'),
             (exg, dict(color='k', ls=':', lw=1.2), 'exact pT->pTg')], P)
 if want('pel5'):   # Fig. 5: temperature and chemical potentials (cases with temperature equilibrium)
-    levels('pel5', 'Pelanti 2022 Fig. 5: temperatures and chemical potentials g_k (l solid, v dashed), t = 3 ms, 5000 cells\n'
-           'T axis as in the paper (352.92-353.01 K); the pTg dip goes off scale (exact pT->pTg: 352.63 K at x = 0.5)', 'pel4',
-           [l for l in PEL_LEV if l[0] in ('pT', 'pTgf', 'pTg')], [('T12', 'T (K)', False, (352.92, 353.01)), ('g12', '$g_k$ (J/kg)')],
+    levels('pel5', 'Pelanti 2022 Fig. 5: temperatures and chemical potentials g_k (l solid, v dashed), t = 3 ms, 5000 cells. '
+           'Top: full T range (exact pT->pTg dip 352.63 K at x = 0.5); middle: the T axis of the paper (352.92-353.01 K)', 'pel4',
+           [l for l in PEL_LEV if l[0] in ('pT', 'pTgf', 'pTg')],
+           [('T12', 'T (K)', False, (352.55, 353.02)), ('T12', 'T (K), paper axis', False, (352.92, 353.01)), ('g12', '$g_k$ (J/kg)')],
            [(ex4, dict(color='k', lw=0.9), 'exact 4-eq.'), (exg, dict(color='grey', lw=0.9), 'exact pT->pTg')], P)
 P = PH['pel_d']
 if want('pel6'):   # Fig. 6: dodecane (NASG), p-relax and pTg-relax, 2000 cells, t = 473 us
