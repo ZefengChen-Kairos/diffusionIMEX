@@ -1,4 +1,4 @@
-"""Figures of the 2D paper tests (IMEX, V14) from tests/run_archive.sh: rows = snapshot times, one column per variable.
+"""Figures of the 2D paper tests (IMEX, V15) from tests/run_archive.sh: rows = snapshot times, one column per variable.
 usage: python3 tests/plot_2d_paper.py RUNDIR OUTDIR [he rm bub undex]"""
 import os, sys, numpy as np, matplotlib
 matplotlib.use('Agg'); import matplotlib.pyplot as plt
