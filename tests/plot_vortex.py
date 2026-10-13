@@ -30,10 +30,18 @@ def errs(tag, p0, c):
         s = open(os.path.join(d, f'{tag}_p{p0}_N{N}.log')).read(); e.append(float(re.search(rf' {c} ([0-9.eE+-]+)', re.search(r'^L2 .*$', s, re.M).group()).group(1)))
     return np.array(e)
 for k, c in enumerate(['a2r2', 'a2r2u', 'a2']):
-    a = ax[1, 1] if k < 2 else ax[1, 2]
+    a = ax[1, 1]
     a.loglog(Ns, errs('lim0', '1', c), 'o-', label=f'{lab[c]} IMEX limiter=0')
     if all(os.path.exists(os.path.join(d, f'mm_p1_N{N}.log')) for N in Ns): a.loglog(Ns, errs('mm', '1', c), 's--', label=f'{lab[c]} IMEX minmod')
     a.loglog(NP, paper[c], 'x:', label=f'{lab[c]} Battisti-Boscheri SIFV-BN')
-for a in ax[1, 1:]:
-    a.loglog(Ns, 2.0 * (Ns / 20.0)**-2, 'k-', lw=0.6, label='slope 2'); a.set_xlabel('N'); a.set_ylabel('L2 error ($p_0=1$)'); a.legend(fontsize=7)
+ax[1, 1].loglog(Ns, 2.0 * (Ns / 20.0)**-2, 'k-', lw=0.6, label='slope 2'); ax[1, 1].set_xlabel('N'); ax[1, 1].set_ylabel('L2 error ($p_0=1$)'); ax[1, 1].legend(fontsize=7)
+a = ax[1, 2]
+for p0 in ['1', '10', '100', '1000', '10000']:
+    NN = np.array(sorted(int(re.search(r'_N(\d+)\.log$', g).group(1)) for g in glob.glob(os.path.join(d, f'lim0_p{p0}_N*.log'))
+                         if re.search(r'^L2 ', open(g).read(), re.M)))
+    e = []
+    for N in NN: s_ = open(os.path.join(d, f'lim0_p{p0}_N{N}.log')).read(); e.append(float(re.search(r' p ([0-9.eE+-]+)', re.search(r'^L2 .*$', s_, re.M).group()).group(1)))
+    a.loglog(NN, e, 'o-', label=f'$L_2(p)$, $p_0={p0}$')
+a.loglog(Ns, 1.0 * (Ns / 32.0)**-2, 'k-', lw=0.6, label='slope 2'); a.set_xlabel('N'); a.set_ylabel('L2 error of p'); a.legend(fontsize=7)
+a.set_title('$p_0=10^4$: long-wave acoustic error (pre-asymptotic)', fontsize=9)
 fig.tight_layout(); fig.savefig(out, dpi=110)
