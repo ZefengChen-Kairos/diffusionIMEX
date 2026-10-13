@@ -77,6 +77,7 @@ double vx_max, vy_max;                // Rusanov 耗散速度 a_Omega（x、y �
 int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0：全场最大 vx_max（按算例，TestSetup::rus；B3）
 
 std::string out_file = "out.dat", vtk_dir = "";
+long st_lsp_flip = 0;   // 能量亏损分配分支的校正次数（B8，devlog V15）
 long st_steps = 0, st_reject = 0, st_newton_it = 0, st_newton_calls = 0, st_stage = 0, st_rk1 = 0;
 double st_maxres = 0; long st_mood = 0;
 
@@ -506,10 +507,11 @@ struct StageData {
 	Array ubsx, kpx, ubex, ubsy, kpy, ubey;   // 面量（x 面 (i,j) = i+1/2）：u_f = ubs - kp (P_R - P_L)，ube = 显式中心通量的面速度
 	Array wLx, wLy, pvx, pvy;      // 面压力：p_f = wL P_L + (1 - wL) P_R - pv（B4.1 的半格动量平衡 + 声学 Riemann 解）
 	std::vector<int> type; std::vector<double> Z0, Z1;
+	std::vector<signed char> lsp;  // 能量亏损分配的分支（每格，Newton 期间冻结；B8 的分支校正）
 	std::vector<double> Kw;        // 残量尺度 K + P_E（X* 处，B8）
 	StageData(int x, int y) : nx(x), ny(y), NXT(x + 2 * ghost_cells), NYT(y + 2 * ghost_cells), Xs(x, y), a2s(x, y), ust(x, y), vst(x, y),
 		ubsx(x, y), kpx(x, y), ubex(x, y), ubsy(x, y), kpy(x, y), ubey(x, y), wLx(x, y, 0.5), wLy(x, y, 0.5), pvx(x, y), pvy(x, y) {
-		cont.assign((size_t)NXT * NYT * 6, 0.0); Kw.assign((size_t)NXT * NYT, 0.0); type.assign((size_t)NXT * NYT, CL_P); Z0.assign((size_t)NXT * NYT, 1.0); Z1.assign((size_t)NXT * NYT, 1.0);
+		cont.assign((size_t)NXT * NYT * 6, 0.0); lsp.assign((size_t)NXT * NYT, -1); Kw.assign((size_t)NXT * NYT, 0.0); type.assign((size_t)NXT * NYT, CL_P); Z0.assign((size_t)NXT * NYT, 1.0); Z1.assign((size_t)NXT * NYT, 1.0);
 	}
 	inline size_t id(int i, int j) const { return (size_t)i + (size_t)j * NXT; }
 };
@@ -554,7 +556,7 @@ inline FaceFlux face_flux(const FaceVals& f) {
 	return F;
 }
 
-struct CellOut { ClOut cl; double mx, my, E; int type; };
+struct CellOut { ClOut cl; double mx, my, E, D0; int type; };
 // 单格残量 G = pbar_cl - Pc（B4.3-B4.6, B5.4）。邻格压力由调用者给（边界虚格按边界条件取值）
 static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW, double PE, double PS, double PN, double& G, CellOut* out) {
 	FaceVals fe, fw, fn, fs;
@@ -581,12 +583,12 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 	if (!(rho > 0)) return false;
 	ClIn in{}; in.atr[0] = X[0]; in.atr[1] = X[1]; in.mtr[0] = X[2]; in.mtr[1] = X[3]; in.etr[0] = X[4]; in.etr[1] = X[5];
 	in.s = s; in.rhoeC = E - 0.5 * (mx * mx + my * my) / rho; in.tau = S.tau; in.type = S.type[S.id(i, j)];
-	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = P_REF + Pc; in.nodelta = false;
+	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = P_REF + Pc; in.nodelta = false; in.lsplit = S.lsp[S.id(i, j)];
 	ClOut o; if (!closure(in, o)) {
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
 	G = (o.pbar - P_REF) - Pc;
-	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->type = in.type; }
+	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->D0 = in.rhoeC - X[4] - X[5]; out->type = in.type; }
 	return std::isfinite(G);
 }
 
@@ -852,10 +854,36 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			for (int k = 0; k < 2; k++) { const double a = c[k], m = c[2 + k], pk = p_ame(k, a, m, c[4 + k]), r = m / a; const double Z = r * std::sqrt(std::max(c2_rp(k, r, pk), 1e-30)); (k == 0 ? S.Z0 : S.Z1)[S.id(i, j)] = Z; }
 		}
 	}
-	// 隐式：全局 Newton
-	int iters; double res;
-	st_newton_calls++;
-	const bool ok = Newton_Solver(S, P, iters, res);
+	// 隐式：全局 Newton，外层是能量亏损分配分支的校正（B8，devlog V15）。delta_lam 的系数在 D0 = 0 处跳变，G(P) 不连续，
+	// 光滑流中 D0 正负交替的格上 Newton 停在 1e-11（等熵涡）。每格的分支在一次 Newton 求解里冻结（G 光滑），解出后按解处 D0 的符号校正再解。
+	// 质量 -> E_k 的翻转总是允许（D0 < 0 时按质量分配可能扣成负能量）；E_k -> 质量只在前两轮允许，之后锁定，校正有限步终止。
+	// 起始分支取初猜处 D0 的符号；D0 = 0 的格两个分支给出同一个闭合，与分支无关
+	const int ncell = nx * ny;
+	auto lsp_at = [&](int q) -> signed char& { return S.lsp[S.id(IG(q % nx), IG(q / nx))]; };
+	auto D0_all = [&](std::vector<double>& D) -> bool {
+		bool dok = true;
+		#pragma omp parallel for schedule(static) reduction(&&:dok)
+		for (int q = 0; q < ncell; q++) { double Gv; CellOut o; if (!residual_at(S, P, q % nx, q / nx, 0, -1, 0, Gv, &o)) dok = false; else D[q] = o.D0; }
+		return dok; };
+	std::vector<double> D0v(ncell, 0.0);
+	if (!D0_all(D0v)) for (int q = 0; q < ncell; q++) D0v[q] = 0.0;   // 初猜处不可容许：先都按质量（-1 时的 D0 >= 0 分支），由校正改
+	for (int q = 0; q < ncell; q++) lsp_at(q) = D0v[q] < 0.0 ? 1 : 0;
+	int iters; double res; bool ok = false;
+	for (int pass = 0; pass < 8; pass++) {
+		st_newton_calls++;
+		ok = Newton_Solver(S, P, iters, res);
+		if (!ok) break;
+		if (!D0_all(D0v)) { ok = false; break; }
+		int flips = 0;
+		for (int q = 0; q < ncell; q++) {
+			signed char& b = lsp_at(q);
+			if (b == 0 && D0v[q] < 0.0) { b = 1; flips++; }
+			else if (b == 1 && D0v[q] > 0.0 && pass < 2) { b = 0; flips++; }
+		}
+		if (flips == 0) break;
+		st_lsp_flip += flips;
+		if (pass == 7) ok = false;   // 校正未终止：按不可容许处理（MOOD 回退 / 减半步长）
+	}
 	if (ok) st_maxres = std::max(st_maxres, res);
 	if (!ok) { if (VERBOSE) fprintf(stderr, "  Newton failed: it %d res %.3e tau %.3e\n", iters, res, tau); return false; }
 	// 终态
@@ -1168,8 +1196,8 @@ int main(int argc, char *argv[]){
 		}
 		printf("L2 p0 %g N %d | a2r2 %.4e a2r2u %.4e a2 %.4e p %.4e u %.4e\n", VORTEX_P0, nxCells, std::sqrt(e[0]), std::sqrt(e[1]), std::sqrt(e[2]), std::sqrt(e[3]), std::sqrt(e[4]));
 	}
-	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
-		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_cl_fail,
+	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e branch flips %ld | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
+		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_lsp_flip, st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
 	return 0;
 }
