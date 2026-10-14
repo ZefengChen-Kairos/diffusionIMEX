@@ -225,7 +225,8 @@ static const double YMIN = 1e-10;
 // 物理部分有预算：压缩格里 delta 中至多 Q = sum Q_k 的部分是物理耗散（一次激波通过产生的亏损之和恰为 Q），其余是误差：
 //   Lambda_k(delta) = min(delta, Q) lam^(II.5)_k + (delta - min(delta, Q)) lam^E_k   (delta >= 0)，   = delta lam^E_k   (delta < 0)。
 // Lambda 是 delta 的连续分段仿射函数，所以 G(P) 连续（V15 按 D0 符号分支、又乘 s 的不连续与 active-set 校正都不再需要）。
-// 闭合在 delta 线性的每一段上用 A_k + B_k p = eps^tr_k - m_k q_k + p alpha^tr_k + Lambda_k(delta(p))，分段按 delta(pguess) 取，收敛时 pguess = p。
+// p 闭合（mu = inf）里 Lambda_k 取在全局迭代值处：A_k = eps^tr_k - m_k q_k + Lambda_k(delta(pguess))，B_k = alpha^tr_k；收敛时 pguess = p（p_coef）。
+// 有限 mu 的两压力闭合里 delta = D0 + s sum om_k p_k，Lambda_k 的 p 依赖留在 2x2 方程组里（分段按 delta(pguess) 取）。
 
 // 相 k 从 (p0, v0) 被激波压到 p1：Hugoniot 能量减等熵能量。NASG 闭式，每单位波前有效体积 alpha - m b（(A2.2) 对 v - b 齐次）
 static double hug_gap(int k, double p0, double p1) {
@@ -309,10 +310,15 @@ static bool p_coef(const ClIn& in, PCoef& c) {
 	if (!in.nodelta && !(in.mtr[0] + in.mtr[1] > 0)) return false;
 	const double D0 = in.nodelta ? 0.0 : in.rhoeC - in.etr[0] - in.etr[1];
 	double ex[2] = {0.0, 0.0};
-	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0; else defect_split(in, D0 + in.pguess * in.s, c.lam, ex);   // delta(pguess) = D0 + p s
+	// 分到的亏损 Lambda_k 在全局迭代值 pguess 处取（delta_g = D0 + pguess s），闭合内对 p 为常数；收敛时 pguess = p，与 Lambda_k(delta(p)) 相同。
+	// 不在闭合内随 p 变：那样 alpha_k(p) 的单调性条件是 N_k = E_k + lam_k D0 + xi_k > 0，激波处液格里分到大份额的微量气体 lam_k ~ 1，
+	// 而 D0 ~ -p s（混合物的压缩功）远大于 E_k，N_k < 0，闭合无根（空化 RM 在 t = 0.73 ms 停住，devlog V16 §16.8）
+	double Lam[2] = {0.0, 0.0};
+	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0;
+	else { const double dg = D0 + in.pguess * in.s; defect_split(in, dg, c.lam, ex); for (int k = 0; k < 2; k++) Lam[k] = c.lam[k] * dg + ex[k]; }
 	for (int k = 0; k < 2; k++) {
-		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + c.lam[k] * D0 + ex[k];
-		c.B[k] = in.atr[k] + c.lam[k] * in.s;
+		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + Lam[k];
+		c.B[k] = in.atr[k];
 		c.N[k] = c.A[k] - (c.B[k] - in.mtr[k] * PH[k].b) * PH[k].pi;
 	}
 	return true;
@@ -384,7 +390,7 @@ static bool closure_p_mg(const ClIn& in, ClOut& o) {
 		double s = -1.0; dPhi = 0.0; double an[2];
 		for (int k = 0; k < 2; k++) {
 			double a, da;
-			if (is_mg(k)) { if (!alpha_mg(k, in.mtr[k], c.A[k], c.B[k], p, ag[k], a, da)) return NAN; }   // MG 相 q = 0：A = eps^tr + lam D0
+			if (is_mg(k)) { if (!alpha_mg(k, in.mtr[k], c.A[k], c.B[k], p, ag[k], a, da)) return NAN; }   // MG 相 q = 0：A = eps^tr + Lambda_k(delta(pguess))
 			else { if (!(p + PH[k].pi > 0) || !(c.N[k] > 0)) return NAN; a = alpha_p(c, in, k, p); da = dalpha_p(c, k, p); }
 			an[k] = a; s += a; dPhi += da;
 		}
@@ -428,7 +434,8 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 	const double om[2] = {in.atr[0] / sa, in.atr[1] / sa};
 	const double ak[2] = {in.atr[0] / sa, in.atr[1] / sa};   // a_k = atr_k + om_k s = atr_k / (1 - s)
 	const double D0 = in.rhoeC - in.etr[0] - in.etr[1];
-	double lam[2], ex[2]; defect_split(in, D0 + in.pguess * in.s, lam, ex);   // 同 p_coef：分段按 delta(pguess) 取
+	// 两压力时 delta = D0 + s (om1 p1 + om2 p2) 不是 D0 + s pbar，所以 Lambda_k 的 p 依赖留在 2x2 方程组里（分段按 delta(pguess) 取），保持能量严格一致
+	double lam[2], ex[2]; defect_split(in, D0 + in.pguess * in.s, lam, ex);
 	const double w1 = in.Z[1] / (in.Z[0] + in.Z[1]), w2 = 1.0 - w1;
 	auto solve = [&](double R, double& p1, double& p2) -> bool {
 		const double a1 = ak[0] + R, a2 = ak[1] - R;
