@@ -246,7 +246,7 @@ $$
 - 线性解：一维非周期 Thomas（同列元素相加）；否则 BiCGStab（函数名沿用 `GMRES_Solver`），预条件 $M^{-1}r=D^{-1}r+\mathbf 1\,(\mathbf 1^{\rm T}r)/(\mathbf 1^{\rm T}J\mathbf 1)$（Jacobi 用本格扰动的那个元素 + 常数向量粗空间），相对容差 $10^{-13}$，至多 4000 次；内积按固定块求和。
 - 步长判据：完整 Newton 步满足 $\max_i\lvert\delta P_i\rvert/(\lvert P'_i\rvert+s_i)<10^{-13}$ 时直接接受 $P'+\delta P$（重算残量后返回）。
 - 否则线搜索：$\lambda=1,\tfrac12,\dots$（至多 40 次），接受条件：所有格闭合有解且 $\lVert G_{\rm new}\rVert<(1-10^{-4}\lambda)\lVert G\rVert$（或已低于容差）。
-- 至多 60 次 Newton；失败 → 本级失败（E2.3 第 4 项）。日志 `maxres` 是各级接受时的残量最大值。
+- 至多 60 次 Newton。线搜索无法再降低残量、或到达 60 次时：残量 $\lVert G\rVert<10^{-12}$（10 倍容差，舍入底，devlog 16.9）则接受当前解，否则本级失败（E2.3 第 4 项）。日志 `maxres` 是各级接受时的残量最大值。
 
 ### E4.6 激波预算（B5.2 (c)，`shock_budget`、`stencil_state`、`phys_dissipation`）
 
