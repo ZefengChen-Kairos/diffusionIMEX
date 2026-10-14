@@ -664,8 +664,8 @@ struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boun
 enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2 };
 int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
-double VORTEX_P0 = 1.0;
-int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4）
+double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4；命令行 p0=）
+int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）
 int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
 static void parse_list(const std::string& v, std::vector<double>& out) { size_t a = 0; while (a < v.size()) { size_t b = v.find(',', a); if (b == std::string::npos) b = v.size(); out.push_back(std::atof(v.substr(a, b - a).c_str())); a = b + 1; } }
@@ -749,8 +749,8 @@ static bool test_setup(int test, TestSetup& S) {
 		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.sub = 4; S.nx = 600; S.ny = 160; break;
 	case testSPB_RM:         // 3 m x 1 m；左、上、下为固壁，右为出流；水 SG (4.4, 6e8)，气 gamma = 1.8（SPB；P-S 用 1.4）
 		set_SG(0, 4.4, 6e8); set_SG(1, 1.8, 0); S.x0 = 0; S.x1 = 3; S.y0 = 0; S.y1 = 1; S.tend = 8.6e-3;
-		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.bc[0] = BC_WALL; S.sub = 4; S.nx = 300; S.ny = 100;
-		S.rus = 0; break;   // 全场最大 Rusanov 速度（局部时 18842 次拒绝，devlog V14）   // P-S 5.3 的网格（SPB 用 900 x 400：N=900 ny=400）
+		S.xbc = x_Transmissive; S.ybc = y_Reflective; S.bc[0] = BC_WALL; S.sub = 4; S.nx = 300; S.ny = 100;   // P-S 5.3 的网格（SPB 用 900 x 400：N=900 ny=400）
+		S.rus = 0; break;   // 全场最大 Rusanov 速度（局部时 18842 次拒绝，devlog V14）
 	case testPS_BubbleComp:  // 单位正方形，汽泡半径 0.2 m 居中；四周固壁，左壁为活塞 100 m/s（网格不动：活塞面固定在 x = 0，液体从该面进入）
 		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45);
 		S.tend = 1.2e-3; S.xbc = x_Reflective; S.ybc = y_Reflective; S.bcu[0] = 100.0; S.sub = 4; S.nx = 200; S.ny = 200; S.relax = 2;

@@ -78,7 +78,7 @@ int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0�
 
 std::string out_file = "out.dat", vtk_dir = "";
 double st_Tmax[2] = {0.0, 0.0};   // 各相温度的最大值（诊断，日志行；alpha_k > 1e-9 的格）
-long st_steps = 0, st_reject = 0, st_newton_it = 0, st_newton_calls = 0, st_stage = 0, st_rk1 = 0;
+long st_steps = 0, st_reject = 0, st_newton_it = 0, st_stage = 0, st_rk1 = 0;
 double st_maxres = 0; long st_mood = 0;
 
 
@@ -556,7 +556,7 @@ inline FaceFlux face_flux(const FaceVals& f) {
 	return F;
 }
 
-struct CellOut { ClOut cl; double mx, my, E, D0; int type; };
+struct CellOut { ClOut cl; double mx, my, E; };
 // 单格残量 G = pbar_cl - Pc（B4.3-B4.6, B5.4）。邻格压力由调用者给（边界虚格按边界条件取值）
 static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW, double PE, double PS, double PN, double& G, CellOut* out) {
 	FaceVals fe, fw, fn, fs;
@@ -588,7 +588,7 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
 	G = (o.pbar - P_REF) - Pc;
-	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->D0 = in.rhoeC - X[4] - X[5]; out->type = in.type; }
+	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; }
 	return std::isfinite(G);
 }
 
@@ -864,9 +864,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			shock_budget(cell, twoD, &S.Qph[S.id(i, j) * 2]);
 		}
 	}
-	// 隐式：全局 Newton。B5.2 的 Lambda_k(delta) 是 delta 的连续分段仿射函数（分段按 pguess 处的 delta 取），G(P) 连续、分段光滑；
-	// V15 的分支校正（active set）不再需要
-	st_newton_calls++;
+	// 隐式：全局 Newton。B5.2 的 Lambda_k(delta) 是 delta 的连续分段仿射函数（分段按 pguess 处的 delta 取），G(P) 连续、分段光滑
 	int iters; double res; const bool ok = Newton_Solver(S, P, iters, res);
 	if (ok) st_maxres = std::max(st_maxres, res);
 	if (!ok) { if (VERBOSE) fprintf(stderr, "  Newton failed: it %d res %.3e tau %.3e\n", iters, res, tau); return false; }
