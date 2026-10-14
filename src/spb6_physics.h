@@ -30,7 +30,10 @@ enum x_boundary_condition { x_Transmissive, x_Reflective, x_Periodic };
 enum y_boundary_condition { y_Transmissive, y_Reflective, y_Periodic };
 
 // 松弛设置（所有算例相同；命令行可改速率与档位）
-double mu_rate = INF, theta_rate = -1.0, nu_rate = -1.0;   // 力学 / 热 / 化学 速率（INF = 瞬时；-1 = 未给定，按松弛档位取默认）
+double mu_rate = INF, theta_rate = -1.0, nu_rate = -1.0;
+// 随状态变化的传质速率（Pelanti 2022 式 (84)，Downar-Zapolski / De Lorenzo 型；命令行 nulaw=1）：
+//   nu = NU_CR alpha_v^0.6 ((psat(T) - p) / (NU_PC - psat(T)))^1.76（p < psat(T)，否则 0），alpha_v 为相 2（汽）的体积分数
+int NU_LAW = 0; double NU_CR = 1.0, NU_PC = 22.064e6;   // 力学 / 热 / 化学 速率（INF = 瞬时；-1 = 未给定，按松弛档位取默认）
 int RELAX_LEVEL = 0;        // 0: p;  1: p-pT;  2: p-pT-pTg;  3: p-pTg（P-S 的第四档）
 double EPS_I = 1e-4;        // 热/化学松弛只在 eps_I <= alpha1 <= 1 - eps_I 的格子打开（P-S 2014、Pelanti 2022 8.2.2；所有算例相同）
 int VERBOSE = 0;
@@ -149,6 +152,22 @@ static double Tsat(double p) {
 	else { const double h = SAT.lp[1] - SAT.lp[0]; const int n = std::min((int)((lp - SAT.lp[0]) / h), (int)SAT.lp.size() - 2); const double w = (lp - SAT.lp[n]) / h; Tg = (1 - w) * SAT.T[n] + w * SAT.T[n + 1]; }
 	bool ok; const double T = sat_newton(p, Tg, ok); return ok ? T : NAN;
 }
+// 饱和压力 psat(T)：Tsat 的反函数（Tsat 在表的范围内单调增），在 ln p 上二分；T 低于表的下端返回 0，高于临界点返回 INF
+static double psat(double T) {
+	if (!SAT.built) build_sat();
+	if (SAT.lp.empty()) return NAN;
+	double a = SAT.pmin, b = SAT.pcrit * (1 - 1e-12);
+	const double Ta = Tsat(a), Tb = Tsat(b);
+	if (!(T > Ta)) return 0.0; if (!(T < Tb)) return INF;
+	for (int it = 0; it < 80; it++) { const double c = std::sqrt(a * b); if (Tsat(c) < T) a = c; else b = c; if (b / a - 1 < 1e-14) break; }
+	return std::sqrt(a * b);
+}
+// Pelanti 2022 式 (84)：nu = NU_CR alpha_v^0.6 ((psat(T) - p) / (NU_PC - psat(T)))^1.76，只在 p < psat(T)（过热液体，蒸发）时非零
+static double nu_law(double p, double T, double av) {
+	const double ps = psat(T);
+	if (!std::isfinite(ps) || !(ps > p) || !(ps < NU_PC) || !(av > 0)) return 0.0;
+	return NU_CR * std::pow(av, 0.6) * std::pow((ps - p) / (NU_PC - ps), 1.76);
+}
 
 // ==================================================================================================== 标量求根
 // Brent（带区间，fa, fb 异号）
@@ -208,6 +227,7 @@ struct ClIn {
 	bool nodelta;                    // 不含能量亏损（只在 p-pTg 激活判据的预测里用）
 	double pguess;
 	double Qph[2] = {0.0, 0.0};      // 本格局部激波的物理耗散预算 Q_k（每单位体积，shock_budget）；0 = 没有物理部分（defect_split）
+	double nu = -1.0;                // 本格的传质速率（>= 0 时代替 nu_rate；nulaw=1 时按步开始的状态给出）
 };
 struct ClOut { double a[2], m[2], e[2], p[2], T[2], pbar; };
 static const double YMIN = 1e-10;
@@ -525,7 +545,7 @@ inline double T_from_energy(double p, double Y, double eC) {
 
 // B6.5  有限 nu（mu = theta = inf）：内层 R(Y) = rho Y - m2tr + tau nu (g2 - g1)(p, T(p, Y)) = 0，外层 rho sum Y_k v_k = 1
 static bool closure_nu(const ClIn& in, ClOut& o) {
-	const double rho = in.mtr[0] + in.mtr[1], eC = in.rhoeC / rho, tn = in.tau * nu_rate;
+	const double rho = in.mtr[0] + in.mtr[1], eC = in.rhoeC / rho, tn = in.tau * (in.nu >= 0 ? in.nu : nu_rate);
 	auto Yof = [&](double p, double& Y, double& T) -> bool {
 		auto R = [&](double y) { const double TT = T_from_energy(p, y, eC); if (!(TT > 0)) return (double)NAN; return rho * y - in.mtr[1] + tn * (g_pT(1, p, TT) - g_pT(0, p, TT)); };
 		// 可容许区间：T(p, y) > 0 <=> eC - q1 - y (q2 - q1) > 0（分母为正）。q2 > q1 时 y 有上界、q2 < q1 时有下界。
@@ -646,6 +666,8 @@ enum Test {
 	testSmoothWater = 21,         // 光滑解，水-气
 	testPel_Cavitation = 30,      // Pelanti 2022 8.2.1 NASG 水空化管 -+2 m/s，T = 353 K
 	testDodecaneNASG = 31,        // Pelanti 2022 8.2.2 十二烷液-汽激波管（NASG）
+	testEvapFront = 33,           // Pelanti 2022 8.2.3 / Saurel et al. 2008：Simões-Moreira & Shepherd 十二烷蒸发前沿（SG 十二烷，pTg 瞬时；温度 ttest=）
+	testBartak = 32,              // Pelanti 2022 8.2.4 / Sirianni-Re 2026 5.2：Barták 管道快速泄压（NASG 水 350-550 K，有限速率传质 nulaw=1）
 	testRelax0D = 40,             // 0D 松弛：均匀非平衡态（周期）
 	testRelax0DChem = 41,         // 0D 化学松弛：pT 平衡、过热（周期）
 	testGresho1 = 50,             // Gresho 涡（2DEuler 的 testGreshoVortex），单相极限（两相同为理想气体，alpha1 = 1/2），M = 0.1
@@ -676,6 +698,7 @@ int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
 double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4；命令行 p0=）
 int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）
+double T_TEST = 503.0;    // 算例 33 的试验温度（K，命令行 ttest=；实验 453-573 K）
 int INIT_ONLY = 0;        // 1 = 只写精确格平均初值后退出（命令行 init=1；误差后处理用）
 int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
@@ -742,6 +765,12 @@ static bool test_setup(int test, TestSetup& S) {
 	case testSmoothWater: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1e-4; break;
 	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; S.nx = 5000; break;
 	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; S.nx = 2000; break;
+	case testEvapFront:   // P-S 2014 的 SG 十二烷（同算例 3）；[0.25, 0.75] m，膜片在 0.5 m（左液右汽），t = 500 us；论文未给区域与网格。
+		// 前沿 100 us 只走约 0.1 mm，按位置测速需要细网格：默认 10000 格（50 um）。液体中的稀疏波很弱（液体停在饱和压力），汽相流出右边界
+		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.x0 = 0.25; S.x1 = 0.75; S.tend = 500e-6; S.nx = 10000; S.relax = 2; break;
+	case testBartak:   // Pelanti 表 5（NASG 水 350-550 K）；Sirianni-Re 的布置：[-1.7, 0] 为大气室（汽），[0, 1.7] 为高压管，右端封闭，左端透射；t = 17.5 ms
+		PH[0] = {1.387, 8899e5, -1244191.0, 0.0, 3202.0, 4.78e-4}; PH[1] = {1.954, 0.0, 2287484.0, 6417.0, 462.0, 0.0};
+		S.x0 = -1.7; S.x1 = 1.7; S.tend = 17.5e-3; S.nx = 2000; S.relax = 2; S.bc[1] = BC_WALL; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
 		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; S.nx = 80; S.ny = 80; break;
@@ -791,6 +820,12 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPS_Cavitation2: case testPS_Cavitation500: {
 		const double T0 = 354.728, U0 = test == testPS_Cavitation2 ? 2.0 : 500.0, u = x < 0.5 ? -U0 : U0;
 		setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
+	case testEvapFront: {   // 全场 T = T_TEST；左：液体，p = psat(T_TEST)，alpha_v = 1e-6；右：汽，p = 1 mbar，alpha_l = 1e-6（Pelanti 8.2.3，按 Fechter et al. 2018）
+		const bool L = x < 0.5; const double p = L ? psat(T_TEST) : 100.0;
+		setcell(L ? 1 - 1e-6 : 1e-6, rho_pT(0, p, T_TEST), rho_pT(1, p, T_TEST), 0, 0, p, p); break; }
+	case testBartak: {   // 高压管：液态水 12.5 MPa、563.15 K，alpha_v = 1e-3；大气室：汽 1e5 Pa、Tsat(1e5)，alpha_v = 1 - 1e-3（两相同温）
+		const bool L = x < 0.0; const double p = L ? 1e5 : 12.5e6, T = L ? Tsat(1e5) : 563.15;
+		setcell(L ? 1e-3 : 1 - 1e-3, rho_pT(0, p, T), rho_pT(1, p, T), 0, 0, p, p); break; }
 	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
 	case testSPB_Nitromethane: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1134.0, 1200.0, 0, 0, L ? 20e9 : 0.2e6, L ? 20e9 : 0.2e6); break; }
 	case testPel_JWLWater: { const bool L = x < 0.0; setcell(L ? 1 - 1e-8 : 1e-8, 2000.0, 1044.0, 0, 0, L ? 4.6406e10 : 1e5, L ? 4.6406e10 : 1e5); break; }

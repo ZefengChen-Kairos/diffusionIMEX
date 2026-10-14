@@ -19,7 +19,7 @@
 //      可容许能量份额；对 delta 连续，Newton 无分支校正。逐步说明见 docs/derivation/E_code_path.md。
 //
 //  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
-//  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt init
+//  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt init nulaw nucr ttest
 //        snap probe prec p0 wellprep vtk verbose（含义见 E 页 E0）
 // =====================================================================================================================
 #include <iostream>
@@ -158,6 +158,7 @@ Array *ube_x, *ube_y;     // 显式中心通量用的面速度 ubar^e（x 面 (i
 struct PField { int nx, ny; std::vector<double> P; inline double& at(int i, int j) { return P[(size_t)i + (size_t)j * nx]; } inline double at(int i, int j) const { return P[(size_t)i + (size_t)j * nx]; } };
 // 每步开始时确定的各格闭合类型（B6.7）；空 = 各级自行判断
 std::vector<int> STEP_TYPE;
+std::vector<double> STEP_NU;   // nulaw=1：每格的传质速率，按步开始的状态（pT 平衡态的 p、T 与 alpha_v）由 nu_law 给出，本步各级冻结
 
 
 using namespace std;
@@ -488,13 +489,25 @@ static bool project_cell(Grid& U, int i, int j, int type) {
 // 对整个场：判断类型、投影；投影失败的格退回力学类型（不投影）
 void RelaxationActivation(Grid& U) {
 	const int nx = U.nxCells, ny = U.nyCells;
-	STEP_TYPE.assign((size_t)nx * ny, CL_P);
+	STEP_TYPE.assign((size_t)nx * ny, CL_P); if (NU_LAW) STEP_NU.assign((size_t)nx * ny, 0.0);
 	#pragma omp parallel for schedule(static)
 	for (int q = 0; q < nx * ny; q++) {
 		const int i = q % nx, j = q / nx;
 		int ty = cell_type_U(U, IG(i), IG(j));
 		if (!project_cell(U, IG(i), IG(j), ty)) ty = std::isinf(mu_rate) ? CL_P : CL_MU;
 		STEP_TYPE[(size_t)i + (size_t)j * nx] = ty;
+		if (NU_LAW) {   // 速率取本格 pT 平衡态（mu = theta = inf，不传质）的 p、T 与汽相体积分数
+			double nu = 0.0;
+			if (ty == CL_NU) {
+				const double rho = U(IG(i), IG(j), IM1) + U(IG(i), IG(j), IM2);
+				ClIn in{}; in.atr[0] = U(IG(i), IG(j), IA1); in.atr[1] = 1.0 - in.atr[0]; in.mtr[0] = U(IG(i), IG(j), IM1); in.mtr[1] = U(IG(i), IG(j), IM2);
+				in.etr[0] = U(IG(i), IG(j), IE1); in.etr[1] = U(IG(i), IG(j), IE2); in.s = 0.0; in.tau = 0.0; in.type = CL_PT; in.Z[0] = in.Z[1] = 1.0;
+				in.rhoeC = U(IG(i), IG(j), IEN) - 0.5 * (U(IG(i), IG(j), IMU) * U(IG(i), IG(j), IMU) + U(IG(i), IG(j), IMV) * U(IG(i), IG(j), IMV)) / rho;
+				in.pguess = std::max(p_mix(in.atr[0], in.mtr[0], in.mtr[1], in.rhoeC), 1.0);
+				ClOut o; if (closure(in, o)) nu = nu_law(o.p[0], o.T[0], o.a[1]);
+			}
+			STEP_NU[(size_t)i + (size_t)j * nx] = nu;
+		}
 	}
 	bound_cond_u(U);
 }
@@ -588,6 +601,7 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 	ClIn in{}; in.atr[0] = X[0]; in.atr[1] = X[1]; in.mtr[0] = X[2]; in.mtr[1] = X[3]; in.etr[0] = X[4]; in.etr[1] = X[5];
 	in.s = s; in.rhoeC = E - 0.5 * (mx * mx + my * my) / rho; in.tau = S.tau; in.type = S.type[S.id(i, j)];
 	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = P_REF + Pc; in.nodelta = false; in.Qph[0] = S.Qph[S.id(i, j) * 2]; in.Qph[1] = S.Qph[S.id(i, j) * 2 + 1];
+	if (NU_LAW && !STEP_NU.empty()) in.nu = STEP_NU[(size_t)(i - ghost_cells) + (size_t)(j - ghost_cells) * S.nx];
 	ClOut o; if (!closure(in, o)) {
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
@@ -1013,7 +1027,7 @@ void probe_write(Grid& u_con, bool first){
 	const int i = std::min(nxCells - 1, std::max(0, (int)std::floor((PROBE_X - x_0) / dx))), j = std::min(nyCells - 1, std::max(0, (int)std::floor((PROBE_Y - y_0) / dy)));
 	double o[15]; cell_diag(u_con.cell(i + ghost_cells, j + ghost_cells), o);
 	FILE* f = fopen((out_file + ".probe").c_str(), first ? "w" : "a"); if (!f) return;
-	fprintf(f, "%.10e %.10e\n", t, o[0]); fclose(f);
+	fprintf(f, "%.10e %.10e %.10e %.10e %.10e\n", t, o[0], o[5], o[4], o[10]); fclose(f);   // t p Y2 alpha2 T1
 }
 
 int main(int argc, char *argv[]){
@@ -1029,7 +1043,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "ttest") T_TEST = d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1047,6 +1061,7 @@ int main(int argc, char *argv[]){
 	// 松弛档位的默认速率（relax >= 1 时热松弛默认瞬时，relax = 2, 3 化学默认瞬时；可由 theta=, nu= 覆盖为有限值）
 	if (theta_rate < 0) theta_rate = RELAX_LEVEL >= 1 ? INF : 0.0;
 	if (nu_rate < 0) nu_rate = (RELAX_LEVEL == 2 || RELAX_LEVEL == 3) ? INF : 0.0;
+	if (NU_LAW) nu_rate = 0.0;   // 有限速率的化学类型；每格的速率由 STEP_NU 给（nu_rate 只是不用的占位）
 	if (RELAX_LEVEL > 0 && !mg_any()) build_sat();   // 饱和线表在并行循环之前建好（Tsat 惰性构造不是线程安全的）
 	x_0 = TS.x0; x_1 = TS.x1; y_0 = TS.y0; y_1 = TS.y1; time_stop = TS.tend; x_bc = TS.xbc; y_bc = TS.ybc;
 	apply_bc_setup(TS);
