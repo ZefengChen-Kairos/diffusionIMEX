@@ -25,7 +25,6 @@ J1=(
   "pel821_p|case=30 N=5000 relax=0" "pel821_pTf|case=30 N=5000 relax=1 theta=2000" "pel821_pT|case=30 N=5000 relax=1"
   "pel821_pTgf|case=30 N=5000 relax=2 nu=1e-4" "pel821_pTg|case=30 N=5000 relax=2"                                           # Pelanti 2022 Figs. 4-5
   "pel822_r0|case=31 N=2000 relax=0" "pel822_r2|case=31 N=2000 relax=2"                                                    # Pelanti 2022 Fig. 6
-  "gr50|case=50 dt=0.0025" "gr51|case=51 dt=0.0025" "gr52|case=52 dt=0.0025" "gr53|case=53 dt=0.0025" "gr54|case=54 dt=0.0025" "gr55|case=55 dt=0.0025"   # Gresho AP
 )
 J2=(
   "he|case=70 snap=134e-6,274e-6,344e-6,554e-6"                              # SPB 2009 4.6, Figs. 13-14

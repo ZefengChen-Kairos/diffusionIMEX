@@ -22,4 +22,3 @@ Produced by `bash tests/run_archive.sh run/archive` and `python3 tests/make_arch
 | [Pelanti2022_8.1.2_underwater_explosion](Pelanti2022_8.1.2_underwater_explosion/note.md) | Pelanti 2022 | Figs. 2-3 | 361 x 200 (half the paper grid 721 x 400: the IMEX run on the paper grid takes about 14 h; `N=721 ny=400` reproduces it) | 0.2 (default) |
 | [Pelanti2022_8.2.1_water_cavitation](Pelanti2022_8.2.1_water_cavitation/note.md) | Pelanti 2022 | Figs. 4-5 | 5000 | 0.2 (default) |
 | [Pelanti2022_8.2.2_dodecane_NASG](Pelanti2022_8.2.2_dodecane_NASG/note.md) | Pelanti 2022 | Fig. 6 | 2000 | 0.2 (default) |
-| [Gresho_vortex_low_Mach](Gresho_vortex_low_Mach/note.md) | Gresho vortex (user's 2DEuler_TV.cpp) | — | 80 x 80 | fixed dt = 0.0025 |

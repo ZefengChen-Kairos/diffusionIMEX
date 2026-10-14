@@ -34,7 +34,7 @@ Test test = testSPB_WaterAir;         // 切换算例：改这里（或命令行
                                       // 一维：0 SPB 4.5 空化管 | 1, 2 P-S ±2 / ±500 m/s 水 | 3 十二烷 SG | 4 SPB 4.1 界面平移 | 5, 6 SPB 4.3.1 / 4.3.2 水-气
                                       //       12, 13 SPB 5.1 / 5.2 环氧-尖晶石 | 20, 21 光滑解 | 30 Pelanti 8.2.1 | 31 十二烷 NASG | 40, 41 0D 松弛
                                       //       60 SPB 4.2 硝基甲烷（Cochran-Chan）| 61 Pelanti 8.1.1 JWL-水
-                                      // 二维：50-55 Gresho 涡（M = 1e-1 ... 1e-6）| 70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
+                                      // 二维：70 SPB 4.6 激波-氦泡 | 71 SPB 4.7 空化 RM
                                       //       72 P-S 5.4 十二烷汽泡压缩（relax 2）| 73 Pelanti 8.1.2 近壁水下爆炸
 x_boundary_condition x_bc;
 y_boundary_condition y_bc;

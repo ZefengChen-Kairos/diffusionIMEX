@@ -669,12 +669,6 @@ enum Test {
 	testBartak = 32,              // Pelanti 2022 8.2.4 / Sirianni-Re 2026 5.2：Barták 管道快速泄压（NASG 水 350-550 K，有限速率传质 nulaw=1）
 	testRelax0D = 40,             // 0D 松弛：均匀非平衡态（周期）
 	testRelax0DChem = 41,         // 0D 化学松弛：pT 平衡、过热（周期）
-	testGresho1 = 50,             // Gresho 涡（2DEuler 的 testGreshoVortex），单相极限（两相同为理想气体，alpha1 = 1/2），M = 0.1
-	testGresho2 = 51,             //   M = 0.01
-	testGresho3 = 52,             //   M = 0.001（低马赫 AP 检验）
-	testGresho4 = 53,             //   M = 1e-4
-	testGresho5 = 54,             //   M = 1e-5
-	testGresho6 = 55,             //   M = 1e-6
 	testVortexBB = 56,            // Battisti-Boscheri 4.1 两相等熵涡（Hu-Shu 型，周期，平移一周回到初值：精确解就是初值）；背景压力 p0 = VORTEX_P0（命令行 p0=）
 	testTaylorGreen1 = 57,        // Battisti-Boscheri 4.4 低马赫 Taylor-Green 涡，单相（alpha_s = 0.5）：不可压 Euler 的定常解；p0 = VORTEX_P0，M = 1/sqrt(1.4 p0)
 	testTaylorGreen2 = 58,        //   两相（alpha_s = 0.5 + 0.1 (cos 2x + cos 2y)）
@@ -772,8 +766,6 @@ static bool test_setup(int test, TestSetup& S) {
 		PH[0] = {1.387, 8899e5, -1244191.0, 0.0, 3202.0, 4.78e-4}; PH[1] = {1.954, 0.0, 2287484.0, 6417.0, 462.0, 0.0};
 		S.x0 = 0.0; S.x1 = 1.7; S.tend = 17.5e-3; S.nx = 1000; S.relax = 2; S.bc[0] = BC_PRES; S.bcp[0] = 1e5; S.bc[1] = BC_WALL; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
-	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
-		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; S.nx = 80; S.ny = 80; break;
 	case testVortexBB:   // Battisti-Boscheri 4.1：[-5, 5]^2 周期，gamma_f = 1.35（相 1）、gamma_s = 1.4（相 2），平移 (2, 2)，t = 5 正好一周
 		set_SG(0, 1.35, 0); set_SG(1, 1.4, 0); S.x0 = -5; S.x1 = 5; S.y0 = -5; S.y1 = 5; S.tend = 5.0; S.xbc = x_Periodic; S.ybc = y_Periodic;
 		S.sub = 4; S.nx = 40; S.ny = 40; S.relax = 0; break;   // 初值取 4 x 4 子点的格平均（误差按格平均比较）
@@ -868,15 +860,6 @@ static void test_state(int test, double x, double y, double* Q) {
 		const double du = eps / (2 * M_PI) * std::exp(0.5 * (1 - r2)), dT = -(g - 1) * eps * eps / (8 * g * M_PI * M_PI) * std::exp(1 - r2);
 		const double T = p0 + dT, rho = std::pow(T / p0, 1.0 / (g - 1)), p = rho * T, a2 = 0.5 + 0.25 * std::exp(0.5 * (1 - r2));
 		setcell(1 - a2, rho, rho, 2.0 - du * y, 2.0 + du * x, p, p); break; }
-	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6: {   // 2DEuler_TV.cpp 的 testGreshoVortex：rho = 1，p0 = 1/(gamma M^2)，最大速度 1（r = 0.2）
-		static const double Ms[6] = {1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6};
-		const double M = Ms[test - testGresho1], p0 = 1.0 / (1.4 * M * M), r = std::sqrt(x * x + y * y);
-		double vel, p;
-		if (r < 0.2) { vel = 5 * r; p = p0 + 25.0 / 2.0 * r * r; }
-		else if (r < 0.4) { vel = 2 - 5 * r; p = p0 + 25.0 / 2.0 * r * r + 4 * (1 - 5 * r - std::log(0.2) + std::log(r)); }
-		else { vel = 0; p = p0 - 2 + 4 * std::log(2.0); }
-		const double ux = r < 1e-14 ? 0.0 : -vel * y / r, uy = r < 1e-14 ? 0.0 : vel * x / r;
-		setcell(0.5, 1.0, 1.0, ux, uy, p, p); break; }
 	}
 }
 

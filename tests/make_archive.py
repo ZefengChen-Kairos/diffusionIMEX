@@ -106,11 +106,6 @@ T = [
   'Dodecane shock tube with NASG parameters (Table 4): liquid (x < 0.75, 500 kg/m3, 1e8 Pa) | vapour (2 kg/m3, 1e5 Pa); t = 473 us.',
   31, dict(N='2000', dom='[0, 1] m', bc='transmissive', eos='dodecane liquid NASG (1.206, 1681e5, q -996054, cv 2532, b 7.51e-4); vapour (1.021, 0, q -384592, q\' -4301, cv 2274)', relax='p; pTg'),
   [('pel822_r0', 'p_relax.dat', 'p'), ('pel822_r2', 'pTg_relax.dat', 'pTg')], ''),
- ('Gresho_vortex_low_Mach', 'Gresho vortex as in the user\'s 2DEuler_TV.cpp (testGreshoVortex); asymptotic-preserving check (devlog V11.8)', '—',
-  'Single-phase limit (both phases ideal gas 1.4, alpha = 0.5, rho = 1), maximum velocity 1 at r = 0.2, p0 = 1/(gamma M^2); one turn t = 0.4 pi; the same fixed dt = 0.0025 for every M.',
-  50, dict(N='80 x 80', dom='[-0.5, 0.5]^2', bc='periodic', eos='ideal gas 1.4 (both phases)', relax='p'),
-  [('gr50', 'M1e-1.dat', 'M = 1e-1'), ('gr51', 'M1e-2.dat', 'M = 1e-2'), ('gr52', 'M1e-3.dat', 'M = 1e-3'), ('gr53', 'M1e-4.dat', 'M = 1e-4'), ('gr54', 'M1e-5.dat', 'M = 1e-5'), ('gr55', 'M1e-6.dat', 'M = 1e-6')],
-  'Cases 50-55, fixed time step `dt=0.0025` (no CFL, no start-up ramp).'),
 ]
 CFL = {3: '0.05', 12: '0.05'}
 RUS = {13: 'global maximum speed, `rus=0`', 71: 'global maximum speed, `rus=0`', 72: 'global maximum speed, `rus=0`'}
@@ -159,7 +154,7 @@ for folder, paper, fig, desc, case, st, files, extra in T:
     if any(not o.endswith('.gz') and not r.endswith('.probe') for r, o, _ in files):
         note += ['1D/2D profile columns (`%s`, one line per cell, full precision):' % COLS1, '', COLS_DOC, '']
     open(os.path.join(d, 'note.md'), 'w').write('\n'.join(note))
-    short = {'SPB2009': 'Saurel, Petitpas & Berry 2009', 'PS2014': 'Pelanti & Shyue 2014', 'Pelanti2022': 'Pelanti 2022', 'Gresho': "Gresho vortex (user's 2DEuler_TV.cpp)"}[folder.split('_')[0]]
+    short = {'SPB2009': 'Saurel, Petitpas & Berry 2009', 'PS2014': 'Pelanti & Shyue 2014', 'Pelanti2022': 'Pelanti 2022'}[folder.split('_')[0]]
     index.append('| [%s](%s/note.md) | %s | %s | %s | %s |' % (folder, folder, short, fig, st['N'], cfl))
 open(os.path.join(DATA, 'README.md'), 'w').write('\n'.join([
     '# Data of the IMEX reproductions of the paper figures (V14)', '',
