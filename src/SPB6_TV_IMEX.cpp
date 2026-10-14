@@ -632,6 +632,8 @@ static bool residual_at(const StageData& S, const PField& P, int i, int j, doubl
 	if (which == 1) PE += dn;
 	if (which == 2) PS += dn;
 	if (which == 3) PN += dn;
+	if (i == 0 && BCS[0] == BC_PRES) PW = BCP[0] - P_REF;              // 给定压力出口：外侧压力不是未知量（Jacobian 的该列为 0）
+	if (i == S.nx - 1 && BCS[1] == BC_PRES) PE = BCP[1] - P_REF;
 	return cell_residual(S, IG(i), IG(j), Pc, PW, PE, PS, PN, G, out);
 }
 

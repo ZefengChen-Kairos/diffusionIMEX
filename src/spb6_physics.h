@@ -689,12 +689,14 @@ enum Test {
 struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc;
 	int bc[4] = {-1, -1, -1, -1};      // 每一边（左、右、下、上）单独给：BC_TRANS / BC_WALL；-1 表示用 xbc / ybc
 	double bcu[4] = {0, 0, 0, 0};      // 固壁的法向速度（沿 +x / +y 方向；活塞）
+	double bcp[4] = {0, 0, 0, 0};      // BC_PRES 的出口压力
 	int sub = 1;                       // 初值的子格采样数（每方向）：圆形区域的格平均
 	int nx = -1, ny = -1, relax = -1;  // 论文的网格与松弛档位（命令行 N= ny= relax= 覆盖）
 	double cfl = -1;                   // IMEX 的物质 CFL（-1：程序默认 0.2）。声波本身是要解的结构时取小（B10，devlog V14）
 	int rus = -1; };                   // IMEX 显式 Rusanov 的耗散速度：1 每个面局部，0 全场最大（-1：默认 1）（B3，devlog V14）
-enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2 };
-int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
+enum { BC_TRANS = 0, BC_WALL = 1, BC_PERIODIC = 2, BC_PRES = 3 };
+// BC_PRES（只用于 x 两边）：给定压力出口，虚格 = 最近内部格的 alpha、m、速度，两相压力都取 BCP[side]（Pelanti 8.2.4 的大气压出口）；隐式部分的外侧压力取 BCP（不是未知量）
+int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; double BCP[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
 double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4；命令行 p0=）
 int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）
@@ -708,7 +710,7 @@ inline std::string snap_name(const std::string& out, size_t k) { std::string b =
 static void apply_bc_setup(const TestSetup& S) {
 	const int dx_ = S.xbc == x_Periodic ? BC_PERIODIC : (S.xbc == x_Reflective ? BC_WALL : BC_TRANS);
 	const int dy_ = S.ybc == y_Periodic ? BC_PERIODIC : (S.ybc == y_Reflective ? BC_WALL : BC_TRANS);
-	for (int q = 0; q < 4; q++) { BCS[q] = S.bc[q] >= 0 ? S.bc[q] : (q < 2 ? dx_ : dy_); BCU[q] = S.bcu[q]; }
+	for (int q = 0; q < 4; q++) { BCS[q] = S.bc[q] >= 0 ? S.bc[q] : (q < 2 ? dx_ : dy_); BCU[q] = S.bcu[q]; BCP[q] = S.bcp[q]; }
 	SUBCELL = S.sub;
 }
 // 边界条件（两个程序共用）：透射复制边界格；固壁镜像，法向速度取 2 u_w - u（u_w = 0 时就是取负；总能随动能改）；周期绕回。
@@ -716,6 +718,9 @@ static void apply_bc_setup(const TestSetup& S) {
 template <class GridT> static void bc_apply(GridT& u, int nx, int ny, int g) {
 	auto ghost = [&](int i, int j, int si, int sj, int side) {
 		for (int k = 0; k < 8; k++) u(i, j, k) = u(si, sj, k);
+		if (BCS[side] == BC_PRES) {   // 两相压力取出口压力，alpha、m、速度照搬
+			const double a1 = u(i, j, IA1), e1 = eps_amp(0, a1, u(i, j, IM1), BCP[side]), e2 = eps_amp(1, 1 - a1, u(i, j, IM2), BCP[side]);
+			u(i, j, IEN) += (e1 + e2) - (u(i, j, IE1) + u(i, j, IE2)); u(i, j, IE1) = e1; u(i, j, IE2) = e2; return; }
 		if (BCS[side] != BC_WALL) return;
 		const int kn = side < 2 ? IMU : IMV; const double rho = u(i, j, IM1) + u(i, j, IM2);
 		if (BCU[side] == 0.0) { u(i, j, kn) = -u(i, j, kn); return; }
@@ -768,9 +773,9 @@ static bool test_setup(int test, TestSetup& S) {
 	case testEvapFront:   // P-S 2014 的 SG 十二烷（同算例 3）；[0.25, 0.75] m，膜片在 0.5 m（左液右汽），t = 500 us；论文未给区域与网格。
 		// 前沿 100 us 只走约 0.1 mm，按位置测速需要细网格：默认 10000 格（50 um）。液体中的稀疏波很弱（液体停在饱和压力），汽相流出右边界
 		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.x0 = 0.25; S.x1 = 0.75; S.tend = 500e-6; S.nx = 10000; S.relax = 2; break;
-	case testBartak:   // Pelanti 表 5（NASG 水 350-550 K）；Sirianni-Re 的布置：[-1.7, 0] 为大气室（汽），[0, 1.7] 为高压管，右端封闭，左端透射；t = 17.5 ms
+	case testBartak:   // Pelanti 8.2.4：表 5（NASG 水 350-550 K）；管长 1.7 m，右端封闭，左端突然打开：左边界给定大气压 1e5 Pa；1000 格，t = 17.5 ms
 		PH[0] = {1.387, 8899e5, -1244191.0, 0.0, 3202.0, 4.78e-4}; PH[1] = {1.954, 0.0, 2287484.0, 6417.0, 462.0, 0.0};
-		S.x0 = -1.7; S.x1 = 1.7; S.tend = 17.5e-3; S.nx = 2000; S.relax = 2; S.bc[1] = BC_WALL; break;
+		S.x0 = 0.0; S.x1 = 1.7; S.tend = 17.5e-3; S.nx = 1000; S.relax = 2; S.bc[0] = BC_PRES; S.bcp[0] = 1e5; S.bc[1] = BC_WALL; break;
 	case testRelax0D: case testRelax0DChem: set_SG(0, 2.35, 1e9, -1167e3, 0.0, 1816.0); set_SG(1, 1.43, 0.0, 2030e3, -23.4e3, 1040.0); S.tend = 1e-4; S.xbc = x_Periodic; break;
 	case testGresho1: case testGresho2: case testGresho3: case testGresho4: case testGresho5: case testGresho6:
 		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = -0.5; S.x1 = 0.5; S.y0 = -0.5; S.y1 = 0.5; S.tend = 0.4 * M_PI; S.xbc = x_Periodic; S.ybc = y_Periodic; S.nx = 80; S.ny = 80; break;
@@ -823,9 +828,8 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testEvapFront: {   // 全场 T = T_TEST；左：液体，p = psat(T_TEST)，alpha_v = 1e-6；右：汽，p = 1 mbar，alpha_l = 1e-6（Pelanti 8.2.3，按 Fechter et al. 2018）
 		const bool L = x < 0.5; const double p = L ? psat(T_TEST) : 100.0;
 		setcell(L ? 1 - 1e-6 : 1e-6, rho_pT(0, p, T_TEST), rho_pT(1, p, T_TEST), 0, 0, p, p); break; }
-	case testBartak: {   // 高压管：液态水 12.5 MPa、563.15 K，alpha_v = 1e-3；大气室：汽 1e5 Pa、Tsat(1e5)，alpha_v = 1 - 1e-3（两相同温）
-		const bool L = x < 0.0; const double p = L ? 1e5 : 12.5e6, T = L ? Tsat(1e5) : 563.15;
-		setcell(L ? 1e-3 : 1 - 1e-3, rho_pT(0, p, T), rho_pT(1, p, T), 0, 0, p, p); break; }
+	case testBartak: {   // 液态水 12.5 MPa、563.15 K，均匀的汽 alpha_v = 1e-3（两相同温）
+		const double p = 12.5e6, T = 563.15; setcell(1 - 1e-3, rho_pT(0, p, T), rho_pT(1, p, T), 0, 0, p, p); break; }
 	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
 	case testSPB_Nitromethane: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1134.0, 1200.0, 0, 0, L ? 20e9 : 0.2e6, L ? 20e9 : 0.2e6); break; }
 	case testPel_JWLWater: { const bool L = x < 0.0; setcell(L ? 1 - 1e-8 : 1e-8, 2000.0, 1044.0, 0, 0, L ? 4.6406e10 : 1e5, L ? 4.6406e10 : 1e5); break; }
