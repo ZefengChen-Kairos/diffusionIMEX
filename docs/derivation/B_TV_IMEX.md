@@ -383,7 +383,7 @@ $$
 
 $\Lambda_k$ 是 $\delta$ 的连续分段仿射函数（分段点 $\delta=0$、$\delta=Q$）。在 (B6.2) 里 $\lambda_k$ 只通过 $A_k+B_kp=\varepsilon^{\rm tr}_k-m_kq_k+p\alpha^{\rm tr}_k+\Lambda_k(\delta(p))$ 进入，$\delta(p)=D_0+ps$，$D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$；闭合在 $\delta$ 所在的分段上写 $\Lambda_k=\lambda_k\delta+\xi_k$（$\xi_k=Q_k-Q\lambda^E_k$ 只在第三段非零），即 $A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k$，$B_k=\alpha^{\rm tr}_k+\lambda_ks$，分段按 $\delta(p^{\rm guess})$ 取，$p^{\rm guess}$ 是本格当前的全局迭代值，收敛时 $p^{\rm guess}=p$。所以 $G(P)$ 连续、分段光滑，B8 不再需要分支校正。（V15 的不连续来自按 $D_0$ 而不是 $\delta$ 的符号分支：$D_0=0$ 处 $\delta=ps\ne0$，$\lambda_k\delta$ 跳变。按 $\delta$ 分支时跳点处 $\lambda_k\delta=0$。）`defect_split` 返回 $(\lambda_k,\xi_k)$；有限 $\mu$ 的两压力闭合 (B6.3) 用同一分段，$\xi_k$ 加在右端。
 
-**(f) 结果（V16，C. 开发记录 §16.5）。** SPB 5.2（$2\times10^{11}$ Pa）激波后密度 3966 → RES_52 kg/m³（精确 3766.7），$L_1(u)$ 118 → RES_52U；SPB 5.1 2533.7 → RES_51（精确 2527.5）。质量分配的 5% 误差就是分配规则的误差。其他一维算例的指标只在第 3 位以后变化。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ 到 $6\times10^{-16}$（V15：2.99 次、10503 次分支翻转、$10^{-13}$）。
+**(f) 结果（V16，C. 开发记录 §16.5）。** SPB 5.2（$2\times10^{11}$ Pa）激波后密度 3966 → 3780.0 kg/m³（精确 3766.7，误差 5.3% → 0.35%），$L_1(u)$ 118 → 25.4；SPB 5.1 2533.7 → 2528.6（精确 2527.5）。质量分配的 5% 误差就是分配规则的误差。其他一维算例的指标只在第 3 位以后变化。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ 到 $6\times10^{-16}$（V15：2.99 次、10503 次分支翻转、$10^{-13}$）。
 
 **(g) 试过而舍弃（V16）。**
 - 局部弱规则 $\alpha_k\mathcal G_k/K_k^2$（$K_k$ 取当地值）用于全部 $\delta\ge0$：5.2 修好，但 4.3.1 过冲 1.048、4.5 空气 $3\times10^5$ K（(d)）。
