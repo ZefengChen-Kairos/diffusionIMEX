@@ -1342,6 +1342,14 @@ $\lambda^{\rm II.5}_k=Q_k/Q$ 由 $\pm2$ 格模板上 $X^*$ 混合压力的极值
 
 见 B5.2 (g)：局部弱规则用于全部 $\delta\ge0$；冻结在波前的弱规则；体积份额 $\alpha_k/K_k$；$T_k\Delta s_k$ 形式；按两个符号都用弱激波份额（之前的 `LAMDBG=6` 试验：SPB 4.3.1 有 258 次拒绝、1244 个一阶步，4.3.2 与 V15 相同）。**更正：**我曾说那次试验“算例 0 质量丢 37%、算例 2 丢 58%，所以无效”——不对，那是透射边界的流出（V15 的同一算例日志里 $dM/M$ 完全相同），不是格式丢质量。那次试验的结论“更差”本身是对的，但它试的是错误的规则：弱激波份额用于全部亏损（含 $\delta<0$ 与光滑区误差），正是 16.3 的两种失效。
 
+### 16.8 空化 RM 在 $t=0.73$ ms 停住：闭合的逐相单调性条件过严
+
+V16 第一版重跑二维时空化 RM（算例 71）在 $t=7.30\times10^{-4}$ s 处步长一路减半到 $10^{-11}$（2 小时没到第一个快照；V15 整个算例 570 s）。出问题的格是激波刚扫过的水格（$\alpha_{\rm gas}=3\times10^{-8}$，$s=7.7\times10^{-4}$）：$D_0=(\rho e)^C-\sum\varepsilon^{\rm tr}\approx-3.06\times10^5$，$ps\approx+3.06\times10^5$，$\delta=D_0+ps$ 在解附近过零，落在 $0\le\delta<Q$ 段，微量气体按 (II.5) 分到 $\lambda_{\rm gas}\approx1$。该段 $\Lambda_k=\lambda_k(D_0+ps)$，气相的 $N_k=E_k+\lambda_kD_0\approx15-3\times10^5<0$：$\alpha_{\rm gas}(p)$ 随 $p$ 增，旧闭合在求根前逐相要求 $N_k>0$，直接判为无解。
+
+- **第一次修改（舍弃）：** 把 $\Lambda_k$ 在全局迭代值 $p^{\rm guess}$ 处取成常数（$B_k=\alpha^{\rm tr}_k$）。收敛处方程相同、RM 通过、一维逐位或第 4 位相同，但 $G(P)$ 多了经 $p^{\rm guess}$ 的依赖，闭合内能量只在收敛时一致：Gresho $M=10^{-5}$ 的 Newton 停在 $10^{-10}$，1836 次拒绝。
+- **最终修改：** 逐相单调不是必要条件。$\Phi(p)=\sum_k\alpha_k(p)-1$ 由液体主导（液体斜率 $\sim-1/K_{\rm water}\approx-2\times10^{-10}$/Pa，气体 $\sim+5\times10^{-13}$/Pa），仍递减。所以 $p$ 闭合在**每个试探 $p$ 处**按 $\delta(p)$ 选段（$\Lambda_k(\delta(p))$ 精确、分段仿射、连续，闭合内 $\sum\varepsilon_k=(\rho e)^C$ 对任意 $p$ 成立），去掉逐相 $N_k>0$ 的预检，只要求 $\Phi$ 有带区间的根、解处各相可容许（`closure_p`）。Gresho $M=10^{-5}$、$10^{-6}$：0 次拒绝（1.00、1.02 次 Newton/级）；空化 RM 越过 $0.73$ ms、0 次拒绝；SPB 4.3.2 拒绝 4 → 3。
+- 有限 $\mu$ 的两压力闭合、有限 $\theta$、MG 闭合仍按 $\delta(p^{\rm guess})$ 选段（收敛时相同）。
+
 ### 16.7 数据
 
 `scratchpad/profile.py`（剖面 ODE，各规则终态与精确份额 $c$）、`scratchpad/hugsplit.py`（能隙份额）；调试二进制 `scratchpad/lam7`（`LAMDBG=7` 局部弱规则）；`run/v16`。

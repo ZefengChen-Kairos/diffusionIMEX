@@ -285,7 +285,7 @@ $$
 \Lambda_k(\delta)=\begin{cases}\delta\,\lambda^E_k,&\delta<0\ \text{或}\ Q=0,\\ \delta\,\lambda^{\rm II.5}_k,&0\le\delta<Q,\\ \delta\,\lambda^E_k+\big(Q_k-Q\lambda^E_k\big),&\delta\ge Q,\end{cases}
 $$
 
-连续、分段仿射；按 $\delta_g$ 所在的段取 $\Lambda_k=\lambda_k\delta+\xi_k$（$\xi_k$ 只在第三段非零）。闭合系数
+连续、分段仿射；在所选段上 $\Lambda_k=\lambda_k\delta+\xi_k$（$\xi_k$ 只在第三段非零）。$p$ 闭合（E5.1）在每个试探 $p$ 处按 $\delta(p)$ 选段；其余闭合按 $\delta_g$ 选段。闭合系数
 
 $$
 A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\qquad B_k=\alpha^{\rm tr}_k+\lambda_ks,\qquad N_k=A_k-(B_k-m_kb_k)\pi_k\ (>0\ \text{才可容许}),
@@ -301,7 +301,7 @@ $$
 \alpha_k(p)=\frac{(\gamma_k-1)(A_k+B_kp)+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\qquad \alpha_k'(p)=-\frac{(\gamma_k-1)N_k}{\gamma_k(p+\pi_k)^2}<0,
 $$
 
-解 $\Phi(p)=\alpha_1(p)+\alpha_2(p)-1=0$，$p>p_{\rm lo}=\max_k(-\pi_k)$：先从 $p^{\rm guess}$ 找区间（$\Phi>0$ 的下端、$\Phi<0$ 的上端，向上 ×4 或向下 ×1/4 扩张），再带区间的 Newton（步出区间时取几何/算术中点），终止于相对 $2\times10^{-16}$。输出 $\alpha_k=\alpha_k(p)$，$m_k=m^{\rm tr}_k$，$\varepsilon_k$ 由 E1 的 EOS，$p_k=p$，$T_k$ 由 E1；要求 $\alpha_k>m_kb_k$。
+（$A_k,B_k,N_k$ 用试探 $p$ 处 $\delta(p)$ 所在段的系数。）解 $\Phi(p)=\alpha_1(p)+\alpha_2(p)-1=0$，$p>p_{\rm lo}=\max_k(-\pi_k)$：先从 $p^{\rm guess}$ 找区间（$\Phi>0$ 的下端、$\Phi<0$ 的上端，向上 ×4 或向下 ×1/4 扩张；找不到则无解），再带区间的 Newton（导数非负或步出区间时取几何/算术中点），终止于相对 $2\times10^{-16}$。不逐相要求 $N_k>0$（单相 $\alpha_k(p)$ 可以不单调，C 页 V16 §16.8），只要求解处 $\alpha_k>m_kb_k$、$p+\pi_k>0$。输出 $\alpha_k=\alpha_k(p)$，$m_k=m^{\rm tr}_k$，$\varepsilon_k$ 由 E1 的 EOS，$p_k=p$，$T_k$ 由 E1；要求 $\alpha_k>m_kb_k$。
 
 MG 相（`closure_p_mg`，`alpha_mg`）：$\alpha_k(p)$ 是 $f_k(\alpha)=m_k\varepsilon_r(m_k/\alpha)+\alpha(p-p_r(m_k/\alpha))/\Gamma_k+p\alpha-A_k-B_kp=0$ 的根（$f_k'=\rho_kc_k^2/\Gamma_k>0$；在 $\alpha$ 上从初猜几何扩张找区间，再带区间的 Newton，$A_k$ 中无 $m_kq_k$ 项）；外层 $\Phi(p)$ 用带区间的 Newton，$\alpha_k(p)$ 无解当作 $\Phi=+\infty$。
 
