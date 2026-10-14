@@ -1298,7 +1298,7 @@ AP 照旧（$M\to0$ 时解收敛，与 $M$ 无关）；动能保持率与 $u_\th
 激波系下的定常剖面：Rayleigh 线 $P(v)=p_0+j^2(v_0-v)$，混合物 $\mathrm de=-P\,\mathrm dv$（自动落在 Hugoniot 上，与分配无关），相 $k$ 的 $\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k$，$Y_k\mathrm dq_k=\lambda_k(p-P)\mathrm dv$。(II.5) $\Leftrightarrow$ $Y_kq_k=\int(p-\bar p)\mathrm dv_k$。
 
 - 弱激波：$Y_kq_k\rho=\alpha_k\mathcal G_k\Delta p^3/(6K_k^2)$（单相熵产 $T_k\Delta s_k$，路径无关）$\Rightarrow$ 唯一的局部规则 $\lambda_k\propto\alpha_k\mathcal G_k/K_k^2$。
-- 强激波：用常数份额 $c$ 积分剖面 ODE，解使终态满足 (II.5) 的 $c$；它被终压处的 Hugoniot–等熵能隙 $Q_k=(\alpha_k-m_kb_k)^{\rm pre}f_k(p_0\to p_1)$ (B5.5) 逼近（表见 B5.2），而冻结在 $p_0$ 的弱规则、$T_k\Delta s_k$ 形式、体积份额 $\alpha_k/K_k$ 都不行。
+- 强激波：用常数份额 $c$ 积分剖面 ODE，解使终态满足 (II.5) 的 $c$；它被终压处的 Hugoniot–等熵能隙 $Q_k=m_k(v_k^{\rm pre}-b_k)f_k(p_0\to p_1)$ (B5.5) 逼近（表见 B5.2），而冻结在 $p_0$ 的弱规则、$T_k\Delta s_k$ 形式、体积份额 $\alpha_k/K_k$ 都不行。
 - 各规则在同一激波速度下的终态 $p_1$ 偏差：质量分配 epoxy–spinel $10^{10}$ Pa $+7.0\%$、$2\times10^{11}$ $+9.8\%$，水–空气（0.5）$10^6$ 已 $+9.9\%$；SPB 重初始化 $\alpha_k/(\gamma_k-1)$ 与质量相近；局部弱规则 $p_1\le10^9$ 时 $10^{-8}$–$10^{-3}$，微量气体强激波 $+6\%$、气体温度高 50 倍。
 - 这解释了一直没追的 SPB 5.2 偏差：V15 的激波后密度 3966 对精确 3766.7（$+5.3\%$），$L_1(u)$ 118。
 
@@ -1317,7 +1317,7 @@ AP 照旧（$M\to0$ 时解收敛，与 $M$ 无关）；动能保持率与 $u_\th
 
 $$\Lambda_k(\delta)=\min(\delta,Q)\,\lambda^{\rm II.5}_k+(\delta-\min(\delta,Q))\,\lambda^E_k\ (\delta\ge0),\qquad \delta\,\lambda^E_k\ (\delta<0),$$
 
-$\lambda^{\rm II.5}_k=Q_k/Q$ 由 $\pm2$ 格模板上 $X^*$ 混合压力的极值与压力最低格的波前状态算出（只在压缩格），$\lambda^E_k=E_k/\sum E$。一次激波通过一格的亏损之和恰为 $Q$，所以预算在激波处不起作用，在光滑区（$Q\propto\Delta p^3$）把全部亏损判为误差。$\Lambda_k$ 对 $\delta$ 连续，分段按 $\delta(p^{\rm guess})=D_0+p^{\rm guess}s$ 取：$G(P)$ 连续，V15 的分支冻结与 active-set 校正去掉（它解决的是按 $D_0$ 而不是 $\delta$ 分支造成的不连续）。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ $6\times10^{-16}$（V15 2.99 次、10503 次翻转），$L_2$ 不变（$p$ 0.4814 对 0.4813）。显式程序用同一规则（`RelaxationSubsystem` 先算模板预算）。MG 相：Hugoniot 与等熵线 $(p-p_r)v^{\Gamma+1}=$ 常数二分求根，$E_k$ 取冷曲线之上的热能。
+$\lambda^{\rm II.5}_k=Q_k/Q$ 由 $\pm2$ 格模板上 $X^*$ 混合压力的极值、压力最低格的波前比容与本格的质量算出（只在压缩格），$\lambda^E_k=E_k/\sum E$。一次激波通过一格的亏损之和恰为 $Q$，所以预算在激波处不起作用，在光滑区（$Q\propto\Delta p^3$）把全部亏损判为误差。$\Lambda_k$ 对 $\delta$ 连续，分段按 $\delta(p^{\rm guess})=D_0+p^{\rm guess}s$ 取：$G(P)$ 连续，V15 的分支冻结与 active-set 校正去掉（它解决的是按 $D_0$ 而不是 $\delta$ 分支造成的不连续）。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ $6\times10^{-16}$（V15 2.99 次、10503 次翻转），$L_2$ 不变（$p$ 0.4814 对 0.4813）。显式程序用同一规则（`RelaxationSubsystem` 先算模板预算）。MG 相：Hugoniot 与等熵线 $(p-p_r)v^{\Gamma+1}=$ 常数二分求根，$E_k$ 取冷曲线之上的热能。
 
 ### 16.5 结果（`run/v16`，与 `run/archive_v15b` 同参数）
 
@@ -1331,7 +1331,7 @@ $\lambda^{\rm II.5}_k=Q_k/Q$ 由 $\pm2$ 格模板上 $X^*$ 混合压力的极值
 | 4.1、4.2、Pelanti 8.1.1、P-S 图 1 | 步数、拒绝 | 同 | 同（步数差 $\le1$） |
 | 十二烷 SG（P-S 图 3）$p$ | 平台 $L_1(p)/p^*$ | 0.0276 | 0.0273 |
 | 十二烷 NASG（Pelanti 图 6）$p$；$pTg$ | 平台 $L_1(p)/p^*$；$pTg$ 拒绝 | 0.0287；6 | 0.0279；0 |
-| P-S 图 1、2，Pelanti 图 4（所有档位） | 剖面相对差 | — | $p$、$u$ $\le10^{-5}$；带 $pT$、$pTg$ 平衡的档位逐位不变（激活格的闭合与 $\delta$ 无关） |
+| P-S 图 1、2，Pelanti 图 4（所有档位） | 剖面相对差 | — | $\le4\times10^{-4}$（$p$–$pTg$ 档最大，其余 $\le10^{-5}$）；带 $pT$、$pTg$ 平衡的档位逐位不变（激活格的闭合与 $\delta$ 无关） |
 | Gresho 涡 $M=10^{-1}\ldots10^{-6}$ | 动能、剖面 | — | 相对差 $\le10^{-4}$（$M=0.1$），$M\le10^{-2}$ 时 $\le10^{-7}$ |
 | 光滑解（算例 20、21，`limiter=0`） | $N=400\to800$ 阶 $p/u/\alpha_2$ | 2.07/2.07/2.07；2.04/2.05/2.08 | 2.07/2.07/2.07；2.05/2.05/2.08 |
 | 0D 松弛（`tests/relax0d.py`） | 冻结、AP、有限速率阶 | 逐位不变；AP；2.00 | 相同 |
@@ -1340,7 +1340,7 @@ $\lambda^{\rm II.5}_k=Q_k/Q$ 由 $\pm2$ 格模板上 $X^*$ 混合压力的极值
 
 ### 16.6 试过而舍弃（V16）
 
-见 B5.2 (g)：局部弱规则用于全部 $\delta\ge0$；冻结在波前的弱规则；体积份额 $\alpha_k/K_k$；$T_k\Delta s_k$ 形式；按两个符号都用 Hugoniot 份额（之前的 `LAMDBG=6` 试验：算例 0 质量丢 37%、算例 2 丢 58%——那次试验否定“Hugoniot 分配更差”的结论是无效的）。
+见 B5.2 (g)：局部弱规则用于全部 $\delta\ge0$；冻结在波前的弱规则；体积份额 $\alpha_k/K_k$；$T_k\Delta s_k$ 形式；按两个符号都用弱激波份额（之前的 `LAMDBG=6` 试验：SPB 4.3.1 有 258 次拒绝、1244 个一阶步，4.3.2 与 V15 相同）。**更正：**我曾说那次试验“算例 0 质量丢 37%、算例 2 丢 58%，所以无效”——不对，那是透射边界的流出（V15 的同一算例日志里 $dM/M$ 完全相同），不是格式丢质量。那次试验的结论“更差”本身是对的，但它试的是错误的规则：弱激波份额用于全部亏损（含 $\delta<0$ 与光滑区误差），正是 16.3 的两种失效。
 
 ### 16.7 数据
 
