@@ -1,4 +1,4 @@
-"""Reproductions of the paper figures with the IMEX program (src/SPB6_TV_IMEX.cpp, V14): the variables, units and relaxation levels
+"""Reproductions of the paper figures with the IMEX program (src/SPB6_TV_IMEX.cpp, V16): the variables, units and relaxation levels
 of each paper figure, against the exact solutions of the relaxed limit models:
   5-eq. (p-relaxed, tests/exact5.py), 4-eq. (pT-relaxed) and activation-limited pT -> pTg (tests/exact_relaxed.py).
 usage: python3 tests/plot_paper_figs.py RUNDIR OUTDIR [FIG ...]   (RUNDIR from tests/run_archive.sh)"""
