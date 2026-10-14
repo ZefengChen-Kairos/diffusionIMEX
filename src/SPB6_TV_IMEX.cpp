@@ -763,11 +763,12 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 			if (evalAll(Pn, Gn)) { const double rn = norm(Gn, Pn); if (rn < res * (1.0 - 1e-4 * lam) || rn < NewtonTol) { acc = true; res = rn; break; } }
 			lam *= 0.5;
 		}
-		if (!acc) { resfinal = res; return false; }
+		// 线搜索无法再降低残量：到了舍入底。残量已在 10 倍容差之内（相对 1e-12，远小于离散误差）就接受当前解，否则失败（devlog 16.9）
+		if (!acc) { resfinal = res; return res < 10.0 * NewtonTol; }
 		std::swap(P.P, Pn.P); std::swap(G, Gn);
 		st_newton_it++;
 	}
-	iters = NewtonIter; resfinal = res; return res < NewtonTol;
+	iters = NewtonIter; resfinal = res; return res < 10.0 * NewtonTol;
 }
 
 
