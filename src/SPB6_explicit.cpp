@@ -302,7 +302,7 @@ double caldt(Grid &u_con, bool acoustic){
 // 局部松弛（A3）：力学（SPB 3.3 的 Gibbs 关系，能量亏损按质量分数分给两相）然后热/化学（P-S / Pelanti，用统一闭合 s = 0）。
 // 瞬时松弛是投影（幂等），Heun 的每一级之后都做；有限速率（mu, theta, nu 有限）是对时间的积分，每个时间步只做一次（finite = true，
 // tau = dt）。若每级都做，Heun 的一步对 y' = -lambda y 给出 R(1/2 (y + R(R(y)))) = (1 - 2 lambda dt) y + O(dt^2)：速率放大约 2 倍。
-static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
+static bool relax_cell_explicit(double* Q, double dtloc, bool finite, const double Qph[2]) {
 	const double rho = Q[IM1] + Q[IM2], rhoe = Q[IEN] - 0.5 * (Q[IMU] * Q[IMU] + Q[IMV] * Q[IMV]) / rho;
 	double a1 = Q[IA1], m1 = Q[IM1], m2 = Q[IM2], e1 = Q[IE1], e2 = Q[IE2];
 	const int mech = std::isinf(mu_rate) ? CL_P : CL_MU;
@@ -319,8 +319,8 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	}
 	if (mech == CL_P || finite) {
 		ClIn in{}; in.atr[0] = a1; in.atr[1] = 1 - a1; in.mtr[0] = m1; in.mtr[1] = m2; in.etr[0] = e1; in.etr[1] = e2;
-		in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_of(Q), 1.0);
-		in.type = mech; in.nodelta = false;   // 守恒总能（"+1"）在闭合里：能量亏损按质量分数分给两相，代替 SPB 3.4 的重初始化（A3）
+		in.s = 0; in.rhoeC = rhoe; in.tau = dtloc; in.pguess = std::max(pbar_of(Q), 1.0); in.Qph[0] = Qph[0]; in.Qph[1] = Qph[1];
+		in.type = mech; in.nodelta = false;   // 守恒总能（"+1"）在闭合里：能量亏损按 B5.2 分给两相（物理耗散按 (II.5)，误差按 E_k），代替 SPB 3.4 的重初始化（A3）
 		ClOut o; if (!closure(in, o)) {
 			#pragma omp atomic
 			st_cl_fail++;
@@ -342,10 +342,18 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite) {
 	return true;
 }
 bool RelaxationSubsystem(Grid &u_con, double h, bool finite){
-	bool ok = true;
+	bool ok = true; const bool twoD = nyCells > 1;
+	bound_cond_u(u_con);   // 激波预算的 ±2 格模板要用虚格（B5.2 的 shock_budget）
+	std::vector<double> Qph((size_t)nxCells * nyCells * 2);
+	#pragma omp parallel for schedule(static)
+	for (int q = 0; q < nxCells * nyCells; q++) {
+		const int i = q % nxCells + ghost_cells, j = q / nxCells + ghost_cells;
+		auto cell = [&](int di, int dj, double* st) { stencil_state(u_con.cell(i + di, j + dj), st); };
+		shock_budget(cell, twoD, &Qph[(size_t)q * 2]);
+	}
 	#pragma omp parallel for schedule(static) reduction(&&:ok)
-	for (int j = ghost_cells; j < nyCells + ghost_cells; j++) for (int i = ghost_cells; i < nxCells + ghost_cells; i++)
-		if (!relax_cell_explicit(u_con.cell(i, j), h, finite)) ok = false;
+	for (int q = 0; q < nxCells * nyCells; q++)
+		if (!relax_cell_explicit(u_con.cell(q % nxCells + ghost_cells, q / nxCells + ghost_cells), h, finite, &Qph[(size_t)q * 2])) ok = false;
 	if (!ok) return false;
 	bound_cond_u(u_con);
 	return true;

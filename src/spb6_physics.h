@@ -201,44 +201,117 @@ enum ClosureType { CL_P = 0, CL_MU = 1, CL_PT = 2, CL_THETA = 3, CL_NU = 4, CL_P
 struct ClIn {
 	double atr[2], mtr[2], etr[2];   // 输运态（未压回单位体积）
 	double s;                        // 体积应变 s = 1 - sum atr
-	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2；与 sum etr 之差（能量亏损）分给两相（B5.2，delta_lam）
+	double rhoeC;                    // 守恒的混合内能 E - 1/2 rho u^2；与 sum etr 之差（能量亏损）分给两相（B5.2，defect_split）
 	double tau;                      // 级的隐式步长 a_ii dt
 	double Z[2];                     // 有限 mu 时的阻抗（冻结）
 	int type;
 	bool nodelta;                    // 不含能量亏损（只在 p-pTg 激活判据的预测里用）
 	double pguess;
-	int lsplit = -1;                 // 能量亏损分配的分支：-1 按 D0 的符号，0 质量分数，1 可容许能量（delta_lam）
+	double Qph[2] = {0.0, 0.0};      // 本格局部激波的物理耗散预算 Q_k（每单位体积，shock_budget）；0 = 没有物理部分（defect_split）
 };
 struct ClOut { double a[2], m[2], e[2], p[2], T[2], pbar; };
 static const double YMIN = 1e-10;
 
-// (B6.2)：p 闭合中 alpha_k(p) 的系数。能量亏损 delta（守恒混合内能与非守恒相内能之和的差，主要是被数值耗散的动能）
-// 按质量分数 lam_k = Y_k 分给两相（B5.2）：单速度模型里第 k 相的动能是 1/2 alpha_k rho_k |u|^2（P-S 2014 §2.2 的相总能形式），
-// 耗散的动能按质量分配。SPB 3.4 的重初始化（alpha 固定、整体平移 p）相当于 lam_k ∝ de_k/dp|alpha ∝ alpha_k/(gamma_k - 1)，
-// 把耗散的动能主要交给可压缩性最大的相（气/汽），质量极小的轻相因此被加热到 1e5-1e6 K（devlog V10）。
-// 能量亏损的分配系数（B5.2）：D0 >= 0 按质量分数；D0 < 0（要从相内能里扣掉能量，V14）按各相在可容许界之上的能量
-// E_k = eps_k - m_k q_k - (alpha_k - m_k b_k) pi_k = (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1) 分配，各相的 p_k + pi_k 同乘 (1 + D0/sum E) > 0，
-// 扣完仍可容许。按质量分配时，膨胀到真空的微量气体（E_k -> 0）会被扣成负能量（空化 RM，devlog V14）。MG 相仍按质量（只做力学松弛）
-// lam 在 D0 = 0 处跳变（又乘体积应变 s），残量 G(P) 不连续：隐式求解里每格的分支由 in.lsplit 冻结（0 质量，1 E_k），
-// 外层按解处 D0 的符号校正（B8 的分支校正，devlog V15）；lsplit = -1 按 D0 的符号取（显式程序、诊断）
-static void delta_lam(const ClIn& in, double D0, double lam[2]) {
-	double den = 0.0;
-	for (int k = 0; k < 2; k++) { lam[k] = in.mtr[k]; den += lam[k]; }
-	for (int k = 0; k < 2; k++) lam[k] = den > 0 ? lam[k] / den : 0.5;
-	const bool useE = in.lsplit >= 0 ? in.lsplit == 1 : D0 < 0.0;
-	if (useE && !mg_any()) {
-		double Ek[2], sE = 0.0;
-		for (int k = 0; k < 2; k++) { Ek[k] = std::max(0.0, in.etr[k] - in.mtr[k] * PH[k].q - (in.atr[k] - in.mtr[k] * PH[k].b) * PH[k].pi); sE += Ek[k]; }
-		if (sE > 0.0) for (int k = 0; k < 2; k++) lam[k] = Ek[k] / sE;
+// (B5.2) 能量亏损的分配（V16）。delta = (rho e)^C - sum eps^tr + p s 是闭合里的真实亏损：激波处是物理耗散（格式的数值粘性把动能变成
+// 内能），光滑区是离散误差（正负交替）。两者的分法不同：
+// - 物理耗散按模型自己的激波关系分。5 方程模型的激波闭合是 SPB (II.5)（Saurel, Le Métayer, Massoni, Gavrilyuk 2007）：每相走自己的
+//   Hugoniot，e_k - e_k0 = -(p0 + p1)/2 (v_k - v_k0)。剖面分析（devlog V16）：格式的极限激波满足 (II.5) 当且仅当第 k 相得到的热是
+//   Q_k = m_k (v_k^pre - b_k) f_k(p_lo -> p_hi)，m_k 为本格的质量，f_k(v_pre - b) = 同一终压下相 k 每单位质量的 Hugoniot 能量减等熵能量
+//   （弱激波极限 alpha_k G_k dp^3/(6 K_k^2)，G_k = (gamma_k + 1)/2，K_k = rho_k c_k^2）。激波强度 p_lo -> p_hi 取 ±2 格模板上混合压力的极值，
+//   波前的相比容取模板里压力最低的格。
+// - 离散误差按各相可容许界之上的能量 E_k 分（V14 的负亏损规则推广到两个符号）：各相的 p_k + pi_k 同乘 (1 + delta/sum E)，两相的相对
+//   误差相同，微量相既不会被加热也不会被扣成负值。质量分配（V10–V15）是格式数值粘性的分法，不是模型的：它让 SPB 5.2 的激波后密度偏 5%，
+//   按 (II.5) 分后偏 0.3%。SPB 3.4 的重初始化相当于 lam_k ∝ alpha_k/(gamma_k - 1)，微量相被加热到 1e5–1e6 K（devlog V10）。
+// 物理部分有预算：压缩格里 delta 中至多 Q = sum Q_k 的部分是物理耗散（一次激波通过产生的亏损之和恰为 Q），其余是误差：
+//   Lambda_k(delta) = min(delta, Q) lam^(II.5)_k + (delta - min(delta, Q)) lam^E_k   (delta >= 0)，   = delta lam^E_k   (delta < 0)。
+// Lambda 是 delta 的连续分段仿射函数，所以 G(P) 连续（V15 按 D0 符号分支、又乘 s 的不连续与 active-set 校正都不再需要）。
+// 闭合在 delta 线性的每一段上用 A_k + B_k p = eps^tr_k - m_k q_k + p alpha^tr_k + Lambda_k(delta(p))，分段按 delta(pguess) 取，收敛时 pguess = p。
+
+// 相 k 从 (p0, v0) 被激波压到 p1：Hugoniot 能量减等熵能量。NASG 闭式，每单位波前有效体积 alpha - m b（(A2.2) 对 v - b 齐次）
+static double hug_gap(int k, double p0, double p1) {
+	const Phase& P = PH[k];
+	const double x0 = p0 + P.pi, x1 = p1 + P.pi; if (!(x0 > 0 && x1 > x0)) return 0.0;
+	const double vH = ((P.g - 1.0) * x1 + (P.g + 1.0) * x0) / ((P.g + 1.0) * x1 + (P.g - 1.0) * x0);   // (v_H - b)/(v_0 - b)
+	const double vS = std::pow(x0 / x1, 1.0 / P.g);                                                       // (v_S - b)/(v_0 - b)
+	return std::max(0.0, (p1 + P.g * P.pi) * (vH - vS) / (P.g - 1.0));
+}
+// MG（A2.5）：每单位质量，e(p, v) = er(1/v) + v (p - pr)/G；等熵线 (p - pr) v^(G+1) = const（Gamma 常数），Hugoniot 与等熵线都在 (0, v0] 上二分
+static double hug_gap_mg(int k, double p0, double p1, double v0) {
+	const Phase& P = PH[k];
+	auto e_pv = [&](double p, double v) { double pr, dpr, er; mg_ref(k, 1.0 / v, pr, dpr, er); return er + v * (p - pr) / P.G; };
+	double pr0, dpr0, er0; mg_ref(k, 1.0 / v0, pr0, dpr0, er0); const double e0 = er0 + v0 * (p0 - pr0) / P.G, c0 = p0 - pr0;
+	auto bisect = [&](auto g) -> double {   // g(v0) > 0；向下找 g < 0 的端点再二分
+		double hi = v0, lo = v0, gl = g(v0); if (!(gl > 0)) return v0;
+		for (int it = 0; it < 80 && gl > 0; it++) { hi = lo; lo *= 0.9; gl = g(lo); if (!std::isfinite(gl)) return NAN; }
+		if (gl > 0) return NAN;
+		for (int it = 0; it < 100; it++) { const double m = 0.5 * (lo + hi), gm = g(m); if (gm > 0) hi = m; else lo = m; if (hi - lo <= 1e-14 * v0) break; }
+		return 0.5 * (lo + hi); };
+	const double vS = bisect([&](double v) { double pr, dpr, er; mg_ref(k, 1.0 / v, pr, dpr, er); return p1 - (pr + c0 * std::pow(v0 / v, P.G + 1.0)); });
+	const double vH = bisect([&](double v) { return e_pv(p1, v) - e0 + 0.5 * (p0 + p1) * (v - v0); });
+	if (!(std::isfinite(vS) && std::isfinite(vH))) return NAN;
+	return std::max(0.0, e_pv(p1, vH) - e_pv(p1, vS));
+}
+// 相 k 的物质（本格每单位体积的质量 m，波前比容 v_pre）被 p_lo -> p_hi 的激波压缩时按 (II.5) 应得的耗散，每单位（本格）体积：
+// m × 每单位质量的能隙。NASG 每单位质量 = (v_pre - b) hug_gap
+static double phys_dissipation(int k, double m, double vpre, double plo, double phi) {
+	if (!(phi > plo) || !(m > 0) || !(vpre > 0)) return 0.0;
+	if (is_mg(k)) { const double g = hug_gap_mg(k, plo, phi, vpre); return std::isfinite(g) ? m * g : 0.0; }
+	const double ve = vpre - PH[k].b; return ve > 0 ? m * ve * hug_gap(k, plo, phi) : 0.0;
+}
+// 守恒量 c（IA1..IEN）-> 模板状态 st = {a1, a2, m1, m2, p, u, v}；p 是混合压力 (A2.3)，不可容许时 NAN（模板里跳过）
+inline void stencil_state(const double* c, double* st) {
+	const double a1 = c[IA1], m1 = c[IM1], m2 = c[IM2], r = m1 + m2;
+	st[0] = a1; st[1] = 1.0 - a1; st[2] = m1; st[3] = m2; st[4] = NAN;
+	st[5] = r > 0 ? c[IMU] / r : 0.0; st[6] = r > 0 ? c[IMV] / r : 0.0;
+	if (a1 > 0 && a1 < 1 && m1 > 0 && m2 > 0) { const double p = p_mix(a1, m1, m2, c[IE1] + c[IE2]); if (p_admissible(0, a1, m1, p) && p_admissible(1, 1.0 - a1, m2, p)) st[4] = p; }
+}
+// ±2 格模板上的激波预算：cell(di, dj, st) 给出模板格的状态。压缩（中心差分散度 < 0）且模板上有压力差时，本格的物质（自己的 m_k）
+// 按 (II.5) 应得 Q_k = phys_dissipation(k, m_k, v_k^pre, p_lo, p_hi)；激波强度 p_lo -> p_hi 取模板上混合压力的极值，波前的相比容
+// v_k^pre = alpha_k/m_k 取模板里压力最低的格（相不存在时取本格）。否则 Q = 0（全部按误差分）。
+// 用本格自己的质量而不是波前格的 alpha_k：激波穿过接触/混合区时，被压缩的是本格的物质（均匀组分时两者的比例相同）
+template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
+	Q[0] = Q[1] = 0.0;
+	double c0[7], st[7], lo[7] = {0, 0, 0, 0, 0, 0, 0}, plo = 1e300, phi = -1e300, div = 0.0;
+	cell(0, 0, c0);
+	for (int d = 0; d < (twoD ? 2 : 1); d++) for (int q = -2; q <= 2; q++) {
+		if (d == 1 && q == 0) continue;
+		cell(d == 0 ? q : 0, d == 1 ? q : 0, st);
+		if (q == 1) div += st[5 + d]; else if (q == -1) div -= st[5 + d];
+		if (!std::isfinite(st[4])) continue;
+		if (st[4] < plo) { plo = st[4]; for (int n = 0; n < 7; n++) lo[n] = st[n]; }
+		if (st[4] > phi) phi = st[4];
 	}
+	if (!(div < 0.0) || !(phi > plo)) return;
+	for (int k = 0; k < 2; k++) {
+		const double vpre = (lo[k] > 0 && lo[2 + k] > 0) ? lo[k] / lo[2 + k] : (c0[2 + k] > 0 ? c0[k] / c0[2 + k] : 0.0);
+		Q[k] = phys_dissipation(k, c0[2 + k], vpre, plo, phi);
+	}
+}
+// 可容许界之上的能量 E_k：NASG (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1)；MG 冷曲线之上的热能 eps_k - m_k er
+static double E_above(const ClIn& in, int k) {
+	if (is_mg(k)) { if (!(in.atr[k] > 0 && in.mtr[k] > 0)) return 0.0; double pr, dpr, er; mg_ref(k, in.mtr[k] / in.atr[k], pr, dpr, er); return std::max(0.0, in.etr[k] - in.mtr[k] * er); }
+	return std::max(0.0, in.etr[k] - in.mtr[k] * PH[k].q - (in.atr[k] - in.mtr[k] * PH[k].b) * PH[k].pi);
+}
+// Lambda_k(delta) 在 delta 所在分段上的仿射系数：Lambda_k = lam_k delta + extra_k
+static void defect_split(const ClIn& in, double delta, double lam[2], double extra[2]) {
+	double E[2], sE = 0.0; for (int k = 0; k < 2; k++) { E[k] = E_above(in, k); sE += E[k]; }
+	double lE[2];
+	if (sE > 0) for (int k = 0; k < 2; k++) lE[k] = E[k] / sE;
+	else { const double sm = in.mtr[0] + in.mtr[1]; for (int k = 0; k < 2; k++) lE[k] = sm > 0 ? in.mtr[k] / sm : 0.5; }   // 两相都在可容许界上（退化）：按质量
+	const double Q = in.Qph[0] + in.Qph[1];
+	extra[0] = extra[1] = 0.0;
+	if (!(delta > 0.0) || !(Q > 0.0)) { lam[0] = lE[0]; lam[1] = lE[1]; return; }
+	if (delta < Q) { lam[0] = in.Qph[0] / Q; lam[1] = in.Qph[1] / Q; return; }
+	for (int k = 0; k < 2; k++) { lam[k] = lE[k]; extra[k] = in.Qph[k] - Q * lE[k]; }
 }
 struct PCoef { double A[2], B[2], N[2], lam[2]; };
 static bool p_coef(const ClIn& in, PCoef& c) {
 	if (!in.nodelta && !(in.mtr[0] + in.mtr[1] > 0)) return false;
 	const double D0 = in.nodelta ? 0.0 : in.rhoeC - in.etr[0] - in.etr[1];
-	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0; else delta_lam(in, D0, c.lam);
+	double ex[2] = {0.0, 0.0};
+	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0; else defect_split(in, D0 + in.pguess * in.s, c.lam, ex);   // delta(pguess) = D0 + p s
 	for (int k = 0; k < 2; k++) {
-		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + c.lam[k] * D0;
+		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + c.lam[k] * D0 + ex[k];
 		c.B[k] = in.atr[k] + c.lam[k] * in.s;
 		c.N[k] = c.A[k] - (c.B[k] - in.mtr[k] * PH[k].b) * PH[k].pi;
 	}
@@ -355,15 +428,15 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 	const double om[2] = {in.atr[0] / sa, in.atr[1] / sa};
 	const double ak[2] = {in.atr[0] / sa, in.atr[1] / sa};   // a_k = atr_k + om_k s = atr_k / (1 - s)
 	const double D0 = in.rhoeC - in.etr[0] - in.etr[1];
-	double lam[2]; delta_lam(in, D0, lam);   // 同 p_coef
+	double lam[2], ex[2]; defect_split(in, D0 + in.pguess * in.s, lam, ex);   // 同 p_coef：分段按 delta(pguess) 取
 	const double w1 = in.Z[1] / (in.Z[0] + in.Z[1]), w2 = 1.0 - w1;
 	auto solve = [&](double R, double& p1, double& p2) -> bool {
 		const double a1 = ak[0] + R, a2 = ak[1] - R;
 		const double C1 = dedp_am(0, a1, in.mtr[0]) + om[0] * in.s, C2 = dedp_am(1, a2, in.mtr[1]) + om[1] * in.s;
 		const double M11 = C1 + R * w1 - lam[0] * in.s * om[0], M12 = R * w2 - lam[0] * in.s * om[1];
 		const double M21 = -R * w1 - lam[1] * in.s * om[0], M22 = C2 - R * w2 - lam[1] * in.s * om[1];
-		const double r1 = in.etr[0] - in.mtr[0] * PH[0].q - PH[0].g * PH[0].pi * dedp_am(0, a1, in.mtr[0]) + lam[0] * D0;
-		const double r2 = in.etr[1] - in.mtr[1] * PH[1].q - PH[1].g * PH[1].pi * dedp_am(1, a2, in.mtr[1]) + lam[1] * D0;
+		const double r1 = in.etr[0] - in.mtr[0] * PH[0].q - PH[0].g * PH[0].pi * dedp_am(0, a1, in.mtr[0]) + lam[0] * D0 + ex[0];
+		const double r2 = in.etr[1] - in.mtr[1] * PH[1].q - PH[1].g * PH[1].pi * dedp_am(1, a2, in.mtr[1]) + lam[1] * D0 + ex[1];
 		const double det = M11 * M22 - M12 * M21; if (!(std::fabs(det) > 0)) return false;
 		p1 = (r1 * M22 - M12 * r2) / det; p2 = (M11 * r2 - M21 * r1) / det; return std::isfinite(p1) && std::isfinite(p2);
 	};

@@ -310,25 +310,89 @@ $$
 \delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k .\tag{B5.2}
 $$
 
-$\delta$ 与松弛项无关（$\chi_k$ 项两相相消）。光滑流里它是离散误差，激波处是 $O(1)$。把它按质量分数分给两相（V10）：
+$\delta$ 与松弛项无关（$\chi_k$ 项两相相消）。光滑流里它是离散误差（正负交替的二阶小量），激波处是 $O(1)$ 的物理耗散（格式的数值粘性把动能变成内能）。分给两相：
 
 $$
-\varepsilon_k=\varepsilon^{\rm nc}_k+\lambda_k\delta,\qquad
-\lambda_k=Y_k=\frac{m^{\rm tr}_k}{\sum_jm^{\rm tr}_j} .\tag{B5.3}
+\varepsilon_k=\varepsilon^{\rm nc}_k+\Lambda_k(\delta),\qquad \sum_k\Lambda_k=\delta .\tag{B5.3}
 $$
 
-于是 $\sum_k\varepsilon_k=(\rho e)^C$ 恒成立。
+于是 $\sum_k\varepsilon_k=(\rho e)^C$ 恒成立，不需要级末投影，解出来的状态就是混合能量一致的（P-S 2014 的定义 3.1）。显式程序的力学松弛也用同一个闭合（$s=0$），不再做 SPB 3.4 的重初始化（A6）。$\Lambda_k$ 的形式由两条原则定（V16）：**物理耗散按模型自己的激波关系分，离散误差按不伤害任何一相的方式分。**
 
-- **为什么按质量。** $\delta$ 主要是数值耗散掉的动能（激波、起步的速度间断）。在用相总能写的 6 方程模型里（P-S 2014 §2.2），第 $k$ 相的动能是 $\tfrac12\alpha_k\rho_k|\mathbf u|^2$，所以耗散的动能按质量属于各相。
-- **V9 及以前的取法（舍弃）。** $\lambda_k=\partial\varepsilon_k/\partial p|_{\alpha,m}\big/\sum_j(\cdot)=\frac{(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)/(\gamma_k-1)}{\sum_j(\alpha^{\rm tr}_j-m^{\rm tr}_jb_j)/(\gamma_j-1)}$，也就是 SPB 3.4 的重初始化（$\alpha$ 固定、整体平移 $p$）。它把 $\delta$ 主要交给可压缩性最大的相，即质量极小的气或汽：每单位质量吸收的能量是液体的 $10^3$–$10^5$ 倍，微量相被加热到 $10^5$–$10^6$ K。后果：P-S ±500 m/s 的起步尖峰、SPB 4.5 中心压力约 2200 Pa（精确为真空）、SPB 4.3.1 界面速度过冲 5%（C. 开发记录 V10）。
-- 所以不需要级末投影，解出来的状态就是混合能量一致的（P-S 2014 的定义 3.1）。显式程序的力学松弛也用同一个闭合（$s=0$），不再做 SPB 3.4 的重初始化（A6）。
-- **负亏损（$\delta<0$，V14）。** 要从相内能里扣掉能量时，按各相在可容许界之上的能量分配：
-  $$\lambda_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr}\ \ (\delta<0).$$
-  各相的 $p_k+\pi_k$ 同乘 $1+\delta/\sum_jE_j>0$，扣完仍可容许。按质量分配时，膨胀到真空的微量气体（$E_k\to0$，质量分数 $10^{-7}$）分到的 $\lambda_k\delta$ 足以把它的能量扣成负值，闭合在任何步长下都不可容许：空化 RM 在 $t=3.04$ ms 处步长下溢（C. 开发记录 V14 §14.9）。一维算例的指标只在第 3–4 位变化。$\delta\ge0$（被耗散的动能）仍按质量分配；MG 相只做力学松弛，仍按质量。
-- $\lambda_k$ 在一次闭合求解中冻结在输运态。
-- **分支在一次 Newton 求解里冻结（V15）。** $\lambda_k$ 在 $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k=0$ 处跳变（$Y_k\to E_k/\sum E$），它又乘体积应变 $s$（B6.2 的 $B_k=\alpha^{\rm tr}_k+\lambda_ks$），所以 $G_i(P)$ 在 $D_0$ 过零的格上不连续。光滑流里 $D_0$ 是正负交替的小量（被耗散的动能与 $ps$ 的离散差），Newton 在跳点两侧来回，停在 $10^{-11}$，触发 MOOD 回退：两相等熵涡 $256^2$ 时 145 个一阶步（C. 开发记录 V15）。处理见 B8 的分支校正。
-  - 不能用一个在 $D_0=0$ 处连续的分配规则代替：连续要求 $D_0\to0^-$ 时 $\lambda_k\to Y_k$，而 $E_k\to0$、$Y_k>0$ 的相（膨胀到真空的微量气体）要求 $\lambda_k|D_0|\le E_k$，两者在 $E_k\ll Y_k|D_0|$ 时矛盾。试过的光滑规则 $d_k=E_k(1-e^{-Y_k\kappa/E_k})$（$\sum d_k=|D_0|$）保正，但允许 $d_k\to E_k$：空化 RM 的微量气体被扣到压力接近 0，$t=3.76$ ms 步长下溢（V15，舍弃）。
-- 灵感来源：P-S 2014 §2.2（相总能形式）与 §3.1 的混合能量一致性条件 (ii)。
+**(a) 分配决定格式的极限激波关系。** 6 方程/Kapila 模型的相能量方程是非守恒的。穿过激波时守恒律只定混合物的 Hugoniot $e-e_0+\bar p(v-v_0)=0$（$\bar p=\tfrac12(p_0+p_1)$）；耗散在两相之间怎么分，无粘模型本身不定，由激波内部的耗散机制决定——数值上就是由格式的粘性路径决定（路径守恒格式一般收敛不到所选路径的弱解，Abgrall–Karni 2010，原因相同）。模型的激波闭合是 SPB (II.5)（Saurel, Le Métayer, Massoni, Gavrilyuk 2007）：每相沿自己的 Hugoniot，
+
+$$
+e_k-e_{k0}+\bar p\,(v_k-v_{k0})=0\qquad(k=1,2),\tag{II.5}
+$$
+
+即 $(p,v_1,v_2)$ 空间里 DLM 直线路径的弱解；它用 epoxy–spinel 的实验激波速度验证过，`tests/exact5.py` 与 SPB 5.1/5.2 的精确解都用它。所以格式必须收敛到 (II.5)，而 (B5.3) 的 $\Lambda_k$ 是唯一的调节手段。只有一条正确的规则，就是让极限激波满足 (II.5) 的那条；下面推导它。
+
+**(b) 剖面分析。** 激波系下的定常剖面：质量通量 $j=\rho u$，总正应力 $P=p-\sigma_{\rm num}$（$\sigma_{\rm num}$ 是格式数值粘性的应力）。动量与能量守恒给出 Rayleigh 线 $P(v)=p_0+j^2(v_0-v)$ 与混合物的 $\mathrm de=-P\,\mathrm dv$。相 $k$（单位相质量，$v_k=1/\rho_k$，$Y_k$ 质量分数）：
+
+$$
+\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k,\qquad Y_k\,\mathrm dq_k=\lambda_k\,\mathrm dq,\qquad \mathrm dq=(p-P)\,\mathrm dv\ge0,
+$$
+
+$\lambda_k=\partial\Lambda_k/\partial\delta$ 是局部分配系数。相加得 $\mathrm de=-P\,\mathrm dv$：无论怎么分，混合物都落在自己的 Hugoniot 上（这就是 $\sum_k\varepsilon_k=(\rho e)^C$ 的作用），分配只决定终态的相分配 $(v_{11},v_{21})$。(II.5) 等价于
+
+$$
+Y_kq_k=\int_{\text{剖面}}(p-\bar p)\,\mathrm dv_k\qquad(k=1,2),\tag{B5.4}
+$$
+
+相 $k$ 得到的热 $=$ 它沿剖面的压缩功与 Hugoniot 功之差。
+- **弱激波。** 相 $k$ 沿剖面近似等熵，$v_k(p)=v_{k0}\big[1-x/K_k+\mathcal G_kx^2/K_k^2+\dots\big]$，$x=p-p_0$，$K_k=\rho_kc_k^2$，$\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$ 是基本导数（SG 为 $(\gamma_k+1)/2$）。代入 (B5.4)，每单位混合体积 $Y_kq_k\rho=\alpha_k\mathcal G_k\Delta p^3/(6K_k^2)$——正是相 $k$ 单相激波的熵产 $T_k\Delta s_k$，与路径无关。所以弱激波下与 (II.5) 相容的局部规则**唯一**：$\lambda_k\propto\alpha_k\mathcal G_k/K_k^2$。按质量 $Y_k$（V10–V15）、SPB 3.4 重初始化的 $\alpha_k/(\gamma_k-1)$、体积变化份额 $\alpha_k/K_k$ 都不满足。
+- **强激波。** $q_k=\int T_k\,\mathrm ds_k$ 依赖剖面，局部规则不可能精确。把剖面 ODE 用常数份额 $\lambda_1=c$ 积分、解出使终态满足 (II.5) 的 $c$（`scratchpad/profile.py`），$c$ 被**终压处的 Hugoniot–等熵能隙**逼近得很好：
+
+$$
+Q_k=m_k\,(v^{\rm pre}_k-b_k)\,f_k(p_0\to p_1),\qquad
+f_k=\frac{(p_1+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\quad
+\tilde v_H=\frac{(\gamma_k-1)x_1+(\gamma_k+1)x_0}{(\gamma_k+1)x_1+(\gamma_k-1)x_0},\quad
+\tilde v_S=\Big(\frac{x_0}{x_1}\Big)^{1/\gamma_k},\tag{B5.5}
+$$
+
+$x_i=p_i+\pi_k$；$f_k$ 对 $v-b$ 齐次，$(v^{\rm pre}_k-b_k)f_k$ 是每单位质量的能隙，乘本格的质量 $m_k$ 得每单位本格体积（NASG）。MG 相用 (A2.5) 的 Hugoniot 与等熵线 $(p-p_r)v^{\Gamma+1}=$ 常数，各在 $(0,v_0]$ 上二分（`hug_gap_mg`）。$\lambda^{\rm II.5}_k=Q_k/\sum_jQ_j$，弱极限自动回到 $\alpha_k\mathcal G_k/K_k^2$。
+
+剖面 ODE（SG，$p_0=10^5$ Pa）给出的第一相份额，$c$ 为精确值：
+
+| 混合物 | $p_1$ (Pa) | $c$ | $Q_k$ 能隙 (B5.5) | 弱规则（$p_0$ 处） | 质量 $Y_k$ | SPB $\alpha_k/(\gamma_k-1)$ |
+|---|---|---|---|---|---|---|
+| epoxy–spinel | $10^8$ | 0.9983 | 0.9983 | 0.9983 | 0.325 | 0.389 |
+| epoxy–spinel | $10^{10}$ | 0.9933 | 0.9923 | 0.9983 | 0.325 | 0.389 |
+| epoxy–spinel | $2\times10^{11}$ | 0.820 | 0.846 | 0.9983 | 0.325 | 0.389 |
+| 水 + 空气，$\alpha_{\rm a}=0.5$ | $10^8$ | 0.0019 | 0.0013 | 0.0000 | 0.999 | 0.105 |
+| 水 + 空气，$\alpha_{\rm a}=0.5$ | $10^{10}$ | 0.145 | 0.113 | 0.0000 | 0.999 | 0.105 |
+| 水 + 空气，$\alpha_{\rm a}=10^{-3}$ | $10^8$ | 0.582 | 0.559 | 0.0000 | 1.000 | 0.992 |
+| 水 + 空气，$\alpha_{\rm a}=10^{-3}$ | $10^{10}$ | 0.994 | 0.992 | 0.0000 | 1.000 | 0.992 |
+
+同一激波速度下各规则终态 $p_1$ 相对 (II.5) 的偏差：质量分配 epoxy–spinel $10^{10}$ 时 $+7.0\%$（$\rho_1/\rho_0$ 1.299 对 1.274）、$2\times10^{11}$ 时 $+9.8\%$，水–空气（0.5）$10^6$ 时已 $+9.9\%$、$10^8$ 时 $+11.7\%$；局部弱规则（$K_k$ 取剖面当地值）在 $p_1\le10^9$ 时偏差 $10^{-8}$–$10^{-3}$，但微量气体（$10^{-3}$，$10^{10}$）时 $+6\%$、气体温度比 (II.5) 高 50 倍（气体受热后体积不缩，份额 $\alpha_k\mathcal G_k/K_k^2$ 一直很大，正反馈）；能隙份额按构造与 $c$ 一致。
+
+**(c) 局部激波强度。** $Q_k$ 需要 $p_0\to p_1$。数值激波宽 3–5 格，所以取 $\pm2$ 格模板（二维为十字）上 $X^*$ 混合压力 (A2.3) 的极值 $p_{\rm lo},p_{\rm hi}$，波前的相比容 $v^{\rm pre}_k=\alpha_k/m_k$ 取模板里压力最低的格、质量 $m_k$ 取本格自己的（激波穿过接触/混合区时被压缩的是本格的物质；组分均匀时与用波前格的 $\alpha_k$ 份额相同），只在压缩格（$u^*$ 的中心差分散度 $<0$）上算；否则 $Q_k=0$（`shock_budget`，`stencil_state`）。$Q_k$ 按级冻结（由 $X^*$ 算）。一次激波通过一格，各步亏损之和恰为物理耗散 $Q=\sum_kQ_k$（混合物落在 Hugoniot 上），所以每步 $\delta\le Q$；$\delta$ 超出 $Q$ 的部分一定是误差，光滑压缩区 $Q\propto\Delta p^3$ 几乎为零。
+
+**(d) 离散误差的分配。** 按各相在可容许界之上的能量分（V14 的负亏损规则推广到两个符号）：
+
+$$
+\lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr}
+$$
+
+（MG 相取冷曲线之上的热能 $\varepsilon_k-m_k\varepsilon_r$）。各相的 $p_k+\pi_k$ 同乘 $1+\delta/\sum_jE_j$：两相的相对误差相同；$\delta<0$ 时扣完仍可容许（V14）；$\delta>0$ 时微量相不会被加热。后一条是必要的：水中 $10^{-6}$ 的空气，能量 $0.25$ J/m³，水 $\sim10^9$ J/m³，水能量 $10^{-9}$ 的相对误差就等于气体的全部能量，任何 $O(1)$ 的份额都会把它烤掉——把弱激波规则用于全部 $\delta\ge0$ 时，SPB 4.5 空化管的空气到 $3\times10^5$ K、4.3.1 界面速度过冲 5%（V16 §16.3，与 V10 的 SPB 重初始化同一机制）。质量分配保护微量相也是因为份额小，但它在激波处是错的（上表）。两相都在可容许界上（$\sum E=0$，退化）时按质量。
+
+**(e) 合成。**
+
+$$
+\Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\lambda^{\rm II.5}_k+\big(\delta-\min(\delta,Q)\big)\lambda^E_k,&\delta\ge0,\\ \delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k .\tag{B5.6}
+$$
+
+$\Lambda_k$ 是 $\delta$ 的连续分段仿射函数（分段点 $\delta=0$、$\delta=Q$）。在 (B6.2) 里 $\lambda_k$ 只通过 $A_k+B_kp=\varepsilon^{\rm tr}_k-m_kq_k+p\alpha^{\rm tr}_k+\Lambda_k(\delta(p))$ 进入，$\delta(p)=D_0+ps$，$D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$；闭合在 $\delta$ 所在的分段上写 $\Lambda_k=\lambda_k\delta+\xi_k$（$\xi_k=Q_k-Q\lambda^E_k$ 只在第三段非零），即 $A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k$，$B_k=\alpha^{\rm tr}_k+\lambda_ks$，分段按 $\delta(p^{\rm guess})$ 取，$p^{\rm guess}$ 是本格当前的全局迭代值，收敛时 $p^{\rm guess}=p$。所以 $G(P)$ 连续、分段光滑，B8 不再需要分支校正。（V15 的不连续来自按 $D_0$ 而不是 $\delta$ 的符号分支：$D_0=0$ 处 $\delta=ps\ne0$，$\lambda_k\delta$ 跳变。按 $\delta$ 分支时跳点处 $\lambda_k\delta=0$。）`defect_split` 返回 $(\lambda_k,\xi_k)$；有限 $\mu$ 的两压力闭合 (B6.3) 用同一分段，$\xi_k$ 加在右端。
+
+**(f) 结果（V16，C. 开发记录 §16.5）。** SPB 5.2（$2\times10^{11}$ Pa）激波后密度 3966 → RES_52 kg/m³（精确 3766.7），$L_1(u)$ 118 → RES_52U；SPB 5.1 2533.7 → RES_51（精确 2527.5）。质量分配的 5% 误差就是分配规则的误差。其他一维算例的指标只在第 3 位以后变化。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ 到 $6\times10^{-16}$（V15：2.99 次、10503 次分支翻转、$10^{-13}$）。
+
+**(g) 试过而舍弃（V16）。**
+- 局部弱规则 $\alpha_k\mathcal G_k/K_k^2$（$K_k$ 取当地值）用于全部 $\delta\ge0$：5.2 修好，但 4.3.1 过冲 1.048、4.5 空气 $3\times10^5$ K（(d)）。
+- 弱规则冻结在波前（非局部）：剖面 ODE 里微量气体 $10^{10}$ Pa 时 $p_1$ 偏 $+38\%$——强激波下气体份额必须随压力降低。
+- 体积变化份额 $\lambda_k=Y_k\,\mathrm dv_k/\mathrm dv\propto\alpha_k/K_k$（把数值粘性应力作用在各相自己的压缩上，$\mathrm de_k=-P\,\mathrm dv_k$）：只在两相同步压缩时等于 (II.5)，弱极限就是错的（熵产 $\propto\mathcal G/K^2$，不是 $1/K$）；ODE 里水–空气 $10^{10}$ 时 $-4.4\%$。
+- 按 $T_k\Delta s_k$（$T_k$ 取 $p_0$、$\bar p$ 或 $p_1$ 处的等熵温度）：气–液强激波下份额错一个量级（$10^{10}$ 时 0.95–0.99 对 $c=0.145$）。
+- 质量分配（V10–V15）：由格式的公共数值运动粘性推出（$\nu=a\Delta x/2$，粘性加热 $\propto m_k$），描述的是格式不是模型。
+- $D_0$ 符号分支 + active set（V15）：解决的是错误分支变量造成的不连续。
+- 灵感来源：Saurel et al. 2007 的 (II.5)；弱激波熵产 $\Delta s=\mathcal Gv\Delta p^3/(6TK^2)$（Landau–Lifshitz §86）；Abgrall–Karni 2010 关于路径守恒格式极限解由数值粘性决定的分析。
 
 ### B5.3 闭合的输出
 
@@ -554,7 +618,7 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
   - $M=10^{-6}$ 时这个特征值约 $10^{-10}$，BiCGStab 发散（相对残量 $10^{129}$），37 次拒绝。粗空间校正把它移到 $[1,2]$，其余模态不变：预条件后的谱与 $M$ 无关。
   - 粗空间只加一个标量，各格加的是同一个数：y 向均匀的问题各行仍逐位相同。
 - 边界虚格（透射、固壁）的压力等于本格压力。它在 Jacobian 里是单独的元素（列号为本格），不并进对角元：对角元只扰动本格，虚格的导数单独差分；每行按“本格、W、E、S、N”的固定次序存 5 个元素，同列的也不合并；Jacobi 预条件用本格的那个元素，Thomas 把同列元素相加。这样数学上 Jacobian 不变，而边界行与内部行的浮点运算相同：y 向均匀的问题各行逐位相同（V8；并进对角元时边界行的舍入不同，再经共用限制因子的开关放大成截断误差大小的行间差）。
-- **能量亏损分配的分支校正（V15）。** B5.2 的 $\lambda_k$ 按 $D_0$ 的符号分两支，$G(P)$ 在 $D_0=0$ 处不连续。每格的分支 $b_i\in\{$质量, $E_k\}$ 在一次 Newton 求解里冻结，$G$ 在每一支内光滑；解出后按解处 $D_0$ 的符号校正 $b_i$ 再解（从上一次的解起算，通常一次 Newton 迭代）。质量 → $E_k$ 的翻转总是允许（$D_0<0$ 时按质量可能扣成负能量）；$E_k$ → 质量只在前两轮允许，之后锁定，所以校正至多 $n+2$ 轮终止（实际 1–2 轮，代码上限 8 轮，否则按不可容许处理）。初始分支取初猜处 $D_0$ 的符号。收敛后每格的分支与解处 $D_0$ 的符号一致（锁定的格除外，它们的 $|D_0|$ 是舍入量级），所以解就是 B5.2 分段闭合的解。这是分段光滑方程组的 active-set 解法（如互补问题的 primal–dual active set，Hintermüller–Ito–Kunisch 2002）。
+- **能量亏损的分配（V16）。** B5.2 的 $\Lambda_k(\delta)$ 是 $\delta$ 的连续分段仿射函数，分段按本格当前迭代值处的 $\delta=D_0+Ps$ 取（收敛时与解处一致），所以 $G(P)$ 连续、分段光滑（$\delta=0$ 与 $\delta=Q$ 处导数跳变），差分 Jacobian 直接用。V15 的分支冻结与 active-set 校正（分支按 $D_0$ 的符号取，$\lambda_k$ 又乘 $s$，$G$ 在 $D_0=0$ 处跳 $(\lambda^E_k-Y_k)ps$）因此去掉：$\lambda_k$ 只通过 $\lambda_k\delta$ 进入 (B6.2)，按 $\delta$ 分支时跳点处为 0。两相等熵涡 $64^2$：Newton 2.0 次/级、$\max|G|$ 到 $6\times10^{-16}$（V15：2.99 次、10503 次翻转、$10^{-13}$）。
   - 两相等熵涡：MOOD 回退 145 → 0；空化 RM：拒绝 41 → 0、MOOD 162 → 25；一维算例的指标在第 5 位以后变化。代价是每级 Newton 次数约 +1。
 - 线搜索（步长减半，至多 40 次）：接受条件是所有格的局部闭合有解（可容许），且残量范数满足 Armijo 下降 $\|G\|_{\rm new}<(1-10^{-4}\lambda)\|G\|$。
 - 收敛判据：$\max_i|G_i|/(|P_i|+K_i+P_{E,i})<10^{-13}$，$K=\rho c_W^2$（Wood 体积模量，$G/K$ 就是体积约束残量 $\sum\alpha-1$），$P_E=\sum_k(|\varepsilon_k|+|m_kq_k|)/\sum_k\partial\varepsilon_k/\partial p$（$X^*$ 处；代码里分母再加 1 Pa 防零）。理由：闭合给出的压力只精确到 $\varepsilon_{\rm mach}(p+\pi)$，守恒总能的舍入 $\varepsilon_{\rm mach}|E|$ 又经 $\lambda_k\delta$ 进入各相压力，所以 $G$ 的可达精度是 $\varepsilon_{\rm mach}\max(K,P_E)$。按 $|P|$ 归一时 $p\ll\pi$ 的格子永远达不到容差：环氧–尖晶石（$\pi=1.41\times10^{11}$）算例因此每步都被拒绝（3659 次拒绝、13906 步），改后 0 次拒绝、122 步，每级 3 次 Newton。
