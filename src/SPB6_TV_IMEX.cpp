@@ -82,7 +82,7 @@ int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0�
 std::string out_file = "out.dat", vtk_dir = "";
 double st_Tmax[2] = {0.0, 0.0};
 std::vector<double> DIVF;   // 最后一级的面散度 delta . u_f = s / tau（每格，诊断：算例 57、58 的低马赫一致性）   // 各相温度的最大值（诊断，日志行；alpha_k > 1e-9 的格）
-long st_steps = 0, st_reject = 0, st_newton_it = 0, st_stage = 0, st_rk1 = 0;
+long st_steps = 0, st_reject = 0, st_newton_it = 0, st_stage = 0, st_rk1 = 0, st_floor = 0;   // st_floor：Newton 停在闭合舍入底而被接受的级数（devlog 16.9）
 double st_maxres = 0; long st_mood = 0;
 
 
@@ -573,7 +573,18 @@ inline FaceFlux face_flux(const FaceVals& f) {
 	return F;
 }
 
-struct CellOut { ClOut cl; double mx, my, E, s; };
+struct CellOut { ClOut cl; double mx, my, E, s, sig; };
+// 闭合压力的舍入底（devlog 16.9）：能量亏损 D0 = (rho e)^C - sum eps^tr 是大数之差，带 eps_m (|(rho e)^C| + sum |eps^tr| + sum |m q|) 的舍入；
+// 它按 lambda_k 进入相 k 的 A_k，经 d alpha_k / d A_k = (gamma_k - 1)/(gamma_k (p + pi_k)) 与 Phi'(p) = sum d alpha_k/dp 变成压力误差。
+// 亏损分给软相（低压下的微量气体）时这个底远高于混合物刚度给出的底。只对 NASG/SG 的 p 闭合计算，其余返回 0。
+static double closure_roundoff(const ClIn& in, double p) {
+	if (in.type != CL_P || in.nodelta || is_mg(0) || is_mg(1)) return 0.0;
+	PCoef c; if (!p_coef(in, c, p)) return 0.0;
+	double dphi = 0.0, sens = 0.0;
+	for (int k = 0; k < 2; k++) { dphi += dalpha_p(c, k, p); sens += std::fabs(c.lam[k]) * (PH[k].g - 1.0) / (PH[k].g * (p + PH[k].pi)); }
+	const double en = 2.220446049250313e-16 * (std::fabs(in.rhoeC) + std::fabs(in.etr[0]) + std::fabs(in.etr[1]) + std::fabs(in.mtr[0] * PH[0].q) + std::fabs(in.mtr[1] * PH[1].q));
+	return dphi < 0 ? en * sens / -dphi : 0.0;
+}
 // 单格残量 G = pbar_cl - Pc（B4.3-B4.6, B5.4）。邻格压力由调用者给（边界虚格按边界条件取值）
 static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW, double PE, double PS, double PN, double& G, CellOut* out) {
 	FaceVals fe, fw, fn, fs;
@@ -606,7 +617,7 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
 	G = (o.pbar - P_REF) - Pc;
-	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->s = s; }
+	if (out) { out->cl = o; out->mx = mx; out->my = my; out->E = E; out->s = s; out->sig = closure_roundoff(in, o.pbar); }
 	return std::isfinite(G);
 }
 
@@ -764,11 +775,19 @@ static bool Newton_Solver(const StageData& S, PField& P, int& iters, double& res
 			lam *= 0.5;
 		}
 		// 线搜索无法再降低残量：到了舍入底。残量已在 10 倍容差之内（相对 1e-12，远小于离散误差）就接受当前解，否则失败（devlog 16.9）
-		if (!acc) { resfinal = res; return res < 10.0 * NewtonTol; }
+		if (!acc) {   // 线搜索无法再降低残量：逐格检查残量是否已在 tol N_i + sigma_i 之内（sigma_i 为闭合压力的舍入底，devlog 16.9）；是则收敛，否则失败
+			resfinal = res; bool floor_ok = true;
+			for (int q = 0; q < n && floor_ok; q++) {
+				const int i = q % nx, j = q / nx; double g; CellOut o;
+				if (!residual_at(S, P, i, j, 0, -1, 0, g, &o)) { floor_ok = false; break; }
+				if (std::fabs(g) > NewtonTol * (std::fabs(P_REF + P.P[q]) + S.Kw[S.id(IG(i), IG(j))] + 1.0) + o.sig) floor_ok = false;
+			}
+			if (floor_ok) st_floor++;
+			return floor_ok; }
 		std::swap(P.P, Pn.P); std::swap(G, Gn);
 		st_newton_it++;
 	}
-	iters = NewtonIter; resfinal = res; return res < 10.0 * NewtonTol;
+	iters = NewtonIter; resfinal = res; return res < NewtonTol;
 }
 
 
@@ -1250,8 +1269,8 @@ int main(int argc, char *argv[]){
 		printf("TG p0 %g M %.3e N %d | div L1 %.4e L2 %.4e Linf %.4e | u-err L1 %.4e L2 %.4e Linf %.4e | p2 L2 %.4e | rho L2 %.4e max|rho-1| %.3e\n", VORTEX_P0, 1.0 / std::sqrt(1.4 * VORTEX_P0), nxCells,
 			d1, std::sqrt(d2), dinf, e1, std::sqrt(e2), einf, std::sqrt(ep), std::sqrt(er), drho);
 	}
-	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
-		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
+	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld floor %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
+		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_floor, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
 	return 0;
 }
