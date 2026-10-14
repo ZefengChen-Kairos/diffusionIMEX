@@ -655,6 +655,8 @@ enum Test {
 	testGresho5 = 54,             //   M = 1e-5
 	testGresho6 = 55,             //   M = 1e-6
 	testVortexBB = 56,            // Battisti-Boscheri 4.1 两相等熵涡（Hu-Shu 型，周期，平移一周回到初值：精确解就是初值）；背景压力 p0 = VORTEX_P0（命令行 p0=）
+	testTaylorGreen1 = 57,        // Battisti-Boscheri 4.4 低马赫 Taylor-Green 涡，单相（alpha_s = 0.5）：不可压 Euler 的定常解；p0 = VORTEX_P0，M = 1/sqrt(1.4 p0)
+	testTaylorGreen2 = 58,        //   两相（alpha_s = 0.5 + 0.1 (cos 2x + cos 2y)）
 	testSPB_Nitromethane = 60,    // SPB 2009 4.2  硝基甲烷激波管（Cochran-Chan，同一流体当两相），20 GPa / 0.2 MPa
 	testPel_JWLWater = 61,        // Pelanti 2022 8.1.1  爆轰气体（JWL）-水（NASG）激波管
 	testSPB_HeBubble = 70,        // SPB 2009 4.6  二维：空气中 Mach 1.5 激波打氦气泡（Layes & Le Métayer）
@@ -745,6 +747,9 @@ static bool test_setup(int test, TestSetup& S) {
 	case testVortexBB:   // Battisti-Boscheri 4.1：[-5, 5]^2 周期，gamma_f = 1.35（相 1）、gamma_s = 1.4（相 2），平移 (2, 2)，t = 5 正好一周
 		set_SG(0, 1.35, 0); set_SG(1, 1.4, 0); S.x0 = -5; S.x1 = 5; S.y0 = -5; S.y1 = 5; S.tend = 5.0; S.xbc = x_Periodic; S.ybc = y_Periodic;
 		S.sub = 4; S.nx = 40; S.ny = 40; S.relax = 0; break;   // 初值取 4 x 4 子点的格平均（误差按格平均比较）
+	case testTaylorGreen1: case testTaylorGreen2:   // BB 4.4：[0, 2 pi]^2 周期，50 x 50，两相同为理想气体 gamma = 1.4、rho = 1；t = 0.2，固定 dt = 2.5e-3（命令行 dt=）
+		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0); S.x0 = 0; S.x1 = 2 * M_PI; S.y0 = 0; S.y1 = 2 * M_PI; S.tend = 0.2; S.xbc = x_Periodic; S.ybc = y_Periodic;
+		S.sub = 4; S.nx = 50; S.ny = 50; S.relax = 0; break;
 	case testSPB_Nitromethane:   // SPB 4.2：Gamma = 1.19，rho_ref = 1134，A1 = 0.819181e9，A2 = 1.50835e9，E1 = 4.52969，E2 = 1.42144；界面位置论文未写，取 0.5 m
 		for (int k = 0; k < 2; k++) { PH[k] = Phase{}; PH[k].kind = 1; PH[k].G = 1.19; PH[k].rr = 1134.0; PH[k].c1 = 0.819181e9; PH[k].c2 = 1.50835e9; PH[k].e1 = 4.52969; PH[k].e2 = 1.42144; PH[k].g = 2.19; }
 		S.tend = 67e-6; S.nx = 500; break;
@@ -774,6 +779,8 @@ static bool test_setup(int test, TestSetup& S) {
 // 点 (x, y) 处的初值（守恒量）
 // 算例 56 的流函数（扰动部分）：u = 2 + d psi/dy，v = 2 - d psi/dx，psi = eps/(2 pi) exp((1 - r^2)/2)
 inline double vortex_psi(double x, double y) { const double eps = 5.0; return eps / (2 * M_PI) * std::exp(0.5 * (1 - x * x - y * y)); }
+// 算例 57、58 的流函数：u = d psi/dy = sin x cos y，v = -d psi/dx = -cos x sin y
+inline double tg_psi(double x, double y) { return std::sin(x) * std::sin(y); }
 static void test_state(int test, double x, double y, double* Q) {
 	(void)y;
 	auto setcell = [&](double a1, double r1, double r2, double u, double v, double p1, double p2) {
@@ -817,6 +824,10 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPel_Cavitation: { const double T0 = 353.0, u = x < 0.5 ? -2.0 : 2.0; setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
 	case testRelax0DChem: { const double T0 = 380.0, p0 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p0, T0), rho_pT(1, p0, T0), 0, 0, p0, p0); break; }
 	case testRelax0D: { const double T1 = 350.0, T2 = 380.0, p1 = 1.2e5, p2 = 0.8e5; setcell(1 - 0.2, rho_pT(0, p1, T1), rho_pT(1, p2, T2), 0, 0, p1, p2); break; }
+	case testTaylorGreen1: case testTaylorGreen2: {   // BB (73)：rho = 1，u = sin x cos y，v = -cos x sin y，p = p0 + (cos 2x + cos 2y)/4，两相同压
+		const double p = VORTEX_P0 + 0.25 * (std::cos(2 * x) + std::cos(2 * y));
+		const double a2 = test == testTaylorGreen1 ? 0.5 : 0.5 + 0.1 * (std::cos(2 * x) + std::cos(2 * y));
+		setcell(1 - a2, 1.0, 1.0, std::sin(x) * std::cos(y), -std::cos(x) * std::sin(y), p, p); break; }
 	case testVortexBB: {   // Hu-Shu 涡（eps = 5），T = p0 + dT，rho = (T / p0)^(1/(gamma-1))，p = rho T（gamma = 1.4）：dp/dr = rho u_theta^2 / r 与 p0 无关，
 		// 速度扰动与 p0 无关，密度扰动 ~ 1/p0（与论文表 1 中 L2(rho_s phi_s) 随 p0 减小、L2(动量)、L2(phi_s) 不变一致）。
 		// 单速度模型要求两相同压（否则 (p1 - p2) grad alpha 破坏径向平衡）：两相取同一 rho、p，alpha2 为被动输运的光滑分布。
