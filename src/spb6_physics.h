@@ -225,8 +225,8 @@ static const double YMIN = 1e-10;
 // 物理部分有预算：压缩格里 delta 中至多 Q = sum Q_k 的部分是物理耗散（一次激波通过产生的亏损之和恰为 Q），其余是误差：
 //   Lambda_k(delta) = min(delta, Q) lam^(II.5)_k + (delta - min(delta, Q)) lam^E_k   (delta >= 0)，   = delta lam^E_k   (delta < 0)。
 // Lambda 是 delta 的连续分段仿射函数，所以 G(P) 连续（V15 按 D0 符号分支、又乘 s 的不连续与 active-set 校正都不再需要）。
-// p 闭合（mu = inf）里 Lambda_k 取在全局迭代值处：A_k = eps^tr_k - m_k q_k + Lambda_k(delta(pguess))，B_k = alpha^tr_k；收敛时 pguess = p（p_coef）。
-// 有限 mu 的两压力闭合里 delta = D0 + s sum om_k p_k，Lambda_k 的 p 依赖留在 2x2 方程组里（分段按 delta(pguess) 取）。
+// 闭合在 delta 线性的每一段上用 A_k + B_k p = eps^tr_k - m_k q_k + p alpha^tr_k + Lambda_k(delta(p))：p 闭合在每个试探 p 处选段（closure_p），
+// 其余闭合按 delta(pguess) 选段，收敛时 pguess = p。
 
 // 相 k 从 (p0, v0) 被激波压到 p1：Hugoniot 能量减等熵能量。NASG 闭式，每单位波前有效体积 alpha - m b（(A2.2) 对 v - b 齐次）
 static double hug_gap(int k, double p0, double p1) {
@@ -306,19 +306,16 @@ static void defect_split(const ClIn& in, double delta, double lam[2], double ext
 	for (int k = 0; k < 2; k++) { lam[k] = lE[k]; extra[k] = in.Qph[k] - Q * lE[k]; }
 }
 struct PCoef { double A[2], B[2], N[2], lam[2]; };
-static bool p_coef(const ClIn& in, PCoef& c) {
+// 分段按 delta(pseg) = D0 + pseg s 取（pseg < 0：取 pguess）；在该段上 Lambda_k = lam_k delta + xi_k 对 p 仿射，A_k + B_k p 含它的 p 依赖，
+// 于是对任意 p，sum_k eps_k = (rho e)^C 严格成立（能量一致性在闭合内，不依赖全局迭代收敛）
+static bool p_coef(const ClIn& in, PCoef& c, double pseg = -1e300) {
 	if (!in.nodelta && !(in.mtr[0] + in.mtr[1] > 0)) return false;
 	const double D0 = in.nodelta ? 0.0 : in.rhoeC - in.etr[0] - in.etr[1];
 	double ex[2] = {0.0, 0.0};
-	// 分到的亏损 Lambda_k 在全局迭代值 pguess 处取（delta_g = D0 + pguess s），闭合内对 p 为常数；收敛时 pguess = p，与 Lambda_k(delta(p)) 相同。
-	// 不在闭合内随 p 变：那样 alpha_k(p) 的单调性条件是 N_k = E_k + lam_k D0 + xi_k > 0，激波处液格里分到大份额的微量气体 lam_k ~ 1，
-	// 而 D0 ~ -p s（混合物的压缩功）远大于 E_k，N_k < 0，闭合无根（空化 RM 在 t = 0.73 ms 停住，devlog V16 §16.8）
-	double Lam[2] = {0.0, 0.0};
-	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0;
-	else { const double dg = D0 + in.pguess * in.s; defect_split(in, dg, c.lam, ex); for (int k = 0; k < 2; k++) Lam[k] = c.lam[k] * dg + ex[k]; }
+	if (in.nodelta) c.lam[0] = c.lam[1] = 0.0; else defect_split(in, D0 + (pseg > -1e299 ? pseg : in.pguess) * in.s, c.lam, ex);
 	for (int k = 0; k < 2; k++) {
-		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + Lam[k];
-		c.B[k] = in.atr[k];
+		c.A[k] = in.etr[k] - in.mtr[k] * PH[k].q + c.lam[k] * D0 + ex[k];
+		c.B[k] = in.atr[k] + c.lam[k] * in.s;
 		c.N[k] = c.A[k] - (c.B[k] - in.mtr[k] * PH[k].b) * PH[k].pi;
 	}
 	return true;
@@ -332,29 +329,33 @@ static double plo_mix() { return std::max(-PH[0].pi, -PH[1].pi); }
 static bool closure_p_mg(const ClIn& in, ClOut& o);
 static bool closure_p(const ClIn& in, ClOut& o) {
 	if (mg_any()) return closure_p_mg(in, o);
+	// Lambda_k(delta(p)) 的分段在每个试探 p 处取（B5.2 (e)），Phi(p) = sum alpha_k(p) - 1 连续。单相的 alpha_k(p) 不必单调：
+	// 激波处液格里的微量气体在 (II.5) 段分到 lam ~ 1，D0 ~ -p s 时其 N_k < 0（alpha_gas 随 p 增），但和 Phi 仍由液体主导而递减。
+	// 所以只要求 Phi 有带区间的根、解处各相可容许，不再逐相要求 N_k > 0（那样空化 RM 在 t = 0.73 ms 无解，devlog V16 §16.8）
 	PCoef c; if (!p_coef(in, c)) return false;
-	for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;
 	const double plo = plo_mix();
-	auto Phi = [&](double p) { return alpha_p(c, in, 0, p) + alpha_p(c, in, 1, p) - 1.0; };
-	// 区间: lo 处 Phi > 0（p -> plo+ 时 -> +inf），找 hi 使 Phi < 0
+	auto Phi = [&](double p) { PCoef q; p_coef(in, q, p); return alpha_p(q, in, 0, p) + alpha_p(q, in, 1, p) - 1.0; };
+	auto dPhi = [&](double p) { PCoef q; p_coef(in, q, p); return dalpha_p(q, 0, p) + dalpha_p(q, 1, p); };
+	// 区间：lo 处 Phi > 0，hi 处 Phi < 0（从初猜向两侧几何扩张）
 	double d = std::max(in.pguess - plo, 1e-3 * (std::fabs(plo) + 1.0));
 	double lo = plo, hi = plo + d; double fh = Phi(hi);
 	if (fh > 0) { lo = hi; for (int k = 0; k < 200 && fh > 0; k++) { d *= 4.0; hi = plo + d; fh = Phi(hi); } if (fh > 0) return false; }
-	else { for (int k = 0; k < 200; k++) { const double dd = d * 0.25, pl = plo + dd, fl = Phi(pl); if (fl > 0) { lo = pl; break; } hi = pl; fh = fl; d = dd; } }
+	else { bool found = false; for (int k = 0; k < 200; k++) { const double dd = d * 0.25, pl = plo + dd, fl = Phi(pl); if (fl > 0) { lo = pl; found = true; break; } hi = pl; fh = fl; d = dd; } if (!found) return false; }
 	double p = 0.5 * (lo + hi); if (in.pguess > lo && in.pguess < hi) p = in.pguess;
 	for (int it = 0; it < 200; it++) {
 		const double f = Phi(p);
 		if (f == 0.0) break;                                   // 恰为根
 		if (f > 0) lo = p; else hi = p;
-		const double df = dalpha_p(c, 0, p) + dalpha_p(c, 1, p);
-		double pn = p - f / df;
+		const double df = dPhi(p);
+		double pn = df < 0 ? p - f / df : 0.5 * (lo + hi);
 		if (!(pn > lo && pn < hi)) pn = (hi - plo > 1e3 * (lo - plo + 1e-300) && lo > plo) ? plo + std::sqrt((lo - plo) * (hi - plo)) : 0.5 * (lo + hi);
 		if (std::fabs(pn - p) <= 2e-16 * (std::fabs(p) + std::fabs(plo)) || hi - lo <= 4e-16 * (std::fabs(hi) + std::fabs(lo))) { p = pn; break; }
 		p = pn;
 	}
+	p_coef(in, c, p);
 	for (int k = 0; k < 2; k++) {
 		o.a[k] = alpha_p(c, in, k, p); o.m[k] = in.mtr[k];
-		if (!(o.a[k] > o.m[k] * PH[k].b)) return false;
+		if (!(o.a[k] > o.m[k] * PH[k].b) || !(p + PH[k].pi > 0)) return false;
 		o.e[k] = eps_amp(k, o.a[k], o.m[k], p); o.p[k] = p; o.T[k] = T_amp(k, o.a[k], o.m[k], p);
 	}
 	o.pbar = p; return std::isfinite(p);
@@ -390,7 +391,7 @@ static bool closure_p_mg(const ClIn& in, ClOut& o) {
 		double s = -1.0; dPhi = 0.0; double an[2];
 		for (int k = 0; k < 2; k++) {
 			double a, da;
-			if (is_mg(k)) { if (!alpha_mg(k, in.mtr[k], c.A[k], c.B[k], p, ag[k], a, da)) return NAN; }   // MG 相 q = 0：A = eps^tr + Lambda_k(delta(pguess))
+			if (is_mg(k)) { if (!alpha_mg(k, in.mtr[k], c.A[k], c.B[k], p, ag[k], a, da)) return NAN; }   // MG 相 q = 0：A = eps^tr + lam D0 + xi
 			else { if (!(p + PH[k].pi > 0) || !(c.N[k] > 0)) return NAN; a = alpha_p(c, in, k, p); da = dalpha_p(c, k, p); }
 			an[k] = a; s += a; dPhi += da;
 		}
