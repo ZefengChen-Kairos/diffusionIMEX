@@ -409,6 +409,7 @@ SG/NASG 参数记为 $(\gamma,\pi,q,q',c_v,b)$，省略的 $q=q'=b=0$、$c_v=100
 | 73 | Pelanti 8.1.2 / 图 2–3 | JWL（同 61） | 水 NASG | $[-1.35,1.35]\times[-1.5,0]$，上边固壁；气泡心 $(0,-0.32)$ 半径 0.05，内 $\rho=2000$，$4.6406\times10^{10}$ Pa；水 $1044$，$10^5$ | 0.4e-3 | $361\times200$（论文 $721\times400$） | 0.2 | 局部 | $p$ |
 | 50–55 | Gresho 涡，$M=10^{-1}\ldots10^{-6}$ | 理想气体 (1.4, 0) | 同 | $[-0.5,0.5]^2$ 周期；$\rho=1$，$p_0=1/(\gamma M^2)$，Gresho 剖面 | $0.4\pi$ | $80^2$ | `dt=0.0025` | 局部 | $p$ |
 | 56 | Battisti–Boscheri §4.1 两相等熵涡 | (1.35, 0) | (1.4, 0) | $[-5,5]^2$ 周期；Hu–Shu 涡 $\epsilon=5$，$T=p_0+\delta T$，$\rho=(T/p_0)^{1/0.4}$，$p=\rho T$，$\alpha_2=0.5+0.25e^{(1-r^2)/2}$，平移 $(2,2)$；`p0=` 背景压力 | 5 | $40^2$（试验 32–512） | 0.2 | 局部 | $p$ |
+| 57, 58 | Battisti–Boscheri §4.4 低马赫 Taylor–Green 涡 | (1.4, 0) | (1.4, 0) | $[0,2\pi]^2$ 周期；$\rho=1$，$u=\sin x\cos y$，$v=-\cos x\sin y$，$p=p_0+\frac14(\cos2x+\cos2y)$，$M=1/\sqrt{1.4p_0}$；57：$\alpha_2=0.5$，58：$\alpha_2=0.5+0.1(\cos2x+\cos2y)$；`p0=` | 0.2 | $50^2$（收敛 32–256） | `dt=2.5e-3`（收敛 `dt=0.08/N`） | 局部 | $p$ |
 | 20, 21 | 光滑解（时间收敛阶） | (1.4, 0) / 水 | (1.4, 0) | $u=50e^{-(x-0.5)^2/0.01}$，$\alpha_1=0.5+0.2\sin2\pi x$，$p=10^5(1+0.2e^{\cdots})$ | 5e-4 / 1e-4 | — | 0.2 | 局部 | $p$ |
 | 40, 41 | 0D 松弛（周期） | 水（同 1） | 汽（同 1） | 40：$\alpha_1=0.8$，$(T,p)=(350,1.2\times10^5)\mid(380,0.8\times10^5)$；41：$T=380$，$p=0.8\times10^5$ | 1e-4 | — | 0.2 | 局部 | 有限速率 |
 
@@ -418,4 +419,4 @@ SG/NASG 参数记为 $(\gamma,\pi,q,q',c_v,b)$，省略的 $q=q'=b=0$、$c_v=100
 
 ## E10. 日志行与诊断
 
-`case N mode 1 order 2 rk 2 N nx CFL C | steps S (rk1 R1, mood M) rejects R | stages St newton it I (I/St) maxres r Tmax T1 T2 | closure fails F | dM1/M dM2/M dE/E | wall s`：`rk1` 为用后向 Euler 的步数（斜坡 + MOOD），`mood` 为 MOOD 回退的步数，`rejects` 为减半次数，`newton it` 为 Newton 迭代总数，`maxres` 为各级接受时残量的最大值，`Tmax` 为两相温度在整个计算中的最大值（$\alpha_k>10^{-9}$ 的格），`closure fails` 为显式程序闭合失败数，最后三项是质量与总能的守恒误差（有开边界时含流出）。算例 56 另打印 $L_2$ 误差行。
+`case N mode 1 order 2 rk 2 N nx CFL C | steps S (rk1 R1, mood M) rejects R | stages St newton it I (I/St) maxres r Tmax T1 T2 | closure fails F | dM1/M dM2/M dE/E | wall s`：`rk1` 为用后向 Euler 的步数（斜坡 + MOOD），`mood` 为 MOOD 回退的步数，`rejects` 为减半次数，`newton it` 为 Newton 迭代总数，`maxres` 为各级接受时残量的最大值，`Tmax` 为两相温度在整个计算中的最大值（$\alpha_k>10^{-9}$ 的格），`closure fails` 为显式程序闭合失败数，最后三项是质量与总能的守恒误差（有开边界时含流出）。算例 56 另打印 $L_2$ 误差行（$\alpha_2\rho_2$、$\alpha_2\rho_2u$、$\alpha_2$，以及混合密度 $\rho$、速度矢量 $|\mathbf u-\mathbf u_0|$、混合压力 $p$）；算例 57、58 打印紧致面散度 $s/\tau$ 与宽中心差分散度的范数、速度、$p-p_0$、$\rho$ 的误差。`init=1` 只写出精确格平均初值后退出（误差后处理 `tests/allmach_table.py` 的参考解）。
