@@ -1,8 +1,8 @@
 // =====================================================================================================================
 //  SPB6_explicit.cpp
 //  全显式参考格式（docs/derivation/A_model_EOS_explicit.md）：SPB 2009 的 HLLC + Godunov 更新（SPB 3.1-3.2），
-//  力学松弛（SPB 3.3，p_I 取松弛后的 p），守恒总能与相内能之和的差（能量亏损）在松弛闭合里按质量分数分给两相
-//  （代替 SPB 3.4 的重初始化；P-S 2014 §2.2 的相总能形式、§3.1 的一致性 (ii)），
+//  力学松弛（SPB 3.3，p_I 取松弛后的 p），守恒总能与相内能之和的差（能量亏损）在松弛闭合里分给两相
+//  （代替 SPB 3.4 的重初始化；分配规则与 IMEX 相同，B5.2：物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额，离散误差按可容许能量份额），
 //  P-S 2014 / Pelanti 2022 的热、化学松弛（瞬时或有限速率）。
 //
 //  与 SPB6_TV_IMEX.cpp 一样由 reference/code/2DEuler_TV.cpp 修改而来（全局设置、Grid/Array、TVDReconstruction、Update、
@@ -10,7 +10,7 @@
 //  与 IMEX 的不同：RusanovC_x/y 换成 HLLC_x/y（SPB 3.1.2），重构在原始变量上（SPB 附录 C），PressureSubsystem 换成逐格的
 //  RelaxationSubsystem；时间为二阶 Heun：瞬时松弛（投影）每级之后都做，有限速率松弛每步只在平均之后做一次（A3）。
 //
-//  编译: g++ -O2 -std=c++17 -I/usr/include/eigen3 SPB6_explicit.cpp -o spb6_ex
+//  编译: g++ -O2 -std=c++17 -fopenmp SPB6_explicit.cpp -o spb6_ex
 //  运行: ./spb6_ex key=value ...   键：case N ny cfl order tend out relax epsI mu theta nu verbose vtk
 // =====================================================================================================================
 #include <iostream>

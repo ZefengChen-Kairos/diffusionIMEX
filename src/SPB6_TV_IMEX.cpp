@@ -14,10 +14,13 @@
 //      线性方程组用 GMRES_Solver（与 2DEuler 一样实际是 BiCGStab，这里加了 Jacobi 预条件与相对容差）或一维 Thomas。
 //      2DEuler 的 ShockDetector 与压力 Laplacian 去掉，作用由 B4.1 的声学迎风项承担。
 //    - 时间：2DEuler 的半隐式 IMEX-RK（Ae/Ai/Hs）不变；起步改为声学步长后每步至多放大 1.2 倍（代替 full_step 个声学步，B10）；
-//      不可容许时拒绝本步并减半 dt（B8）；瞬时热/化学松弛每步开始时激活并投影到平衡流形（B6.7）。
+//      不可容许时先在同一步长上改用一阶（MOOD），仍不可容许才减半 dt（B8、B10）；瞬时热/化学松弛每步开始时激活并投影到平衡流形（B6.7）。
+//    - 能量亏损 delta 的分配（B5.2，V16）：物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额（每级先算 ±2 格模板的激波预算），离散误差按
+//      可容许能量份额；对 delta 连续，Newton 无分支校正。逐步说明见 docs/derivation/E_code_path.md。
 //
-//  编译: g++ -O2 -std=c++17 -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
-//  运行: ./spb6_imex key=value ...   键：case N ny cfl order tend out relax epsI mu theta nu verbose rk cflac ramp tol dt vtk
+//  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
+//  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt
+//        snap probe prec p0 wellprep vtk verbose（含义见 E 页 E0）
 // =====================================================================================================================
 #include <iostream>
 #include <vector>
