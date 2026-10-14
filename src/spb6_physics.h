@@ -666,7 +666,6 @@ enum Test {
 	testSmoothWater = 21,         // 光滑解，水-气
 	testPel_Cavitation = 30,      // Pelanti 2022 8.2.1 NASG 水空化管 -+2 m/s，T = 353 K
 	testDodecaneNASG = 31,        // Pelanti 2022 8.2.2 十二烷液-汽激波管（NASG）
-	testEvapFront = 33,           // Pelanti 2022 8.2.3 / Saurel et al. 2008：Simões-Moreira & Shepherd 十二烷蒸发前沿（SG 十二烷，pTg 瞬时；温度 ttest=）
 	testBartak = 32,              // Pelanti 2022 8.2.4 / Sirianni-Re 2026 5.2：Barták 管道快速泄压（NASG 水 350-550 K，有限速率传质 nulaw=1）
 	testRelax0D = 40,             // 0D 松弛：均匀非平衡态（周期）
 	testRelax0DChem = 41,         // 0D 化学松弛：pT 平衡、过热（周期）
@@ -700,7 +699,6 @@ int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; double BCP[4] = {0, 0, 
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
 double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4；命令行 p0=）
 int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）
-double T_TEST = 503.0;    // 算例 33 的试验温度（K，命令行 ttest=；实验 453-573 K）
 int INIT_ONLY = 0;        // 1 = 只写精确格平均初值后退出（命令行 init=1；误差后处理用）
 int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
@@ -770,9 +768,6 @@ static bool test_setup(int test, TestSetup& S) {
 	case testSmoothWater: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = 1e-4; break;
 	case testPel_Cavitation: PH[0] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4}; PH[1] = {1.467, 0.0, 2077616.0, 14317.0, 955.0, 0.0}; S.tend = 3e-3; S.nx = 5000; break;
 	case testDodecaneNASG: PH[0] = {1.206, 1681e5, -996054.0, 0.0, 2532.0, 7.51e-4}; PH[1] = {1.021, 0.0, -384592.0, -4301.0, 2274.0, 0.0}; S.tend = 473e-6; S.nx = 2000; break;
-	case testEvapFront:   // P-S 2014 的 SG 十二烷（同算例 3）；[0.25, 0.75] m，膜片在 0.5 m（左液右汽），t = 500 us；论文未给区域与网格。
-		// 前沿 100 us 只走约 0.1 mm，按位置测速需要细网格：默认 10000 格（50 um）。液体中的稀疏波很弱（液体停在饱和压力），汽相流出右边界
-		set_SG(0, 2.35, 4e8, -775.269e3, 0.0, 1077.7); set_SG(1, 1.025, 0.0, -237.547e3, -24.4e3, 1956.45); S.x0 = 0.25; S.x1 = 0.75; S.tend = 500e-6; S.nx = 10000; S.relax = 2; break;
 	case testBartak:   // Pelanti 8.2.4：表 5（NASG 水 350-550 K）；管长 1.7 m，右端封闭，左端突然打开：左边界给定大气压 1e5 Pa；1000 格，t = 17.5 ms
 		PH[0] = {1.387, 8899e5, -1244191.0, 0.0, 3202.0, 4.78e-4}; PH[1] = {1.954, 0.0, 2287484.0, 6417.0, 462.0, 0.0};
 		S.x0 = 0.0; S.x1 = 1.7; S.tend = 17.5e-3; S.nx = 1000; S.relax = 2; S.bc[0] = BC_PRES; S.bcp[0] = 1e5; S.bc[1] = BC_WALL; break;
@@ -825,9 +820,6 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPS_Cavitation2: case testPS_Cavitation500: {
 		const double T0 = 354.728, U0 = test == testPS_Cavitation2 ? 2.0 : 500.0, u = x < 0.5 ? -U0 : U0;
 		setcell(1 - 1e-2, rho_pT(0, 1e5, T0), rho_pT(1, 1e5, T0), u, 0, 1e5, 1e5); break; }
-	case testEvapFront: {   // 全场 T = T_TEST；左：液体，p = psat(T_TEST)，alpha_v = 1e-6；右：汽，p = 1 mbar，alpha_l = 1e-6（Pelanti 8.2.3，按 Fechter et al. 2018）
-		const bool L = x < 0.5; const double p = L ? psat(T_TEST) : 100.0;
-		setcell(L ? 1 - 1e-6 : 1e-6, rho_pT(0, p, T_TEST), rho_pT(1, p, T_TEST), 0, 0, p, p); break; }
 	case testBartak: {   // 液态水 12.5 MPa、563.15 K，均匀的汽 alpha_v = 1e-3（两相同温）
 		const double p = 12.5e6, T = 563.15; setcell(1 - 1e-3, rho_pT(0, p, T), rho_pT(1, p, T), 0, 0, p, p); break; }
 	case testDodecaneSG: case testDodecaneNASG: { const bool L = x < 0.75; setcell(L ? 1 - 1e-8 : 1e-8, 500.0, 2.0, 0, 0, L ? 1e8 : 1e5, L ? 1e8 : 1e5); break; }
