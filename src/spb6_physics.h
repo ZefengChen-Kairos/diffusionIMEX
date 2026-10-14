@@ -676,6 +676,7 @@ int BCS[4] = {0, 0, 0, 0}; double BCU[4] = {0, 0, 0, 0}; int SUBCELL = 1;
 // 输出（两个程序共用）：snap=t1,t2,... 在这些时刻写剖面（时间步截到这些时刻）；probe=x,y 每步记录最近格的压力；prec= 剖面的有效位数
 double VORTEX_P0 = 1.0;   // 算例 56 的背景压力 p0（Battisti-Boscheri 表 1：1, 10, 1e2, 1e3, 1e4；命令行 p0=）
 int WELLPREP = 0;         // 算例 56：1 = 离散良态初值（速度由格心流函数的中心差分给出，离散散度为零；命令行 wellprep=1，devlog V15）
+int INIT_ONLY = 0;        // 1 = 只写精确格平均初值后退出（命令行 init=1；误差后处理用）
 int LIMITER = 1;   // 1: minmod（所有算例）；0: 不限制的中心斜率，只用于光滑解的收敛阶试验（限制器在光滑极值处降为一阶，devlog V14）
 std::vector<double> SNAP; size_t SNAPI = 0; bool HAS_PROBE = false; double PROBE_X = 0, PROBE_Y = 0; int OUTPREC = 16;
 static void parse_list(const std::string& v, std::vector<double>& out) { size_t a = 0; while (a < v.size()) { size_t b = v.find(',', a); if (b == std::string::npos) b = v.size(); out.push_back(std::atof(v.substr(a, b - a).c_str())); a = b + 1; } }

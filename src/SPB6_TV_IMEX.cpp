@@ -19,7 +19,7 @@
 //      可容许能量份额；对 delta 连续，Newton 无分支校正。逐步说明见 docs/derivation/E_code_path.md。
 //
 //  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
-//  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt
+//  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt init
 //        snap probe prec p0 wellprep vtk verbose（含义见 E 页 E0）
 // =====================================================================================================================
 #include <iostream>
@@ -1029,7 +1029,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1063,6 +1063,7 @@ int main(int argc, char *argv[]){
 	bound_cond_u(u_con);
 	double M0[3]; conserved_totals(u_con, M0);
 	Grid u_init(nxCells, nyCells); copy(u_init, u_con);   // 算例 56：平移一周后的精确格平均就是初值
+	if (INIT_ONLY) { write_profile(u_init, out_file); return 0; }   // init=1：只写精确格平均初值（误差后处理 tests/allmach_table.py 的参考解）
 	// 算例 56 的离散良态初值（wellprep=1，devlog V15）：格平均速度的离散散度是 O(h^2)，低马赫时乘 rho c^2 产生长波声波，
 	// 粗网格上压力的表观阶降到 1.2-1.3。改用格心流函数 psi_ij 的中心差分 u = 2 + D_y psi，v = 2 - D_x psi：
 	// 面速度取两侧格速度的平均（B4.1），格的散度是宽中心差分 D_x u + D_y v = D_x D_y psi - D_y D_x psi = 0（差分算子可交换），逐位为零到舍入。
@@ -1196,25 +1197,27 @@ int main(int argc, char *argv[]){
 	double M1[3]; conserved_totals(u_con, M1);
 	if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // 输出前同样做激活投影（P-S：输出的是松弛后的态）
 	write_profile(u_con, out_file);
-	if (test == testVortexBB) {   // L2 = sqrt(sum e^2 dx dy)（论文表 1 的量：alpha2 rho2、alpha2 rho2 u、alpha2；另加 p、u）
-		double e[5] = {0, 0, 0, 0, 0};
+	if (test == testVortexBB) {   // L2 = sqrt(sum e^2 dx dy)（论文表 1 的量：alpha2 rho2、alpha2 rho2 u、alpha2；另加混合密度 rho、速度矢量 |u - u0|、混合压力 p）
+		double e[6] = {0, 0, 0, 0, 0, 0};
 		for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) {
 			const double* Q = u_con.cell(IG(i), IG(j)); const double* Q0 = u_init.cell(IG(i), IG(j));
 			const double u1 = Q[IMU] / (Q[IM1] + Q[IM2]), u0 = Q0[IMU] / (Q0[IM1] + Q0[IM2]);
-			const double d[5] = {Q[IM2] - Q0[IM2], Q[IM2] * u1 - Q0[IM2] * u0, Q0[IA1] - Q[IA1], pbar_of(Q) - pbar_of(Q0), u1 - u0};
-			for (int k = 0; k < 5; k++) e[k] += d[k] * d[k] * dx * dy;
+			const double r = Q[IM1] + Q[IM2], r0 = Q0[IM1] + Q0[IM2];
+			const double vel = std::hypot(u1 - u0, Q[IMV] / r - Q0[IMV] / r0);
+			const double d[6] = {Q[IM2] - Q0[IM2], Q[IM2] * u1 - Q0[IM2] * u0, Q0[IA1] - Q[IA1], pbar_of(Q) - pbar_of(Q0), r - r0, vel};
+			for (int k = 0; k < 6; k++) e[k] += d[k] * d[k] * dx * dy;
 		}
-		printf("L2 p0 %g N %d | a2r2 %.4e a2r2u %.4e a2 %.4e p %.4e u %.4e\n", VORTEX_P0, nxCells, std::sqrt(e[0]), std::sqrt(e[1]), std::sqrt(e[2]), std::sqrt(e[3]), std::sqrt(e[4]));
+		printf("L2 p0 %g N %d | a2r2 %.4e a2r2u %.4e a2 %.4e | rho %.4e vel %.4e p %.4e\n", VORTEX_P0, nxCells, std::sqrt(e[0]), std::sqrt(e[1]), std::sqrt(e[2]), std::sqrt(e[4]), std::sqrt(e[5]), std::sqrt(e[3]));
 	}
 	if (isTG) {   // BB 4.4：混合速度对不可压定常解（格平均）的误差 L1 = sum |e| dx dy，L2 = sqrt(sum |e|^2 dx dy)，Linf；e = (u, v) 之差的模。
 		// 另给压力的二阶脉动 p - p0 对 (cos 2x + cos 2y)/4 的 L2、密度偏差 max |rho - 1|（低马赫一致性：O(M^2)）
-		double e1 = 0, e2 = 0, einf = 0, ep = 0, drho = 0;
+		double e1 = 0, e2 = 0, einf = 0, ep = 0, drho = 0, er = 0;
 		for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) {
 			const double* Q = u_con.cell(IG(i), IG(j)); const double* Q0 = u_init.cell(IG(i), IG(j));
 			const double r = Q[IM1] + Q[IM2], r0 = Q0[IM1] + Q0[IM2];
 			const double du = Q[IMU] / r - Q0[IMU] / r0, dv = Q[IMV] / r - Q0[IMV] / r0, e = std::hypot(du, dv);
 			e1 += e * dx * dy; e2 += e * e * dx * dy; einf = std::max(einf, e);
-			const double d = (pbar_of(Q) - VORTEX_P0) - (pbar_of(Q0) - VORTEX_P0); ep += d * d * dx * dy; drho = std::max(drho, std::fabs(r - 1.0));
+			const double d = (pbar_of(Q) - VORTEX_P0) - (pbar_of(Q0) - VORTEX_P0); ep += d * d * dx * dy; er += (r - r0) * (r - r0) * dx * dy; drho = std::max(drho, std::fabs(r - 1.0));
 		}
 		// BB 表 4 的量：混合速度的宽中心差分散度 div_h u = (u_{i+1} - u_{i-1})/(2 dx) + (v_{j+1} - v_{j-1})/(2 dy)（周期），应为 O(M^2)
 		double d1 = 0, d2 = 0, dinf = 0;
@@ -1226,8 +1229,8 @@ int main(int argc, char *argv[]){
 		double f1 = 0, f2 = 0, finf = 0;   // 格式自己的面散度（紧致，投影所约束的量）
 		for (double dv : DIVF) { f1 += std::fabs(dv) * dx * dy; f2 += dv * dv * dx * dy; finf = std::max(finf, std::fabs(dv)); }
 		printf("TG face-div L1 %.4e L2 %.4e Linf %.4e\n", f1, std::sqrt(f2), finf);
-		printf("TG p0 %g M %.3e N %d | div L1 %.4e L2 %.4e Linf %.4e | u-err L1 %.4e L2 %.4e Linf %.4e | p2 L2 %.4e | max|rho-1| %.3e\n", VORTEX_P0, 1.0 / std::sqrt(1.4 * VORTEX_P0), nxCells,
-			d1, std::sqrt(d2), dinf, e1, std::sqrt(e2), einf, std::sqrt(ep), drho);
+		printf("TG p0 %g M %.3e N %d | div L1 %.4e L2 %.4e Linf %.4e | u-err L1 %.4e L2 %.4e Linf %.4e | p2 L2 %.4e | rho L2 %.4e max|rho-1| %.3e\n", VORTEX_P0, 1.0 / std::sqrt(1.4 * VORTEX_P0), nxCells,
+			d1, std::sqrt(d2), dinf, e1, std::sqrt(e2), einf, std::sqrt(ep), std::sqrt(er), drho);
 	}
 	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
 		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
