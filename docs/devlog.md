@@ -1355,7 +1355,8 @@ V16 第一版重跑二维时空化 RM（算例 71）在 $t=7.30\times10^{-4}$ s 
 - **第一次修改（撤回）：** 停滞时残量 $<10\times$ 容差就接受。你的问题：“既然之前可以，为什么现在不可以，我们现在不是更正确吗”——这只是放宽容差，没有回答原因。
 - **原因（诊断版打出卡住时残量最大的格）：** 空化区的水格，$\alpha_{\rm gas}\approx10^{-4}$，$p\approx1.1\times10^5$ Pa，弱压缩；$0<\delta<Q$，按 (II.5) $\lambda_{\rm gas}=0.9998$（亏损几乎全部给微量气体）。$D_0=(\rho e)^C-\sum\varepsilon^{\rm tr}$ 是两个约 $7.8\times10^8$ J/m³ 的数之差，带约 $3\times10^{-7}$ J/m³ 的舍入；它进入 1 bar、$\alpha=10^{-4}$ 的气体：$\delta\alpha_g=\lambda_g(\gamma_g-1)/(\gamma_gp)\cdot3\times10^{-7}\approx9\times10^{-13}$，$\delta p=\delta\alpha_g/|\Phi'(p)|\approx6\times10^{-4}$ Pa（$\Phi'\approx1.4\times10^{-9}$/Pa，气体主导）。实测 Newton 停在 $|G|=1.4$–$4.9\times10^{-4}$ Pa，归一化 $\approx1.1\times10^{-13}$。V15 里这份舍入落在水上（$\delta p\approx10^{-7}$ Pa），所以以前不暴露。**不是 V16 的物理错，是收敛判据假设所有格都能达到同一个容差**：亏损送进软相的格做不到。
 - **修改：** 每格的闭合压力舍入底 $\sigma_i=\epsilon_m\big(|(\rho e)^C|+\sum|\varepsilon^{\rm tr}_k|+\sum|m_kq_k|\big)\sum_k\lambda_k\frac{\gamma_k-1}{\gamma_k(p+\pi_k)}\big/|\Phi'(p)|$（`closure_roundoff`，NASG/SG 的 $p$ 闭合）。只在线搜索无法再降低残量时使用：逐格 $|G_i|\le{\rm tol}\,N_i+\sigma_i$ 则收敛，否则失败。正常收敛的算例不进入这个分支（逐位不变）；日志的 `floor` 是用到它的级数。
-- 结果见本节更新（验证中）。
+- **结果：** 空化 RM 跑完：2202 步、0 次拒绝、23 个 MOOD 步，178 级在停滞时由舍入底判据接受（`floor 178`），3.44 次 Newton/级，接受时残量最大 $4.8\times10^{-13}$（归一化），1568 s（4 线程）。SPB 4.3.2、5.2、P-S 图 1 $pTg$ 档与最终代码逐位相同（`floor 0`）。
+- 日志的气相 $T_{\max}=1.3\times10^7$：SPB 没给这个算例的 $c_v$（取默认 1000），气体初始温度只有 1.27 K，温度只有相对意义；V15 同一算例 $\alpha_{\rm gas}>0.01$ 的格最高 $3.9\times10^6$，V16 为 $8.2\times10^6$，同一量级，不是 V16 引入的。
 
 ### 16.7 数据
 
