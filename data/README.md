@@ -1,4 +1,4 @@
-# Data of the IMEX reproductions of the paper figures (V14)
+# Data of the IMEX reproductions of the paper figures (V16)
 
 One folder per test; each has the data files and `note.md` (paper, figure, cells, CFL and all settings, command, run statistics).
 Produced by `bash tests/run_archive.sh run/archive` and `python3 tests/make_archive.py run/archive data`; figures by `python3 tests/plot_paper_figs.py run/archive docs/figures` and `python3 tests/plot_2d_paper.py run/archive docs/figures`.
