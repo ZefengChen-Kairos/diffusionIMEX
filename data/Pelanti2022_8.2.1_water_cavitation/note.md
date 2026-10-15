@@ -21,7 +21,7 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V14), code commit `86e7d7a`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V16: energy-defect split from the shock relations (II.5), devlog V16), code commit `0c13222`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
@@ -30,11 +30,11 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
-| `p_relax.dat` | p | `case=30 N=5000 relax=0` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 867 (2.68/stage) maxres 9.97e-14 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 11.72 s |
-| `pT_finite_theta2000.dat` | pT(f), theta = 2000 | `case=30 N=5000 relax=1 theta=2000` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 865 (2.68/stage) maxres 9.89e-14 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 14.84 s |
-| `pT_relax.dat` | pT | `case=30 N=5000 relax=1` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 666 (2.06/stage) maxres 9.95e-14 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 12.38 s |
-| `pTg_finite_nu1e-4.dat` | pTg(f), nu = 1e-4 | `case=30 N=5000 relax=2 nu=1e-4` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 666 (2.06/stage) maxres 9.94e-14 / closure fails 0 / dM1/M -1.20e-02 dM2/M 2.36e-01 dE/E -1.20e-02 / wall 17.10 s |
-| `pTg_relax.dat` | pTg | `case=30 N=5000 relax=2` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 782 (2.42/stage) maxres 9.73e-14 / closure fails 0 / dM1/M -1.20e-02 dM2/M 3.53e-01 dE/E -1.20e-02 / wall 14.76 s |
+| `p_relax.dat` | p | `case=30 N=5000 relax=0` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 867 (2.68/stage) maxres 9.97e-14 Tmax 353 353 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 37.84 s |
+| `pT_finite_theta2000.dat` | pT(f), theta = 2000 | `case=30 N=5000 relax=1 theta=2000` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 866 (2.68/stage) maxres 9.89e-14 Tmax 353 353 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 22.55 s |
+| `pT_relax.dat` | pT | `case=30 N=5000 relax=1` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 666 (2.06/stage) maxres 9.95e-14 Tmax 353 353 / closure fails 0 / dM1/M -1.20e-02 dM2/M -1.20e-02 dE/E -1.20e-02 / wall 18.04 s |
+| `pTg_finite_nu1e-4.dat` | pTg(f), nu = 1e-4 | `case=30 N=5000 relax=2 nu=1e-4` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 666 (2.06/stage) maxres 9.94e-14 Tmax 353 353 / closure fails 0 / dM1/M -1.20e-02 dM2/M 2.36e-01 dE/E -1.20e-02 / wall 24.66 s |
+| `pTg_relax.dat` | pTg | `case=30 N=5000 relax=2` | case 30 mode 1 order 2 rk 2 N 5000 CFL 0.2 / steps 178 (rk1 33, mood 0) rejects 0 / stages 323 newton it 782 (2.42/stage) maxres 9.73e-14 Tmax 353 353 / closure fails 0 / dM1/M -1.20e-02 dM2/M 3.53e-01 dE/E -1.20e-02 / wall 24.22 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 
