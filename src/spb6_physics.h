@@ -308,6 +308,61 @@ template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
 		Q[k] = phys_dissipation(k, c0[2 + k], vpre, plo, phi);
 	}
 }
+// 激波预算的连通段版本（B5.2 (c')，V19）：离散激波 = 沿激波法向、包含本格、中心差分散度 < 0 的最大连通格段（两端各外加一格，即两侧平台），
+// p_lo / p_hi 取段上混合压力的极值，波前相比容取压力最低的格。没有可调宽度：段有多宽由格式自己的离散激波决定。
+//   at(i, j, st)：内部格 (0 <= i < nx, 0 <= j < ny) 及一层虚格（-1、nx、ny）的模板状态；周期边界按 BCS 绕回，其余边界在出界处停止。
+//   法向 n = -grad p（中心差分），沿 n 以步长 min(dx, dy) 取最近格；一维时就是 x 方向。段长上限 max(nx, ny)（只是安全界）。
+template <class A> static void shock_budget_field(A at, int nx, int ny, double dx, double dy, bool perx, bool pery, std::vector<double>& Q) {
+	const bool twoD = ny > 1; const size_t n = (size_t)nx * ny;
+	std::vector<double> ST(n * 7), DIV(n);
+	#pragma omp parallel for schedule(static)
+	for (int q = 0; q < nx * ny; q++) {
+		const int i = q % nx, j = q / nx; double st[7], a[7], b[7];
+		at(i, j, st); for (int k = 0; k < 7; k++) ST[(size_t)q * 7 + k] = st[k];
+		at(i + 1, j, a); at(i - 1, j, b); double d = a[5] - b[5];
+		if (twoD) { at(i, j + 1, a); at(i, j - 1, b); d += a[6] - b[6]; }
+		DIV[q] = d;
+	}
+	auto wrap = [&](int& i, int& j) -> bool {
+		if (i < 0 || i >= nx) { if (!perx) return false; i = (i % nx + nx) % nx; }
+		if (j < 0 || j >= ny) { if (!twoD || !pery) return false; j = (j % ny + ny) % ny; }
+		return true; };
+	const int Lmax = std::max(nx, ny);
+	#pragma omp parallel for schedule(static)
+	for (int q = 0; q < nx * ny; q++) {
+		Q[(size_t)q * 2] = Q[(size_t)q * 2 + 1] = 0.0;
+		if (!(DIV[q] < 0.0)) continue;
+		const int i0 = q % nx, j0 = q / nx; const double* c0 = &ST[(size_t)q * 7];
+		// 法向：-grad p（中心差分；缺值或为零时取 x 方向）
+		double nxv = 1.0, nyv = 0.0;
+		if (twoD) {
+			double a[7], b[7], gx = 0, gy = 0;
+			at(i0 + 1, j0, a); at(i0 - 1, j0, b); if (std::isfinite(a[4]) && std::isfinite(b[4])) gx = (a[4] - b[4]) / (2 * dx);
+			at(i0, j0 + 1, a); at(i0, j0 - 1, b); if (std::isfinite(a[4]) && std::isfinite(b[4])) gy = (a[4] - b[4]) / (2 * dy);
+			const double gn = std::hypot(gx, gy); if (gn > 0) { nxv = gx / gn; nyv = gy / gn; }
+		}
+		const double hs = twoD ? std::min(dx, dy) : dx;
+		double plo = 1e300, phi = -1e300; const double* lo = nullptr;
+		auto visit = [&](const double* st) { if (!std::isfinite(st[4])) return; if (st[4] < plo) { plo = st[4]; lo = st; } if (st[4] > phi) phi = st[4]; };
+		visit(c0);
+		for (int sg = -1; sg <= 1; sg += 2) {
+			int pi = i0, pj = j0;
+			for (int m = 1; m <= Lmax; m++) {
+				int ii = (int)std::lround(i0 + sg * m * hs * nxv / dx), jj = twoD ? (int)std::lround(j0 + sg * m * hs * nyv / dy) : 0;
+				if (ii == pi && jj == pj) continue;
+				if (!wrap(ii, jj)) break;
+				pi = ii; pj = jj; const size_t c = (size_t)jj * nx + ii;
+				visit(&ST[c * 7]);
+				if (!(DIV[c] < 0.0)) break;   // 段外的第一格（平台）：计入后停止
+			}
+		}
+		if (!(phi > plo) || !lo) continue;
+		for (int k = 0; k < 2; k++) {
+			const double vpre = (lo[k] > 0 && lo[2 + k] > 0) ? lo[k] / lo[2 + k] : (c0[2 + k] > 0 ? c0[k] / c0[2 + k] : 0.0);
+			Q[(size_t)q * 2 + k] = phys_dissipation(k, c0[2 + k], vpre, plo, phi);
+		}
+	}
+}
 // 可容许界之上的能量 E_k：NASG (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1)；MG 冷曲线之上的热能 eps_k - m_k er
 static double E_above(const ClIn& in, int k) {
 	if (is_mg(k)) { if (!(in.atr[k] > 0 && in.mtr[k] > 0)) return 0.0; double pr, dpr, er; mg_ref(k, in.mtr[k] / in.atr[k], pr, dpr, er); return std::max(0.0, in.etr[k] - in.mtr[k] * er); }

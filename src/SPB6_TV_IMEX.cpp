@@ -894,15 +894,11 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			for (int k = 0; k < 2; k++) { const double a = c[k], m = c[2 + k], pk = p_ame(k, a, m, c[4 + k]), r = m / a; const double Z = r * std::sqrt(std::max(c2_rp(k, r, pk), 1e-30)); (k == 0 ? S.Z0 : S.Z1)[S.id(i, j)] = Z; }
 		}
 	}
-	// 激波预算（B5.2，V16）：X* 混合压力在 ±2 格模板上的极值给出局部激波强度，压缩格的物理耗散 Q_k 由 (II.5) 的相 Hugoniot 定；按级冻结
+	// 激波预算（B5.2 (c')，V19）：沿法向的压缩连通段上 X* 混合压力的极值给出离散激波的波前、波后压力，压缩格的物理耗散 Q_k 由 (II.5) 的相 Hugoniot 定；按级冻结
 	{
-		const bool twoD = ny > 1;
-		#pragma omp parallel for schedule(static)
-		for (int q = 0; q < nx * ny; q++) {
-			const int i = IG(q % nx), j = IG(q / nx);
-			auto cell = [&](int di, int dj, double* st) { stencil_state(S.Xs.cell(i + di, j + dj), st); };
-			shock_budget(cell, twoD, &S.Qph[S.id(i, j) * 2]);
-		}
+		auto at = [&](int i, int j, double* st) { stencil_state(S.Xs.cell(IG(i), IG(j)), st); };
+		std::vector<double> Qc((size_t)nx * ny * 2); shock_budget_field(at, nx, ny, dx, dy, BCS[0] == BC_PERIODIC, BCS[2] == BC_PERIODIC, Qc);
+		for (int q = 0; q < nx * ny; q++) { const size_t id = S.id(IG(q % nx), IG(q / nx)); S.Qph[id * 2] = Qc[(size_t)q * 2]; S.Qph[id * 2 + 1] = Qc[(size_t)q * 2 + 1]; }
 	}
 	// 隐式：全局 Newton。B5.2 的 Lambda_k(delta) 是 delta 的连续分段仿射函数（分段按 pguess 处的 delta 取），G(P) 连续、分段光滑
 	int iters; double res; const bool ok = Newton_Solver(S, P, iters, res);
