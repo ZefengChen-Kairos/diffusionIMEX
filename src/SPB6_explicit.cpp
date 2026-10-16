@@ -343,10 +343,14 @@ static bool relax_cell_explicit(double* Q, double dtloc, bool finite, const doub
 }
 bool RelaxationSubsystem(Grid &u_con, double h, bool finite){
 	bool ok = true; const bool twoD = nyCells > 1;
-	bound_cond_u(u_con);   // 激波预算的连通段要用一层虚格（B5.2 (c')）
-	std::vector<double> Qph((size_t)nxCells * nyCells * 2); (void)twoD;
-	auto at = [&](int i, int j, double* st) { stencil_state(u_con.cell(i + ghost_cells, j + ghost_cells), st); };
-	shock_budget_field(at, nxCells, nyCells, dx, dy, BCS[0] == BC_PERIODIC, BCS[2] == BC_PERIODIC, Qph);
+	bound_cond_u(u_con);   // 激波预算的 ±2 格模板要用虚格（B5.2 的 shock_budget）
+	std::vector<double> Qph((size_t)nxCells * nyCells * 2);
+	#pragma omp parallel for schedule(static)
+	for (int q = 0; q < nxCells * nyCells; q++) {
+		const int i = q % nxCells + ghost_cells, j = q / nxCells + ghost_cells;
+		auto cell = [&](int di, int dj, double* st) { stencil_state(u_con.cell(i + di, j + dj), st); };
+		shock_budget(cell, twoD, &Qph[(size_t)q * 2]);
+	}
 	#pragma omp parallel for schedule(static) reduction(&&:ok)
 	for (int q = 0; q < nxCells * nyCells; q++)
 		if (!relax_cell_explicit(u_con.cell(q % nxCells + ghost_cells, q / nxCells + ghost_cells), h, finite, &Qph[(size_t)q * 2])) ok = false;
