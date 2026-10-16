@@ -308,7 +308,7 @@ template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
 		Q[k] = phys_dissipation(k, c0[2 + k], vpre, plo, phi);
 	}
 }
-// 激波预算的连通段版本（B5.2 (c')，V19）：离散激波 = 沿激波法向、包含本格、中心差分散度 < 0 的最大连通格段（两端各外加一格，即两侧平台），
+// 激波预算的连通段版本（B5.2 (c')，V19）：离散激波 = 沿激波法向、包含本格、中心差分散度 < 0 且压力严格单调的最大连通格段（两端各外加一格，即两侧平台），
 // p_lo / p_hi 取段上混合压力的极值，波前相比容取压力最低的格。没有可调宽度：段有多宽由格式自己的离散激波决定。
 //   at(i, j, st)：内部格 (0 <= i < nx, 0 <= j < ny) 及一层虚格（-1、nx、ny）的模板状态；周期边界按 BCS 绕回，其余边界在出界处停止。
 //   法向 n = -grad p（中心差分），沿 n 以步长 min(dx, dy) 取最近格；一维时就是 x 方向。段长上限 max(nx, ny)（只是安全界）。
@@ -335,6 +335,7 @@ template <class A> static void shock_budget_field(A at, int nx, int ny, double d
 		const int i0 = q % nx, j0 = q / nx; const double* c0 = &ST[(size_t)q * 7];
 		// 法向：-grad p（中心差分；缺值或为零时取 x 方向）
 		double nxv = 1.0, nyv = 0.0;
+		if (!twoD) { double a[7], b[7]; at(i0 + 1, j0, a); at(i0 - 1, j0, b); if (std::isfinite(a[4]) && std::isfinite(b[4]) && a[4] < b[4]) nxv = -1.0; }
 		if (twoD) {
 			double a[7], b[7], gx = 0, gy = 0;
 			at(i0 + 1, j0, a); at(i0 - 1, j0, b); if (std::isfinite(a[4]) && std::isfinite(b[4])) gx = (a[4] - b[4]) / (2 * dx);
@@ -345,14 +346,15 @@ template <class A> static void shock_budget_field(A at, int nx, int ny, double d
 		double plo = 1e300, phi = -1e300; const double* lo = nullptr;
 		auto visit = [&](const double* st) { if (!std::isfinite(st[4])) return; if (st[4] < plo) { plo = st[4]; lo = st; } if (st[4] > phi) phi = st[4]; };
 		visit(c0);
-		for (int sg = -1; sg <= 1; sg += 2) {
-			int pi = i0, pj = j0;
+		for (int sg = -1; sg <= 1; sg += 2) {   // sg = +1：沿 +grad p（压力应递增），sg = -1：反向（应递减）
+			int pi = i0, pj = j0; double pprev = c0[4];
 			for (int m = 1; m <= Lmax; m++) {
 				int ii = (int)std::lround(i0 + sg * m * hs * nxv / dx), jj = twoD ? (int)std::lround(j0 + sg * m * hs * nyv / dy) : 0;
 				if (ii == pi && jj == pj) continue;
 				if (!wrap(ii, jj)) break;
-				pi = ii; pj = jj; const size_t c = (size_t)jj * nx + ii;
-				visit(&ST[c * 7]);
+				pi = ii; pj = jj; const size_t c = (size_t)jj * nx + ii; const double pc = ST[c * 7 + 4];
+				if (!std::isfinite(pc) || !std::isfinite(pprev) || !(sg * (pc - pprev) > 0.0)) break;   // 离散激波的剖面单调：单调性一断就停
+				visit(&ST[c * 7]); pprev = pc;
 				if (!(DIV[c] < 0.0)) break;   // 段外的第一格（平台）：计入后停止
 			}
 		}
