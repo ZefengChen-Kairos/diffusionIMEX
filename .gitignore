@@ -8,3 +8,4 @@ src/spb6*
 
 # headers are sources, not binaries
 !src/*.h
+run/vortex_ref/
