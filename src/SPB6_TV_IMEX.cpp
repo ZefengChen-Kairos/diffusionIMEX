@@ -77,7 +77,7 @@ int timestep = 0;
 double x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1;
 double dx, dy;
 double vx_max, vy_max;                // Rusanov 耗散速度 a_Omega（x、y 方向，全场最大）
-int ACW = 0;   // 声学耗散权重试验（V20）：0 phi=(1-nu)^+；1 压力项 1、速度项 min(1,1/(2nu))；2 只改速度项
+int ACW = 0;   // 声学耗散权重试验（V20）：0 phi=(1-nu)^+；1 压力项 1、速度项 min(1,1/(2nu))；2 只改速度项；3 只改压力项
 int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0：全场最大 vx_max（按算例，TestSetup::rus；B3）
 
 std::string out_file = "out.dat", vtk_dir = "";
@@ -869,8 +869,8 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		if (!(std::isfinite(cL) && std::isfinite(cR))) return;
 		const double nu = tau * std::min(cL, cR) / hh;
 		double phiP = std::max(0.0, 1.0 - nu), phiU = phiP;
-		if (ACW >= 1) phiU = std::min(1.0, 0.5 / nu);   // 速度项显式：kappa = phi nu/2 <= 1/4（奇偶模态一级内消去）
-		if (ACW == 1) phiP = 1.0;                        // 压力项对 P 隐式：完整 Godunov
+		if (ACW == 1 || ACW == 2) phiU = std::min(1.0, 0.5 / nu);   // 速度项显式：kappa = phi nu/2 <= 1/4（奇偶模态一级内消去）
+		if (ACW == 1 || ACW == 3) phiP = 1.0;                        // 压力项对 P 隐式：完整 Godunov
 		if (phiP == 0.0 && phiU == 0.0) return;
 		const int di = iR - iL, dj = jR - jL, im = iL - di, jm = jL - dj, ip = iR + di, jp = jR + dj;
 		double psiP = 1.0, psiU = 1.0;
