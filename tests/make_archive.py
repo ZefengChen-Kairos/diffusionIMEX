@@ -24,9 +24,9 @@ COLS_DOC = """| column | meaning | unit |
 COLS2 = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13]   # 2D: x y p u v rho alpha2 Y2 T1 T2
 COLS2_NAMES = 'x y p u v rho alpha2 Y2 T1 T2'
 
-SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V16: energy-defect split from the shock relations (II.5), devlog V16), code commit `{commit}`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V20: energy-defect split from the shock relations (II.5), devlog V16; implicit acoustic pressure-diffusion term at full Godunov, devlog V20), code commit `{commit}`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
-- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit pressure with the acoustic complement (B4.1).
+- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit pressure with the acoustic complement (B4.1; pressure term unweighted, velocity term weighted by (1 - c tau/h)^+).
 - Material CFL: **{cfl}**. Newton tolerance 1e-13."""
 
 # folder, paper, figure, description, case, settings dict, list of (raw name, archived file, label), extra text
