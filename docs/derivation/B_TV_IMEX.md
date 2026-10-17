@@ -156,18 +156,20 @@ $$
 - 高波数才是缺口：奇偶速度模态 $u_i=(-1)^i$ 的面平均为零，不产生散度，压力看不见它；$p_f$ 是压力平均，也看不见它。所以中心隐式声学算子**对任何 $\nu$ 都不阻尼它**（$|\lambda(\pi)|=1$，$\nu$ 从 0.05 到 10 都如此）。只有显式的物质速度 Rusanov（BB 的耗散）阻尼它，每步因子 $|1-2C|$；从静止起步时 $a_\Omega=0$，完全不阻尼。
 - 强间断处（起步的压力跳跃、阻抗跳跃很大的接触）这个模态被大量激发，表现为界面附近的色散过冲：十二烷算例液体速度过冲 13%、拉出张力、微量蒸汽空化（$p\to0$，与 $\Delta t$ 无关）；水–气算例 CFL $\le0.1$ 时界面格被抽空。
 
-所以在隐式面量上加声学 Riemann 解（Godunov）的迎风项：速度跳跃项阻尼奇偶模态，压力扩散项使压力跳跃处的面速度单调（只加其一都不够：只加速度项时十二烷的空化仍在，只加压力项时水–气的气体过冲 7%）。权重取 $(1-\nu)^+$：
+所以在隐式面量上加声学 Riemann 解（Godunov）的迎风项：速度跳跃项阻尼奇偶模态，压力扩散项使压力跳跃处的面速度单调（只加其一都不够：只加速度项时十二烷的空化仍在，只加压力项时水–气的气体过冲 7%）。压力项对 $P$ 隐式，取完整的 Godunov 项（无权重）；速度项只能显式，权重取 $(1-\nu)^+$（理由见下，V20）：
 $$
 \boxed{\begin{aligned}
-u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\varphi_f\,\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
+u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
 p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\psi^u_f\,\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\,D^*_f,
 \end{aligned}}\qquad \varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ ,\tag{B4.1}
 $$
 $Z=\rho^*c$，$\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$。一维中 $D^*_f=u^*_{i+1}-u^*_i$；二维中 $D^*_f$ 是面两端两个顶点散度的平均乘 $\Delta x$（B4.1(c)，V11），一维与 y 向均匀时逐位退化为 $u^*_{i+1}-u^*_i$。
 
 - $\tau\to0$：$\varphi=1$，$u_f-\bar u^*=-\Delta P/(Z_i+Z_{i+1})$，$p_f-\bar p=-\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\Delta u$，就是声学 Riemann 解（Godunov）。
-- $c\tau\ge\Delta x$：$\varphi=0$，格式不变。固定 $\Delta t,\Delta x$ 令 $M\to0$ 时 $c\tau/\Delta x\to\infty$，补足项恒为零，极限格式与不加补足项时相同。
-- $\varphi>0$ 当且仅当时间步分辨声波（$c\tau<\Delta x$，即 $M>a_{ii}\mathrm{CFL}$，或起步斜坡）。$a_{ii}\mathrm{CFL}<M<1$ 这一段与起步斜坡里它是声速量级的耗散，是否破坏低马赫精度见 (c)。
+- **两项为什么处理不同（V20）。** 压力扩散项对 $P$ 线性、隐式，没有稳定性限制，所以取完整 Godunov，不需要权重；它与中心项 $\tau\Delta P/(\bar\rho\Delta x)$ 之比为 $\bar\rho\Delta x/(\tau(Z_i+Z_{i+1}))\approx1/(2\nu)$，$c\tau\gg\Delta x$ 时自动消失。速度跳跃项要阻尼的是奇偶模态，它的面平均为零、$P$ 看不见它，所以在未知量只有 $P$ 的框架里这一项只能作用在预测态 $u^*$ 上，是显式粘性 $u_i\mathrel{+}=\kappa\,\delta^2u^*_i$，$\kappa=\tfrac12\varphi\nu$（二维的顶点散度形式谱同样在 $[-4,0]$，同一结论）。显式稳定要求 $\kappa\le\tfrac12$，即 $\varphi\le1/\nu$；$(1-\nu)^+$ 满足它（$\kappa\le\tfrac18$），且 $c\tau\ge\Delta x$ 时为零。把速度项也隐式化需要以 $(P,\mathbf u)$ 为未知量（块三对角），不采用。
+- **试过的理论最优速度权重（V20）：** $\varphi_u=\min(1,1/(2\nu))$ 使奇偶模态在 $\nu\ge\tfrac12$ 时一级内消去（$\kappa=\tfrac14$）。低马赫与二维中性，但大 $\nu$ 时的体粘性在强膨胀区把动能变成内能：SPB 4.5 扇区 $L_1(u)$ 0.045 → 0.143，P-S ±500 m/s 中心压力 $7.6\times10^3\to9.1\times10^3$ Pa，舍弃（C. 开发记录 V20）。
+- 固定 $\Delta t,\Delta x$ 令 $M\to0$：$c\tau/\Delta x\to\infty$，速度项为零，压力项相对中心项 $\to0$，极限格式与不加补足项时相同。
+- 速度项 $\varphi>0$ 当且仅当时间步分辨声波（$c\tau<\Delta x$，即 $M>a_{ii}\mathrm{CFL}$，或起步斜坡）。$a_{ii}\mathrm{CFL}<M<1$ 这一段与起步斜坡里它是声速量级的耗散，是否破坏低马赫精度见 (c)。
 - 加上后奇偶模态在 $\theta=\pi$ 的放大因子为 $|(1-2\varphi\nu)(1-2C)|$（例如 $C=0.2,M=0.5$：0.31，Godunov 0.60）。
 - 速度跳跃项是显式粘性，$\nu_{\rm add}\tau/\Delta x^2=\tfrac12\nu(1-\nu)\le\tfrac18$，稳定；压力项对 $P$ 隐式、线性。
 - **$c$ 取冻结声速。** $\rho c_{\rm frozen}\ge\rho c$ 对所有松弛闭合（Wood、$pT$、$pTg$）成立（次特征条件），所以补足后的耗散对任何闭合都不低于其波的 Godunov 耗散。用 Wood 声速试过：数值混合区里 $Z$ 很小，$\Delta P/(Z_i+Z_{i+1})$ 很大，把界面推得过快（水–气 $\max u/u^*=1.11$，激波超前 20 格），舍弃。
@@ -179,7 +181,7 @@ $Z=\rho^*c$，$\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$。一维中 $D^*_f=u^*_{i+1
 
 低马赫数 $M=U/C$，well-prepared 数据：压力脉动 $\delta p\sim\rho U^2$，$\nabla\cdot\mathbf u=O(M^2U/L)$（$p_0$ 不变的封闭或周期区域），光滑场的面跳跃 $\sim U\Delta x/L$。
 
-- **压力扩散项**：$u_f$ 的修正 $\varphi\psi\,\Delta P/(Z_i+Z_{i+1})\sim\varphi\psi\,\rho U^2(\Delta x/L)/(2\rho C)=\varphi\psi\,\tfrac M2\tfrac{\Delta x}LU$，相对于 $U$ 是 $O(M)$，$M\to0$ 时消失。它不进动量方程，只抹平 $P$ 的跳跃（声波）。
+- **压力扩散项**（V20 起无权重）：$u_f$ 的修正 $\psi\,\Delta P/(Z_i+Z_{i+1})\sim\psi\,\rho U^2(\Delta x/L)/(2\rho C)=\psi\,\tfrac M2\tfrac{\Delta x}LU$，相对于 $U$ 是 $O(M)$，$M\to0$ 时消失。它不进动量方程，只抹平 $P$ 的跳跃（声波）。
 - **速度跳跃项（逐维形式）**：$p_f$ 的修正 $\varphi\psi\,\tfrac Z2\Delta u\sim\varphi\psi\,\tfrac{\rho C}2U\tfrac{\Delta x}L$，与物理压力脉动 $\rho U^2$ 之比为 $\varphi\psi\,\frac{\Delta x/L}{2M}$，即 $O(1/M)$。这就是 Godunov/Roe 型格式的低马赫缺陷：动量方程里出现 $c\Delta x$ 量级的粘性，离散压力脉动是 $O(M)$ 而不是 $O(M^2)$。
 - **一维里没有这个问题。** 一维的不可压极限是 $u$ 均匀，$\Delta u=O(M^2)U\Delta x/L$，速度跳跃项同样是 $O(M)$。问题只出在多维：逐维的法向跳跃 $u_{i+1,j}-u_{i,j}\approx\Delta x\,\partial_xu$ 对无散的涡不为零（$\partial_xu=-\partial_yv\neq0$）。
 - **声学子系统只通过散度看见速度**（$\partial_t\mathbf u+\nabla p/\rho=0$，$\partial_tp+\rho c^2\nabla\cdot\mathbf u=0$）：涡（无散部分）在声学算子的核里，声学耗散不应作用在它上面。所以把速度跳跃换成散度。x 面 $(i+\tfrac12,j)$：
@@ -567,7 +569,7 @@ $$
   $$\delta\cdot\Big(\bar u^*_f-\frac{\tau}{\bar\rho_f}\frac{\delta P_2}{\Delta x}\Big)=O(M^2) ,$$
   即面速度的离散投影（紧致 Laplacian 的 Poisson 方程）。
 - **动量。** $(\rho\mathbf u)^{n+1}=(\rho\mathbf u)^*-\tau\,\delta p_f/\Delta x$，$p_f$ 是 $P$ 的密度加权平均（$P_0$ 抵消），剩下 $\tau\,\delta(\overline{P_2})/\Delta x$：格速度用宽模板梯度修正（近似投影）。
-- **补足项。** $c\tau/\Delta x=a_{ii}\mathrm{CFL}\,c/a_\Omega=O(1/M)$，$M<a_{ii}\mathrm{CFL}$ 后 $\varphi=0$ 恒成立，补足项不出现在极限格式里。
+- **补足项。** $c\tau/\Delta x=a_{ii}\mathrm{CFL}\,c/a_\Omega=O(1/M)$，$M<a_{ii}\mathrm{CFL}$ 后速度项的 $\varphi=0$ 恒成立。压力扩散项（V20 起无权重）在无量纲变量里是 $\tfrac M2\psi\,\delta P_2$，与中心项 $\tau\delta P_2/\Delta x$ 相比是 $O(M)$：它只在投影里加一个 $O(M)$ 的修正，极限 $M\to0$ 的投影不变，补足项不出现在极限格式里。
 - **显式部分。** 只有物质速度 $a_\Omega$ 的 Rusanov 耗散（B3），与 $M$ 无关。
 - **松弛。** 闭合在每一级给出平衡流形上的状态（定理 1），与 $M$ 无关。
 
