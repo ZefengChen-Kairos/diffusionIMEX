@@ -7,7 +7,7 @@ import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(H, 'src', 'spb6_conv'); REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
-DIRS = os.environ['VORTEX_DIRS'].split(':') if 'VORTEX_DIRS' in os.environ else [os.path.join(H, 'run', 'v20e', 'vortex'), os.path.join(H, 'run', 'v20e', 'allmach', 'vortex')]
+DIRS = [os.path.join(H, 'run', 'v16e', 'vortex'), os.path.join(H, 'run', 'allmach', 'vortex')]
 P0 = ['1', '10', '100', '1000', '10000', '1e6', '1e8', '1e10']; NS = [32, 64, 128, 256]
 def load(f): d = np.loadtxt(f); return d
 def ref(N, p0):

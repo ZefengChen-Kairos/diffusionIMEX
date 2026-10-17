@@ -842,9 +842,8 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		const double D = xR - xL; if (D == 0.0) return 1.0;
 		if (!LIMITER) return std::min(1.0, std::max(0.0, 1.0 - 0.25 * ((xR - xm) + (xp - xL)) / D));   // 中心斜率：psi D = X^R - X^L
 		return 1.0 - 0.5 * (minmod(xL - xm, D) + minmod(D, xp - xR)) / D; };
-	// B4.1：u_f = ubar* - tau dP/(rhobar h) - psi_P dP/(Z_L + Z_R)，p_f = (rho_R P_L + rho_L P_R)/(rho_L + rho_R) - phi_u psi_u Z_L Z_R/(Z_L + Z_R) D*，
-	// 压力扩散项对 P 隐式（完整声学 Godunov，c tau/h 大时相对中心项 tau dP/(rho h) 自然是 1/(2 nu)）；
-	// 速度跳跃项作用在 P 看不见的奇偶模态上，只能显式（u*）：phi_u = (1 - c tau/h)^+ 满足显式稳定 kappa = phi_u nu/2 <= 1/8（V20）
+	// B4.1：u_f = ubar* - tau dP/(rhobar h) - phi psi_P dP/(Z_L + Z_R)，p_f = (rho_R P_L + rho_L P_R)/(rho_L + rho_R) - phi psi_u Z_L Z_R/(Z_L + Z_R) D*，
+	// phi = (1 - c tau/h)^+：时间步分辨声波时把声学耗散补足到 Godunov（c tau/h >= 1 时为 0，低马赫/大步长不受影响）
 	// B4.1(c)：速度跳跃 D* 取面两端两个顶点散度的平均乘 h（体粘性形式）。x 面 (i+1/2, j)：
 	//   D = [2 (u_{i+1,j} - u_{i,j}) + (u_{i+1,j+1} - u_{i,j+1}) + (u_{i+1,j-1} - u_{i,j-1})]/4 + (dx/dy) [(v_{i,j+1} - v_{i,j-1}) + (v_{i+1,j+1} - v_{i+1,j-1})]/4
 	// 声学子系统只通过散度看见速度：无散场在这一项的核里，低马赫时它不作用在涡上（逐维的法向跳跃 u_{i+1} - u_i 会，devlog V11）。
@@ -867,8 +866,8 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		ubs = 0.5 * (uL + uR); kp = tau / hh / (0.5 * (rL + rR)); wL = rR / (rL + rR); pv = 0.0;
 		const double cL = cz[S.id(iL, jL)], cR = cz[S.id(iR, jR)];
 		if (!(std::isfinite(cL) && std::isfinite(cR))) return;
-		// 压力项对 P 隐式：取完整的声学 Godunov（无权重）；速度项是 u* 上的显式体粘性 kappa = phiU nu/2，phiU = (1 - nu)^+（V20）
-		const double phiU = std::max(0.0, 1.0 - tau * std::min(cL, cR) / hh);
+		const double phi = std::max(0.0, 1.0 - tau * std::min(cL, cR) / hh);
+		if (phi == 0.0) return;
 		const int di = iR - iL, dj = jR - jL, im = iL - di, jm = jL - dj, ip = iR + di, jp = jR + dj;
 		double psiP = 1.0, psiU = 1.0;
 		if (im >= 0 && jm >= 0 && ip < NXT && jp < NYT) {
@@ -882,7 +881,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			psiU = psi_face(V(im, jm), uL, uR, V(ip, jp));
 		}
 		const double ZL = rL * cL, ZR = rR * cR;
-		kp += psiP / (ZL + ZR); pv = phiU * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
+		kp += phi * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
 	};
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT - 1; i++) set_face(i, j, i + 1, j, dx, false, S.ubsx(i, j), S.kpx(i, j), S.wLx(i, j), S.pvx(i, j));
 	if (ny > 1) for (int j = 0; j < NYT - 1; j++) for (int i = 0; i < NXT; i++) set_face(i, j, i, j + 1, dy, true, S.ubsy(i, j), S.kpy(i, j), S.wLy(i, j), S.pvy(i, j));

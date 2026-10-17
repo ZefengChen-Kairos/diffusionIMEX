@@ -1,4 +1,4 @@
-# E. 唯一代码路径（最终版，V20）：从输入到输出，按本页即可复现
+# E. 唯一代码路径（最终版，V16）：从输入到输出，按本页即可复现
 
 本章把最终固定下来的**唯一**代码路径从头到尾写一遍，每一步给出**全部公式与常数**，并注明代码位置与推导节号（A、B 章是理由，本章是做法）。程序里没有对照开关：所有算例走同一条路径，只有算例自带的物理参数、区域、边界、网格、终止时间、松弛档位不同（E9）。
 
@@ -19,7 +19,7 @@
 | 起步 | 首步 $\Delta t=0.4\,\Delta t_{\rm ac}/1.2$ 再放大 1.2（即声学 CFL 0.4），之后每步至多放大 1.2 倍；被限制的步用后向 Euler | — |
 | 空间 | 二阶 MUSCL：体积输运量共用 minmod 限制因子，速度单独 minmod（E3.1） | 原始变量 minmod（SPB 附录 C） |
 | 对流通量 | Rusanov，耗散速度为物质速度：逐面 $\max(\lvert u^L_f\rvert,\lvert u^R_f\rvert)$，或全场最大（算例 13、71、72）（E3.2） | HLLC（A4） |
-| 压力/声学 | 隐式（E4），面上加声学 Godunov 耗散：压力扩散项完整（对 $P$ 隐式），速度跳跃项按 $(1-c\tau/h)^+$ 加权（显式，E4.2；V20） | 显式（HLLC） |
+| 压力/声学 | 隐式（E4），面上加按 $(1-c\tau/h)^+$ 加权的声学 Godunov 耗散（E4.2） | 显式（HLLC） |
 | 松弛 | 统一闭合，在隐式压力方程里（E5） | 每级之后的瞬时投影 + 每步一次有限速率（A3） |
 | 能量亏损分配 | 物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额，误差按可容许能量份额（E5.0，V16） | 同一规则（E6） |
 | Newton | 残量容差 $10^{-13}$（相对 $\lvert P\rvert+K+P_E+1$），至多 60 次；步长判据同容差 | — |
@@ -185,11 +185,11 @@ $$
 
 $$
 \bar u^*_f=\tfrac12(u^*_L+u^*_R),\quad w_L=\frac{\rho_R}{\rho_L+\rho_R},\quad
-k_f=\frac{\tau}{\bar\rho_f\,h}+\psi^P_f\frac1{Z_L+Z_R},\quad
+k_f=\frac{\tau}{\bar\rho_f\,h}+\varphi_f\psi^P_f\frac1{Z_L+Z_R},\quad
 p^v_f=\varphi_f\psi^u_f\frac{Z_LZ_R}{Z_L+Z_R}D^*_f,\quad Z=\rho^*c .
 $$
 
-- 速度项的声学权 $\varphi_f=\big(1-\tau\min(c_L,c_R)/h\big)^+$（显式体粘性 $\kappa=\tfrac12\varphi\nu\le\tfrac18$）；压力项没有权重（对 $P$ 隐式的完整 Godunov，V20 起；V16 及以前也乘 $\varphi_f$）。$c_L$ 或 $c_R$ 为 $\infty$ 时两项都为零（$k_f$ 只剩半格动量平衡项，$p^v_f=0$）。
+- 声学权 $\varphi_f=\big(1-\tau\min(c_L,c_R)/h\big)^+$；$c_L$ 或 $c_R$ 为 $\infty$ 时 $\varphi_f=0$（$k_f$ 只剩半格动量平衡项，$p^v_f=0$）。
 - 二阶因子（面的四点 $m=L-1,L,R,p=R+1$ 都在网格内时才算，否则为 1）：
   $$\psi_{\rm face}(x_m,x_L,x_R,x_p)=1-\frac{\mathrm{minmod}(x_L-x_m,D)+\mathrm{minmod}(D,x_p-x_R)}{2D},\quad D=x_R-x_L\ (D=0\Rightarrow1),$$
   压力项 $\psi^P_f=1-\big(1-\psi_{\rm face}[P^{\rm old}]\big)\min(\phi_L,\phi_R)$（$P^{\rm old}$ 为本级 Newton 的初猜压力场，$\phi$ 为 E3.1 存的限制因子：只有所有被输运量都光滑时才降到二阶）；速度项 $\psi^u_f=\psi_{\rm face}[u^*]$。`limiter=0` 时 $\psi_{\rm face}=\mathrm{clip}\big(1-\tfrac14[(x_R-x_m)+(x_p-x_L)]/D,\,0,\,1\big)$；一阶空间时 $\psi=1$。
