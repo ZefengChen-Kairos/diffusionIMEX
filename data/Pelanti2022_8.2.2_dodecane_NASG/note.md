@@ -21,7 +21,7 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V16: energy-defect split from the shock relations (II.5), devlog V16), code commit `0c13222`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V21: energy-defect split from the shock relations (II.5), devlog V16; trace-phase-positive increment donors and compact shock-budget stencil, devlog V21), code commit `9aa22e2`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
@@ -30,8 +30,8 @@
 
 | file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
 |---|---|---|---|
-| `p_relax.dat` | p | `case=31 N=2000 relax=0` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1144 (rk1 5, mood 0) rejects 0 / stages 2283 newton it 4575 (2.00/stage) maxres 7.68e-14 Tmax 642 1.047e+06 / closure fails 0 / dM1/M -9.62e-15 dM2/M 3.07e-15 dE/E -3.85e-14 / wall 97.54 s |
-| `pTg_relax.dat` | pTg | `case=31 N=2000 relax=2` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1327 (rk1 5, mood 0) rejects 0 / stages 2649 newton it 5313 (2.01/stage) maxres 9.53e-14 Tmax 642 1.047e+06 / closure fails 0 / dM1/M -5.42e-04 dM2/M 4.06e-01 dE/E -4.08e-14 / wall 110.07 s |
+| `p_relax.dat` | p | `case=31 N=2000 relax=0` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1145 (rk1 5, mood 0) rejects 0 floor 0 / stages 2285 newton it 4579 (2.00/stage) maxres 7.44e-14 Tmax 642 1.047e+06 / closure fails 0 / dM1/M -7.14e-15 dM2/M 2.96e-15 dE/E -3.67e-14 / wall 39.15 s |
+| `pTg_relax.dat` | pTg | `case=31 N=2000 relax=2` | case 31 mode 1 order 2 rk 2 N 2000 CFL 0.2 / steps 1325 (rk1 5, mood 0) rejects 0 floor 0 / stages 2645 newton it 5305 (2.01/stage) maxres 8.23e-14 Tmax 642 1.047e+06 / closure fails 0 / dM1/M -5.39e-04 dM2/M 4.04e-01 dE/E -4.21e-14 / wall 45.33 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 
