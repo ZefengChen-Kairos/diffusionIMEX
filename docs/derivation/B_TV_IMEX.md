@@ -701,6 +701,50 @@ $\sum_k\varepsilon_k=(\rho e)^C=E-\tfrac12\rho u^2$，且 $\bar p=\sum\alpha_kp_
 
 ---
 
+### B9.5 系数的推导：定理汇总（V21）
+
+格式里每个有推导的系数或规则各成一条（定理 1–3 见 B7）。记 $r=\tau/\Delta x$，$\nu=c\tau/\Delta x$（声学 Courant 数，$\tau=a_{ii}\Delta t$ 为级的隐式步长），$(\cdot)^\pm=\max/\min(\cdot,0)$。
+
+**定理 4（显式部分保正，B3）。** 线性重构 $X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$，Rusanov 通量 $F_f=\tfrac12(X^Lu^L+X^Ru^R)-\tfrac12a_f(X^R-X^L)$。若每个面 $a_f\ge\max(|u^L_f|,|u^R_f|)$ 且 $a_fr\le\tfrac12$，则在 $Q^e=Q^s$ 的级里
+$$X^*_i=X^L_{i+1/2}\big[\tfrac12-\tfrac r2(a+u^L)_{i+1/2}\big]+X^R_{i-1/2}\big[\tfrac12-\tfrac r2(a-u^R)_{i-1/2}\big]+\tfrac r2(a-u^R)_{i+1/2}X^R_{i+1/2}+\tfrac r2(a+u^L)_{i-1/2}X^L_{i-1/2}$$
+是面值的非负组合，每一相 $X^*\ge0$。$a\ge|u^R|$ 也是必要的（否则第三个系数为负，取 $X^R_{i+1/2}$ 大、其余小即得负值）。
+*证明：* 代入 $X_i$ 的表达式展开 $X_i-r(F_{i+1/2}-F_{i-1/2})$，四个系数在两个条件下非负。∎
+
+**定理 5（隐式增量保正，B4.2，V21）。** 增量 $I_f=X^L_fw^L+X^R_fw^R$，$w^L=(u_f)^+-(\bar u^e_f)^+$，$w^R=(u_f)^--(\bar u^e_f)^-$，供体 $X^{L,R}_f$ 是定理 4 的同一组面值。在定理 4 的条件下，若还有 $r(a_f+|u_f|)\le\tfrac12$（二维逐方向 $\le\tfrac14$），则输运态 $X^{\rm tr}_i=X^*_i-r\,\delta_i[I]$ 是面值的非负组合。所以每一相（含微量相）的 $(\alpha_k,m_k,\varepsilon_k)$ 落在可容许锥 $\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$ 内，与相含量之比无关。
+*证明：* $F_f+I_f=X^L[\tfrac12(u^L+a)+w^L]+X^R[\tfrac12(u^R-a)+w^R]$。由 $a\ge\max|u^{L,R}|$ 得 $\tfrac12(a+u^L)\ge(\bar u^e)^+$、$\tfrac12(a-u^R)\ge-(\bar u^e)^-$，于是 $\tfrac12(a+u^L)+w^L\ge(u_f)^+\ge0$、$\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$（邻格系数非负）；本格系数 $\tfrac12-r(\cdot)$，括号不超过 $a+|u_f|$。共用限制因子使面值落在相邻格值之间，可容许锥是线性约束的凸锥，非负组合仍在锥内。∎
+*附注：* 按格内含量 $\hat X$ 作供体时，本格相 $k$ 的变化含 $-r\hat X_{k,{\rm nb}}|w|$，所需余量与 $\hat X_{k,{\rm nb}}/\hat X_{k,i}$ 成比例（接触处 $\sim10^8$），没有步长条件能保证正性。
+
+**定理 6（声学补足项的权重，B4.1，V21）。** 一个隐式级（后向 Euler，步长 $\tau$）的线性声学，面上的压力扩散与速度跳跃两项都乘 $\varphi\ge0$。则低波数的等效粘性为
+$$D_{\rm stage}=\tfrac12c\Delta x\,(\nu+\varphi)+O(k^2)$$
+（第一项来自后向 Euler，第二项来自补足项；`tools/stage_viscosity.py` 数值核对到三位）。满足“对已分辨声波不少于迎风粘性 $\tfrac12c\Delta x$、且不多加”即 $D_{\rm stage}=\max(\tfrac12c\Delta x,\tfrac12c^2\tau)$ 的唯一 $\varphi$ 是
+$$\varphi=(1-\nu)^+ .$$
+其中 $\tfrac12c\Delta x$ 是三点半离散格式 $\dot u_i=-\tfrac c{2\Delta x}(u_{i+1}-u_{i-1})+\tfrac D{\Delta x^2}\delta^2u_i$ 系数非负（单调）所需的最小粘性：$u_{i+1}$ 的系数 $-\tfrac c{2\Delta x}+\tfrac D{\Delta x^2}\ge0\iff D\ge\tfrac12c\Delta x$。
+*证明：* 由 $D_{\rm stage}$ 的表达式，$\nu<1$ 时 $\tfrac12c\Delta x(\nu+\varphi)=\tfrac12c\Delta x\Rightarrow\varphi=1-\nu$；$\nu\ge1$ 时后向 Euler 已有 $\tfrac12c^2\tau\ge\tfrac12c\Delta x$，不多加即 $\varphi=0$。∎
+*附注：* 两项是 Godunov 耗散在两个声学特征变量上的两半，用同一个 $\varphi$。$\varphi\equiv1$ 给出 $\tfrac12c\Delta x(1+\nu)$，多出 $\tfrac12c^2\tau$；低马赫收敛序列里 $\nu$ 固定，这部分不随网格消失（TG 的 $p$ 阶 1.81 → 1.41，C. 开发记录 20.4、21.2）。$\nu\ge1$ 时速度的奇偶模态只由 Rusanov 阻尼（$|1-2C|$）。
+
+**定理 7（二阶因子与 LED，B4.1，V21）。** 补足项的两个二阶因子
+$$\psi^P_f=1-\big(1-\psi^{\rm mm}_f[P]\big)\min(\phi_i,\phi_{i+1}),\qquad \psi^u_f=\psi^{\rm mm}_f[u]$$
+满足 Jameson（1995）的局部极值不增（LED）判据：每个耗散项在它所修改的通量的每个被输运量取局部极值处为一阶（$\psi=1$），所有这些量都光滑处为二阶（$\psi=O(\Delta x)$）。
+*证明：* 压力扩散项修改 $u_f$，而 $u_f$ 是所有体积输运量 $(\alpha_k,m_k,\varepsilon_k)$ 的面体积通量（B4.2）以及 $P$ 方程的通量；$\phi$ 是这些量的共用限制因子（极值处 0），$\psi^{\rm mm}[P]$ 在 $P$ 的极值处为 1，所以 $\psi^P=1$ 当且仅当某个这样的量在极值处。速度跳跃项只修改动量通量，只需速度的 $\psi^{\rm mm}[u]$。光滑处 $\psi^{\rm mm}=1-\frac{\sigma_L+\sigma_R}{2D}=O(\Delta x)$。∎
+*附注：* 只用 $\psi^{\rm mm}[P]$ 的写法不满足 LED，实测激波顶部过冲（SPB 5.1 $\max p/p^*$ 1.033，5.2 1.024，C. 开发记录 21.3）。
+
+**定理 8（弱激波下与 (II.5) 相容的局部份额唯一，B5.2）。** 弱激波 $\Delta p=p_1-p_0\to0$。按 (II.5)（每相沿自己的 Hugoniot）相 $k$ 每单位混合体积得到的耗散为
+$$Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\Delta p^3+O(\Delta p^4),\qquad K_k=\rho_kc_k^2,\ \ \mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big),$$
+所以与 (II.5) 相容的局部分配份额唯一：$\lambda_k\propto\alpha_k\mathcal G_k/K_k^2$（SG：$\mathcal G=(\gamma+1)/2$）。按质量 $Y_k$、按 $\alpha_k/(\gamma_k-1)$（SPB 3.4 重初始化）、按 $\alpha_k/K_k$ 都不满足。
+*证明：* (B5.4) $Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$，沿剖面 $v_k(p)=v_{k0}[1-x/K_k+\mathcal G_kx^2/K_k^2+\dots]$，$x=p-p_0$，$\bar p=p_0+\tfrac12\Delta p$；逐项积分到 $O(\Delta p^3)$。这正是相 $k$ 单相激波的熵产 $T_k\Delta s_k$，与路径无关。∎
+*强激波（数值结果，非定理）：* 剖面 ODE 用常数份额积分、解出使终态满足 (II.5) 的份额，它被终压处的 Hugoniot–等熵能隙 $Q_k=m_k(v^{\rm pre}_k-b_k)f_k(p_{\rm lo}\to p_{\rm hi})$ 逼近得很好（B5.2(b)），弱激波时 $Q_k$ 回到定理 8。
+
+**命题 9（预算必须非局部，B5.2(c)，V21）。** 定理 8 与剖面分析给出：使终态满足 (II.5) 的是整个激波剖面上**不变的**全跳跃份额，它依赖波后压力 $p_{\rm hi}$。激波内任一格在激波经过之前不知道 $p_{\rm hi}$，而波后状态在空间上（激波后面）已经存在，所以份额需要空间非局部的信息。
+*佐证：* 只用本格历史（$p_{\rm on}\to p$）的预算在剖面前段给出弱激波份额，SPB 5.2 $\rho^*$ 3819.9（模板 3778.9，精确 3766.7）。模板半径 1–4 结果相同到 0.1%（B5.2(c)），所以取最小的非局部模板，即格式自身的 $\pm1$（这一步是论证，不是推导）。
+
+**定理 10（冻结声速，B4.1）。** 对 Wood（$p$ 松弛）、$pT$、$pTg$ 平衡声速 $c_{\rm eq}$，有 $\rho c_{\rm frozen}\ge\rho c_{\rm eq}$（次特征条件；Flåtten–Lund 2011，Pelanti–Shyue 2014）。所以用冻结声速的补足项，其耗散对任何松弛闭合都不低于该闭合波的 Godunov 耗散。∎
+
+**命题 11（Newton 的舍入底，B8，devlog 16.9）。** 闭合压力的舍入误差界
+$$\sigma_i=\epsilon_m\Big(|(\rho e)^C|+\sum_k|\varepsilon^{\rm tr}_k|+\sum_k|m_kq_k|\Big)\sum_k\lambda_k\frac{\gamma_k-1}{\gamma_k(p+\pi_k)}\Big/|\Phi'(p)| .$$
+*推导：* 能量亏损 $D_0=(\rho e)^C-\sum\varepsilon^{\rm tr}_k$ 是大数之差，带 $\epsilon_m(\cdots)$ 的舍入；它按 $\lambda_k$ 进入相 $k$，经 $\partial\alpha_k/\partial A_k=(\gamma_k-1)/(\gamma_k(p+\pi_k))$ 与 $\Phi'(p)=\sum\partial\alpha_k/\partial p$ 传到压力。残量低于 $10^{-13}N_i+\sigma_i$ 时 Newton 不可能再改进，判为收敛。∎
+
+---
+
 ## B10. 时间积分（`2DEuler_TV` 的半隐式 IMEX-RK，Boscarino–Filbet–Russo）
 
 `2DEuler_TV` 的两张表（`RKs=2`、`RKs=3`）都可用：
