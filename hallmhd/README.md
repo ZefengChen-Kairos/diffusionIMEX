@@ -37,6 +37,11 @@ $$
 
 $\boldsymbol\tau=\mu(\nabla\mathbf u+\nabla\mathbf u^{T}-\tfrac23(\nabla\cdot\mathbf u)\mathbf I)$（[RD] Eq. 53），$T=p/((\gamma-1)c_v\rho)$（[RD] Eq. 64）。
 
+**与显式结果的 $B_z$ 四极符号对比（$t=5$，128×64）。** IMEX 结果 `figures/quadrupole_t5_open.png` 与显式结果整体反号；
+用 `di=-1`（即 $\mathbf E_H=-\mathbf J\times\mathbf B/ne$，报告 Eq. 3.31 的写法）重算得到 `figures/quadrupole_t5_open_di_minus1.png`，
+符号分布与显式结果一致，说明显式代码实际用的是负号。早期线性估计 $\partial_tB_z=-\frac{d_i}{\rho}\mathbf B\cdot\nabla J_z$：
+右上象限 $B_y>0$、$\partial_yJ_z>0$，故 $B_z<0$，与 IMEX（正号）一致；哨声波验证也只有正号才与解析色散关系吻合。
+
 **Hall 电场符号。** [report] Eq. (3.31) 写的是 $\mathbf E_H=-\mathbf J\times\mathbf B/ne$，但与它自己的 (2.24) 和 (3.32)
 $\mathbf B^{n+1}=\mathbf B^*-\Delta t\nabla_h\times\mathbf E_H$ 矛盾；正确的是 $+\mathbf J\times\mathbf B/ne$，代码一直用的是正号。
 
