@@ -19,7 +19,8 @@
 #define NUM_VARS 8
 enum Formula{EnergyFormula, PressureFormula};
 enum MagField{StaggerCT, UnStaggerCT, PotentialA, NoDivFree};
-enum Test{test0, test1, test2, test3, test4, test5, test6, test7,test8,test9,test10, shocktest, convergencetest,test2d0, test1y, testOrszag_Tang, testblastwave, testblastwave1D,testRotor, testFieldLoop, testKHInstability, testdoubleshear, testRK_Riemann, testPlasmaEquilibrium, testAdvectedPlasmaEquilibrium, testMHD_vortex, testHallReconnection, testHarrisHall};
+enum Test{test0, test1, test2, test3, test4, test5, test6, test7,test8,test9,test10, shocktest, convergencetest,test2d0, test1y, testOrszag_Tang, testblastwave, testblastwave1D,testRotor, testFieldLoop, testKHInstability, testdoubleshear, testRK_Riemann, testPlasmaEquilibrium, testAdvectedPlasmaEquilibrium, testMHD_vortex, testHallReconnection, testHarrisHall,
+	testWhistler, testResistiveDecay, testViscousDecay, testUniformNoise};   // verification tests of the non-ideal terms (exact solutions)
 enum Reconstruction{NoRecon, Minmod, VanLeer, ENO3, WENO5};
 enum shock_threshold_Left{one, val_left};
 enum shock_threshold_Right{zero, val_right};
@@ -41,8 +42,15 @@ bool GLF = true;
 bool add_bvisc = true;    // 磁 A 子系统数值粘性:论文一直需要;系数=面平均快磁声速(对齐 CASTOR add_bvisc=.TRUE.)
 Energy_Update U_update = DefinitionofU;
 Test test = testHarrisHall;
-const int nxCells = 128;
-const int nyCells = 64;
+// grid size can be overridden at compile time: g++ -DNXCELLS=64 -DNYCELLS=32 ...
+#ifndef NXCELLS
+#define NXCELLS 128
+#endif
+#ifndef NYCELLS
+#define NYCELLS 64
+#endif
+const int nxCells = NXCELLS;
+const int nyCells = NYCELLS;
 const int nzCells = 1;
 const int ghost_cells = 3;
 const int RKs = 2;
@@ -64,6 +72,23 @@ double eta_resistive      = 0;    // 电阻系数 η
 bool   add_hyperresistive = true;  // 超电阻 η_H 开关(可选,见下面的边界警告)
 double eta_hyper          = 6.25 * 1e-5;    // 超电阻系数 η_H
 double Hall_di = 1.0;
+
+// ===================== 粘性 / 热传导 (Dematte et al. JCP 2024, Sec 3.4) ======================
+// 动量方程 + div(tau),能量方程 + div(tau.u) + div(kappa grad T),全部隐式。
+// tau = mu (grad u + grad u^T - 2/3 (div u) I)  (Eq. 53);  T = p / ((gamma-1) c_v rho) (Eq. 64)
+bool   add_viscous  = false;  double mu_visc    = 0.0;   // 动力粘性 mu
+bool   add_heatflux = false;  double kappa_heat = 0.0;   // 热传导系数 lambda(只对理想气体)
+double cv_heat = 1.0;                                    // c_v,T = p/((gamma-1) c_v rho)
+
+// ===================== 隐式磁子系统的数值耗散 (v1 论文 Eq. 83) ===============================
+// BviscMagnetic      : kappa_B = |lambda^B| dx,与论文 Eq.(83) 完全一致(理想 MHD 激波测试用)。
+// BviscMaterialShock : kappa_B = (1/2)|u_d| dx + chi |lambda^B| dx。第一项正好把 A 方程中显式
+//                      中心离散的 u x B (= -u.grad A) 变成迎风格式(等价于材料速度 Rusanov),
+//                      第二项只在激波指示子 chi (Eq. 43) 激活处给出 Eq.(83) 的耗散。光滑区的
+//                      数值电阻因此是 O(|u| dx) 而不是 O(c_A dx),不会淹没物理 eta(Harris
+//                      片 c_A dx ~ 0.2 >> eta = 5e-3,这正是原代码重联不发生的原因)。
+enum Bvisc_Mode{ BviscMagnetic, BviscMaterialShock };
+Bvisc_Mode bvisc_mode = BviscMagnetic;
 
 // ===================== Hall MHD (IMEX) =====================================================
 // Non-ideal induction terms follow the Dematte et al. VRMHD pattern (Eqs. 59/61): they enter
@@ -125,6 +150,17 @@ inline double h12_Az(double x, double y){
 	return h12_Az_bg(y) + h12_psi0*cos(h12_kx*x)*cos(h12_ky*y);
 }
 
+// ---- verification tests with exact solutions (non-ideal terms only) --------------------
+//   testWhistler       : circularly polarised parallel whistler, B0 = x, exact nonlinear Hall-MHD
+//                        solution b = eps (0, cos(kx - w t), -sin(kx - w t)), u = -(B0 k / w) b,
+//                        w = k B0 ( k d_i/2 + sqrt(1 + (k d_i/2)^2) )   (rho = 1)
+//   testResistiveDecay : Bx = eps sin(2 pi y) exp(-eta (2 pi)^2 t)
+//   testViscousDecay   : u = w = eps sin(2 pi y) exp(-mu (2 pi)^2 t / rho)
+double ver_eps = 0.1, ver_k = 1.0, ver_B0 = 1.0;
+inline double whistler_omega(){
+	double q = 0.5*ver_k*Hall_di;
+	return ver_k*ver_B0*(q + sqrt(1.0 + q*q));
+}
 double hall_rho_floor = 0.02;    // density floor used when forming corner 1/rho (Table 7.2)
 double hall_ptot   = 5.5;        // total (thermal + magnetic) pressure of the equilibrium
 double hall_lambda = 0.5;        // sheet half-thickness (= d_i/2 for the survey config)
@@ -151,6 +187,7 @@ double t, time_stop, dt, adt, adt2, fully_dt, imex_dt;
 int timestep = 0;
 double x_0 = -0.5, x_1 = 0.5, y_0 = -1, y_1 = 1,z_0 = -1, z_1 = 1, B_max_x = 0, B_max_y = 0, U_max_x = 0,U_max_y = 0,a_max_x = 0,a_max_y = 0, a_max = 0;
 std::string Path;
+std::string g_out_root = "/Users/chenzefeng/Desktop/Study/CamSC/phd/research/HallMHD/Plot/";   // out=<dir>/ overrides
 
 double dx = (x_1 - x_0)/(nxPoints-1);
 double dy = (y_1 - y_0)/(nyPoints-1);
@@ -532,6 +569,8 @@ void printVTKHeader(std::ofstream& outFile, int& nstep);
 void printVTKVariable(std::ofstream& outFile, Grid& u_con, Grid& u_pri, int var, std::string variableName);
 void printAllVariablesToVTK(Grid& u_con,Grid& u_pri, std::string testname, int nstep, bool isFinalTime);
 void bound_cond_staggered(Array &u, int axis);
+void NonIdealE_cell(Grid& B, Grid& E, bool with_hall);
+void ExtrapolateGhostE(Grid& E, int ncomp);
 double getAlfvenSpeed(double *pri){
 	double rho = pri[0];
 	double cA = pri[5]  / sqrt(rho);
@@ -2361,6 +2400,33 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 					u(i,j,7) = 0.0;
 					break;
 				}
+				case testWhistler: {
+					double w = whistler_omega(), a = -ver_B0*ver_k/w;
+					double by = ver_eps*cos(ver_k*x), bz = -ver_eps*sin(ver_k*x);
+					u(i,j,0) = 1.0;  u(i,j,1) = 0.0;  u(i,j,2) = a*by;  u(i,j,3) = a*bz;
+					u(i,j,4) = 1.0;  u(i,j,5) = ver_B0;  u(i,j,6) = by;  u(i,j,7) = bz;
+					break;
+				}
+				case testUniformNoise: {
+					// uniform GEM far-field state + velocity noise: linear stability of the scheme
+					static std::mt19937 gen(12345);
+					std::uniform_real_distribution<double> U(-1.0, 1.0);
+					u(i,j,0) = h12_rho_inf;  u(i,j,1) = ver_eps*U(gen);  u(i,j,2) = ver_eps*U(gen);
+					u(i,j,3) = ver_eps*U(gen);  u(i,j,4) = h12_p_inf;
+					u(i,j,5) = ver_B0;  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
+					break;
+				}
+				case testResistiveDecay: {
+					u(i,j,0) = 1.0;  u(i,j,1) = 0.0;  u(i,j,2) = 0.0;  u(i,j,3) = 0.0;  u(i,j,4) = 1.0;
+					u(i,j,5) = ver_eps*sin(2.0*M_PI*y);  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
+					break;
+				}
+				case testViscousDecay: {
+					u(i,j,0) = 1.0;  u(i,j,1) = ver_eps*sin(2.0*M_PI*y);  u(i,j,2) = 0.0;
+					u(i,j,3) = ver_eps*sin(2.0*M_PI*y);  u(i,j,4) = 1.0;
+					u(i,j,5) = 0.0;  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
+					break;
+				}
 				case testHallReconnection: {
 					// Harris-sheet 背景 Bx(y),By=Bz=0
 					double Bx_bg = -1.0 + 2.0*tanh(y/hall_lambda);
@@ -3134,7 +3200,65 @@ void Staggered_CT(Grid& u_con, Array &Bx_p0, Array &By_0p, Array &Bx_p0_Qs, Arra
 		}
 	}
 	
-	// ---- ideal Faraday step --------------------------------------------------------------
+	// ===================== non-ideal corner electric field ==================================
+	// Dematte et al. Eq. (61): the corner field is the ideal Gardiner-Stone EMF plus the
+	// non-ideal part evaluated from the PREDICTED cell-centred field B~^{n+1} (u_con here), which
+	// already contains the implicit resistive / Hall / hyper-resistive response of the magnetic
+	// solve.  Resistive / hyper-resistive corner current is the four-cell difference of Eq. (61):
+	//   Jz = [By(i+1,j)+By(i+1,j+1)-By(i,j)-By(i,j+1)]/(2dx) - [Bx(i,j+1)+Bx(i+1,j+1)-Bx(i,j)-Bx(i+1,j)]/(2dy)
+	// (compact, like the 5-point Laplacian of the implicit solve).  The previous version built E_H from the post-ideal faces
+	// in a second explicit Faraday step; that is forward Euler for the whistler branch, i.e. the
+	// implicit Hall treatment of the magnetic solve was thrown away again in CT.
+	// Sign: E_z^Hall = +(d_i/rho)(J x B)_z.  Report Eq. (3.31) prints a minus sign, which is
+	// inconsistent with its own Eq. (3.32); the code uses the correct sign.
+	if((add_hall && hall_in_emf) || (add_resistive && eta_resistive != 0.0) || (add_hyperresistive && eta_hyper != 0.0)){
+		const int NI = nxCells + 2 * ghost_cells, NJ = nyCells + 2 * ghost_cells;
+		Array Jz_c(nxCells,nyCells);
+		auto B = [&](int ii, int jj, int k)->double{ return u_con(ii,jj,k); };
+		for(int i = 0; i < NI - 1; i++){
+			for(int j = 0; j < NJ - 1; j++){
+				Jz_c(i,j) = (B(i+1,j,6) + B(i+1,j+1,6) - B(i,j,6) - B(i,j+1,6)) / (2.0*dx)
+				          - (B(i,j+1,5) + B(i+1,j+1,5) - B(i,j,5) - B(i+1,j,5)) / (2.0*dy);
+			}
+		}
+		// Hall part: corner value = average of the four cell-centred E_H,z of the predictor, with
+		// the same centred (2 dx) current as the implicit magnetic solve.  The face update then
+		// applies exactly the predictor's Hall operator, e.g. dBy/dt|_face = (E_{i+1} - E_{i-1})/(2dx).
+		// A compact corner current instead sees the (-1)^i mode that the implicit 2dx stencil does
+		// not, and that mode is then advanced explicitly: whistler instability at omega_grid dt > 2.
+		Grid EH(nxCells,nyCells);
+		auto EHz = [&](int ii, int jj)->double{ return EH(ii,jj,0); };
+		if(add_hall && hall_in_emf){
+			for(int i = 1; i < NI - 1; i++){
+				for(int j = 1; j < NJ - 1; j++){
+					double Jx, Jy, Jz;
+					CellCurrent(u_con, i, j, Jx, Jy, Jz);
+					double r = fmax(B(i,j,0), hall_rho_floor);
+					EH(i,j,0) = (Hall_di / r) * (Jx*B(i,j,6) - Jy*B(i,j,5));
+				}
+			}
+			ExtrapolateGhostE(EH, 1);
+		}
+		for(int i = 1; i < NI - 2; i++){
+			for(int j = 1; j < NJ - 2; j++){
+				double Enon = 0.0;
+				if(add_resistive) Enon += eta_resistive * Jz_c(i,j);
+				if(add_hall && hall_in_emf){
+					Enon += 0.25*(EHz(i,j) + EHz(i+1,j) + EHz(i,j+1) + EHz(i+1,j+1));
+				}
+				if(add_hyperresistive){
+					// E_hyp = -eta_H lap J  reproduces  dB/dt = -eta_H lap^2 B
+					double lapJz = (Jz_c(i+1,j) - 2.0*Jz_c(i,j) + Jz_c(i-1,j))/(dx*dx)
+					             + (Jz_c(i,j+1) - 2.0*Jz_c(i,j) + Jz_c(i,j-1))/(dy*dy);
+					Enon += -eta_hyper * lapJz;
+				}
+				Ez_pp(i,j) += Enon;
+			}
+		}
+	}
+	// ========================================================================================
+
+	// ---- Faraday step (ideal + non-ideal corner EMF) ---------------------------------------
 	for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
 		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
 			Bx_p0(i,j) = Bx_p0_Qs(i,j) - h / dy * (Ez_pp(i,j) - Ez_pp(i,j - 1));
@@ -3143,77 +3267,6 @@ void Staggered_CT(Grid& u_con, Array &Bx_p0, Array &By_0p, Array &Bx_p0_Qs, Arra
 	}
 	bound_cond_staggered(Bx_p0, 0);   // x-normal: 保留边界法向面(CT div-free)
 	bound_cond_staggered(By_0p, 1);   // y-normal
-
-	// ===================== non-ideal corner electric field ==================================
-	// Second Faraday step for the resistive / Hall / hyper-resistive electric field, applied
-	// to the faces the ideal step has just produced.  This mirrors the reference explicit
-	// HLLD/CT code, where the non-ideal block runs in post_step on the already-updated face
-	// field, and it fixes two things at once relative to the earlier single-pass version:
-	//
-	//   * the corner current is now built DIRECTLY from the staggered faces,
-	//         Jz = (By(i+1,j) - By(i,j))/dx - (Bx(i,j+1) - Bx(i,j))/dy ,
-	//     the minimal one-cell stencil natural to constrained transport.  Building it from the
-	//     collocated field instead (as before) silently widened the Hall stencil, because each
-	//     collocated component is itself a two-face average.
-	//   * the faces entering it are post-ideal, i.e. the same time level as u_con, so the two
-	//     halves of the electric field are no longer sampled at different levels.
-	//
-	// Sign convention: E_z^Hall = +(d_i/rho)(J x B)_z, identical to the reference implementation
-	// (report Eq. (3.31) prints a minus sign, which is inconsistent with its own Eq. (3.32);
-	// the code, here and there, uses the correct sign).
-	if((add_hall && hall_in_emf) || add_resistive || add_hyperresistive){
-		Array Jz_c(nxCells,nyCells), Ez_non(nxCells,nyCells);
-		const int NI = nxCells + 2 * ghost_cells, NJ = nyCells + 2 * ghost_cells;
-
-		for(int i = 0; i < NI - 1; i++){
-			for(int j = 0; j < NJ - 1; j++){
-				Jz_c(i,j) = (By_0p(i+1,j) - By_0p(i,j)) / dx
-				          - (Bx_p0(i,j+1) - Bx_p0(i,j)) / dy;
-			}
-		}
-
-		for(int i = 1; i < NI - 2; i++){
-			for(int j = 1; j < NJ - 2; j++){
-				double Enon = 0.0;
-				if(add_resistive) Enon += eta_resistive * Jz_c(i,j);
-
-				if(add_hall && hall_in_emf){
-					// corner in-plane field: average the two faces that meet at the corner
-					double Bx_c = 0.5*(Bx_p0(i,j) + Bx_p0(i,j+1));
-					double By_c = 0.5*(By_0p(i,j) + By_0p(i+1,j));
-					// Jx = dBz/dy, Jy = -dBz/dx from the four surrounding cell-centred Bz
-					double Bz_up    = 0.5*(u_con(i,j+1,7) + u_con(i+1,j+1,7));
-					double Bz_down  = 0.5*(u_con(i,j,  7) + u_con(i+1,j,  7));
-					double Bz_right = 0.5*(u_con(i+1,j,7) + u_con(i+1,j+1,7));
-					double Bz_left  = 0.5*(u_con(i,j,  7) + u_con(i,  j+1,7));
-					double Jx_c =  (Bz_up    - Bz_down) / dy;
-					double Jy_c = -(Bz_right - Bz_left) / dx;
-					double rho_c = 0.25*(u_con(i,j,0) + u_con(i+1,j,0)
-					                   + u_con(i,j+1,0) + u_con(i+1,j+1,0));
-					rho_c = fmax(rho_c, hall_rho_floor);
-					Enon += (Hall_di / rho_c) * (Jx_c*By_c - Jy_c*Bx_c);
-				}
-
-				if(add_hyperresistive){
-					// E_hyp = -eta_H lap J  reproduces  dB/dt = -eta_H lap^2 B exactly
-					double lapJz = (Jz_c(i+1,j) - 2.0*Jz_c(i,j) + Jz_c(i-1,j))/(dx*dx)
-					             + (Jz_c(i,j+1) - 2.0*Jz_c(i,j) + Jz_c(i,j-1))/(dy*dy);
-					Enon += -eta_hyper * lapJz;
-				}
-				Ez_non(i,j) = Enon;
-			}
-		}
-
-		for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
-			for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
-				Bx_p0(i,j) -= h / dy * (Ez_non(i,j) - Ez_non(i,j - 1));
-				By_0p(i,j) += h / dx * (Ez_non(i,j) - Ez_non(i - 1,j));
-			}
-		}
-		bound_cond_staggered(Bx_p0, 0);
-		bound_cond_staggered(By_0p, 1);
-	}
-	// ========================================================================================
 
 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 		for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
@@ -3388,6 +3441,18 @@ void A_initial(Grid &A){
 					Ay_val = 0.0;
 					break;
 				}
+				case testWhistler:
+					Az_val = -(ver_eps/ver_k)*sin(ver_k*x) + ver_B0*y;   // By = -dAz/dx, Bx = dAz/dy
+					Ay_val =  (ver_eps/ver_k)*cos(ver_k*x);              // Bz = dAy/dx
+					break;
+				case testUniformNoise:
+					Az_val = ver_B0*y;
+					break;
+				case testResistiveDecay:
+					Az_val = -ver_eps*cos(2.0*M_PI*y)/(2.0*M_PI);
+					break;
+				case testViscousDecay:
+					break;
 				case testHallReconnection: {
 					// Az_bg(y) 满足 dAz_bg/dy = Bx_bg(y) = -1+2tanh(2y):
 					//   ∫(-1+2tanh(2y))dy = -y + ln(cosh(2y))  (常数项不影响 B, 取0)
@@ -3474,10 +3539,14 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, double h) {
 	// ===== Step 2: 用角点 Ez 平均到 cell center 更新 Az =====
 	// Ez_pp(i,j) 定义在角点 (i+1/2, j+1/2)
 	// cell (i,j) 的四个角: (i-1,j-1), (i,j-1), (i-1,j), (i,j)
+	// dA_z/dt = -E_z with the non-ideal part E_n,z from the predicted field (as in Staggered_CT);
+	// without it the corrected B = curl A silently dropped eta, Hall and eta_H.
+	Grid En(nxCells, nyCells);
+	NonIdealE_cell(u_con, En, add_hall && hall_in_emf);
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 			double Ez_cell = 0.25*(Ez_pp(i,j) + Ez_pp(i-1,j) + Ez_pp(i,j-1) + Ez_pp(i-1,j-1));
-			A(i, j, 2) = A_s(i, j, 2) - h * Ez_cell;
+			A(i, j, 2) = A_s(i, j, 2) - h * (Ez_cell + En(i,j,2));
 		}
 	}
 	bound_cond_A(A);
@@ -3630,6 +3699,11 @@ int M_B(int i, int j, int k){
 	
 	return coord;
 }
+
+// Face dissipation coefficients of the magnetic solve (A or B form) in BviscMaterialShock mode, (i,j) = face i+1/2
+// resp. j+1/2.  Built once per solve in MagSubsystem_UpdateA/B, read by every mat-vec.
+Array* g_bnu_x = nullptr;
+Array* g_bnu_y = nullptr;
 
 void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe,Grid& Qs,double h){
 	int reflct_xL, reflct_yL, reflct_xR, reflct_yR;
@@ -3824,14 +3898,25 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 				auto Jz_x = [&](int ii,int jj)->double{
 					return  (xB(ii+1,jj,6) - xB(ii-1,jj,6)) / (2.0*dx)
 					      - (xB(ii,jj+1,5) - xB(ii,jj-1,5)) / (2.0*dy); };
+				// open boundaries: E_H in a ghost cell = E_H of the adjacent interior cell (same
+				// closure as ExtrapolateGhostE in the CT and energy updates)
+				auto clampI = [&](int ii)->int{
+					if(x_bc == x_Transmissive || x_bc == x_Dirichlet) return std::min(std::max(ii, ghost_cells), nxCells + ghost_cells - 1);
+					return ii; };
+				auto clampJ = [&](int jj)->int{
+					if(y_bc == y_Transmissive || y_bc == y_Dirichlet) return std::min(std::max(jj, ghost_cells), nyCells + ghost_cells - 1);
+					return jj; };
 				auto EHx = [&](int ii,int jj)->double{
-					double r = fmax(u_con(ii,jj,0), 1e-12);
+					ii = clampI(ii);  jj = clampJ(jj);
+					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
 					return (Hall_di/r)*(Jy_x(ii,jj)*Qe(ii,jj,7) - Jz_x(ii,jj)*Qe(ii,jj,6)); };
 				auto EHy = [&](int ii,int jj)->double{
-					double r = fmax(u_con(ii,jj,0), 1e-12);
+					ii = clampI(ii);  jj = clampJ(jj);
+					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
 					return (Hall_di/r)*(Jz_x(ii,jj)*Qe(ii,jj,5) - Jx_x(ii,jj)*Qe(ii,jj,7)); };
 				auto EHz = [&](int ii,int jj)->double{
-					double r = fmax(u_con(ii,jj,0), 1e-12);
+					ii = clampI(ii);  jj = clampJ(jj);
+					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
 					return (Hall_di/r)*(Jx_x(ii,jj)*Qe(ii,jj,6) - Jy_x(ii,jj)*Qe(ii,jj,5)); };
 				// dB/dt = -curl E  =>  LHS gains +h*curl E_H
 				Ax(M_B(i,j,5)) += h * ( (EHz(i,j+1) - EHz(i,j-1)) / (2.0*dy) );
@@ -3871,7 +3956,16 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 				}
 			}
 			
-			if(GLF){
+			if(bvisc_mode == BviscMaterialShock && g_bnu_x && g_bnu_y){
+				// frozen face coefficients, see MagSubsystem_UpdateB / BviscCoefficients
+				double nu_x_p = (*g_bnu_x)(i,j), nu_x_m = (*g_bnu_x)(i-1,j);
+				double nu_y_p = (*g_bnu_y)(i,j), nu_y_m = (*g_bnu_y)(i,j-1);
+				for(int comp = 5; comp <= 7; comp++){
+					double lap = 1 /(dx * dx) * ( nu_x_p * (x(M_B(i+1,j,comp)) * reflct_xR - x(M_B(i,j,comp))) - nu_x_m * (x(M_B(i,j,comp)) - x(M_B(i-1,j,comp))* reflct_xL))
+					           + 1 /(dy * dy) * ( nu_y_p * (x(M_B(i,j + 1,comp)) * reflct_yR -  x(M_B(i,j,comp)))  - nu_y_m * (x(M_B(i,j,comp)) - x(M_B(i,j - 1,comp)) * reflct_yL));
+					Ax(M_B(i,j,comp)) = Ax(M_B(i,j,comp)) - h * lap;
+				}
+			}else if(GLF){
 				nu_x = B_max_x * dx;
 				nu_y = B_max_y * dy;
 				lap_Bx = nu_x/(dx * dx) * (x(M_B(i-1,j,5)) * reflct_xL - 2.0*x(M_B(i,j,5)) + x(M_B(i+1,j,5)) * reflct_xR) + nu_y/(dy * dy) * (x(M_B(i,j - 1,5)) * reflct_yL - 2.0*x(M_B(i,j,5)) + x(M_B(i,j + 1,5)) * reflct_yR);
@@ -4037,7 +4131,7 @@ void Magnetic_Subsystem_potential_AX(
 				double Jx_n = (bz_0P - bz_0M) / (2.0*dy);
 				double Jy_n = -(bz_P0 - bz_M0) / (2.0*dx);
 				double Jz_n = (by_P0 - by_M0) / (2.0*dx) - (bx_0P - bx_0M) / (2.0*dy);
-				double rr = fmax(rho_00, 1e-12);
+				double rr = fmax(rho_00, hall_rho_floor);   // same floor as the CT corner EMF
 				hall_x = (Hall_di/rr) * (Jy_n*Bzn_00 - Jz_n*Byn_00);
 				hall_y = (Hall_di/rr) * (Jz_n*Bxn_00 - Jx_n*Bzn_00);
 				hall_z = (Hall_di/rr) * (Jx_n*Byn_00 - Jy_n*Bxn_00);
@@ -4068,7 +4162,16 @@ void Magnetic_Subsystem_potential_AX(
 			
 			// Laplacian — 也从AG读
 			double lap_Ax = 0.0, lap_Ay = 0.0, lap_Az = 0.0;
-			if(GLF){
+			if(bvisc_mode == BviscMaterialShock && g_bnu_x && g_bnu_y){
+				// face coefficients frozen for the whole GMRES solve (see MagSubsystem_UpdateA)
+				double nu_xp = (*g_bnu_x)(i,j),   nu_xm = (*g_bnu_x)(i-1,j);
+				double nu_yp = (*g_bnu_y)(i,j),   nu_ym = (*g_bnu_y)(i,j-1);
+				for(int k = 0; k < 3; k++){
+					double lk = 1.0/(dx*dx)*(nu_xp*(AG(i+1,j,k)-AG(i,j,k))-nu_xm*(AG(i,j,k)-AG(i-1,j,k)))
+					          + 1.0/(dy*dy)*(nu_yp*(AG(i,j+1,k)-AG(i,j,k))-nu_ym*(AG(i,j,k)-AG(i,j-1,k)));
+					if(k==0) lap_Ax=lk; if(k==1) lap_Ay=lk; if(k==2) lap_Az=lk;
+				}
+			}else if(GLF){
 				double nu_x = gmax_bx * dx;   // 每级 Qs real-cell 全局 max(对齐 CASTOR GLF avisc)
 				double nu_y = gmax_by * dy;
 				lap_Ax = nu_x/(dx*dx)*(AG(i-1,j,0)-2.0*AG(i,j,0)+AG(i+1,j,0))
@@ -4216,6 +4319,17 @@ void Pressure_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			// 理想气体 Vbase_slope == 1/(gamma-1)(逐字节不变),RK == rho*de/dp(冻结于 p_freeze,保持算子线性)。
 			double visc_scale = Vbase_slope(Qe_pri(i,j,4), u_con(i,j,0));
 			Ax(M_P(i,j)) = Ax(M_P(i,j)) - visc_scale * h * lap_p;
+
+			// heat conduction, implicit (Dematte et al. Eq. 63-64): + h div(kappa grad T^{n+1}),
+			// T = p/((gamma-1) c_v rho^{n+1}) is linear in p, so it only adds to the coupling T.
+			if(add_heatflux && kappa_heat != 0.0){
+				const double Rg = (gamma_plasma - 1.0)*cv_heat;
+				auto Tk = [&](int ii, int jj)->double{ return getp(ii,jj) / (Rg*u_con(ii,jj,0)); };
+				double T00 = pii / (Rg*u_con(i,j,0));
+				double lapT = (Tk(i+1,j) - 2.0*T00 + Tk(i-1,j))/(dx*dx)
+				            + (Tk(i,j+1) - 2.0*T00 + Tk(i,j-1))/(dy*dy);
+				Ax(M_P(i,j)) -= h * kappa_heat * lapT;
+			}
 //			Ax(M_P(i,j)) = Ax(M_P(i,j)) - h * lap_p;
 		}
 	}
@@ -4450,6 +4564,34 @@ void GMRES_Solver(
 	std::cout << "WARNING: GMRES reached max outer iterations, residual=" << gam[0] << std::endl;
 }
 
+// ---- numerical dissipation of the implicit magnetic solve, BviscMaterialShock mode ----------
+//   nu_{i+1/2} = 1/2 max(|u_x|_i, |u_x|_{i+1}) dx  +  chi_{i+1/2} lambda^B_{i+1/2} dx
+// The first term is exactly the Rusanov (material-speed) dissipation that turns the explicit
+// centred transport (u x B = -u.grad A in the A form, curl(u* x B^n) in the B form) into an upwind
+// one; the second is the paper's Eq. (83) restricted to cells flagged by the shock indicator chi
+// of Eq. (43).  u is the post-convective velocity (rho u)*/rho^{n+1}, lambda^B and chi from Qe.
+void BviscCoefficients(Array& bnu_x, Array& bnu_y, Grid& u_con, Grid& Qe){
+	Array shock_eta(nxCells, nyCells);
+	Grid Qe_pri(nxCells, nyCells);
+	ucon2upri(Qe_pri, Qe);
+	ShockDetector(shock_eta, Qe);
+	auto lamB = [&](int ii, int jj, int d)->double{
+		double r = Qe_pri(ii,jj,0), un = Qe_pri(ii,jj,d);
+		double B2 = Qe_pri(ii,jj,5)*Qe_pri(ii,jj,5) + Qe_pri(ii,jj,6)*Qe_pri(ii,jj,6) + Qe_pri(ii,jj,7)*Qe_pri(ii,jj,7);
+		return 0.5*(fabs(un) + sqrt(un*un + 4.0*B2/r));
+	};
+	for(int i = 0; i < nxCells + 2*ghost_cells - 1; i++){
+		for(int j = 0; j < nyCells + 2*ghost_cells - 1; j++){
+			double ux0 = fabs(u_con(i,j,1)/u_con(i,j,0)), ux1 = fabs(u_con(i+1,j,1)/u_con(i+1,j,0));
+			double uy0 = fabs(u_con(i,j,2)/u_con(i,j,0)), uy1 = fabs(u_con(i,j+1,2)/u_con(i,j+1,0));
+			double chix = 0.5*(shock_eta(i,j) + shock_eta(i+1,j));
+			double chiy = 0.5*(shock_eta(i,j) + shock_eta(i,j+1));
+			bnu_x(i,j) = 0.5*fmax(ux0, ux1)*dx + chix*0.5*(lamB(i,j,1) + lamB(i+1,j,1))*dx;
+			bnu_y(i,j) = 0.5*fmax(uy0, uy1)*dy + chiy*0.5*(lamB(i,j,2) + lamB(i,j+1,2))*dy;
+		}
+	}
+}
+
 void MagSubsystem_UpdateA(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_yR, Grid &A,Grid &A_s,double h, const int rks){
 	Array shock_eta(nxCells,nyCells);
 	double Ax_star, Ay_star, Az_star,U_star;
@@ -4499,9 +4641,10 @@ void MagSubsystem_UpdateA(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_xR
 			// When hall_implicit the term lives on the LHS of Magnetic_Subsystem_potential_AX
 			// instead, so it must NOT also appear in the right-hand side here.
 			if(add_hall && !hall_implicit){
-				Ax_star -= h * (Hall_di/rho) * JxB_x;
-				Ay_star -= h * (Hall_di/rho) * JxB_y;
-				Az_star -= h * (Hall_di/rho) * JxB_z;
+				double rh = fmax(rho, hall_rho_floor);
+				Ax_star -= h * (Hall_di/rh) * JxB_x;
+				Ay_star -= h * (Hall_di/rh) * JxB_y;
+				Az_star -= h * (Hall_di/rh) * JxB_z;
 			}
 			
 			// 存入RHS向量
@@ -4516,8 +4659,16 @@ void MagSubsystem_UpdateA(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_xR
 		}
 	}
 
+	// ---- numerical dissipation of the A solve, BviscMaterialShock mode (see BviscCoefficients)
+	Array bnu_x(nxCells, nyCells), bnu_y(nxCells, nyCells);
+	if(bvisc_mode == BviscMaterialShock){
+		BviscCoefficients(bnu_x, bnu_y, u_con, Qe);
+		g_bnu_x = &bnu_x;  g_bnu_y = &bnu_y;
+	}
+
 	GMRES_Solver(A_vect, b_vect, Magnetic_Subsystem_potential_AX, u_con, Qe, Qs, h, 3*nxCells*nyCells);
-	
+	g_bnu_x = nullptr;  g_bnu_y = nullptr;
+
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 			A(i,j,0) = A_vect((i - ghost_cells) + nxCells * (j - ghost_cells));
@@ -4602,16 +4753,14 @@ void PreSubsystem_Pressure(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_x
 			double h0m = calenthalpy(con0m_n) * Qe(i,j - 1,0) / u_con(i,j - 1,0);
 			
 			double p_star = u_con(i,j,4) - 0.5 * B2_00;
-			// ↓↓↓ 在这里插入 ↓↓↓
-			double Jx_00 =  (u_con(i,j+1,7) - u_con(i,j-1,7)) / (2.0*dy);
-			double Jy_00 = -(u_con(i+1,j,7) - u_con(i-1,j,7)) / (2.0*dx);
-			double Jz_00 =  (u_con(i+1,j,6) - u_con(i-1,j,6)) / (2.0*dx) - (u_con(i,j+1,5) - u_con(i,j-1,5)) / (2.0*dy);
-			double Joule_heating = add_resistive ? eta_resistive * (Jx_00*Jx_00 + Jy_00*Jy_00 + Jz_00*Jz_00) : 0.0;
+			// No explicit Joule source here.  The resistive (and Hall, hyper-resistive) change of the
+			// magnetic energy is already inside E** - |B^{n+1}|^2/2, and the non-ideal Poynting flux
+			// div(E_n x B) was added to E** in NonIdeal_Energy_Update, so the internal energy receives
+			// exactly J.E_n (Dematte et al. Eq. 63).  Adding eta J^2 again counted it twice.
 			double internal = p_star - 0.5*(rhovx_star(i,j)*rhovx_star(i,j) + rhovy_star(i,j)*rhovy_star(i,j) + rhovz_star(i,j)*rhovz_star(i,j))/u_con(i,j,0);
 			double RHS;
 
 			RHS = p_star - 0.5 * (rhovx_star(i,j) * rhovx_star(i,j) + rhovy_star(i,j) * rhovy_star(i,j) + rhovz_star(i,j) * rhovz_star(i,j)) / u_con(i,j,0) - h * (1 / dx * (0.5 * (hp0 + h00) * 0.5 * (rhovx_star(i + 1,j) + rhovx_star(i,j)) - 0.5 * (hm0 + h00) * 0.5 * (rhovx_star(i - 1,j) + rhovx_star(i,j))) + (1 / dy * (0.5 * (h0p + h00) * 0.5 * (rhovy_star(i,j + 1) + rhovy_star(i,j)) - 0.5 * (h0m + h00) * 0.5 * (rhovy_star(i,j - 1) + rhovy_star(i,j)))));
-			RHS += h * Joule_heating;
 //			if(internal < 1e-6){
 //				std::cout << internal << " ";
 //			}
@@ -4706,11 +4855,10 @@ void PreSubsystem_Pressure(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_x
 				double h0m = calenthalpy(con0m_n) * Qe(i,j - 1,0) / u_con(i,j - 1,0);
 				
 				double p_star = u_con(i,j,4) - 0.5 * B2_00;
-				// ↓↓↓ 在这里插入 ↓↓↓
-				double Jx_00 =  (u_con(i,j+1,7) - u_con(i,j-1,7)) / (2.0*dy);
-				double Jy_00 = -(u_con(i+1,j,7) - u_con(i-1,j,7)) / (2.0*dx);
-				double Jz_00 =  (u_con(i+1,j,6) - u_con(i-1,j,6)) / (2.0*dx) - (u_con(i,j+1,5) - u_con(i,j-1,5)) / (2.0*dy);
-				double Joule_heating = add_resistive ? eta_resistive * (Jx_00*Jx_00 + Jy_00*Jy_00 + Jz_00*Jz_00) : 0.0;
+				// No explicit Joule source here.  The resistive (and Hall, hyper-resistive) change of the
+				// magnetic energy is already inside E** - |B^{n+1}|^2/2, and the non-ideal Poynting flux
+				// div(E_n x B) was added to E** in NonIdeal_Energy_Update, so the internal energy receives
+				// exactly J.E_n (Dematte et al. Eq. 63).  Adding eta J^2 again counted it twice.
 				
 				double internal = p_star - 0.5*(rhovx_star(i,j)*rhovx_star(i,j) + rhovy_star(i,j)*rhovy_star(i,j) + rhovz_star(i,j)*rhovz_star(i,j))/u_con(i,j,0);
 				
@@ -4718,7 +4866,6 @@ void PreSubsystem_Pressure(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_x
 				double RHS;
 				
 				RHS = p_star - 0.5 * (u_con(i,j,1) * u_con(i,j,1) + u_con(i,j,2) * u_con(i,j,2) + u_con(i,j,3) * u_con(i,j,3)) / u_con(i,j,0) - h * (1 / dx * (0.5 * (hp0 + h00) * 0.5 * (rhovx_star(i + 1,j) + rhovx_star(i,j)) - 0.5 * (hm0 + h00) * 0.5 * (rhovx_star(i - 1,j) + rhovx_star(i,j))) + (1 / dy * (0.5 * (h0p + h00) * 0.5 * (rhovy_star(i,j + 1) + rhovy_star(i,j)) - 0.5 * (h0m + h00) * 0.5 * (rhovy_star(i,j - 1) + rhovy_star(i,j)))));
-				RHS += h * Joule_heating;
 //				if(internal < 1e-8){
 //					std::cout << internal << " ";
 //				}
@@ -5097,7 +5244,13 @@ void MagSubsystem_UpdateB(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_xR
 			
 		}
 	}
+	Array bnu_x(nxCells, nyCells), bnu_y(nxCells, nyCells);
+	if(bvisc_mode == BviscMaterialShock){
+		BviscCoefficients(bnu_x, bnu_y, u_con, Qe);
+		g_bnu_x = &bnu_x;  g_bnu_y = &bnu_y;
+	}
 	GMRES_Solver(B_vect, b_Bt_vect, Magnetic_Subsystem_AX, u_con, Qe, Qs, h, 3*nxCells*nyCells);
+	g_bnu_x = nullptr;  g_bnu_y = nullptr;
 	
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
@@ -5125,7 +5278,7 @@ void HallMHD_SourceRelax(Grid& u_con, double h){
 	auto EH = [&](int ii, int jj, int comp)->double{
 		double Jx, Jy, Jz;
 		CellCurrent(u_con, ii, jj, Jx, Jy, Jz);
-		double r  = fmax(u_con(ii,jj,0), 1e-12);
+		double r  = fmax(u_con(ii,jj,0), hall_rho_floor);
 		double Bx = u_con(ii,jj,5), By = u_con(ii,jj,6), Bz = u_con(ii,jj,7);
 		if(comp == 0) return (Hall_di/r) * (Jy*Bz - Jz*By);
 		if(comp == 1) return (Hall_di/r) * (Jz*Bx - Jx*Bz);
@@ -5148,6 +5301,228 @@ void HallMHD_SourceRelax(Grid& u_con, double h){
 			u_con(i,j,5) = Bnew(i,j,5);
 			u_con(i,j,6) = Bnew(i,j,6);
 			u_con(i,j,7) = Bnew(i,j,7);
+		}
+	}
+	bound_cond_u(u_con);
+}
+
+// Open (transmissive / Dirichlet) boundaries: the non-ideal field in the ghost cells is the
+// zero-gradient extrapolation of the first interior cell.  Differencing the copied ghost B there
+// instead gives J_n = 0 in the ghost row and half the one-sided value in the first row, so the
+// boundary-face Poynting flux and CT corner field were inconsistent with the interior: with Hall
+// on, the GEM run developed a spurious jet and an internal-energy drain along y = +-Ly/2.
+void ExtrapolateGhostE(Grid& E, int ncomp){
+	const int NI = nxCells + 2*ghost_cells, NJ = nyCells + 2*ghost_cells;
+	if(x_bc == x_Transmissive || x_bc == x_Dirichlet){
+		for(int j = 0; j < NJ; j++) for(int g = 0; g < ghost_cells; g++) for(int k = 0; k < ncomp; k++){
+			E(g, j, k) = E(ghost_cells, j, k);
+			E(nxCells + ghost_cells + g, j, k) = E(nxCells + ghost_cells - 1, j, k);
+		}
+	}
+	if(y_bc == y_Transmissive || y_bc == y_Dirichlet){
+		for(int i = 0; i < NI; i++) for(int g = 0; g < ghost_cells; g++) for(int k = 0; k < ncomp; k++){
+			E(i, g, k) = E(i, ghost_cells, k);
+			E(i, nyCells + ghost_cells + g, k) = E(i, nyCells + ghost_cells - 1, k);
+		}
+	}
+}
+
+// ============================================================================================
+// Non-ideal electric field at cell centres, from a collocated field B (slots 5-7, rho in slot 0):
+//     E_n = eta J + (d_i/rho) J x B - eta_H lap_h J ,      J = curl_h B   (Eqs. 3.24-3.31, 7.3)
+// J uses the centred stencil of Eq. (3.25)-(3.27) and is valid on [1, N-2]; lap_h J on [2, N-3].
+// Only slots 0..2 of E are written.  Ghost cells of B must be filled by the caller.
+// ============================================================================================
+void NonIdealE_cell(Grid& B, Grid& E, bool with_hall){
+	const int NI = nxCells + 2*ghost_cells, NJ = nyCells + 2*ghost_cells;
+	Grid J(nxCells, nyCells);
+	for(int i = 0; i < NI; i++) for(int j = 0; j < NJ; j++)
+		for(int k = 0; k < 3; k++){ J(i,j,k) = 0.0; E(i,j,k) = 0.0; }
+	for(int i = 1; i < NI - 1; i++)
+		for(int j = 1; j < NJ - 1; j++)
+			CellCurrent(B, i, j, J(i,j,0), J(i,j,1), J(i,j,2));
+	for(int i = 2; i < NI - 2; i++){
+		for(int j = 2; j < NJ - 2; j++){
+			double Jx = J(i,j,0), Jy = J(i,j,1), Jz = J(i,j,2);
+			double Ex = 0.0, Ey = 0.0, Ez = 0.0;
+			if(add_resistive && eta_resistive != 0.0){
+				Ex += eta_resistive*Jx;  Ey += eta_resistive*Jy;  Ez += eta_resistive*Jz;
+			}
+			if(with_hall){
+				double r = fmax(B(i,j,0), hall_rho_floor);
+				double Bx = B(i,j,5), By = B(i,j,6), Bz = B(i,j,7);
+				Ex += (Hall_di/r)*(Jy*Bz - Jz*By);
+				Ey += (Hall_di/r)*(Jz*Bx - Jx*Bz);
+				Ez += (Hall_di/r)*(Jx*By - Jy*Bx);
+			}
+			if(add_hyperresistive && eta_hyper != 0.0){
+				for(int k = 0; k < 3; k++){
+					double lapJ = (J(i+1,j,k) - 2.0*J(i,j,k) + J(i-1,j,k))/(dx*dx)
+					            + (J(i,j+1,k) - 2.0*J(i,j,k) + J(i,j-1,k))/(dy*dy);
+					if(k==0) Ex -= eta_hyper*lapJ;
+					if(k==1) Ey -= eta_hyper*lapJ;
+					if(k==2) Ez -= eta_hyper*lapJ;
+				}
+			}
+			E(i,j,0) = Ex;  E(i,j,1) = Ey;  E(i,j,2) = Ez;
+		}
+	}
+	ExtrapolateGhostE(E, 3);
+}
+
+// ============================================================================================
+// Non-ideal Poynting flux in the energy equation (Dematte et al. Eq. 63, the Pi terms):
+//     E** <- E** - h div( E_n x B^{n+1} ) .
+// In the paper the total energy is E = V(p) + k + m and the pressure solve takes E** - m^{n+1}
+// as its internal-plus-kinetic budget.  Whatever the implicit magnetic solve does to m^{n+1}
+// through eta, Hall and eta_H is therefore charged to the internal energy; with this flux the
+// charge is the local work J.E_n (Joule heating for eta, zero for Hall), without it the
+// internal energy also absorbed -div(E_n x B), i.e. the Hall/whistler energy transport was
+// dumped locally as spurious heating/cooling.  Flux form, so total energy stays conserved.
+// ============================================================================================
+void NonIdeal_Energy_Update(Grid& u_con, double h){
+	bool any = (add_resistive && eta_resistive != 0.0) || add_hall
+	        || (add_hyperresistive && eta_hyper != 0.0);
+	if(!any) return;
+	bound_cond_u(u_con);
+	Grid E(nxCells, nyCells);
+	NonIdealE_cell(u_con, E, add_hall);
+	// (E x B)_x and (E x B)_y at cell centres; faces take the arithmetic mean (central flux)
+	auto Sx = [&](int ii, int jj)->double{ return E(ii,jj,1)*u_con(ii,jj,7) - E(ii,jj,2)*u_con(ii,jj,6); };
+	auto Sy = [&](int ii, int jj)->double{ return E(ii,jj,2)*u_con(ii,jj,5) - E(ii,jj,0)*u_con(ii,jj,7); };
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			double fxp = 0.5*(Sx(i,j) + Sx(i+1,j)), fxm = 0.5*(Sx(i-1,j) + Sx(i,j));
+			double fyp = 0.5*(Sy(i,j) + Sy(i,j+1)), fym = 0.5*(Sy(i,j-1) + Sy(i,j));
+			u_con(i,j,4) -= h/dx*(fxp - fxm) + h/dy*(fyp - fym);
+		}
+	}
+	bound_cond_u(u_con);
+}
+
+// ============================================================================================
+// Implicit viscous sub-step (Dematte et al. Sec 3.4.2, Eq. 62), adapted to the sequential
+// magnetic -> pressure structure of the IMEX scheme.
+//
+// Provisional velocity u~ (pressure at the explicit stage level, magnetic forces already in
+// (rho u)**, exactly as in the magnetic solve, Eq. 27):
+//     rho^{n+1} u~ - h div_h tau(u~) = (rho u)** - h grad_h p^e                       (V1)
+// then, in flux form,
+//     (rho u)** <- (rho u)** + h div_h tau(u~),     E** <- E** + h div_h (tau(u~) . u~)  (V2)
+// and the two pressure solves proceed unchanged on these updated intermediate states, so that
+//     (rho u)^{n+1} = (rho u)** + h div tau(u~) - h grad p~^{n+1}.
+// tau = mu (grad u + grad u^T - 2/3 div u I), Eq. (53).  Face gradients: normal derivative is the
+// compact two-point difference, tangential derivative the trapezoidal average of Eq. (57)-(58).
+// (Eq. (58) for the normal derivative as well would leave the (-1)^(i+j) mode undamped.)
+// ============================================================================================
+inline void ViscStressX(Grid& V, int i, int j, double& txx, double& txy, double& txz){
+	// face (i+1/2, j)
+	double dudx = (V(i+1,j,1) - V(i,j,1))/dx;
+	double dvdx = (V(i+1,j,2) - V(i,j,2))/dx;
+	double dwdx = (V(i+1,j,3) - V(i,j,3))/dx;
+	double dudy = (V(i,j+1,1) + V(i+1,j+1,1) - V(i,j-1,1) - V(i+1,j-1,1))/(4.0*dy);
+	double dvdy = (V(i,j+1,2) + V(i+1,j+1,2) - V(i,j-1,2) - V(i+1,j-1,2))/(4.0*dy);
+	txx = 2.0/3.0*mu_visc*(2.0*dudx - dvdy);
+	txy = mu_visc*(dudy + dvdx);
+	txz = mu_visc*dwdx;
+}
+inline void ViscStressY(Grid& V, int i, int j, double& tyx, double& tyy, double& tyz){
+	// face (i, j+1/2)
+	double dudy = (V(i,j+1,1) - V(i,j,1))/dy;
+	double dvdy = (V(i,j+1,2) - V(i,j,2))/dy;
+	double dwdy = (V(i,j+1,3) - V(i,j,3))/dy;
+	double dudx = (V(i+1,j,1) + V(i+1,j+1,1) - V(i-1,j,1) - V(i-1,j+1,1))/(4.0*dx);
+	double dvdx = (V(i+1,j,2) + V(i+1,j+1,2) - V(i-1,j,2) - V(i-1,j+1,2))/(4.0*dx);
+	tyx = mu_visc*(dudy + dvdx);
+	tyy = 2.0/3.0*mu_visc*(2.0*dvdy - dudx);
+	tyz = mu_visc*dwdy;
+}
+// velocity vector (3N) -> Grid with ghost cells (slots 1..3), using the boundary conditions of u
+void VelocityToGrid(Grid& V, const Eigen::VectorXd& x){
+	const int N = nxCells*nyCells;
+	for(int i = 0; i < nxCells + 2*ghost_cells; i++)
+		for(int j = 0; j < nyCells + 2*ghost_cells; j++){
+			for(int k = 0; k < NUM_VARS; k++) V(i,j,k) = 0.0;
+			V(i,j,0) = 1.0;
+		}
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++)
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			int idx = (i-ghost_cells) + nxCells*(j-ghost_cells);
+			V(i,j,1) = x(idx);  V(i,j,2) = x(idx + N);  V(i,j,3) = x(idx + 2*N);
+		}
+	g_bc_prim = true;  bound_cond_u(V);  g_bc_prim = false;
+}
+void Viscous_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe, Grid& Qs, double h){
+	const int N = nxCells*nyCells;
+	Grid V(nxCells, nyCells);
+	VelocityToGrid(V, x);
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			double pxx, pxy, pxz, mxx, mxy, mxz, pyx, pyy, pyz, myx, myy, myz;
+			ViscStressX(V, i,   j, pxx, pxy, pxz);
+			ViscStressX(V, i-1, j, mxx, mxy, mxz);
+			ViscStressY(V, i, j,   pyx, pyy, pyz);
+			ViscStressY(V, i, j-1, myx, myy, myz);
+			int idx = (i-ghost_cells) + nxCells*(j-ghost_cells);
+			double rho = u_con(i,j,0);
+			Ax(idx)       = rho*V(i,j,1) - h*((pxx - mxx)/dx + (pyx - myx)/dy);
+			Ax(idx + N)   = rho*V(i,j,2) - h*((pxy - mxy)/dx + (pyy - myy)/dy);
+			Ax(idx + 2*N) = rho*V(i,j,3) - h*((pxz - mxz)/dx + (pyz - myz)/dy);
+		}
+	}
+}
+void Viscous_Update(Grid& u_con, Grid& Qe, Grid& Qs, double h){
+	if(!add_viscous || mu_visc == 0.0) return;
+	const int N = nxCells*nyCells;
+	bound_cond_u(u_con);
+	Grid Qe_pri(nxCells, nyCells);
+	ucon2upri(Qe_pri, Qe);
+	Eigen::VectorXd b(3*N), v(3*N);
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			int idx = (i-ghost_cells) + nxCells*(j-ghost_cells);
+			double rho = u_con(i,j,0);
+			b(idx)       = u_con(i,j,1) - h*(Qe_pri(i+1,j,4) - Qe_pri(i-1,j,4))/(2.0*dx);
+			b(idx + N)   = u_con(i,j,2) - h*(Qe_pri(i,j+1,4) - Qe_pri(i,j-1,4))/(2.0*dy);
+			b(idx + 2*N) = u_con(i,j,3);
+			v(idx) = b(idx)/rho;  v(idx + N) = b(idx + N)/rho;  v(idx + 2*N) = b(idx + 2*N)/rho;
+		}
+	}
+	// Jacobi preconditioner: diagonal of rho - h div tau
+	auto prec = [&](Eigen::VectorXd& out, const Eigen::VectorXd& in){
+		out.resize(in.size());
+		double cx = 1.0/(dx*dx), cy = 1.0/(dy*dy);
+		for(int i = ghost_cells; i < nxCells + ghost_cells; i++)
+			for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+				int idx = (i-ghost_cells) + nxCells*(j-ghost_cells);
+				double rho = u_con(i,j,0);
+				out(idx)       = in(idx)       / (rho + h*mu_visc*(8.0/3.0*cx + 2.0*cy));
+				out(idx + N)   = in(idx + N)   / (rho + h*mu_visc*(2.0*cx + 8.0/3.0*cy));
+				out(idx + 2*N) = in(idx + 2*N) / (rho + h*mu_visc*(2.0*cx + 2.0*cy));
+			}
+	};
+	GMRES_Solver(v, b, Viscous_Subsystem_AX, u_con, Qe, Qs, h, 3*N, prec);
+
+	// (V2): momentum and energy in flux form with tau(u~)
+	Grid V(nxCells, nyCells);
+	VelocityToGrid(V, v);
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			double pxx, pxy, pxz, mxx, mxy, mxz, pyx, pyy, pyz, myx, myy, myz;
+			ViscStressX(V, i,   j, pxx, pxy, pxz);
+			ViscStressX(V, i-1, j, mxx, mxy, mxz);
+			ViscStressY(V, i, j,   pyx, pyy, pyz);
+			ViscStressY(V, i, j-1, myx, myy, myz);
+			auto fu = [&](int a, int b2, int c, int d, int k){ return 0.5*(V(a,b2,k) + V(c,d,k)); };
+			// work of the viscous stresses on the faces, Phi = tau . u (Eq. 54)
+			double Phi_xp = fu(i,j,i+1,j,1)*pxx + fu(i,j,i+1,j,2)*pxy + fu(i,j,i+1,j,3)*pxz;
+			double Phi_xm = fu(i-1,j,i,j,1)*mxx + fu(i-1,j,i,j,2)*mxy + fu(i-1,j,i,j,3)*mxz;
+			double Phi_yp = fu(i,j,i,j+1,1)*pyx + fu(i,j,i,j+1,2)*pyy + fu(i,j,i,j+1,3)*pyz;
+			double Phi_ym = fu(i,j-1,i,j,1)*myx + fu(i,j-1,i,j,2)*myy + fu(i,j-1,i,j,3)*myz;
+			u_con(i,j,1) += h*((pxx - mxx)/dx + (pyx - myx)/dy);
+			u_con(i,j,2) += h*((pxy - mxy)/dx + (pyy - myy)/dy);
+			u_con(i,j,3) += h*((pxz - mxz)/dx + (pyz - myz)/dy);
+			u_con(i,j,4) += h*((Phi_xp - Phi_xm)/dx + (Phi_yp - Phi_ym)/dy);
 		}
 	}
 	bound_cond_u(u_con);
@@ -5274,6 +5649,18 @@ void IntermediatePlotIntermediatePlot(Grid& u_con, Grid &u_pri,  const int itera
 		case testHarrisHall:
 			testname = "testHarrisHall";
 			break;
+		case testWhistler:
+			testname = "testWhistler";
+			break;
+		case testResistiveDecay:
+			testname = "testResistiveDecay";
+			break;
+		case testViscousDecay:
+			testname = "testViscousDecay";
+			break;
+		case testUniformNoise:
+			testname = "testUniformNoise";
+			break;
 	}
 	
 	for(int k=0; k<(int)IntermediatePlotTimes.size(); k++){
@@ -5338,8 +5725,10 @@ void printVTKVariable(std::ofstream& outFile, Grid& u_con, Grid& u_pri, int var,
 	
 	int printWidth = 24;
 	
-	for(int j = 0; j < nyCells; j++){
-		for(int i = 0; i < nxCells; i++){
+	// interior cells only (the old loop started at index 0 = first ghost cell, so every field was
+	// shifted by ghost_cells and the last ghost_cells rows/columns were never written)
+	for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+		for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 			double varPrint;
 			if(var < NUM_VARS){
 				varPrint = u_con(i,j,var);
@@ -5449,7 +5838,7 @@ void printAllVariablesToVTK(Grid& u_con,Grid& u_pri, std::string testname, int n
 	ss << std::fixed << std::setprecision(0) << 100*CFL;
 	std::string s = ss.str();  
 	
-	Path = "/Users/chenzefeng/Desktop/Study/CamSC/phd/research/HallMHD/Plot/" + eos  +"/" +positive_preserving +"/"+ testname + "/" + formula_type + "/"+ div_type + "/"+ update_type + "/" + std::to_string(nxCells) + "x"+ std::to_string(nyCells) + "_"+ dt_type+"_RK" + std::to_string(RKs) + "_Order" + std::to_string(SpaceOrder) +"_CFL0" + s;
+	Path = g_out_root + eos  +"/" +positive_preserving +"/"+ testname + "/" + formula_type + "/"+ div_type + "/"+ update_type + "/" + std::to_string(nxCells) + "x"+ std::to_string(nyCells) + "_"+ dt_type+"_RK" + std::to_string(RKs) + "_Order" + std::to_string(SpaceOrder) +"_CFL0" + s;
 	
 	filesystem::create_directories(Path);
 	
@@ -5790,7 +6179,27 @@ void HallReconnectionDiagnostics(Grid& u_con, double tnow){
 	          << std::endl;
 }
 
+// ---- command line: key=value overrides (no arguments = the defaults set in this file) -------
+//   test=HarrisHall|HallReconnection|Whistler|ResistiveDecay|ViscousDecay
+//   eta= mu= kappa= di= hyper= hall=0|1 tend= dt=(fixed dt) cfl= bvisc=mag|mat div=A|stag|unstag out=<dir/>
+static std::string cli_get(int argc, char* argv[], const std::string& key){
+	for(int a = 1; a < argc; a++){
+		std::string s(argv[a]);
+		if(s.rfind(key + "=", 0) == 0) return s.substr(key.size() + 1);
+	}
+	return "";
+}
+
 int main(int argc, char *argv[]){
+	{
+		std::string tn = cli_get(argc, argv, "test");
+		if(tn == "HarrisHall")       test = testHarrisHall;
+		if(tn == "HallReconnection") test = testHallReconnection;
+		if(tn == "Whistler")         test = testWhistler;
+		if(tn == "ResistiveDecay")   test = testResistiveDecay;
+		if(tn == "ViscousDecay")     test = testViscousDecay;
+		if(tn == "UniformNoise")     test = testUniformNoise;
+	}
 	switch (test) {
 		case test0:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
@@ -5976,6 +6385,14 @@ int main(int argc, char *argv[]){
 			add_resistive     = true;  eta_resistive = 5.0e-3;   // S ~ 2500
 			add_hyperresistive = false; eta_hyper    = 0.0;      // not used in Test 12
 			Hall_di = 1.0;
+			// smooth problem: Eq.(83) dissipation c_A dx ~ 0.2 would be 40x eta and wipe out the
+			// sheet; use material-speed + shock-activated dissipation instead.  That requires the
+			// B-form magnetic solve + constrained transport (paper Sec 3.6): the PotentialA solve
+			// (B = curl_2dx A, J = curl_2dx B) splits the mesh into four decoupled sub-lattices and
+			// is only held together by the Eq.(83) Laplacian; without it the sheet shoulders develop
+			// an odd-even exchange of p and B^2 that drives p to the floor within t ~ 0.15.
+			bvisc_mode = BviscMaterialShock;
+			magfield   = StaggerCT;
 			break;
 		case testHallReconnection:
 			// Report Sec 7.2.4 first-peak survey configuration: Lx x Ly = 4pi x 2pi,
@@ -5986,7 +6403,78 @@ int main(int argc, char *argv[]){
 			gamma_plasma = 5.0/3.0;
 			x_bc = x_Transmissive;
 			y_bc = y_Transmissive;
+			bvisc_mode = BviscMaterialShock;
+			magfield   = StaggerCT;          // see testHarrisHall
 			break;
+		case testWhistler:
+			// one wavelength along x (periodic), a strip of cells in y (A_z = B0 y + ... is linear
+			// in y, which the transmissive linear extrapolation of A reproduces exactly)
+			x_0 = 0.0, x_1 = 2.0*M_PI/ver_k, y_0 = 0.0, y_1 = nyCells*(x_1 - x_0)/nxCells, z_0 = -1, z_1 = 1;
+			gamma_plasma = 5.0/3.0;
+			x_bc = x_Periodic;
+			y_bc = y_Transmissive;
+			add_hall = true;  hall_implicit = true;  Hall_di = 1.0;
+			add_resistive = false;  eta_resistive = 0.0;  add_hyperresistive = false;  eta_hyper = 0.0;
+			time_stop = 2.0*M_PI/whistler_omega();          // one wave period
+			bvisc_mode = BviscMaterialShock;
+			break;
+		case testResistiveDecay:
+			x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1, z_0 = -1, z_1 = 1;
+			gamma_plasma = 5.0/3.0;
+			x_bc = x_Periodic;  y_bc = y_Periodic;
+			add_resistive = true;  eta_resistive = 1.0e-2;  add_hyperresistive = false;  eta_hyper = 0.0;
+			ver_eps = 1.0e-2;
+			time_stop = 1.0;
+			bvisc_mode = BviscMaterialShock;
+			break;
+		case testUniformNoise:
+			// same mesh spacing and far-field state as testHarrisHall, periodic in x
+			x_0 = -2.0*M_PI, x_1 = 2.0*M_PI, y_0 = -M_PI, y_1 = M_PI, z_0 = -1, z_1 = 1;
+			gamma_plasma = 5.0/3.0;
+			x_bc = x_Periodic;  y_bc = y_Transmissive;
+			add_resistive = false;  eta_resistive = 0.0;  add_hyperresistive = false;  eta_hyper = 0.0;
+			ver_eps = 1.0e-6;
+			time_stop = 2.0;
+			bvisc_mode = BviscMaterialShock;
+			break;
+		case testViscousDecay:
+			x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1, z_0 = -1, z_1 = 1;
+			gamma_plasma = 5.0/3.0;
+			x_bc = x_Periodic;  y_bc = y_Periodic;
+			add_hall = false;  add_resistive = false;  eta_resistive = 0.0;
+			add_hyperresistive = false;  eta_hyper = 0.0;
+			add_viscous = true;  mu_visc = 1.0e-2;
+			ver_eps = 1.0e-2;
+			time_stop = 1.0;
+			bvisc_mode = BviscMaterialShock;
+			break;
+	}
+	{	// command-line overrides of the physical / numerical parameters
+		std::string v;
+		if((v = cli_get(argc, argv, "eta"))   != ""){ eta_resistive = stod(v); add_resistive = (eta_resistive != 0.0); }
+		if((v = cli_get(argc, argv, "mu"))    != ""){ mu_visc = stod(v);       add_viscous   = (mu_visc != 0.0); }
+		if((v = cli_get(argc, argv, "kappa")) != ""){ kappa_heat = stod(v);    add_heatflux  = (kappa_heat != 0.0); }
+		if((v = cli_get(argc, argv, "hyper")) != ""){ eta_hyper = stod(v);     add_hyperresistive = (eta_hyper != 0.0); }
+		if((v = cli_get(argc, argv, "di"))    != "") Hall_di = stod(v);
+		if((v = cli_get(argc, argv, "hall"))  != "") add_hall = (stoi(v) != 0);
+		if((v = cli_get(argc, argv, "tend"))  != "") time_stop = stod(v);
+		if((v = cli_get(argc, argv, "dt"))    != "") g_fixed_dt = stod(v);
+		if((v = cli_get(argc, argv, "cfl"))   != "") CFL = stod(v);
+		if((v = cli_get(argc, argv, "bvisc")) != "") bvisc_mode = (v == "mag") ? BviscMagnetic : BviscMaterialShock;
+		if((v = cli_get(argc, argv, "out"))   != "") g_out_root = v;
+		if((v = cli_get(argc, argv, "div"))   != ""){
+			if(v == "stag")   magfield = StaggerCT;
+			if(v == "unstag") magfield = UnStaggerCT;
+			if(v == "A")      magfield = PotentialA;
+		}
+		if(test == testWhistler && cli_get(argc, argv, "tend") == "") time_stop = 2.0*M_PI/whistler_omega();
+		std::cout << "# test=" << test << " nx=" << nxCells << " ny=" << nyCells
+		          << " eta=" << (add_resistive ? eta_resistive : 0.0) << " mu=" << (add_viscous ? mu_visc : 0.0)
+		          << " kappa=" << (add_heatflux ? kappa_heat : 0.0) << " hall=" << add_hall << " d_i=" << Hall_di
+		          << " eta_H=" << (add_hyperresistive ? eta_hyper : 0.0)
+		          << " bvisc=" << (bvisc_mode == BviscMagnetic ? "magnetic(Eq.83)" : "material+shock")
+		          << " div=" << (magfield == StaggerCT ? "StaggerCT" : magfield == UnStaggerCT ? "UnStaggerCT" : magfield == PotentialA ? "PotentialA" : "none")
+		          << " t_end=" << time_stop << std::endl;
 	}
 	
 	dx = (x_1 - x_0)/(nxPoints-1);
@@ -6079,8 +6567,9 @@ int main(int argc, char *argv[]){
 	div_error.emplace_back(timestep, cal_divergence_error(u_con, Bx_p0, By_0p));
 	double B_inf_m = 0;
 	double divB = 0;
-	for(int i = 0; i < nxCells + 2*ghost_cells; i++){
-		for(int j = 0; j < nyCells + 2*ghost_cells; j++){
+	// interior cells only: the stencil reads i-1 and i+1 (the old 0..N+2g range read outside the array)
+	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 			divB = (u_con(i+1,j,5) - u_con(i-1,j,5)) / (2.0*dx) + (u_con(i,j+1,6) - u_con(i,j-1,6)) / (2.0*dy);
 			if(fabs(divB) > B_inf_m){
 				B_inf_m = fabs(divB);
@@ -6237,8 +6726,13 @@ int main(int argc, char *argv[]){
 					Pressure_flux_Update(u_con, Qs, w_xL, w_xR, w_yL, w_yR, adt);
 					break;
 			}
-			bound_cond_u(u_con); 
-			
+			bound_cond_u(u_con);
+
+			// Non-ideal Poynting flux div(E_n x B^{n+1}) into E** (Dematte et al. Eq. 63)
+			NonIdeal_Energy_Update(u_con, adt);
+			// Implicit viscous stress and its work: (rho u)** and E** (Dematte et al. Eq. 62-63)
+			Viscous_Update(u_con, Qe, Qs, adt);
+
 			// Pressure Subsystem F^p + Momentum Update
 			switch(formula){
 				case EnergyFormula:
@@ -6307,9 +6801,11 @@ int main(int argc, char *argv[]){
 		
 		std::cout<<"[timestep, dt, time] = "  << timestep << " "<<dt << " " << t << ", Divergence Error: "<< cal_divergence_error(u_con, Bx_p0, By_0p)<< endl;
 		{   // ===== 跨代码对比诊断(归一化无关量) =====
-			double emin=1e30, mass=0, intE=0, mmax=0; int im=-1, jm=-1;
+			double emin=1e30, mass=0, intE=0, mmax=0, vmax=0, Etot=0; int im=-1, jm=-1;
 			for(int i=ghost_cells;i<nxCells+ghost_cells;i++) for(int j=ghost_cells;j<nyCells+ghost_cells;j++){
 				double rho=u_con(i,j,0);
+				vmax = fmax(vmax, sqrt(u_con(i,j,1)*u_con(i,j,1)+u_con(i,j,2)*u_con(i,j,2)+u_con(i,j,3)*u_con(i,j,3))/rho);
+				Etot += u_con(i,j,4);
 				double k=0.5*(u_con(i,j,1)*u_con(i,j,1)+u_con(i,j,2)*u_con(i,j,2)+u_con(i,j,3)*u_con(i,j,3))/rho;
 				double m=0.5*(u_con(i,j,5)*u_con(i,j,5)+u_con(i,j,6)*u_con(i,j,6)+u_con(i,j,7)*u_con(i,j,7));
 				double e=u_con(i,j,4)-k-m;
@@ -6317,7 +6813,7 @@ int main(int argc, char *argv[]){
 			}
 			double xe=x_0+(im-ghost_cells+0.5)*dx, ye=y_0+(jm-ghost_cells+0.5)*dy;
 			std::cout<<"DIAG ts="<<timestep<<" t="<<t<<" emin="<<emin<<" at("<<xe<<","<<ye<<")"
-			<<" mass="<<mass*dx*dy<<" intE="<<intE*dx*dy<<" magE_max="<<mmax
+			<<" mass="<<mass*dx*dy<<" intE="<<intE*dx*dy<<" Etot="<<Etot*dx*dy<<" vmax="<<vmax<<" magE_max="<<mmax
 			<<" gmresMV="<<g_gmres_matvec
 			<<" dt_ideal="<<g_dt_ideal<<" dt_hall="<<g_dt_hall<<std::endl;
 		}
@@ -6344,6 +6840,40 @@ int main(int argc, char *argv[]){
 		dt_comp.emplace_back(timestep, imex_dt/fully_dt);
 		
 	}while(t < time_stop);
+
+	// ---- error against the exact solution of the verification tests --------------------------
+	if(test == testWhistler || test == testResistiveDecay || test == testViscousDecay){
+		double e2 = 0.0, n2 = 0.0, e2b = 0.0, n2b = 0.0;
+		double Emag = 0.0, Ekin = 0.0, Eint = 0.0, Etot = 0.0;
+		for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+			for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+				double x = x_0 + (i - ghost_cells + 0.5)*dx, y = y_0 + (j - ghost_cells + 0.5)*dy;
+				double num1, ex1, num2, ex2;
+				if(test == testWhistler){
+					double ph = ver_k*x - whistler_omega()*t;
+					num1 = u_con(i,j,6);  ex1 =  ver_eps*cos(ph);
+					num2 = u_con(i,j,7);  ex2 = -ver_eps*sin(ph);
+				}else if(test == testResistiveDecay){
+					num1 = u_con(i,j,5);  ex1 = ver_eps*sin(2.0*M_PI*y)*exp(-eta_resistive*4.0*M_PI*M_PI*t);
+					num2 = u_con(i,j,5);  ex2 = ex1;
+				}else{
+					double d = exp(-mu_visc*4.0*M_PI*M_PI*t);
+					num1 = u_con(i,j,1)/u_con(i,j,0);  ex1 = ver_eps*sin(2.0*M_PI*y)*d;
+					num2 = u_con(i,j,3)/u_con(i,j,0);  ex2 = ex1;
+				}
+				e2 += (num1-ex1)*(num1-ex1);  n2 += ex1*ex1;
+				e2b += (num2-ex2)*(num2-ex2); n2b += ex2*ex2;
+				double rho = u_con(i,j,0);
+				double k = 0.5*(u_con(i,j,1)*u_con(i,j,1)+u_con(i,j,2)*u_con(i,j,2)+u_con(i,j,3)*u_con(i,j,3))/rho;
+				double m = 0.5*(u_con(i,j,5)*u_con(i,j,5)+u_con(i,j,6)*u_con(i,j,6)+u_con(i,j,7)*u_con(i,j,7));
+				Emag += m*dx*dy;  Ekin += k*dx*dy;  Eint += (u_con(i,j,4)-k-m)*dx*dy;  Etot += u_con(i,j,4)*dx*dy;
+			}
+		}
+		std::cout << std::scientific << std::setprecision(6)
+		          << "VERIFY t=" << t << " nx=" << nxCells << " ny=" << nyCells
+		          << " relL2(comp1)=" << sqrt(e2/n2) << " relL2(comp2)=" << sqrt(e2b/n2b)
+		          << " Emag=" << Emag << " Ekin=" << Ekin << " Eint=" << Eint << " Etot=" << Etot << std::endl;
+	}
 	
 	ofstream outFilerho(Path + "/RK_rho.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
