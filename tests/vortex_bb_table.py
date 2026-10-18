@@ -1,15 +1,15 @@
 """Battisti-Boscheri Table-1 style convergence tables for the two-phase isentropic vortex (case 56), t = 5, L2 = sqrt(sum e^2 dx dy)
 against the exact cell averages (written by the solver with init=1).  Variables: alpha2 rho2, alpha2 rho2 u, alpha2 (as BB Table 1),
-mixture density rho, velocity vector |u - u_ex|, mixture pressure p.  One table per initial data (lim0 = cell averages as BB,
-wp = discretely well-prepared velocity), blocks p0 = 1 ... 1e10, N = 32 ... 256, h = 10/N.
-usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_{lim0,wp}.png/.tex/.md)"""
+mixture density rho, velocity vector |u - u_ex|, mixture pressure p.  Cell-average initial data and p0 = 1 ... 1e4 as BB Table 1,
+N = 32 ... 256, h = 10/N.
+usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_lim0.png/.tex/.md)"""
 import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
 if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True); REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
-DIRS = [os.path.join(H, 'run', 'v21e', 'vortex'), os.path.join(H, 'run', 'v21e', 'allmach', 'vortex')]
-P0 = ['1', '10', '100', '1000', '10000', '1e6', '1e8', '1e10']; NS = [32, 64, 128, 256]
+DIRS = [os.path.join(H, 'run', 'v21e', 'vortex')]
+P0 = ['1', '10', '100', '1000', '10000']; NS = [32, 64, 128, 256]
 def load(f): d = np.loadtxt(f); return d
 def ref(N, p0):
     f = os.path.join(REF, 'init_N%d_p%s.dat' % (N, p0))
@@ -29,9 +29,9 @@ def errors(f, N, p0):
             L2(d[:, 5] - e[:, 5]), L2(np.hypot(d[:, 3] - e[:, 3], d[:, 4] - e[:, 4])), L2(d[:, 2] - e[:, 2])]
 HEAD = [r'$N$', r'$h$', r'$L_2(\alpha_2\rho_2)$', r'$\mathcal{O}$', r'$L_2(\alpha_2\rho_2u)$', r'$\mathcal{O}$', r'$L_2(\alpha_2)$', r'$\mathcal{O}$',
         r'$L_2(\rho)$', r'$\mathcal{O}$', r'$L_2(\mathbf{u})$', r'$\mathcal{O}$', r'$L_2(p)$', r'$\mathcal{O}$']
-TITLE = {'lim0': 'cell-average initial data (as Battisti-Boscheri)', 'wp': 'discretely well-prepared initial velocity'}
+TITLE = {'lim0': 'cell-average initial data (as Battisti-Boscheri)'}
 out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(H, 'docs', 'figures', 'vortex_table')
-for tag in ['lim0', 'wp']:
+for tag in ['lim0']:
     blocks = []
     for p0 in P0:
         rows, prev = [], None
@@ -66,6 +66,6 @@ for tag in ['lim0', 'wp']:
             y -= dy
     ax.plot([0.01, 0.99], [y + dy / 2] * 2, 'k-', lw=0.8)
     ax.set_ylim(y, 1.0 + dy); ax.set_xlim(0, 1)
-    ax.set_title('Two-phase isentropic vortex (Battisti-Boscheri 4.1), t = 5, L2 errors vs exact cell averages, IMEX (V16), %s' % TITLE[tag], fontsize=10)
+    ax.set_title('Two-phase isentropic vortex (Battisti-Boscheri 4.1), t = 5, L2 errors vs exact cell averages, IMEX (V21), %s' % TITLE[tag], fontsize=10)
     fig.tight_layout(); fig.savefig(out + '_' + tag + '.png', dpi=130); plt.close(fig)
     print('wrote', out + '_' + tag)

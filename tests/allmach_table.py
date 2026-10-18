@@ -2,7 +2,7 @@
 Reference = exact cell averages written by the solver itself (init=1; for both tests the exact solution at t_end equals the initial state:
 Taylor-Green is steady, the vortex returns after one period).  Order = log2(e_{N/2} / e_N).
   Taylor-Green (cases 57/58, <root>/tg<case>_p<p0>_lim<l>_N<N>.log/.dat): Mach sweep on 50^2 (+ divergences) and convergence N = 32..256
-  two-phase vortex (case 56, <root>/vortex/<lim0|wp>_p<p0>_N<N>.log/.dat): convergence N = 32..256
+  two-phase vortex (case 56, <root>/vortex/lim0_p<p0>_N<N>.log/.dat): BB Table 1, p0 = 1 ... 1e4, convergence N = 32..256
 usage: python3 tests/allmach_table.py [root=run/allmach]"""
 import re, glob, os, sys, math, subprocess
 import numpy as np

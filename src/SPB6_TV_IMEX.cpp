@@ -20,7 +20,7 @@
 //
 //  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
 //  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt init nulaw nucr
-//        snap probe prec p0 wellprep vtk verbose（含义见 E 页 E0）
+//        snap probe prec p0 vtk verbose（含义见 E 页 E0）
 // =====================================================================================================================
 #include <iostream>
 #include <vector>
@@ -1077,7 +1077,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1114,25 +1114,7 @@ int main(int argc, char *argv[]){
 	double M0[3]; conserved_totals(u_con, M0);
 	Grid u_init(nxCells, nyCells); copy(u_init, u_con);   // 算例 56：平移一周后的精确格平均就是初值
 	if (INIT_ONLY) { write_profile(u_init, out_file); return 0; }   // init=1：只写精确格平均初值（误差后处理 tests/allmach_table.py 的参考解）
-	// 算例 56 的离散良态初值（wellprep=1，devlog V15）：格平均速度的离散散度是 O(h^2)，低马赫时乘 rho c^2 产生长波声波，
-	// 粗网格上压力的表观阶降到 1.2-1.3。改用格心流函数 psi_ij 的中心差分 u = 2 + D_y psi，v = 2 - D_x psi：
-	// 面速度取两侧格速度的平均（B4.1），格的散度是宽中心差分 D_x u + D_y v = D_x D_y psi - D_y D_x psi = 0（差分算子可交换），逐位为零到舍入。
-	// 密度、alpha、相内能仍取格平均；误差仍与精确格平均（u_init）比
-	// 算例 57、58（Taylor-Green）同理，流函数 sin x sin y，无平移
 	const bool isTG = test == testTaylorGreen1 || test == testTaylorGreen2;
-	if ((test == testVortexBB || isTG) && WELLPREP) {
-		auto xc = [&](int i) { i = (i + nxCells) % nxCells; return x_0 + (i + 0.5) * dx; };
-		auto yc = [&](int j) { j = (j + nyCells) % nyCells; return y_0 + (j + 0.5) * dy; };
-		auto psi = [&](double x, double y) { return isTG ? tg_psi(x, y) : vortex_psi(x, y); };
-		const double U0 = isTG ? 0.0 : 2.0;
-		for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) {
-			const double u = U0 + (psi(xc(i), yc(j + 1)) - psi(xc(i), yc(j - 1))) / (2 * dy);
-			const double v = U0 - (psi(xc(i + 1), yc(j)) - psi(xc(i - 1), yc(j))) / (2 * dx);
-			double* Q = &u_con(IG(i), IG(j), 0); const double rho = Q[IM1] + Q[IM2];
-			Q[IMU] = rho * u; Q[IMV] = rho * v; Q[IEN] = Q[IE1] + Q[IE2] + 0.5 * rho * (u * u + v * v);
-		}
-		bound_cond_u(u_con); conserved_totals(u_con, M0);
-	}
 
 	const int plotINTERVAL = 0;
 	std::vector<double> IntermediatePlotTimes = {0.25 * time_stop, 0.5 * time_stop, 0.75 * time_stop, time_stop};
