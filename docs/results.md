@@ -16,8 +16,8 @@
 
 **复现。**
 
-- `bash tests/run_paper_figs.sh run/figs`：编译并在论文网格上运行全部算例（显式 + IMEX）；
-- `python3 tests/plot_paper_figs.py run/figs docs/figures`：画图。
+- `bash tests/run_archive.sh run/archive`：编译并在论文网格上运行全部算例（IMEX）；`python3 tests/make_archive.py run/archive data` 写 `data/`；
+- `python3 tests/plot_paper_figs.py run/archive docs/figures`、`python3 tests/plot_2d_paper.py run/archive docs/figures`：画图。
 
 ---
 

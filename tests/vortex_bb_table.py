@@ -6,8 +6,9 @@ usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_{lim0,
 import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(H, 'src', 'spb6_conv'); REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
-DIRS = [os.path.join(H, 'run', 'v16e', 'vortex'), os.path.join(H, 'run', 'allmach', 'vortex')]
+BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
+if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True); REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
+DIRS = [os.path.join(H, 'run', 'v21e', 'vortex'), os.path.join(H, 'run', 'v21e', 'allmach', 'vortex')]
 P0 = ['1', '10', '100', '1000', '10000', '1e6', '1e8', '1e10']; NS = [32, 64, 128, 256]
 def load(f): d = np.loadtxt(f); return d
 def ref(N, p0):

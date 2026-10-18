@@ -852,10 +852,10 @@ $$
   - `tests/exactfan.py`：$pT\to pTg$ 平衡扇（P-S 的 SG 水）；
   - `tests/exact_relaxed.py`：4 方程（$pT$ 松弛）的扇与带激活的 $pT\to pTg$ 扇，SG 与 NASG（V8）；`tests/exact5.py` 也加了 NASG 余容。
 - 复现：
-  - `bash tests/run_suite.sh OUT all`（编译并运行 `src/spb6_ex` 与 `src/spb6_imex`）；
+  - 全部论文算例（IMEX，论文网格）：`bash tests/run_archive.sh run/archive`，`python3 tests/make_archive.py run/archive data`；
   - `python3 tests/metrics.py CASE files`；
   - `python3 tests/relax0d.py`；
-  - 论文网格上的对照图：`bash tests/run_paper_figs.sh run/figs`，`python3 tests/plot_paper_figs.py run/figs docs/figures`。
+  - 图：`python3 tests/plot_paper_figs.py run/archive docs/figures`，`python3 tests/plot_2d_paper.py run/archive docs/figures`。
 
 各数字来自当前代码（V11，见 C. 开发记录）。与论文各图一一对应的结果（论文网格、变量与论文相同、显式与 IMEX 并列）见 D. 测试结果（`docs/results.md`）。
 
