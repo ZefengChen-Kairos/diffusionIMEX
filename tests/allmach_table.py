@@ -3,11 +3,11 @@ Reference = exact cell averages written by the solver itself (init=1; for both t
 Taylor-Green is steady, the vortex returns after one period).  Order = log2(e_{N/2} / e_N).
   Taylor-Green (cases 57/58, <root>/tg<case>_p<p0>_lim<l>_N<N>.log/.dat): Mach sweep on 50^2 (+ divergences) and convergence N = 32..256
   two-phase vortex (case 56, <root>/vortex/lim0_p<p0>_N<N>.log/.dat): BB Table 1, p0 = 1 ... 1e4, convergence N = 32..256
-usage: python3 tests/allmach_table.py [root=run/allmach]"""
+usage: python3 tests/allmach_table.py [root=run/v21e/allmach]"""
 import re, glob, os, sys, math, subprocess
 import numpy as np
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-root = sys.argv[1] if len(sys.argv) > 1 else 'run/allmach'
+root = sys.argv[1] if len(sys.argv) > 1 else 'run/v21e/allmach'
 BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
 if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True)
 num = r'([-+0-9.eE]+)'
