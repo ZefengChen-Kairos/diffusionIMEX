@@ -40,8 +40,8 @@ $u^e$ 是显式级态的速度。
 
 | 方程 | 显式（对流，Rusanov） | 隐式（压力 + 闭合） |
 |---|---|---|
-| $\alpha_k$ | $\partial_x(\alpha_ku^e)$ | $\partial_x(\hat\alpha_k\Delta u)$，体积应变 $-\alpha_k\partial_xu$，松弛 |
-| $m_k$ | $\partial_x(m_ku^e)$ | $\partial_x(\hat m_k\Delta u)$，传质 |
+| $\alpha_k$ | $\partial_x(\alpha_ku^e)$ | $\partial_x(\alpha^{\rm face}_k\Delta u)$，体积应变 $-\alpha_k\partial_xu$，松弛 |
+| $m_k$ | $\partial_x(m_ku^e)$ | $\partial_x(m^{\rm face}_k\Delta u)$，传质 |
 | $\varepsilon_k$ | $\partial_x(\varepsilon_ku^e)$ | $\partial_x(\hat\varepsilon_k\Delta u)$，压力功 $\alpha_kp_k\partial_xu$，松弛 |
 | $\rho u$ | $\partial_x(\rho uu^e)$ | $\partial_x\bar p$，$\partial_x(u\,\hat M\Delta u)$ |
 | $E$ | $\partial_x(Eu^e)$ | $\partial_x(\bar pu)$，$\partial_x(\hat E\Delta u)$ |
@@ -156,7 +156,7 @@ $$
 - 高波数才是缺口：奇偶速度模态 $u_i=(-1)^i$ 的面平均为零，不产生散度，压力看不见它；$p_f$ 是压力平均，也看不见它。所以中心隐式声学算子**对任何 $\nu$ 都不阻尼它**（$|\lambda(\pi)|=1$，$\nu$ 从 0.05 到 10 都如此）。只有显式的物质速度 Rusanov（BB 的耗散）阻尼它，每步因子 $|1-2C|$；从静止起步时 $a_\Omega=0$，完全不阻尼。
 - 强间断处（起步的压力跳跃、阻抗跳跃很大的接触）这个模态被大量激发，表现为界面附近的色散过冲：十二烷算例液体速度过冲 13%、拉出张力、微量蒸汽空化（$p\to0$，与 $\Delta t$ 无关）；水–气算例 CFL $\le0.1$ 时界面格被抽空。
 
-所以在隐式面量上加声学 Riemann 解（Godunov）的迎风项：速度跳跃项阻尼奇偶模态，压力扩散项使压力跳跃处的面速度单调（只加其一都不够：只加速度项时十二烷的空化仍在，只加压力项时水–气的气体过冲 7%）。权重取 $(1-\nu)^+$：
+所以在隐式面量上加声学 Riemann 解（Godunov）的迎风项：速度跳跃项阻尼奇偶模态，压力扩散项使压力跳跃处的面速度单调（只加其一都不够：只加速度项时十二烷的空化仍在，只加压力项时水–气的气体过冲 7%）。权重取 $(1-\nu)^+$（推导见下面“权重的来历”，V21）：
 $$
 \boxed{\begin{aligned}
 u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\varphi_f\,\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
@@ -165,6 +165,9 @@ p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\p
 $$
 $Z=\rho^*c$，$\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$。一维中 $D^*_f=u^*_{i+1}-u^*_i$；二维中 $D^*_f$ 是面两端两个顶点散度的平均乘 $\Delta x$（B4.1(c)，V11），一维与 y 向均匀时逐位退化为 $u^*_{i+1}-u^*_i$。
 
+- **权重的来历（V21）。** 对一个隐式级（后向 Euler，步长 $\tau$）的线性声学做 von Neumann 分析（`tools/stage_viscosity.py`，两项同乘 $\varphi$），低波数的等效粘性是
+  $$D_{\rm stage}=\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x\,(\nu+\varphi)\qquad(\text{数值核对到三位}).$$
+  第一项是后向 Euler 自己的，第二项是补足项。迎风（Godunov）的 $\tfrac12c\Delta x$ 是三点半离散格式系数为正（单调）所需的最小粘性。要求每一级对已分辨的声波**不少于**迎风粘性、且**不多加**：$D_{\rm stage}=\max(\tfrac12c\Delta x,\tfrac12c^2\tau)$，唯一解就是 $\varphi=(1-\nu)^+$。$\nu<1$ 时补足项恰好补上后向 Euler 相对迎风的差额；$\nu\ge1$ 时后向 Euler 自己已超过迎风，不再加。两项（压力扩散、速度跳跃）是 Godunov 耗散在两个特征变量上的两半，同一个权重。$\varphi\equiv1$（V20 试过）给出 $\tfrac12c\Delta x(1+\nu)$，超出迎风 $\tfrac12c^2\tau$：低马赫收敛序列里 $\nu$ 固定，这部分不随网格消失（C. 开发记录 20.4）。
 - $\tau\to0$：$\varphi=1$，$u_f-\bar u^*=-\Delta P/(Z_i+Z_{i+1})$，$p_f-\bar p=-\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\Delta u$，就是声学 Riemann 解（Godunov）。
 - $c\tau\ge\Delta x$：$\varphi=0$，格式不变。固定 $\Delta t,\Delta x$ 令 $M\to0$ 时 $c\tau/\Delta x\to\infty$，补足项恒为零，极限格式与不加补足项时相同。
 - $\varphi>0$ 当且仅当时间步分辨声波（$c\tau<\Delta x$，即 $M>a_{ii}\mathrm{CFL}$，或起步斜坡）。$a_{ii}\mathrm{CFL}<M<1$ 这一段与起步斜坡里它是声速量级的耗散，是否破坏低马赫精度见 (c)。
@@ -240,19 +243,34 @@ $$
 
 一步内面扫过的体积是 $u_f\tau$，其中的物质来自 $u_f$ 的上游格。显式部分已经按 $\bar u^e_f$ 从**它的**上游格扫过 $\bar u^e_f\tau$（Rusanov 在 $a_\Omega\ge|u|$ 时就是迎风加耗散），增量只需补足差额：
 $$
-I_f[X]=\hat X_{i}\big[(u_f)^+-(\bar u^e_f)^+\big]+\hat X_{i+1}\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\tag{B4.2'}
+I_f[X]=X^{L}_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^{R}_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\tag{B4.2'}
 $$
-$(\cdot)^\pm=\max/\min(\cdot,0)$，$\hat X_j=X^*_j/\sum_l\alpha^*_{l,j}$ 是格 $j$ **单位体积**的内容。
+$(\cdot)^\pm=\max/\min(\cdot,0)$，$X^{L,R}_f$ 是显式部分 (B3.1) 在这个面上用的**同一组重构面值**（$Q^e$ 上，$\alpha_2$ 的面值取 $1-\alpha_1$ 的面值；V21，理由见下面的“微量相保正”）。V20 及以前取格 $j$ 的单位体积内容 $\hat X_j=X^*_j/\sum_l\alpha^*_{l,j}$。
 
-- 同号（$u_f$ 与 $\bar u^e_f$ 同向）：$I_f=\hat X_{\rm up}\Delta u_f$。$\Delta u_f<0$ 时退回的是显式部分扫过来的**同一种**物质。
+- 同号（$u_f$ 与 $\bar u^e_f$ 同向）：$I_f=X^{\rm up}_f\Delta u_f$。$\Delta u_f<0$ 时退回的是显式部分扫过来的**同一种**物质。
 - 反向：退回显式扫过的全部，再从另一侧扫 $u_f\tau$。
-- $\sum_k\hat\alpha_{k,j}=1$，两项系数之和为 $\Delta u_f$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；同一系数用于 $\alpha_k,m_k,\varepsilon_k$，R3 不变；$I_f$ 对 $P$ 连续（分段线性）。
+- $\sum_k\alpha^{\rm face}_k=1$，两项系数之和为 $\Delta u_f$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；同一系数用于 $\alpha_k,m_k,\varepsilon_k$，R3 不变；$I_f$ 对 $P$ 连续（分段线性）。
 - **旧写法的错误：** 若按 $\Delta u_f$ 的符号取供体，$\Delta u_f<0$ 而 $u_f>0$ 时，增量从**下游**格取物质。显式部分把 L 的物质扫进 R，增量却从 R 退回 R 的物质，等于在面上交换两种物质：单速度模型里不该有的相间逆流（液–汽界面处把汽送进液体）。
 - 显式通量中 $a_\Omega>|u|$ 的那部分是 Rusanov 的数值耗散，保持不变。
 
-**为什么按单位体积归一。** 显式输运之后，格 $j$ 内的物质占体积 $\sum_l\alpha^*_{l,j}=1-r\delta_j[\bar u^e]\neq1$；增量通量搬走的是体积 $r\Delta u_f$ 的这种物质，所以按单位体积归一。于是 $\sum_k\hat\alpha_{k,j}=1$，(B4.4) 严格成立；三个量用同一个归一因子，比值 $\rho_k,e_k$ 不变（R3）；$\Delta u_f=O(\tau)$，一阶的供体内容在光滑区只带来 $O(\Delta x\,\tau)$ 的误差。
+**微量相保正（V21）。** 记 $r=\tau/\Delta x$，$w^L=(u_f)^+-(\bar u^e_f)^+$，$w^R=(u_f)^--(\bar u^e_f)^-$。显式通量 (B3.1) 加增量 (B4.2') 是
+$$
+F^e_f+I_f=X^L_f\Big[\tfrac12(u^L_f+a_f)+w^L\Big]+X^R_f\Big[\tfrac12(u^R_f-a_f)+w^R\Big] .
+$$
+在 $Q^e=Q^s$ 的级（第一级、后向 Euler）里，用 $X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$（线性重构），
+$$
+\begin{aligned}
+X^{\rm tr}_i={}&X^L_{i+1/2}\Big[\tfrac12-r\big(\tfrac12(a+u^L)+w^L\big)_{i+1/2}\Big]+X^R_{i-1/2}\Big[\tfrac12-r\big(\tfrac12(a-u^R)-w^R\big)_{i-1/2}\Big]\\
+&+r\big(\tfrac12(a-u^R)-w^R\big)_{i+1/2}X^R_{i+1/2}+r\big(\tfrac12(a+u^L)+w^L\big)_{i-1/2}X^L_{i-1/2} .
+\end{aligned}
+$$
+- **邻格系数非负，不需要新条件。** B3 的 $a\ge\max(|u^L|,|u^R|)$ 给出 $\tfrac12(a+u^L)\ge\bar u^{e+}$、$\tfrac12(a-u^R)\ge-\bar u^{e-}$，所以 $\tfrac12(a+u^L)+w^L\ge(u_f)^+\ge0$，$\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$：增量退回的量不超过显式部分实际送来的量。
+- **本格系数非负**的充分条件 $r\,(a_f+|u_f|)\le\tfrac12$（二维逐方向 $r_x(a+|u_f|)\le\tfrac14$、$r_y(a+|v_f|)\le\tfrac14$）。物质 CFL 0.2 时 $a_{ii}r\,a\approx0.06$；$u_f$ 偏离物质速度很多时这一条可能不成立，那时由 B8 的可容许性检查与 MOOD 处理。
+- 于是每一相的 $(\alpha_k,m_k,\varepsilon_k)$ 是面态的非负组合。共用限制因子（B3）使面值落在相邻格值之间，SG/NASG 的可容许集 $\{\alpha>0,m>0,\alpha-mb>0,\varepsilon-mq-(\alpha-mb)\pi>0\}$ 是线性约束的凸锥，所以**每一相（含微量相）的输运态可容许，与含量比无关**。
+- **旧供体为什么不行。** 按格内含量退回时，本格相 $k$ 的变化里有 $-r\hat X_{k,\rm nb}|w|$，而显式部分送来的是 $X^{\rm face}_{k,\rm nb}$；本格的余量要与 $\hat X_{k,\rm nb}/\hat X_{k,i}$ 成比例，接触处约 $10^8$，任何步长条件都管不住（C. 开发记录 11.7、20.5）。
+- 保持的性质：$\sum_k\alpha^{\rm face}_k=1$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；体积输运量共用限制因子，$m_k=\rho_k\alpha_k$、$\varepsilon_k=\rho_ke_k\alpha_k$ 时面值保持同样比例，温度一致性 B9.2 不变；面值与格内含量差 $O(\Delta x)$，$\Delta u_f=O(\tau)$，精度阶不变。LSDIRK2 第二级 $Q^e\ne Q^s$ 时论证与 B3 一样不成立，由 MOOD 处理。
 
-**动量与总能的增量。** 记 $M_{L}=\sum_k\hat m_{k,i}\big[(u_f)^+-(\bar u^e_f)^+\big]$、$M_R=\sum_k\hat m_{k,i+1}\big[(u_f)^--(\bar u^e_f)^-\big]$，$\hat M_f=M_L+M_R$。增量质量携带新时间层的法向面速度 $u_f$，切向速度取各自供体格的 $v^*$。
+**动量与总能的增量。** 记 $M_{L}=\sum_km^L_{k,f}\big[(u_f)^+-(\bar u^e_f)^+\big]$、$M_R=\sum_km^R_{k,f}\big[(u_f)^--(\bar u^e_f)^-\big]$，$\hat M_f=M_L+M_R$。增量质量携带新时间层的法向面速度 $u_f$，切向速度取各自供体格的 $v^*$。
 
 输运态为
 

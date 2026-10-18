@@ -290,11 +290,12 @@ inline void stencil_state(const double* c, double* st) {
 // 按 (II.5) 应得 Q_k = phys_dissipation(k, m_k, v_k^pre, p_lo, p_hi)；激波强度 p_lo -> p_hi 取模板上混合压力的极值，波前的相比容
 // v_k^pre = alpha_k/m_k 取模板里压力最低的格（相不存在时取本格）。否则 Q = 0（全部按误差分）。
 // 用本格自己的质量而不是波前格的 alpha_k：激波穿过接触/混合区时，被压缩的是本格的物质（均匀组分时两者的比例相同）
+int SB_RAD = 2;   // 激波预算的模板半径（试验 V21；V16 = 2）
 template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
 	Q[0] = Q[1] = 0.0;
 	double c0[7], st[7], lo[7] = {0, 0, 0, 0, 0, 0, 0}, plo = 1e300, phi = -1e300, div = 0.0;
 	cell(0, 0, c0);
-	for (int d = 0; d < (twoD ? 2 : 1); d++) for (int q = -2; q <= 2; q++) {
+	for (int d = 0; d < (twoD ? 2 : 1); d++) for (int q = -SB_RAD; q <= SB_RAD; q++) {
 		if (d == 1 && q == 0) continue;
 		cell(d == 0 ? q : 0, d == 1 ? q : 0, st);
 		if (q == 1) div += st[5 + d]; else if (q == -1) div -= st[5 + d];
