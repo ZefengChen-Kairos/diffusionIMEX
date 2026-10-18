@@ -391,7 +391,7 @@ $x_i=p_i+\pi_k$；$f_k$ 对 $v-b$ 齐次，$(v^{\rm pre}_k-b_k)f_k$ 是每单位
 
 **模板为什么是非局部的、又为什么取 $\pm1$（V21）。** (II.5) 是终态条件；(b) 的剖面分析表明，满足它的是**整个剖面上不变的**全跳跃份额，所以激波里任何一格都必须知道波后状态，而波后状态在空间上（在激波后面）。没有空间模板的“压缩历史预算”（每格从开始压缩时记 $p_{\rm on}$、沿质点路径用 $m_kd_k(p_{\rm on}\to p)$）在剖面前段用的是部分跳跃的弱激波份额，试过：SPB 5.2 $\rho^*$ 3819.9（模板 3778.9，精确 3766.7），所以非局部不可避免。模板半径对结果不敏感（SPB 5.2 $\rho^*$：半径 1/2/3/4 为 3781.1/3778.9/3778.6/3778.6；5.1 不变；半径 3 的空化 RM 0 次拒绝；全部一维与二维粗网格算例 V21 半径 1 与 2 的差在千分之几），因为 $\delta\le Q$ 多数时候成立、强激波份额对强度不敏感。所以取最小的非局部模板，即格式通量本身的 $\pm1$ 模板，不引入额外长度。连通压缩段（V19）在空化 RM 上失败，见 C. 开发记录 V19、V21。
 
-**(d) 离散误差的分配。** 按各相在可容许界之上的能量分（V14 的负亏损规则推广到两个符号）：
+**(d) 离散误差的分配。** 按各相在可容许界之上的能量分（V14 的负亏损规则推广到两个符号；唯一性与变分刻画见 B9.5 定理 12、命题 13）：
 
 $$
 \lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr}
@@ -742,6 +742,22 @@ $$Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\Delta p^3+O(\Delta p^4),\qqua
 **命题 11（Newton 的舍入底，B8，devlog 16.9）。** 闭合压力的舍入误差界
 $$\sigma_i=\epsilon_m\Big(|(\rho e)^C|+\sum_k|\varepsilon^{\rm tr}_k|+\sum_k|m_kq_k|\Big)\sum_k\lambda_k\frac{\gamma_k-1}{\gamma_k(p+\pi_k)}\Big/|\Phi'(p)| .$$
 *推导：* 能量亏损 $D_0=(\rho e)^C-\sum\varepsilon^{\rm tr}_k$ 是大数之差，带 $\epsilon_m(\cdots)$ 的舍入；它按 $\lambda_k$ 进入相 $k$，经 $\partial\alpha_k/\partial A_k=(\gamma_k-1)/(\gamma_k(p+\pi_k))$ 与 $\Phi'(p)=\sum\partial\alpha_k/\partial p$ 传到压力。残量低于 $10^{-13}N_i+\sigma_i$ 时 Newton 不可能再改进，判为收敛。∎
+
+**定理 12（误差部分的分配唯一，B5.2(d)，V21）。** 设两相在分配前可容许，$E_k>0$ 是相 $k$ 的内能高出其可容许下界的部分（NASG/SG：$E_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}$；MG：冷曲线之上的热能 $\varepsilon_k-m_k\varepsilon_r$）。在相体积固定时，把亏损 $\delta$ 按与 $\delta$ 无关的份额 $\lambda_k$（$\sum_k\lambda_k=1$）分给两相，分配后 $E_k+\lambda_k\delta$。要求对**所有**使混合物仍可能可容许的 $\delta$（$\delta>-\sum_jE_j$）每一相都保持可容许，则份额唯一：
+$$\lambda_k=\frac{E_k}{\sum_jE_j}=\lambda^E_k .$$
+*证明：* $\delta\to+\infty$ 要求 $\lambda_k\ge0$。$\delta\to-\sum_jE_j$ 要求 $E_k-\lambda_k\sum_jE_j\ge0$，即 $\lambda_k\le E_k/\sum_jE_j$。对 $k$ 求和，两边都是 1，所以每个不等式都取等号。反之 $\lambda^E$ 给出 $E_k+\lambda^E_k\delta=E_k\big(1+\delta/\sum_jE_j\big)>0$。∎
+*附注：* 任何别的份额（按质量、按体积……）都存在 $\delta\in(-\sum E,0)$ 使某一相（通常是微量相）先变得不可容许；正的 $\delta$ 下它们把误差按含量之外的比例给微量相，而微量相的 $E_k$ 极小（水中 $10^{-6}$ 的空气 $0.25$ J/m³ 对水 $10^9$ J/m³），一点误差就是很大的相对误差。闭合里有体积应变 $s$ 时，可容许量是 $N_k=E_k+\lambda_k(\delta-s(p+\pi_k))+\xi_k$（E5.0），定理在 $s=0$ 时严格成立；$s\ne0$ 的部分是压缩功，按各相自己的体积分数 $\omega_k$ 进入（B5.1），不属于亏损的分配。
+
+**命题 13（误差分配的变分刻画，B5.2(d)，V21）。** $\lambda^E$ 是下面问题的唯一解：
+$$\min_{\Lambda}\ \sum_k\frac{\Lambda_k^2}{E_k}\quad\text{s.t.}\quad\sum_k\Lambda_k=\delta ,$$
+即在“各相内能相对其可容许余量的扰动”$\Lambda_k/E_k$ 的 $E$ 加权二次度量下扰动最小；最优解使所有相的相对扰动 $\Lambda_k/E_k$ 相同，NASG/SG 相的 $p_k+\pi_k$（固定体积时）同乘 $1+\delta/\sum E$。
+*证明：* Lagrange 条件 $2\Lambda_k/E_k=\mu$，所以 $\Lambda_k\propto E_k$；目标严格凸，解唯一。∎
+*附注：* 最大化总熵（$\max\sum_km_kc_{v,k}\ln(E_k+\Lambda_k)$）给出 $E_k+\Lambda_k\propto m_kc_{v,k}$，即两相温度相等——那是热松弛（$pT$ 闭合）本身，不是 $p$ 闭合里误差该做的事；所以误差的分配不能用熵极值，而是用“保持可容许、扰动最小”的定理 12/命题 13。
+
+**定理 14（压缩判据，B5.2(c)，V21）。** 若相的基本导数 $\mathcal G_k>0$，则可容许激波（Lax 熵条件）都是压缩激波：穿过激波 $v$ 减小、$\nabla\!\cdot\mathbf u<0$。所以 (II.5) 的物理耗散只存在于 $\nabla\!\cdot\mathbf u<0$ 的格；判据取 $u^*$ 在格式自身紧致模板上的中心差分散度 $<0$。
+*证明：* $\mathcal G>0$ 时等熵线 $p(v)$ 下凸，Hugoniot 在 $p_0$ 处与等熵线二阶相切，熵沿 Hugoniot 随 $p$ 单调增（Bethe–Weyl），熵增要求 $p_1>p_0$、$v_1<v_0$。∎ NASG/SG：$\mathcal G=(\gamma+1)/2>0$。MG 相在算例的状态范围内数值核对：Cochran–Chan 硝基甲烷 $\rho\in[800,2500]$ kg/m³ 上 $\min\mathcal G=1.66$，JWL 爆轰气体 $\rho\in[500,2500]$ 上 $1.26$。
+
+**附注 15（限制器）。** 定理 4、5、7 只用到：共用限制因子 $\phi\in[0,1]$、极值处 $\phi=0$、面值落在相邻格值之间。Sweby TVD 区域内的限制器都满足，所以 minmod 不是推导唯一给出的；取 minmod 是这个区域的下界（最耗散、最稳健），属于选择（第二类）。
 
 ---
 
