@@ -869,6 +869,9 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 	// 上一次的压力场（Newton 初猜）与 u*：只用来算二阶限制因子 psi（显式量，残量对 P 仍是线性的）
 	Array Pold(nx, ny);
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) Pold(i, j) = P.P[M_P(i, j)];
+	if (ACP == 3) {   // 试验（V21）：psi^P 由本级显式预测态 X* 的混合压力给出（与共用限制因子同一时刻），不与输运量耦合
+		for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) { double st[7]; stencil_state(S.Xs.cell(i, j), st); Pold(i, j) = std::isfinite(st[4]) ? st[4] - P_REF : Pold(i, j); }
+	}
 	auto minmod = [](double a, double b) { return a * b <= 0 ? 0.0 : (std::fabs(a) < std::fabs(b) ? a : b); };
 	// psi = 1 - (sig_L + sig_R)/(2 D)：与 D 同号且 |sig| <= |D|，故 psi in [0,1]；光滑区 psi = O(dx)，间断处 psi -> 1
 	auto psi_face = [&](double xm, double xL, double xR, double xp) {
