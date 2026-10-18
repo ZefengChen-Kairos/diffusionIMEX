@@ -237,7 +237,7 @@ static const double YMIN = 1e-10;
 // - 物理耗散按模型自己的激波关系分。5 方程模型的激波闭合是 SPB (II.5)（Saurel, Le Métayer, Massoni, Gavrilyuk 2007）：每相走自己的
 //   Hugoniot，e_k - e_k0 = -(p0 + p1)/2 (v_k - v_k0)。剖面分析（devlog V16）：格式的极限激波满足 (II.5) 当且仅当第 k 相得到的热是
 //   Q_k = m_k (v_k^pre - b_k) f_k(p_lo -> p_hi)，m_k 为本格的质量，f_k(v_pre - b) = 同一终压下相 k 每单位质量的 Hugoniot 能量减等熵能量
-//   （弱激波极限 alpha_k G_k dp^3/(6 K_k^2)，G_k = (gamma_k + 1)/2，K_k = rho_k c_k^2）。激波强度 p_lo -> p_hi 取 ±2 格模板上混合压力的极值，
+//   （弱激波极限 alpha_k G_k dp^3/(6 K_k^2)，G_k = (gamma_k + 1)/2，K_k = rho_k c_k^2）。激波强度 p_lo -> p_hi 取格式自身的紧致模板（±1，二维十字）上混合压力的极值，
 //   波前的相比容取模板里压力最低的格。
 // - 离散误差按各相可容许界之上的能量 E_k 分（V14 的负亏损规则推广到两个符号）：各相的 p_k + pi_k 同乘 (1 + delta/sum E)，两相的相对
 //   误差相同，微量相既不会被加热也不会被扣成负值。质量分配（V10–V15）是格式数值粘性的分法，不是模型的：它让 SPB 5.2 的激波后密度偏 5%，
@@ -286,16 +286,15 @@ inline void stencil_state(const double* c, double* st) {
 	st[5] = r > 0 ? c[IMU] / r : 0.0; st[6] = r > 0 ? c[IMV] / r : 0.0;
 	if (a1 > 0 && a1 < 1 && m1 > 0 && m2 > 0) { const double p = p_mix(a1, m1, m2, c[IE1] + c[IE2]); if (p_admissible(0, a1, m1, p) && p_admissible(1, 1.0 - a1, m2, p)) st[4] = p; }
 }
-// ±2 格模板上的激波预算：cell(di, dj, st) 给出模板格的状态。压缩（中心差分散度 < 0）且模板上有压力差时，本格的物质（自己的 m_k）
+// 紧致模板（±1，二维为十字；V21，半径 1–4 结果相同到 0.1%，devlog V21）上的激波预算：cell(di, dj, st) 给出模板格的状态。压缩（中心差分散度 < 0）且模板上有压力差时，本格的物质（自己的 m_k）
 // 按 (II.5) 应得 Q_k = phys_dissipation(k, m_k, v_k^pre, p_lo, p_hi)；激波强度 p_lo -> p_hi 取模板上混合压力的极值，波前的相比容
 // v_k^pre = alpha_k/m_k 取模板里压力最低的格（相不存在时取本格）。否则 Q = 0（全部按误差分）。
 // 用本格自己的质量而不是波前格的 alpha_k：激波穿过接触/混合区时，被压缩的是本格的物质（均匀组分时两者的比例相同）
-int SB_RAD = 2;   // 激波预算的模板半径（试验 V21；V16 = 2）
 template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
 	Q[0] = Q[1] = 0.0;
 	double c0[7], st[7], lo[7] = {0, 0, 0, 0, 0, 0, 0}, plo = 1e300, phi = -1e300, div = 0.0;
 	cell(0, 0, c0);
-	for (int d = 0; d < (twoD ? 2 : 1); d++) for (int q = -SB_RAD; q <= SB_RAD; q++) {
+	for (int d = 0; d < (twoD ? 2 : 1); d++) for (int q = -1; q <= 1; q++) {
 		if (d == 1 && q == 0) continue;
 		cell(d == 0 ? q : 0, d == 1 ? q : 0, st);
 		if (q == 1) div += st[5 + d]; else if (q == -1) div -= st[5 + d];

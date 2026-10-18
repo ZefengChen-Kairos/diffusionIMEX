@@ -15,7 +15,7 @@
 //      2DEuler 的 ShockDetector 与压力 Laplacian 去掉，作用由 B4.1 的声学迎风项承担。
 //    - 时间：2DEuler 的半隐式 IMEX-RK（Ae/Ai/Hs）不变；起步改为声学步长后每步至多放大 1.2 倍（代替 full_step 个声学步，B10）；
 //      不可容许时先在同一步长上改用一阶（MOOD），仍不可容许才减半 dt（B8、B10）；瞬时热/化学松弛每步开始时激活并投影到平衡流形（B6.7）。
-//    - 能量亏损 delta 的分配（B5.2，V16）：物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额（每级先算 ±2 格模板的激波预算），离散误差按
+//    - 能量亏损 delta 的分配（B5.2，V16）：物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额（每级先算紧致模板（±1，V21）上的激波预算），离散误差按
 //      可容许能量份额；对 delta 连续，Newton 无分支校正。逐步说明见 docs/derivation/E_code_path.md。
 //
 //  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
@@ -77,9 +77,6 @@ int timestep = 0;
 double x_0 = 0, x_1 = 1, y_0 = 0, y_1 = 1;
 double dx, dy;
 double vx_max, vy_max;                // Rusanov 耗散速度 a_Omega（x、y 方向，全场最大）
-int SBH = 0;   // 试验（V21）：1 激波预算用本格的压缩历史（起始压力 p_on、起始相比容）与本格的隐式压力，代替 ±2 格模板
-std::vector<double> H_pon, H_v0, H_v1; std::vector<char> H_act;
-int ACP = 0;   // 试验（V21）：0 V16；1 压力项无权重且 psi^P 只看 P；2 只去掉 psi^P 与共用限制因子的耦合
 int RUS_LOCAL = 1;                    // 1：每个面取 max(|u^L|, |u^R|)；0：全场最大 vx_max（按算例，TestSetup::rus；B3）
 
 std::string out_file = "out.dat", vtk_dir = "";
@@ -491,21 +488,6 @@ static bool project_cell(Grid& U, int i, int j, int type) {
 	return true;
 }
 // 对整个场：判断类型、投影；投影失败的格退回力学类型（不投影）
-// 压缩历史（SBH，V21）：步开始时，压缩格（u^n 的中心差分散度 < 0）若刚开始压缩，记下起始压力与各相比容；不压缩的格清零。
-// 本格的物质沿自己的路径从 p_on 被压到 p，(II.5) 给它的耗散是 m_k d_k(p_on -> p)（B5.4 沿质点路径的积分），不需要空间模板。
-void history_begin(Grid& U) {
-	const int g = ghost_cells, nx = nxCells, ny = nyCells; const size_t n = (size_t)nx * ny;
-	if (H_act.size() != n) { H_pon.assign(n, 0.0); H_v0.assign(n, 0.0); H_v1.assign(n, 0.0); H_act.assign(n, 0); }
-	for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) {
-		const int I = i + g, J = j + g; const size_t q = (size_t)i + (size_t)j * nx;
-		auto vel = [&](int a, int b, int k) { return U(a, b, k) / (U(a, b, IM1) + U(a, b, IM2)); };
-		double div = vel(I + 1, J, IMU) - vel(I - 1, J, IMU); if (ny > 1) div += vel(I, J + 1, IMV) - vel(I, J - 1, IMV);
-		if (!(div < 0.0)) { H_act[q] = 0; continue; }
-		if (H_act[q]) continue;
-		double st[7]; stencil_state(U.cell(I, J), st); if (!std::isfinite(st[4])) continue;
-		H_act[q] = 1; H_pon[q] = st[4]; H_v0[q] = st[2] > 0 ? st[0] / st[2] : 0.0; H_v1[q] = st[3] > 0 ? st[1] / st[3] : 0.0;
-	}
-}
 void RelaxationActivation(Grid& U) {
 	const int nx = U.nxCells, ny = U.nyCells;
 	STEP_TYPE.assign((size_t)nx * ny, CL_P); if (NU_LAW) STEP_NU.assign((size_t)nx * ny, 0.0);
@@ -636,10 +618,6 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 	in.s = s; in.rhoeC = E - 0.5 * (mx * mx + my * my) / rho; in.tau = S.tau; in.type = S.type[S.id(i, j)];
 	in.Z[0] = S.Z0[S.id(i, j)]; in.Z[1] = S.Z1[S.id(i, j)]; in.pguess = P_REF + Pc; in.nodelta = false; in.Qph[0] = S.Qph[S.id(i, j) * 2]; in.Qph[1] = S.Qph[S.id(i, j) * 2 + 1];
 	if (NU_LAW && !STEP_NU.empty()) in.nu = STEP_NU[(size_t)(i - ghost_cells) + (size_t)(j - ghost_cells) * S.nx];
-	if (SBH && !H_act.empty()) {
-		const size_t q = (size_t)(i - ghost_cells) + (size_t)(j - ghost_cells) * S.nx; in.Qph[0] = in.Qph[1] = 0.0;
-		if (H_act[q]) { in.Qph[0] = phys_dissipation(0, X[2], H_v0[q], H_pon[q], in.pguess); in.Qph[1] = phys_dissipation(1, X[3], H_v1[q], H_pon[q], in.pguess); }
-	}
 	ClOut o; if (!closure(in, o)) {
 		if (VERBOSE >= 3) fprintf(stderr, "    closure fail cell (%d,%d) type %d atr %.6e %.6e mtr %.6e %.6e etr %.6e %.6e s %.3e rhoeC %.6e Pc %.6e\n", i - ghost_cells, j - ghost_cells, in.type, in.atr[0], in.atr[1], in.mtr[0], in.mtr[1], in.etr[0], in.etr[1], s, in.rhoeC, Pc);
 		return false; }
@@ -869,9 +847,6 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 	// 上一次的压力场（Newton 初猜）与 u*：只用来算二阶限制因子 psi（显式量，残量对 P 仍是线性的）
 	Array Pold(nx, ny);
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) Pold(i, j) = P.P[M_P(i, j)];
-	if (ACP == 3) {   // 试验（V21）：psi^P 由本级显式预测态 X* 的混合压力给出（与共用限制因子同一时刻），不与输运量耦合
-		for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT; i++) { double st[7]; stencil_state(S.Xs.cell(i, j), st); Pold(i, j) = std::isfinite(st[4]) ? st[4] - P_REF : Pold(i, j); }
-	}
 	auto minmod = [](double a, double b) { return a * b <= 0 ? 0.0 : (std::fabs(a) < std::fabs(b) ? a : b); };
 	// psi = 1 - (sig_L + sig_R)/(2 D)：与 D 同号且 |sig| <= |D|，故 psi in [0,1]；光滑区 psi = O(dx)，间断处 psi -> 1
 	auto psi_face = [&](double xm, double xL, double xR, double xp) {
@@ -904,8 +879,7 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 		const double cL = cz[S.id(iL, jL)], cR = cz[S.id(iR, jR)];
 		if (!(std::isfinite(cL) && std::isfinite(cR))) return;
 		const double phi = std::max(0.0, 1.0 - tau * std::min(cL, cR) / hh);
-		const double phiP = ACP == 1 ? 1.0 : phi;
-		if (phi == 0.0 && phiP == 0.0) return;
+		if (phi == 0.0) return;
 		const int di = iR - iL, dj = jR - jL, im = iL - di, jm = jL - dj, ip = iR + di, jp = jR + dj;
 		double psiP = 1.0, psiU = 1.0;
 		if (im >= 0 && jm >= 0 && ip < NXT && jp < NYT) {
@@ -914,12 +888,12 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			// 把膨胀的动能变成内能（P-S ±500 m/s 的起步加热、SPB 4.5 的扇区误差，devlog V14）
 			const Array& ph = ydir ? phy : phx;
 			const double phis = std::min(ph(iL, jL), ph(iR, jR));
-			psiP = ACP ? psi_face(Pold(im, jm), Pold(iL, jL), Pold(iR, jR), Pold(ip, jp)) : 1.0 - (1.0 - psi_face(Pold(im, jm), Pold(iL, jL), Pold(iR, jR), Pold(ip, jp))) * phis;
+			psiP = 1.0 - (1.0 - psi_face(Pold(im, jm), Pold(iL, jL), Pold(iR, jR), Pold(ip, jp))) * phis;
 			const Array& V = ydir ? S.vst : S.ust;
 			psiU = psi_face(V(im, jm), uL, uR, V(ip, jp));
 		}
 		const double ZL = rL * cL, ZR = rR * cR;
-		kp += phiP * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
+		kp += phi * psiP / (ZL + ZR); pv = phi * psiU * ZL * ZR / (ZL + ZR) * dil_jump(iL, jL, ydir);
 	};
 	for (int j = 0; j < NYT; j++) for (int i = 0; i < NXT - 1; i++) set_face(i, j, i + 1, j, dx, false, S.ubsx(i, j), S.kpx(i, j), S.wLx(i, j), S.pvx(i, j));
 	if (ny > 1) for (int j = 0; j < NYT - 1; j++) for (int i = 0; i < NXT; i++) set_face(i, j, i, j + 1, dy, true, S.ubsy(i, j), S.kpy(i, j), S.wLy(i, j), S.pvy(i, j));
@@ -932,14 +906,14 @@ bool PressureSubsystem(Grid &u_con, Grid &Qs, Grid &Qe, PField &P, double h, con
 			for (int k = 0; k < 2; k++) { const double a = c[k], m = c[2 + k], pk = p_ame(k, a, m, c[4 + k]), r = m / a; const double Z = r * std::sqrt(std::max(c2_rp(k, r, pk), 1e-30)); (k == 0 ? S.Z0 : S.Z1)[S.id(i, j)] = Z; }
 		}
 	}
-	// 激波预算（B5.2，V16）：X* 混合压力在 ±2 格模板上的极值给出局部激波强度，压缩格的物理耗散 Q_k 由 (II.5) 的相 Hugoniot 定；按级冻结
+	// 激波预算（B5.2，V16；V21 起为 ±1 的紧致模板）：X* 混合压力在模板上的极值给出局部激波强度，压缩格的物理耗散 Q_k 由 (II.5) 的相 Hugoniot 定；按级冻结
 	{
 		const bool twoD = ny > 1;
 		#pragma omp parallel for schedule(static)
 		for (int q = 0; q < nx * ny; q++) {
 			const int i = IG(q % nx), j = IG(q / nx);
-			auto cell = [&](int di, int dj, double* st) { stencil_state(S.Xs.cell(std::min(std::max(i + di, 0), NXT - 1), std::min(std::max(j + dj, 0), NYT - 1)), st); };   // 半径 > 虚格数时截到网格边（V21 试验）
-			if (!SBH) shock_budget(cell, twoD, &S.Qph[S.id(i, j) * 2]);
+			auto cell = [&](int di, int dj, double* st) { stencil_state(S.Xs.cell(i + di, j + dj), st); };
+			shock_budget(cell, twoD, &S.Qph[S.id(i, j) * 2]);
 		}
 	}
 	// 隐式：全局 Newton。B5.2 的 Lambda_k(delta) 是 delta 的连续分段仿射函数（分段按 pguess 处的 delta 取），G(P) 连续、分段光滑
@@ -1103,7 +1077,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "acp") ACP = (int)d; else if (k == "sbh") SBH = (int)d; else if (k == "sbr") SB_RAD = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1218,7 +1192,6 @@ int main(int argc, char *argv[]){
 			const int rk = ((RAMP && ramping) || lowered) ? 1 : RKs; if (rk == 1) st_rk1++; if (lowered) st_mood++;
 			set_tab(rk);
 			if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // B6.7
-			if (SBH && attempt == 0) history_begin(u_con);
 			copy(u_con_n,u_con);
 			Tensor Hs(rk, nxCells, nyCells);
 			Grid Ust(nxCells, nyCells); PField Pst = P;
