@@ -200,6 +200,27 @@ Harris 片的肩部在 $t\approx0.1$ 出现 $p$ 与 $|\mathbf B|^2$ 的奇偶交
 CT 却会对它显式推进 → $\omega_w h>2$ 时发散（哨声算例 `div=stag dt=0.01` 得到 NaN）。用单元平均后 `dt=0.1`（$\omega_w h\approx40$）稳定。
 非交错 CT（`div=unstag`）原来完全没有非理想项（$\mathbf B=\nabla\times\mathbf A$ 覆盖预测场后 $\eta$、Hall 全部丢失），现在 $A_z$ 更新加上 $-hE_{n,z}(\tilde{\mathbf B})$。
 
+## 4b. $y$ 方向理想导体壁（`ybc=wall`，`testHarrisHall` 默认）
+
+壁面在 $y_0,y_1$ 两个单元面上，ghost 单元取镜像，奇偶性为
+
+| 偶（$\partial_y=0$） | 奇（壁面上为 0） |
+|---|---|
+| $\rho,\;p\,(E),\;v_x,\;v_z,\;B_x,\;B_z$ | $v_y$（不穿透），$B_y$（$\mathbf B\cdot\mathbf n=0$） |
+
+即自由滑移的理想导体壁。导体壁的另一个条件是切向电场为零，$E_x=E_z=0$。对理想电场 $-\mathbf u\times\mathbf B$，它由上面的奇偶性自动满足；
+对 Hall 电场则不然：$E_{H,z}=\frac{d_i}{\rho}(J_xB_y-J_yB_x)$ 中 $J_y=-\partial_xB_z$ 和 $B_x$ 都是偶的。所以电场单独施加奇偶性：
+$E_x,E_z$ 奇、$E_y$ 偶。对应的实现位置：
+
+* `bound_cond_u`、`bound_cond_array(·, ysign)`（压力步里的 $(\rho v)^*$ 取奇）、`M_P`/`M_B` 镜像映射；
+* 隐式 B 求解：`XB(i,j,c)` 在壁外 ghost 处给 $B_y$ 反号，Hall 电场 lambda 在 ghost 处取镜像并对 $E_x,E_z$ 反号；
+* 交错 CT：$B_y$ 壁面面是 CT 未知量（初值 0），ghost 面关于壁面奇对称；$B_x$ 偶对称；壁面角点 $E_z=0$，因此 $B_y|_{\rm wall}$ 永远为 0，没有磁通穿过壁面；
+* `ExtrapolateGhostE`：非理想电场按上述奇偶镜像，使壁面 Poynting 通量 $(\mathbf E\times\mathbf B)_y=E_zB_x-E_xB_z=0$；
+* `TVDReconstruction`：镜像会交换左右界面状态。ghost 单元在壁面上的状态必须是内部单元**在同一壁面上**状态的镜像，而原来的 `bound_cond_u` 给的是内部单元另一侧界面的镜像，
+  两侧状态不对称，能量从壁面泄漏（64×32 每步约 1e-8）。修正后周期 $x$ + 导体壁 $y$ 的封闭区域中，质量和总能量都守恒到 12 位有效数字（Hall、电阻都打开）。
+
+$A$ 在壁面的条件仍是线性外推，所以 `div=A` 和 `div=unstag` 与导体壁一起用时会打印警告；Hall 算例请用 `div=stag`。
+
 ## 5. 修改清单（相对导入的原始文件，见 git 历史）
 
 | # | 问题 | 后果 | 修改 |
@@ -214,6 +235,7 @@ CT 却会对它显式推进 → $\omega_w h>2$ 时发散（哨声算例 `div=sta
 | 8 | `printVTKVariable` 从下标 0（ghost）开始输出 | VTK 场整体平移 3 格，最后 3 行/列从未输出 | 只输出内部单元 |
 | 9 | 开边界上 ghost 单元的 $\mathbf J$ 由复制的 $\mathbf B$ 差分得到（ghost 行 $J_x=0$） | 边界面上的 Poynting 通量、CT 角点电场与内部不一致 | `ExtrapolateGhostE`；隐式 Hall 算子用同一闭合 |
 | 10 | 没有粘性和热传导 | — | 按 [RD] 加入（3.3、3.4） |
+| 11 | $y$ 方向没有导体壁（`y_Reflective` 把 $\mathbf B$ 三个分量全部取反） | GEM 的标准边界无法设置 | `y_ConductingWall`（4b 节） |
 
 ## 6. 验证
 
@@ -241,17 +263,17 @@ CT 却会对它显式推进 → $\omega_w h>2$ 时发散（哨声算例 `div=sta
 
 二阶收敛；时间步远大于显式哨声限制时依然稳定。原 Eq. (83) 耗散（`bvisc=mag`）在 64×4 上误差 24.9%（波被阻尼）。
 
-**Harris / GEM**（`testHarrisHall`，64×32，$\eta=5\times10^{-3}$，$d_i=1$，`div=stag bvisc=mat`）
+**Harris / GEM**（`testHarrisHall`，64×32，$\eta=5\times10^{-3}$，$d_i=1$，`div=stag bvisc=mat ybc=wall`）
 
 ![](figures/harris_64x32.png)
 
 * 原代码（Eq. 83 耗散 + `PotentialA`）：$\psi$ 从 0.20 单调降到 ~0.01–0.06，片电流 $|J_z|_{\max}$ 1.87 → 0.27（$t=12$），即电流片被数值电阻扩散掉，没有重联；
   内能在 $t=0$ 就以 ~8/时间单位增长（物理 Joule 热应为 ~0.17）。
-* 修正后、只有电阻：$\psi$ 0.20 → 0.30（$t=12$），$|J_z|_{\max}$ 保持 ~2.1，稳定到结束。
-* 修正后、Hall：重联明显更快（$t=8.5$ 时 $\psi=0.41$），X 线电流集中，出现 Hall 四极 $B_z$（幅值 ~0.1）。
+* 修正后、只有电阻、导体壁：$\psi$ 0.20 → 0.31（$t=12$），$|J_z|_{\max}\approx2.1$。
+* 修正后、Hall、导体壁：$\psi$ 0.20 → 0.52（$t=12$），重联明显快于纯电阻；X 线电流集中，Hall 四极 $B_z$ 最大 0.16（$t\approx8$）。
+  最小内能 ≥ 0.09，质量与总能量在整个计算中守恒到 12 位有效数字。
+* 透射边界（`ybc=open`，报告原设置）：同一 Hall 算例在 $t\approx6$ 以后 $y=-\pi$ 第一、二行出现 $v_x\approx1$ 的边界射流和 $B_x$ 折角，
+  $t\approx8.9$ 内能变负（图中虚线）。纯电阻算例无此现象，把 ghost 单元非理想电场改成零梯度外推（修改 #9）也没有消除。
+  所以 Hall 算例默认改用导体壁。
 
-**尚未解决：开边界。** Hall 算例在 $t\approx6$ 以后，$y=-\pi$（透射边界）第一、二行出现 $v_x\approx1$ 的边界射流和 $B_x$ 折角
-（表面电流），内能在该行下降，64×32 时在 $t\approx8.9$ 变负。只有 Hall 打开时出现（同样设置的纯电阻算例到 $t=12$ 无此现象），
-把 ghost 单元的非理想电场改成零梯度外推（修改 #9）后仍然存在。GEM 标准设置在 $y$ 方向用理想导体壁（$B_y$ 奇、$B_x,B_z$ 偶、$v_y$ 奇）；
-代码里的 `y_Reflective` 把 $\mathbf B$ 的三个分量全部取反，并不是导体壁，需要单独实现这种边界条件后再跑到 $t=12$。
 `HallReconnectionDiagnostics` 的输出（`hall_reconnection.dat`、`hall_fields.bin`）写在当前目录，多个算例同时跑时请分目录。

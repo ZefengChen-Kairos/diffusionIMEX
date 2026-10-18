@@ -28,7 +28,8 @@ enum shock_detector{Yes_add, No_First, No_Second};
 enum SolvePressure{no_correction, once_correction, all_correction};
 enum dtCalculation{Fullydt, Alfvendt, IMEXdt};
 enum x_boundary_condition{x_Transmissive, x_Reflective, x_Periodic, x_Dirichlet};
-enum y_boundary_condition{y_Transmissive, y_Reflective, y_Periodic, y_Dirichlet};
+enum y_boundary_condition{y_Transmissive, y_Reflective, y_Periodic, y_Dirichlet,
+	y_ConductingWall};   // perfectly conducting, free-slip wall at y = y_0, y_1 (see bound_cond_u)
 enum Add_Pvisc{MaterialSpeedp, AlfvenSpeedp, Noaddvisp};
 enum Energy_Update{ConservationofU, DefinitionofU};
 enum Flux_Diss{Local_Diss, Global_Diss};
@@ -62,6 +63,7 @@ Reconstruction recon = Minmod;
 int SpaceOrder;
 x_boundary_condition x_bc;
 y_boundary_condition y_bc;
+inline double ver_shape(double y){ return (y_bc == y_ConductingWall) ? cos(2.0*M_PI*y) : sin(2.0*M_PI*y); }
 SolvePressure PressureSolver = all_correction;
 
 bool add_RHSpvisc = false;
@@ -157,6 +159,9 @@ inline double h12_Az(double x, double y){
 //   testResistiveDecay : Bx = eps sin(2 pi y) exp(-eta (2 pi)^2 t)
 //   testViscousDecay   : u = w = eps sin(2 pi y) exp(-mu (2 pi)^2 t / rho)
 double ver_eps = 0.1, ver_k = 1.0, ver_B0 = 1.0;
+// decay-test profile: sin(2 pi y) for periodic y, cos(2 pi y) between conducting walls (even about
+// the walls: dBx/dy = 0, free slip), both decay as exp(-c (2 pi)^2 t)
+inline double ver_shape(double y);
 inline double whistler_omega(){
 	double q = 0.5*ver_k*Hall_di;
 	return ver_k*ver_B0*(q + sqrt(1.0 + q*q));
@@ -535,7 +540,7 @@ void calca(Grid &u_pri);
 double ini_calch(double *u_pri);
 void calcp(Grid &u_pri);
 void store(Grid &u_con, Array& vxn,Array& vyn, Array& Bxn, Array& Byn);
-void bound_cond_array(Array &u);
+void bound_cond_array(Array &u, double ysign = 1.0);   // ysign: parity at a conducting wall
 double calenthalpy(double *con);
 double calkinetic(double *con);
 double calmagenergy(double *con);
@@ -1687,6 +1692,23 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 	bound_cond_u(w_xR);
 	bound_cond_u(w_yL);
 	bound_cond_u(w_yR);
+	if(y_bc == y_ConductingWall){
+		// A mirror swaps the two face states: the ghost cell's state ON the wall face is the mirror
+		// of the interior cell's state on that same face (its L state at the bottom wall, R at the
+		// top).  bound_cond_u alone mirrors the far face, so the two wall-face states differed and
+		// energy leaked through the wall (~1e-8 per step at 64x32).
+		const double par[NUM_VARS] = {1, 1, -1, 1, 1, 1, -1, 1};
+		for(int i = 0; i < nxCells + 2*ghost_cells; i++){
+			for(int g = 0; g < ghost_cells; g++){
+				int jb = ghost_cells - 1 - g, jbm = ghost_cells + g;
+				int jt = nyCells + ghost_cells + g, jtm = nyCells + ghost_cells - 1 - g;
+				for(int k = 0; k < NUM_VARS; k++){
+					w_yR(i,jb,k) = par[k]*w_yL(i,jbm,k);  w_yL(i,jb,k) = par[k]*w_yR(i,jbm,k);
+					w_yL(i,jt,k) = par[k]*w_yR(i,jtm,k);  w_yR(i,jt,k) = par[k]*w_yL(i,jtm,k);
+				}
+			}
+		}
+	}
 }
 
 
@@ -2418,12 +2440,12 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 				}
 				case testResistiveDecay: {
 					u(i,j,0) = 1.0;  u(i,j,1) = 0.0;  u(i,j,2) = 0.0;  u(i,j,3) = 0.0;  u(i,j,4) = 1.0;
-					u(i,j,5) = ver_eps*sin(2.0*M_PI*y);  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
+					u(i,j,5) = ver_eps*ver_shape(y);  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
 					break;
 				}
 				case testViscousDecay: {
-					u(i,j,0) = 1.0;  u(i,j,1) = ver_eps*sin(2.0*M_PI*y);  u(i,j,2) = 0.0;
-					u(i,j,3) = ver_eps*sin(2.0*M_PI*y);  u(i,j,4) = 1.0;
+					u(i,j,0) = 1.0;  u(i,j,1) = ver_eps*ver_shape(y);  u(i,j,2) = 0.0;
+					u(i,j,3) = ver_eps*ver_shape(y);  u(i,j,4) = 1.0;
 					u(i,j,5) = 0.0;  u(i,j,6) = 0.0;  u(i,j,7) = 0.0;
 					break;
 				}
@@ -2643,6 +2665,22 @@ void bound_cond_u(Grid &u){
 				}
 			}
 			break;
+		case y_ConductingWall:{
+			// Perfectly conducting, free-slip wall on the cell faces y_0, y_1, imposed by mirror ghosts:
+			//   even: rho, v_x, v_z, E (or p), B_x, B_z        odd: v_y (no penetration), B_y (B.n = 0)
+			// The remaining wall condition, tangential E = 0, is imposed on the electric field itself
+			// (ExtrapolateGhostE, WallZeroEz, Hall lambdas of Magnetic_Subsystem_AX).
+			const double par[NUM_VARS] = {1, 1, -1, 1, 1, 1, -1, 1};
+			for(int i = 0; i < nxCells + ghost_cells * 2; i++){
+				for(int g = 0; g < ghost_cells; g++){
+					for(int k = 0; k < NUM_VARS; k++){
+						u(i, g, k) = par[k] * u(i, 2 * ghost_cells - 1 - g, k);
+						u(i, nyCells + ghost_cells + g, k) = par[k] * u(i, nyCells + ghost_cells - 1 - g, k);
+					}
+				}
+			}
+			break;
+		}
 		case y_Dirichlet:{
 			for(int i = 0; i < nxCells + ghost_cells * 2; i++){
 				for(int g = 0; g < ghost_cells; g++){
@@ -2721,7 +2759,7 @@ void bound_cond_A(Grid &A) {
 	}
 	// ===== y方向 =====
 	switch (y_bc) {
-		case y_Transmissive: case y_Dirichlet: {
+		case y_Transmissive: case y_Dirichlet: case y_ConductingWall: {
 			for(int i = 0; i < nxCells + ghost_cells * 2; i++){
 				for(int k = 0; k < 3; k++){
 					// 下边界
@@ -2957,7 +2995,7 @@ void store(Grid &u_con, Array& vxn,Array& vyn, Array& Bxn, Array& Byn){
 	}
 }
 
-void bound_cond_array(Array &u){
+void bound_cond_array(Array &u, double ysign){
 	switch (x_bc) {
 		case x_Transmissive:case x_Dirichlet:
 			for(int j = 0; j < nyCells + ghost_cells * 2; j++){
@@ -2999,6 +3037,14 @@ void bound_cond_array(Array &u){
 				for(int ghost = 0; ghost < ghost_cells; ghost++){
 					u(i,ghost) = -u(i,2 * ghost_cells - 1 - ghost);
 					u(i,nyCells + ghost_cells + ghost) = -u(i,nyCells + ghost_cells - 1 - ghost);
+				}
+			}
+			break;
+		case y_ConductingWall:
+			for(int i = 0; i < nxCells + ghost_cells * 2; i++){
+				for(int ghost = 0; ghost < ghost_cells; ghost++){
+					u(i,ghost) = ysign * u(i,2 * ghost_cells - 1 - ghost);
+					u(i,nyCells + ghost_cells + ghost) = ysign * u(i,nyCells + ghost_cells - 1 - ghost);
 				}
 			}
 			break;
@@ -3119,6 +3165,21 @@ void bound_cond_staggered(Array &u, int axis){
 				u(i,g) = u(i,nyCells+g);
 				u(i,nyCells+ghost_cells+g) = u(i,ghost_cells+g);
 			}
+	}else if(y_bc == y_ConductingWall){
+		// wall faces are j = ghost_cells-1 (bottom) and nyCells+ghost_cells-1 (top) of By_0p
+		if(axis==1){ // normal B_y: odd about the wall face (the wall face itself is a CT unknown, = 0)
+			for(int i = 0; i < nxCells + ghost_cells*2; i++){
+				const int jb = ghost_cells - 1, jt = nyCells + ghost_cells - 1;
+				for(int k = 1; k < ghost_cells; k++) u(i, jb - k) = -u(i, jb + k);
+				for(int k = 1; k <= ghost_cells; k++) if(jt + k < nyCells + 2*ghost_cells) u(i, jt + k) = -u(i, jt - k);
+			}
+		}else{       // tangential B_x (cell-centred in y): even mirror about the wall
+			for(int i = 0; i < nxCells + ghost_cells*2; i++)
+				for(int g = 0; g < ghost_cells; g++){
+					u(i, g) = u(i, 2*ghost_cells - 1 - g);
+					u(i, nyCells + ghost_cells + g) = u(i, nyCells + ghost_cells - 1 - g);
+				}
+		}
 	}else if(axis==1){ // y is NORMAL (By_0p): preserve boundary face ghost_cells-1
 		for(int i = 0; i < nxCells + ghost_cells*2; i++){
 			for(int k = 0; k < ghost_cells-1; k++) u(i,k) = u(i,ghost_cells-1);
@@ -3257,6 +3318,15 @@ void Staggered_CT(Grid& u_con, Array &Bx_p0, Array &By_0p, Array &Bx_p0_Qs, Arra
 		}
 	}
 	// ========================================================================================
+
+	// conducting wall: E_z = 0 on the wall corners, so B_y on the wall faces stays 0 and no flux
+	// crosses the wall (the Rusanov corner EMF there is otherwise built from mirrored states)
+	if(y_bc == y_ConductingWall){
+		for(int i = 0; i < nxCells + 2*ghost_cells; i++){
+			Ez_pp(i, ghost_cells - 1) = 0.0;
+			Ez_pp(i, nyCells + ghost_cells - 1) = 0.0;
+		}
+	}
 
 	// ---- Faraday step (ideal + non-ideal corner EMF) ---------------------------------------
 	for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
@@ -3449,7 +3519,8 @@ void A_initial(Grid &A){
 					Az_val = ver_B0*y;
 					break;
 				case testResistiveDecay:
-					Az_val = -ver_eps*cos(2.0*M_PI*y)/(2.0*M_PI);
+					Az_val = (y_bc == y_ConductingWall) ? ver_eps*sin(2.0*M_PI*y)/(2.0*M_PI)
+					                                    : -ver_eps*cos(2.0*M_PI*y)/(2.0*M_PI);
 					break;
 				case testViscousDecay:
 					break;
@@ -3600,7 +3671,7 @@ int M_P(int i, int j){
 			case y_Transmissive: case y_Dirichlet:
 				J = ghost_cells;
 				break;
-			case y_Reflective:
+			case y_Reflective: case y_ConductingWall:
 				J = 2 * ghost_cells - 1 - j;
 				break;
 			case y_Periodic:
@@ -3612,7 +3683,7 @@ int M_P(int i, int j){
 			case y_Transmissive: case y_Dirichlet:
 				J = nyCells + ghost_cells - 1;
 				break;
-			case y_Reflective:
+			case y_Reflective: case y_ConductingWall:
 				J = 2 * (nyCells + ghost_cells) - j - 1;
 				break;
 			case y_Periodic:
@@ -3664,7 +3735,7 @@ int M_B(int i, int j, int k){
 			case y_Transmissive: case y_Dirichlet:
 				J = ghost_cells;
 				break;
-			case y_Reflective:
+			case y_Reflective: case y_ConductingWall:
 				J = 2 * ghost_cells - 1 - j;
 				break;
 			case y_Periodic:
@@ -3676,7 +3747,7 @@ int M_B(int i, int j, int k){
 			case y_Transmissive: case y_Dirichlet:
 				J = nyCells + ghost_cells - 1;
 				break;
-			case y_Reflective:
+			case y_Reflective: case y_ConductingWall:
 				J = 2 * (nyCells + ghost_cells) - j - 1;
 				break;
 			case y_Periodic:
@@ -3706,6 +3777,13 @@ Array* g_bnu_x = nullptr;
 Array* g_bnu_y = nullptr;
 
 void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe,Grid& Qs,double h){
+	// unknown B with ghost values: M_B maps a ghost index to its source cell; at a conducting wall
+	// the mirrored normal component B_y changes sign (bound_cond_u parities)
+	auto XB = [&](int ii, int jj, int c)->double{
+		double v = x(M_B(ii, jj, c));
+		if(y_bc == y_ConductingWall && c == 6 && (jj < ghost_cells || jj >= nyCells + ghost_cells)) v = -v;
+		return v;
+	};
 	int reflct_xL, reflct_yL, reflct_xR, reflct_yR;
 	Grid Qe_pri(nxCells, nyCells);
 	ucon2upri(Qe_pri, Qe);
@@ -3747,7 +3825,7 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			}
 			
 			switch(y_bc){
-				case y_Transmissive: case y_Dirichlet:
+				case y_Transmissive: case y_Dirichlet: case y_ConductingWall:
 					yL = max(ghost_cells,j-1);
 					yR = min(nyCells + ghost_cells - 1,j+1);
 					break;
@@ -3810,79 +3888,79 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			double Bzn_mp = 0.25 * (Qe(i,j,7) + Qe(i - 1,j,7) + Qe(i,j + 1,7) + Qe(i - 1,j + 1,7));
 			double Bzn_mm = 0.25 * (Qe(i,j,7) + Qe(i - 1,j,7) + Qe(i,j - 1,7) + Qe(i - 1,j - 1,7));
 			
-			double Bx_p0 = 0.5 * (x(M_B(i,j,5)) + x(M_B(i+1,j,5)) * reflct_xR);
-			double Bx_m0 = 0.5 * (x(M_B(i,j,5)) + x(M_B(i-1,j,5)) * reflct_xL);
-			double Bx_0p = 0.5 * (x(M_B(i,j,5)) + x(M_B(i,j+1,5)) * reflct_yR);
-			double Bx_0m = 0.5 * (x(M_B(i,j,5)) + x(M_B(i,j-1,5)) * reflct_yL);
-			double Bx_pp = 0.25 * (x(M_B(i,j,5)) + x(M_B(i+1,j,5)) * reflct_xR + x(M_B(i,j+1,5)) * reflct_yR + x(M_B(i+1,j+1,5)) * reflct_xR * reflct_yR);
-			double Bx_pm = 0.25 * (x(M_B(i,j,5)) + x(M_B(i+1,j,5)) * reflct_xR + x(M_B(i,j-1,5)) * reflct_yL + x(M_B(i+1,j-1,5)) * reflct_xR * reflct_yL);
-			double Bx_mp = 0.25 * (x(M_B(i,j,5)) + x(M_B(i-1,j,5)) * reflct_xL + x(M_B(i,j+1,5)) * reflct_yR + x(M_B(i-1,j+1,5)) * reflct_xL * reflct_yR);
-			double Bx_mm = 0.25 * (x(M_B(i,j,5)) + x(M_B(i-1,j,5)) * reflct_xL + x(M_B(i,j-1,5)) * reflct_yL + x(M_B(i-1,j-1,5)) * reflct_xL * reflct_yL);
+			double Bx_p0 = 0.5 * (XB(i,j,5) + XB(i+1,j,5) * reflct_xR);
+			double Bx_m0 = 0.5 * (XB(i,j,5) + XB(i-1,j,5) * reflct_xL);
+			double Bx_0p = 0.5 * (XB(i,j,5) + XB(i,j+1,5) * reflct_yR);
+			double Bx_0m = 0.5 * (XB(i,j,5) + XB(i,j-1,5) * reflct_yL);
+			double Bx_pp = 0.25 * (XB(i,j,5) + XB(i+1,j,5) * reflct_xR + XB(i,j+1,5) * reflct_yR + XB(i+1,j+1,5) * reflct_xR * reflct_yR);
+			double Bx_pm = 0.25 * (XB(i,j,5) + XB(i+1,j,5) * reflct_xR + XB(i,j-1,5) * reflct_yL + XB(i+1,j-1,5) * reflct_xR * reflct_yL);
+			double Bx_mp = 0.25 * (XB(i,j,5) + XB(i-1,j,5) * reflct_xL + XB(i,j+1,5) * reflct_yR + XB(i-1,j+1,5) * reflct_xL * reflct_yR);
+			double Bx_mm = 0.25 * (XB(i,j,5) + XB(i-1,j,5) * reflct_xL + XB(i,j-1,5) * reflct_yL + XB(i-1,j-1,5) * reflct_xL * reflct_yL);
 			
-			double By_p0 = 0.5 * (x(M_B(i,j,6)) + x(M_B(i+1,j,6)) * reflct_xR);
-			double By_m0 = 0.5 * (x(M_B(i,j,6)) + x(M_B(i-1,j,6)) * reflct_xL);
-			double By_0p = 0.5 * (x(M_B(i,j,6)) + x(M_B(i,j+1,6)) * reflct_yR);
-			double By_0m = 0.5 * (x(M_B(i,j,6)) + x(M_B(i,j-1,6)) * reflct_yL);
-			double By_pp = 0.25 * (x(M_B(i,j,6)) + x(M_B(i+1,j,6)) * reflct_xR + x(M_B(i,j+1,6)) * reflct_yR + x(M_B(i+1,j+1,6)) * reflct_xR * reflct_yR);
-			double By_pm = 0.25 * (x(M_B(i,j,6)) + x(M_B(i+1,j,6)) * reflct_xR + x(M_B(i,j-1,6)) * reflct_yL + x(M_B(i+1,j-1,6)) * reflct_xR * reflct_yL);
-			double By_mp = 0.25 * (x(M_B(i,j,6)) + x(M_B(i-1,j,6)) * reflct_xL + x(M_B(i,j+1,6)) * reflct_yR + x(M_B(i-1,j+1,6)) * reflct_xL * reflct_yR);
-			double By_mm = 0.25 * (x(M_B(i,j,6)) + x(M_B(i-1,j,6)) * reflct_xL + x(M_B(i,j-1,6)) * reflct_yL + x(M_B(i-1,j-1,6)) * reflct_xL * reflct_yL);
+			double By_p0 = 0.5 * (XB(i,j,6) + XB(i+1,j,6) * reflct_xR);
+			double By_m0 = 0.5 * (XB(i,j,6) + XB(i-1,j,6) * reflct_xL);
+			double By_0p = 0.5 * (XB(i,j,6) + XB(i,j+1,6) * reflct_yR);
+			double By_0m = 0.5 * (XB(i,j,6) + XB(i,j-1,6) * reflct_yL);
+			double By_pp = 0.25 * (XB(i,j,6) + XB(i+1,j,6) * reflct_xR + XB(i,j+1,6) * reflct_yR + XB(i+1,j+1,6) * reflct_xR * reflct_yR);
+			double By_pm = 0.25 * (XB(i,j,6) + XB(i+1,j,6) * reflct_xR + XB(i,j-1,6) * reflct_yL + XB(i+1,j-1,6) * reflct_xR * reflct_yL);
+			double By_mp = 0.25 * (XB(i,j,6) + XB(i-1,j,6) * reflct_xL + XB(i,j+1,6) * reflct_yR + XB(i-1,j+1,6) * reflct_xL * reflct_yR);
+			double By_mm = 0.25 * (XB(i,j,6) + XB(i-1,j,6) * reflct_xL + XB(i,j-1,6) * reflct_yL + XB(i-1,j-1,6) * reflct_xL * reflct_yL);
 			
-			double Bz_p0 = 0.5 * (x(M_B(i,j,7)) + x(M_B(i+1,j,7)) * reflct_xR);
-			double Bz_m0 = 0.5 * (x(M_B(i,j,7)) + x(M_B(i-1,j,7)) * reflct_xL);
-			double Bz_0p = 0.5 * (x(M_B(i,j,7)) + x(M_B(i,j+1,7)) * reflct_yR);
-			double Bz_0m = 0.5 * (x(M_B(i,j,7)) + x(M_B(i,j-1,7)) * reflct_yL);
-			double Bz_pp = 0.25 * (x(M_B(i,j,7)) + x(M_B(i+1,j,7)) * reflct_xR + x(M_B(i,j+1,7)) * reflct_yR + x(M_B(i+1,j+1,7)) * reflct_xR * reflct_yR);
-			double Bz_pm = 0.25 * (x(M_B(i,j,7)) + x(M_B(i+1,j,7)) * reflct_xR + x(M_B(i,j-1,7)) * reflct_yL + x(M_B(i+1,j-1,7)) * reflct_xR * reflct_yL);
-			double Bz_mp = 0.25 * (x(M_B(i,j,7)) + x(M_B(i-1,j,7)) * reflct_xL + x(M_B(i,j+1,7)) * reflct_yR + x(M_B(i-1,j+1,7)) * reflct_xL * reflct_yR);
-			double Bz_mm = 0.25 * (x(M_B(i,j,7)) + x(M_B(i-1,j,7)) * reflct_xL + x(M_B(i,j-1,7)) * reflct_yL + x(M_B(i-1,j-1,7)) * reflct_xL * reflct_yL);
+			double Bz_p0 = 0.5 * (XB(i,j,7) + XB(i+1,j,7) * reflct_xR);
+			double Bz_m0 = 0.5 * (XB(i,j,7) + XB(i-1,j,7) * reflct_xL);
+			double Bz_0p = 0.5 * (XB(i,j,7) + XB(i,j+1,7) * reflct_yR);
+			double Bz_0m = 0.5 * (XB(i,j,7) + XB(i,j-1,7) * reflct_yL);
+			double Bz_pp = 0.25 * (XB(i,j,7) + XB(i+1,j,7) * reflct_xR + XB(i,j+1,7) * reflct_yR + XB(i+1,j+1,7) * reflct_xR * reflct_yR);
+			double Bz_pm = 0.25 * (XB(i,j,7) + XB(i+1,j,7) * reflct_xR + XB(i,j-1,7) * reflct_yL + XB(i+1,j-1,7) * reflct_xR * reflct_yL);
+			double Bz_mp = 0.25 * (XB(i,j,7) + XB(i-1,j,7) * reflct_xL + XB(i,j+1,7) * reflct_yR + XB(i-1,j+1,7) * reflct_xL * reflct_yR);
+			double Bz_mm = 0.25 * (XB(i,j,7) + XB(i-1,j,7) * reflct_xL + XB(i,j-1,7) * reflct_yL + XB(i-1,j-1,7) * reflct_xL * reflct_yL);
 			
 			//Laplacian Operator
 //			double nu_x = B_max_x * dx;
 //			double nu_y = B_max_y * dy;
 			
 			
-			double Bx_1 = Bxn_0p / rho_0p * (1 / dx * (Bxn_pp * By_pp - Bxn_mp * By_mp) - 1 / dy * ((0.5 * (Qe(i, j + 1, 5) * x(M_B(i,j + 1,5)) * reflct_yR + Qe(i, j + 1, 6) * x(M_B(i,j + 1,6)) * reflct_yR + Qe(i, j + 1, 7) * x(M_B(i,j + 1,7)) * reflct_yR ) - Qe(i, j + 1, 6) * x(M_B(i,j + 1,6)) * reflct_yR) - (0.5 * (Qe(i, j, 5) * x(M_B(i,j,5)) + Qe(i, j, 6) * x(M_B(i,j,6)) + Qe(i, j, 7) * x(M_B(i,j,7))) - Qe(i, j, 6) * x(M_B(i,j,6))) ) );
+			double Bx_1 = Bxn_0p / rho_0p * (1 / dx * (Bxn_pp * By_pp - Bxn_mp * By_mp) - 1 / dy * ((0.5 * (Qe(i, j + 1, 5) * XB(i,j + 1,5) * reflct_yR + Qe(i, j + 1, 6) * XB(i,j + 1,6) * reflct_yR + Qe(i, j + 1, 7) * XB(i,j + 1,7) * reflct_yR ) - Qe(i, j + 1, 6) * XB(i,j + 1,6) * reflct_yR) - (0.5 * (Qe(i, j, 5) * XB(i,j,5) + Qe(i, j, 6) * XB(i,j,6) + Qe(i, j, 7) * XB(i,j,7)) - Qe(i, j, 6) * XB(i,j,6)) ) );
 			
-			double Bx_2 = Byn_0p / rho_0p * (1 / dx * ((0.5 * (Bxn_pp * Bx_pp + Byn_pp * By_pp + Bzn_pp * Bz_pp) - Bxn_pp * Bx_pp) - (0.5 * (Bxn_mp * Bx_mp + Byn_mp * By_mp + Bzn_mp * Bz_mp) - Bxn_mp * Bx_mp )) - 1 / dy * (Qe(i,j + 1,6) * x(M_B(i,j + 1,5)) * reflct_yR - Qe(i,j,6) * x(M_B(i,j,5)))  );
+			double Bx_2 = Byn_0p / rho_0p * (1 / dx * ((0.5 * (Bxn_pp * Bx_pp + Byn_pp * By_pp + Bzn_pp * Bz_pp) - Bxn_pp * Bx_pp) - (0.5 * (Bxn_mp * Bx_mp + Byn_mp * By_mp + Bzn_mp * Bz_mp) - Bxn_mp * Bx_mp )) - 1 / dy * (Qe(i,j + 1,6) * XB(i,j + 1,5) * reflct_yR - Qe(i,j,6) * XB(i,j,5))  );
 			
-			double Bx_3 = Bxn_0m / rho_0m * (1 / dx * (Bxn_pm * By_pm - Bxn_mm * By_mm) - 1 / dy * ((0.5 *(Qe(i, j, 5) * x(M_B(i,j,5)) + Qe(i, j, 6) * x(M_B(i,j,6)) + Qe(i, j, 7) * x(M_B(i,j,7))) - Qe(i, j, 6) * x(M_B(i, j, 6))) - (0.5 * (Qe(i, j - 1, 5) * x(M_B(i,j - 1,5)) * reflct_yL + Qe(i, j - 1, 6) * x(M_B(i,j - 1,6))  * reflct_yL + Qe(i, j - 1, 7) * x(M_B(i,j - 1,7))  * reflct_yL ) - Qe(i, j - 1, 6) * x(M_B(i,j - 1,6))  * reflct_yL) ) );
+			double Bx_3 = Bxn_0m / rho_0m * (1 / dx * (Bxn_pm * By_pm - Bxn_mm * By_mm) - 1 / dy * ((0.5 *(Qe(i, j, 5) * XB(i,j,5) + Qe(i, j, 6) * XB(i,j,6) + Qe(i, j, 7) * XB(i,j,7)) - Qe(i, j, 6) * XB(i, j, 6)) - (0.5 * (Qe(i, j - 1, 5) * XB(i,j - 1,5) * reflct_yL + Qe(i, j - 1, 6) * XB(i,j - 1,6)  * reflct_yL + Qe(i, j - 1, 7) * XB(i,j - 1,7)  * reflct_yL ) - Qe(i, j - 1, 6) * XB(i,j - 1,6)  * reflct_yL) ) );
 			
-			double Bx_4 =  Byn_0m / rho_0m * (1 / dx * ((0.5 * (Bxn_pm * Bx_pm + Byn_pm * By_pm + Bzn_pm * Bz_pm) - Bxn_pm * Bx_pm) - (0.5 * (Bxn_mm * Bx_mm + Byn_mm * By_mm + Bzn_mm * Bz_mm) - Bxn_mm * Bx_mm)) - 1 / dy * (Qe(i,j,6) * x(M_B(i,j,5)) - Qe(i,j - 1,6) * x(M_B(i,j - 1,5)) * reflct_yL)  );
+			double Bx_4 =  Byn_0m / rho_0m * (1 / dx * ((0.5 * (Bxn_pm * Bx_pm + Byn_pm * By_pm + Bzn_pm * Bz_pm) - Bxn_pm * Bx_pm) - (0.5 * (Bxn_mm * Bx_mm + Byn_mm * By_mm + Bzn_mm * Bz_mm) - Bxn_mm * Bx_mm)) - 1 / dy * (Qe(i,j,6) * XB(i,j,5) - Qe(i,j - 1,6) * XB(i,j - 1,5) * reflct_yL)  );
 			
 			
-			Ax(M_B(i,j,5)) = x(M_B(i,j,5)) + (h * h/ dy) * ((Bx_1 + Bx_2) - (Bx_3 + Bx_4));
+			Ax(M_B(i,j,5)) = XB(i,j,5) + (h * h/ dy) * ((Bx_1 + Bx_2) - (Bx_3 + Bx_4));
 
-			double By_1 = Byn_p0 / rho_p0 * (-1 / dx * ((0.5 * ((Qe(i + 1, j, 5) * x(M_B(i + 1,j,5)) * reflct_xR + Qe(i + 1, j, 6) * x(M_B(i+1,j,6)) * reflct_xR + Qe(i + 1, j, 7) * x(M_B(i + 1, j, 7)) * reflct_xR )) - Qe(i + 1, j, 5) * x(M_B(i + 1, j, 5)) * reflct_xR ) - (0.5 * ((Qe(i, j, 5) * x(M_B(i, j, 5)) + Qe(i, j, 6) * x(M_B(i, j, 6)) + Qe(i, j, 7) * x(M_B(i, j, 7)))) - Qe(i, j, 5) * x(M_B(i, j, 5)) )) + 1 / dy * (Bxn_pp * By_pp - Bxn_pm * By_pm));
+			double By_1 = Byn_p0 / rho_p0 * (-1 / dx * ((0.5 * ((Qe(i + 1, j, 5) * XB(i + 1,j,5) * reflct_xR + Qe(i + 1, j, 6) * XB(i+1,j,6) * reflct_xR + Qe(i + 1, j, 7) * XB(i + 1, j, 7) * reflct_xR )) - Qe(i + 1, j, 5) * XB(i + 1, j, 5) * reflct_xR ) - (0.5 * ((Qe(i, j, 5) * XB(i, j, 5) + Qe(i, j, 6) * XB(i, j, 6) + Qe(i, j, 7) * XB(i, j, 7))) - Qe(i, j, 5) * XB(i, j, 5) )) + 1 / dy * (Bxn_pp * By_pp - Bxn_pm * By_pm));
 			
-			double By_2 = Bxn_p0 / rho_p0 * (-1 / dx * (Qe(i + 1, j, 5) * x(M_B(i + 1, j, 6)) * reflct_xR - Qe(i, j, 5) * x(M_B(i, j, 6))) + 1 / dy * ((0.5 * (Bxn_pp * Bx_pp + Byn_pp * By_pp + Bzn_pp * Bz_pp) - Byn_pp * By_pp) - (0.5 * (Bxn_pm * Bx_pm + Byn_pm * By_pm + Bzn_pm * Bz_pm ) - Byn_pm * By_pm )));
+			double By_2 = Bxn_p0 / rho_p0 * (-1 / dx * (Qe(i + 1, j, 5) * XB(i + 1, j, 6) * reflct_xR - Qe(i, j, 5) * XB(i, j, 6)) + 1 / dy * ((0.5 * (Bxn_pp * Bx_pp + Byn_pp * By_pp + Bzn_pp * Bz_pp) - Byn_pp * By_pp) - (0.5 * (Bxn_pm * Bx_pm + Byn_pm * By_pm + Bzn_pm * Bz_pm ) - Byn_pm * By_pm )));
 			
-			double By_3 = Byn_m0 / rho_m0 * (-1 / dx * ((0.5 * (Qe(i, j, 5) * x(M_B(i,j,5)) + Qe(i, j, 6) * x(M_B(i,j,6)) + Qe(i, j, 7) * x(M_B(i, j, 7)) ) - Qe(i, j, 5) * x(M_B(i, j, 5))) - (0.5 * ((Qe(i - 1, j, 5) * x(M_B(i - 1, j, 5)) * reflct_xL + Qe(i - 1, j, 6) * x(M_B(i - 1, j, 6)) * reflct_xL + Qe(i - 1, j, 7) * x(M_B(i - 1, j, 7)) * reflct_xL)) - Qe(i - 1, j, 5) * x(M_B(i - 1, j, 5)) * reflct_xL )) + 1 / dy * (Bxn_mp * By_mp - Bxn_mm * By_mm));
+			double By_3 = Byn_m0 / rho_m0 * (-1 / dx * ((0.5 * (Qe(i, j, 5) * XB(i,j,5) + Qe(i, j, 6) * XB(i,j,6) + Qe(i, j, 7) * XB(i, j, 7) ) - Qe(i, j, 5) * XB(i, j, 5)) - (0.5 * ((Qe(i - 1, j, 5) * XB(i - 1, j, 5) * reflct_xL + Qe(i - 1, j, 6) * XB(i - 1, j, 6) * reflct_xL + Qe(i - 1, j, 7) * XB(i - 1, j, 7) * reflct_xL)) - Qe(i - 1, j, 5) * XB(i - 1, j, 5) * reflct_xL )) + 1 / dy * (Bxn_mp * By_mp - Bxn_mm * By_mm));
 			
-			double By_4 = Bxn_m0 / rho_m0 * (-1 / dx * (Qe(i, j, 5) * x(M_B(i, j, 6)) - Qe(i - 1, j, 5) * x(M_B(i - 1, j, 6)) * reflct_xL) + 1 / dy * ((0.5 * (Bxn_mp * Bx_mp + Byn_mp * By_mp + Bzn_mp * Bz_mp) - Byn_mp * By_mp)  - (0.5 * (Bxn_mm * Bx_mm + Byn_mm * By_mm + Bzn_mm * Bz_mm ) - Byn_mm * By_mm )));
+			double By_4 = Bxn_m0 / rho_m0 * (-1 / dx * (Qe(i, j, 5) * XB(i, j, 6) - Qe(i - 1, j, 5) * XB(i - 1, j, 6) * reflct_xL) + 1 / dy * ((0.5 * (Bxn_mp * Bx_mp + Byn_mp * By_mp + Bzn_mp * Bz_mp) - Byn_mp * By_mp)  - (0.5 * (Bxn_mm * Bx_mm + Byn_mm * By_mm + Bzn_mm * Bz_mm ) - Byn_mm * By_mm )));
 			
-			Ax(M_B(i,j,6)) = x(M_B(i,j,6)) + (h * h / dx) * ((By_1 + By_2) - (By_3 + By_4));
-			
-
-			double Bz_1 = Bzn_p0 / rho_p0 * (-1/dx * ((0.5 * (Qe(i + 1,j,5) * x(M_B(i + 1,j,5)) * reflct_xR + Qe(i + 1,j,6) * x(M_B(i + 1,j,6))* reflct_xR + Qe(i + 1,j,7) * x(M_B(i + 1,j,7))* reflct_xR) - Qe(i + 1,j,5) * x(M_B(i + 1,j,5))* reflct_xR ) - (0.5 * (Qe(i,j,5) * x(M_B(i,j,5)) + Qe(i,j,6) * x(M_B(i,j,6)) + Qe(i,j,7) * x(M_B(i,j,7))) - Qe(i,j,5) * x(M_B(i,j,5)))) + 1 / dy * (Byn_pp * Bx_pp - Byn_pm * Bx_pm ) ); 
-			
-			double Bz_2 =  Bxn_p0 / rho_p0 * (-1 / dx * (Qe(i + 1,j,5) * x(M_B(i + 1, j, 7)) * reflct_xR - Qe(i,j,5) * x(M_B(i, j, 7))) - 1 / dy * (Byn_pp * Bz_pp - Byn_pm * Bz_pm));
-			
-			double Bz_3 = Bzn_m0 / rho_m0 * (-1/dx * ((0.5 * (Qe(i,j,5) * x(M_B(i,j,5)) + Qe(i,j,6) * x(M_B(i,j,6)) + Qe(i,j,7) * x(M_B(i,j,7))) - Qe(i,j,5) * x(M_B(i,j,5))) - (0.5 * (Qe(i - 1,j,5) * x(M_B(i - 1,j,5)) * reflct_xL + Qe(i - 1,j,6) * x(M_B(i - 1,j,6)) * reflct_xL + Qe(i - 1,j,7) * x(M_B(i - 1,j,7))* reflct_xL) - Qe(i-1,j,5) * x(M_B(i-1,j,5)) * reflct_xL )) + 1 / dy * (Byn_mp * Bx_mp - Byn_mm * Bx_mm ) ); 
-			
-			double Bz_4 =  Bxn_m0 / rho_m0 * (-1 / dx * (Qe(i,j,5) * x(M_B(i, j, 7)) - Qe(i - 1,j,5) * x(M_B(i - 1, j, 7)) * reflct_xL ) - 1 / dy * (Byn_mp * Bz_mp - Byn_mm * Bz_mm));
-			
-			double Bz_5 = Bzn_0p / rho_0p * (1 / dx * (Bxn_pp * By_pp - Bxn_mp * By_mp) - 1 / dy * ((0.5 * (Qe(i,j+1,5) * x(M_B(i,j+1,5)) * reflct_yR + Qe(i,j+1,6) * x(M_B(i,j+1,6))* reflct_yR + Qe(i,j+1,7) * x(M_B(i,j+1,7)) * reflct_yR ) - Qe(i,j+1,6) * x(M_B(i,j+1,6))* reflct_yR)  - (0.5 * (Qe(i,j,5) * x(M_B(i,j,5)) + Qe(i,j,6) * x(M_B(i,j,6)) + Qe(i,j,7) * x(M_B(i,j,7)) ) - Qe(i,j,6) * x(M_B(i,j,6)))) );
-			
-			double Bz_6 = Byn_0p / rho_0p * (-1 / dx * (Bxn_pp * Bz_pp - Bxn_mp * Bz_mp) - 1 / dy * (Qe(i,j + 1,6) * x(M_B(i, j + 1, 7)) * reflct_yR - Qe(i,j,6) * x(M_B(i, j, 7))) );
-			
-			double Bz_7 = Bzn_0m / rho_0m * (1 / dx * (Bxn_pm * By_pm - Bxn_mm * By_mm) - 1 / dy * ((0.5 * (Qe(i,j,5) * x(M_B(i,j,5)) + Qe(i,j,6) * x(M_B(i,j,6)) + Qe(i,j,7) * x(M_B(i,j,7))) - Qe(i,j,6) * x(M_B(i,j,6))) - (0.5 * (Qe(i,j - 1,5) * x(M_B(i,j - 1,5)) * reflct_yL + Qe(i,j - 1,6) * x(M_B(i,j - 1,6)) * reflct_yL + Qe(i,j - 1,7) * x(M_B(i,j - 1,7)) * reflct_yL ) - Qe(i,j - 1,6) * x(M_B(i,j - 1,6))* reflct_yL)) );
-			
-			double Bz_8 = Byn_0m / rho_0m * (-1 / dx * (Bxn_pm * Bz_pm - Bxn_mm * Bz_mm) - 1 / dy * (Qe(i,j,6) * x(M_B(i, j, 7)) - Qe(i,j - 1,6) * x(M_B(i, j - 1, 7))* reflct_yL) );
+			Ax(M_B(i,j,6)) = XB(i,j,6) + (h * h / dx) * ((By_1 + By_2) - (By_3 + By_4));
 			
 
+			double Bz_1 = Bzn_p0 / rho_p0 * (-1/dx * ((0.5 * (Qe(i + 1,j,5) * XB(i + 1,j,5) * reflct_xR + Qe(i + 1,j,6) * XB(i + 1,j,6)* reflct_xR + Qe(i + 1,j,7) * XB(i + 1,j,7)* reflct_xR) - Qe(i + 1,j,5) * XB(i + 1,j,5)* reflct_xR ) - (0.5 * (Qe(i,j,5) * XB(i,j,5) + Qe(i,j,6) * XB(i,j,6) + Qe(i,j,7) * XB(i,j,7)) - Qe(i,j,5) * XB(i,j,5))) + 1 / dy * (Byn_pp * Bx_pp - Byn_pm * Bx_pm ) ); 
 			
-			Ax(M_B(i,j,7)) = x(M_B(i,j,7)) + h *h  / dx * ((Bz_1 + Bz_2) - (Bz_3 + Bz_4)) + h * h/ dy * ((Bz_5 + Bz_6) - (Bz_7 + Bz_8));
+			double Bz_2 =  Bxn_p0 / rho_p0 * (-1 / dx * (Qe(i + 1,j,5) * XB(i + 1, j, 7) * reflct_xR - Qe(i,j,5) * XB(i, j, 7)) - 1 / dy * (Byn_pp * Bz_pp - Byn_pm * Bz_pm));
+			
+			double Bz_3 = Bzn_m0 / rho_m0 * (-1/dx * ((0.5 * (Qe(i,j,5) * XB(i,j,5) + Qe(i,j,6) * XB(i,j,6) + Qe(i,j,7) * XB(i,j,7)) - Qe(i,j,5) * XB(i,j,5)) - (0.5 * (Qe(i - 1,j,5) * XB(i - 1,j,5) * reflct_xL + Qe(i - 1,j,6) * XB(i - 1,j,6) * reflct_xL + Qe(i - 1,j,7) * XB(i - 1,j,7)* reflct_xL) - Qe(i-1,j,5) * XB(i-1,j,5) * reflct_xL )) + 1 / dy * (Byn_mp * Bx_mp - Byn_mm * Bx_mm ) ); 
+			
+			double Bz_4 =  Bxn_m0 / rho_m0 * (-1 / dx * (Qe(i,j,5) * XB(i, j, 7) - Qe(i - 1,j,5) * XB(i - 1, j, 7) * reflct_xL ) - 1 / dy * (Byn_mp * Bz_mp - Byn_mm * Bz_mm));
+			
+			double Bz_5 = Bzn_0p / rho_0p * (1 / dx * (Bxn_pp * By_pp - Bxn_mp * By_mp) - 1 / dy * ((0.5 * (Qe(i,j+1,5) * XB(i,j+1,5) * reflct_yR + Qe(i,j+1,6) * XB(i,j+1,6)* reflct_yR + Qe(i,j+1,7) * XB(i,j+1,7) * reflct_yR ) - Qe(i,j+1,6) * XB(i,j+1,6)* reflct_yR)  - (0.5 * (Qe(i,j,5) * XB(i,j,5) + Qe(i,j,6) * XB(i,j,6) + Qe(i,j,7) * XB(i,j,7) ) - Qe(i,j,6) * XB(i,j,6))) );
+			
+			double Bz_6 = Byn_0p / rho_0p * (-1 / dx * (Bxn_pp * Bz_pp - Bxn_mp * Bz_mp) - 1 / dy * (Qe(i,j + 1,6) * XB(i, j + 1, 7) * reflct_yR - Qe(i,j,6) * XB(i, j, 7)) );
+			
+			double Bz_7 = Bzn_0m / rho_0m * (1 / dx * (Bxn_pm * By_pm - Bxn_mm * By_mm) - 1 / dy * ((0.5 * (Qe(i,j,5) * XB(i,j,5) + Qe(i,j,6) * XB(i,j,6) + Qe(i,j,7) * XB(i,j,7)) - Qe(i,j,6) * XB(i,j,6)) - (0.5 * (Qe(i,j - 1,5) * XB(i,j - 1,5) * reflct_yL + Qe(i,j - 1,6) * XB(i,j - 1,6) * reflct_yL + Qe(i,j - 1,7) * XB(i,j - 1,7) * reflct_yL ) - Qe(i,j - 1,6) * XB(i,j - 1,6)* reflct_yL)) );
+			
+			double Bz_8 = Byn_0m / rho_0m * (-1 / dx * (Bxn_pm * Bz_pm - Bxn_mm * Bz_mm) - 1 / dy * (Qe(i,j,6) * XB(i, j, 7) - Qe(i,j - 1,6) * XB(i, j - 1, 7)* reflct_yL) );
+			
+
+			
+			Ax(M_B(i,j,7)) = XB(i,j,7) + h *h  / dx * ((Bz_1 + Bz_2) - (Bz_3 + Bz_4)) + h * h/ dy * ((Bz_5 + Bz_6) - (Bz_7 + Bz_8));
 			
 			// ---- implicit Hall term (Dematte Eq. 59 pattern, extended to the Hall EMF) ----
 			// The Hall term is quadratic in B, so it is linearised the same way the ideal
@@ -3890,7 +3968,7 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			// unknown x, the multiplying field is frozen at the explicit stage state Qe.
 			//   B^{n+1} + h * curl[ (d_i/rho) (curl x) x B^n ]  =  B*
 			if(add_hall && hall_implicit){
-				auto xB = [&](int ii,int jj,int c)->double{ return x(M_B(ii,jj,c)); };
+				auto xB = [&](int ii,int jj,int c)->double{ return XB(ii,jj,c); };
 				auto Jx_x = [&](int ii,int jj)->double{
 					return  (xB(ii,jj+1,7) - xB(ii,jj-1,7)) / (2.0*dy); };
 				auto Jy_x = [&](int ii,int jj)->double{
@@ -3905,19 +3983,28 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 					return ii; };
 				auto clampJ = [&](int jj)->int{
 					if(y_bc == y_Transmissive || y_bc == y_Dirichlet) return std::min(std::max(jj, ghost_cells), nyCells + ghost_cells - 1);
+					if(y_bc == y_ConductingWall){           // mirror cell; the sign is applied below
+						if(jj < ghost_cells) return 2*ghost_cells - 1 - jj;
+						if(jj >= nyCells + ghost_cells) return 2*(nyCells + ghost_cells) - 1 - jj;
+					}
 					return jj; };
+				// conducting wall: tangential E (x, z) is odd about the wall, so it vanishes there
+				auto wsg = [&](int jj)->double{
+					return (y_bc == y_ConductingWall && (jj < ghost_cells || jj >= nyCells + ghost_cells)) ? -1.0 : 1.0; };
 				auto EHx = [&](int ii,int jj)->double{
+					double sg = wsg(jj);
 					ii = clampI(ii);  jj = clampJ(jj);
 					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
-					return (Hall_di/r)*(Jy_x(ii,jj)*Qe(ii,jj,7) - Jz_x(ii,jj)*Qe(ii,jj,6)); };
+					return sg*(Hall_di/r)*(Jy_x(ii,jj)*Qe(ii,jj,7) - Jz_x(ii,jj)*Qe(ii,jj,6)); };
 				auto EHy = [&](int ii,int jj)->double{
 					ii = clampI(ii);  jj = clampJ(jj);
 					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
 					return (Hall_di/r)*(Jz_x(ii,jj)*Qe(ii,jj,5) - Jx_x(ii,jj)*Qe(ii,jj,7)); };
 				auto EHz = [&](int ii,int jj)->double{
+					double sg = wsg(jj);
 					ii = clampI(ii);  jj = clampJ(jj);
 					double r = fmax(u_con(ii,jj,0), hall_rho_floor);
-					return (Hall_di/r)*(Jx_x(ii,jj)*Qe(ii,jj,6) - Jy_x(ii,jj)*Qe(ii,jj,5)); };
+					return sg*(Hall_di/r)*(Jx_x(ii,jj)*Qe(ii,jj,6) - Jy_x(ii,jj)*Qe(ii,jj,5)); };
 				// dB/dt = -curl E  =>  LHS gains +h*curl E_H
 				Ax(M_B(i,j,5)) += h * ( (EHz(i,j+1) - EHz(i,j-1)) / (2.0*dy) );
 				Ax(M_B(i,j,6)) += h * (-(EHz(i+1,j) - EHz(i-1,j)) / (2.0*dx) );
@@ -3929,12 +4016,12 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			double nu_x, nu_y;
 			
 			if(add_resistive){
-				double lapBx_res = (x(M_B(i+1,j,5))*reflct_xR - 2.0*x(M_B(i,j,5)) + x(M_B(i-1,j,5))*reflct_xL)/(dx*dx)
-				+ (x(M_B(i,j+1,5))*reflct_yR - 2.0*x(M_B(i,j,5)) + x(M_B(i,j-1,5))*reflct_yL)/(dy*dy);
-				double lapBy_res = (x(M_B(i+1,j,6))*reflct_xR - 2.0*x(M_B(i,j,6)) + x(M_B(i-1,j,6))*reflct_xL)/(dx*dx)
-				+ (x(M_B(i,j+1,6))*reflct_yR - 2.0*x(M_B(i,j,6)) + x(M_B(i,j-1,6))*reflct_yL)/(dy*dy);
-				double lapBz_res = (x(M_B(i+1,j,7))*reflct_xR - 2.0*x(M_B(i,j,7)) + x(M_B(i-1,j,7))*reflct_xL)/(dx*dx)
-				+ (x(M_B(i,j+1,7))*reflct_yR - 2.0*x(M_B(i,j,7)) + x(M_B(i,j-1,7))*reflct_yL)/(dy*dy);
+				double lapBx_res = (XB(i+1,j,5)*reflct_xR - 2.0*XB(i,j,5) + XB(i-1,j,5)*reflct_xL)/(dx*dx)
+				+ (XB(i,j+1,5)*reflct_yR - 2.0*XB(i,j,5) + XB(i,j-1,5)*reflct_yL)/(dy*dy);
+				double lapBy_res = (XB(i+1,j,6)*reflct_xR - 2.0*XB(i,j,6) + XB(i-1,j,6)*reflct_xL)/(dx*dx)
+				+ (XB(i,j+1,6)*reflct_yR - 2.0*XB(i,j,6) + XB(i,j-1,6)*reflct_yL)/(dy*dy);
+				double lapBz_res = (XB(i+1,j,7)*reflct_xR - 2.0*XB(i,j,7) + XB(i-1,j,7)*reflct_xL)/(dx*dx)
+				+ (XB(i,j+1,7)*reflct_yR - 2.0*XB(i,j,7) + XB(i,j-1,7)*reflct_yL)/(dy*dy);
 				Ax(M_B(i,j,5)) -= h * eta_resistive * lapBx_res;
 				Ax(M_B(i,j,6)) -= h * eta_resistive * lapBy_res;
 				Ax(M_B(i,j,7)) -= h * eta_resistive * lapBz_res;
@@ -3946,8 +4033,8 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 			// add_hyperresistive 或者照 reflct_* 那套逻辑自己把镜像补全再开。----
 			if(add_hyperresistive){
 				auto lapB_at = [&](int ii, int jj, int comp) -> double {
-					return (x(M_B(ii+1,jj,comp)) - 2.0*x(M_B(ii,jj,comp)) + x(M_B(ii-1,jj,comp)))/(dx*dx)
-					+ (x(M_B(ii,jj+1,comp)) - 2.0*x(M_B(ii,jj,comp)) + x(M_B(ii,jj-1,comp)))/(dy*dy);
+					return (XB(ii+1,jj,comp) - 2.0*XB(ii,jj,comp) + XB(ii-1,jj,comp))/(dx*dx)
+					+ (XB(ii,jj+1,comp) - 2.0*XB(ii,jj,comp) + XB(ii,jj-1,comp))/(dy*dy);
 				};
 				for(int comp = 5; comp <= 7; comp++){
 					double biharm = (lapB_at(i+1,j,comp) - 2.0*lapB_at(i,j,comp) + lapB_at(i-1,j,comp))/(dx*dx)
@@ -3961,21 +4048,21 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 				double nu_x_p = (*g_bnu_x)(i,j), nu_x_m = (*g_bnu_x)(i-1,j);
 				double nu_y_p = (*g_bnu_y)(i,j), nu_y_m = (*g_bnu_y)(i,j-1);
 				for(int comp = 5; comp <= 7; comp++){
-					double lap = 1 /(dx * dx) * ( nu_x_p * (x(M_B(i+1,j,comp)) * reflct_xR - x(M_B(i,j,comp))) - nu_x_m * (x(M_B(i,j,comp)) - x(M_B(i-1,j,comp))* reflct_xL))
-					           + 1 /(dy * dy) * ( nu_y_p * (x(M_B(i,j + 1,comp)) * reflct_yR -  x(M_B(i,j,comp)))  - nu_y_m * (x(M_B(i,j,comp)) - x(M_B(i,j - 1,comp)) * reflct_yL));
+					double lap = 1 /(dx * dx) * ( nu_x_p * (XB(i+1,j,comp) * reflct_xR - XB(i,j,comp)) - nu_x_m * (XB(i,j,comp) - XB(i-1,j,comp)* reflct_xL))
+					           + 1 /(dy * dy) * ( nu_y_p * (XB(i,j + 1,comp) * reflct_yR -  XB(i,j,comp))  - nu_y_m * (XB(i,j,comp) - XB(i,j - 1,comp) * reflct_yL));
 					Ax(M_B(i,j,comp)) = Ax(M_B(i,j,comp)) - h * lap;
 				}
 			}else if(GLF){
 				nu_x = B_max_x * dx;
 				nu_y = B_max_y * dy;
-				lap_Bx = nu_x/(dx * dx) * (x(M_B(i-1,j,5)) * reflct_xL - 2.0*x(M_B(i,j,5)) + x(M_B(i+1,j,5)) * reflct_xR) + nu_y/(dy * dy) * (x(M_B(i,j - 1,5)) * reflct_yL - 2.0*x(M_B(i,j,5)) + x(M_B(i,j + 1,5)) * reflct_yR);
+				lap_Bx = nu_x/(dx * dx) * (XB(i-1,j,5) * reflct_xL - 2.0*XB(i,j,5) + XB(i+1,j,5) * reflct_xR) + nu_y/(dy * dy) * (XB(i,j - 1,5) * reflct_yL - 2.0*XB(i,j,5) + XB(i,j + 1,5) * reflct_yR);
 				Ax(M_B(i,j,5)) = Ax(M_B(i,j,5)) - h * lap_Bx;
 				
-				lap_By = nu_x/(dx * dx) * (x(M_B(i - 1,j,6)) * reflct_xL - 2.0*x(M_B(i,j,6)) + x(M_B(i + 1,j,6)) * reflct_xR) + nu_y/(dy * dy) * (x(M_B(i,j - 1,6)) * reflct_yL - 2.0*x(M_B(i,j,6)) + x(M_B(i,j + 1,6)) * reflct_yR);
+				lap_By = nu_x/(dx * dx) * (XB(i - 1,j,6) * reflct_xL - 2.0*XB(i,j,6) + XB(i + 1,j,6) * reflct_xR) + nu_y/(dy * dy) * (XB(i,j - 1,6) * reflct_yL - 2.0*XB(i,j,6) + XB(i,j + 1,6) * reflct_yR);
 				
 				Ax(M_B(i,j,6)) = Ax(M_B(i,j,6)) - h * lap_By;
 				
-				lap_Bz = nu_x/(dx * dx) * (x(M_B(i - 1,j,7)) * reflct_xL - 2.0*x(M_B(i,j,7)) + x(M_B(i + 1,j,7)) * reflct_xR) + nu_y/(dy * dy) * (x(M_B(i,j - 1,7)) * reflct_yL - 2.0*x(M_B(i,j,7)) + x(M_B(i,j + 1,7)) * reflct_yR);
+				lap_Bz = nu_x/(dx * dx) * (XB(i - 1,j,7) * reflct_xL - 2.0*XB(i,j,7) + XB(i + 1,j,7) * reflct_xR) + nu_y/(dy * dy) * (XB(i,j - 1,7) * reflct_yL - 2.0*XB(i,j,7) + XB(i,j + 1,7) * reflct_yR);
 				Ax(M_B(i,j,7)) = Ax(M_B(i,j,7)) - h * lap_Bz;
 			}else{
 				double b_x = 0.5 * (fabs(Qe_pri(i,j,1)) + sqrt(Qe_pri(i,j,1) * Qe_pri(i,j,1) + 4 * (Qe_pri(i,j,5) * Qe_pri(i,j,5) + Qe_pri(i,j,6) * Qe_pri(i,j,6) + Qe_pri(i,j,7) * Qe_pri(i,j,7)) / Qe_pri(i,j,0)  ));
@@ -3995,14 +4082,14 @@ void Magnetic_Subsystem_AX(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con,
 				double nu_y_p = fmax(fabs(b_y), fabs(b_y_p)) * dy;
 				double nu_y_m = fmax(fabs(b_y), fabs(b_y_m)) * dy;
 				
-				lap_Bx = 1 /(dx * dx) * ( nu_x_p * (x(M_B(i+1,j,5)) * reflct_xR - x(M_B(i,j,5))) - nu_x_m * (x(M_B(i,j,5)) - x(M_B(i-1,j,5))* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (x(M_B(i,j + 1,5)) * reflct_yR -  x(M_B(i,j,5)))  - nu_y_m * (x(M_B(i,j,5)) - x(M_B(i,j - 1,5)) * reflct_yL));
+				lap_Bx = 1 /(dx * dx) * ( nu_x_p * (XB(i+1,j,5) * reflct_xR - XB(i,j,5)) - nu_x_m * (XB(i,j,5) - XB(i-1,j,5)* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (XB(i,j + 1,5) * reflct_yR -  XB(i,j,5))  - nu_y_m * (XB(i,j,5) - XB(i,j - 1,5) * reflct_yL));
 				Ax(M_B(i,j,5)) = Ax(M_B(i,j,5)) - h * lap_Bx;
 				
-				lap_By = 1 /(dx * dx) * ( nu_x_p * (x(M_B(i+1,j,6)) * reflct_xR - x(M_B(i,j,6))) - nu_x_m * (x(M_B(i,j,6)) - x(M_B(i-1,j,6))* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (x(M_B(i,j + 1,6)) * reflct_yR -  x(M_B(i,j,6)))  - nu_y_m * (x(M_B(i,j,6)) - x(M_B(i,j - 1,6)) * reflct_yL));
+				lap_By = 1 /(dx * dx) * ( nu_x_p * (XB(i+1,j,6) * reflct_xR - XB(i,j,6)) - nu_x_m * (XB(i,j,6) - XB(i-1,j,6)* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (XB(i,j + 1,6) * reflct_yR -  XB(i,j,6))  - nu_y_m * (XB(i,j,6) - XB(i,j - 1,6) * reflct_yL));
 				
 				Ax(M_B(i,j,6)) = Ax(M_B(i,j,6)) - h * lap_By;
 				
-				lap_Bz = 1 /(dx * dx) * ( nu_x_p * (x(M_B(i+1,j,7)) * reflct_xR - x(M_B(i,j,7))) - nu_x_m * (x(M_B(i,j,7)) - x(M_B(i-1,j,7))* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (x(M_B(i,j + 1,7)) * reflct_yR -  x(M_B(i,j,7)))  - nu_y_m * (x(M_B(i,j,7)) - x(M_B(i,j - 1,7)) * reflct_yL));
+				lap_Bz = 1 /(dx * dx) * ( nu_x_p * (XB(i+1,j,7) * reflct_xR - XB(i,j,7)) - nu_x_m * (XB(i,j,7) - XB(i-1,j,7)* reflct_xL)) + 1 /(dy * dy) * ( nu_y_p * (XB(i,j + 1,7) * reflct_yR -  XB(i,j,7))  - nu_y_m * (XB(i,j,7) - XB(i,j - 1,7) * reflct_yL));
 				Ax(M_B(i,j,7)) = Ax(M_B(i,j,7)) - h * lap_Bz;
 			}
 		}
@@ -4720,7 +4807,7 @@ void PreSubsystem_Pressure(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_x
 		}
 	}
 	bound_cond_array(rhovx_star);
-	bound_cond_array(rhovy_star);
+	bound_cond_array(rhovy_star, -1.0);   // normal momentum: odd at a conducting wall
 	bound_cond_array(rhovz_star);
 	
 	
@@ -5323,6 +5410,15 @@ void ExtrapolateGhostE(Grid& E, int ncomp){
 		for(int i = 0; i < NI; i++) for(int g = 0; g < ghost_cells; g++) for(int k = 0; k < ncomp; k++){
 			E(i, g, k) = E(i, ghost_cells, k);
 			E(i, nyCells + ghost_cells + g, k) = E(i, nyCells + ghost_cells - 1, k);
+		}
+	}
+	if(y_bc == y_ConductingWall){
+		// tangential E (x and z) odd, normal E_y even: E_t = 0 on the wall, no Poynting flux through it.
+		// ncomp == 1 means the array holds E_z only.
+		for(int i = 0; i < NI; i++) for(int g = 0; g < ghost_cells; g++) for(int k = 0; k < ncomp; k++){
+			double sg = (ncomp == 3 && k == 1) ? 1.0 : -1.0;
+			E(i, g, k) = sg * E(i, 2*ghost_cells - 1 - g, k);
+			E(i, nyCells + ghost_cells + g, k) = sg * E(i, nyCells + ghost_cells - 1 - g, k);
 		}
 	}
 }
@@ -6181,7 +6277,8 @@ void HallReconnectionDiagnostics(Grid& u_con, double tnow){
 
 // ---- command line: key=value overrides (no arguments = the defaults set in this file) -------
 //   test=HarrisHall|HallReconnection|Whistler|ResistiveDecay|ViscousDecay
-//   eta= mu= kappa= di= hyper= hall=0|1 tend= dt=(fixed dt) cfl= bvisc=mag|mat div=A|stag|unstag out=<dir/>
+//   eta= mu= kappa= di= hyper= hall=0|1 tend= dt=(fixed dt) cfl= bvisc=mag|mat div=A|stag|unstag
+//   ybc=wall|open|periodic out=<dir/>
 static std::string cli_get(int argc, char* argv[], const std::string& key){
 	for(int a = 1; a < argc; a++){
 		std::string s(argv[a]);
@@ -6367,7 +6464,7 @@ int main(int argc, char *argv[]){
 			break;
 		case testHarrisHall:
 			// Report Table 4.6, Test 12: Hall MHD Harris sheet (GEM challenge geometry).
-			// Lx x Ly = 4pi x 2pi on 128 x 64, periodic in x, transmissive in y,
+			// Lx x Ly = 4pi x 2pi on 128 x 64, periodic in x, conducting walls in y,
 			// eta = 5e-3, d_i = 1, psi0 = 0.1, rho_floor = 0.02, t_end = 12.
 			// The reference EXPLICIT calculation terminates near t = 12: X-line density
 			// cavitation drives |JxB|/rho up while its Hall CFL uses a density floor of 0.1
@@ -6380,7 +6477,9 @@ int main(int argc, char *argv[]){
 			time_stop = 12.0;
 			gamma_plasma = 5.0/3.0;
 			x_bc = x_Periodic;
-			y_bc = y_Transmissive;
+			// GEM standard: perfectly conducting walls in y (ybc=open restores the transmissive
+			// boundaries of the report; with Hall on they grow a spurious boundary jet, see README)
+			y_bc = y_ConductingWall;
 			// non-ideal switches for Table 4.6 Test 12
 			add_resistive     = true;  eta_resistive = 5.0e-3;   // S ~ 2500
 			add_hyperresistive = false; eta_hyper    = 0.0;      // not used in Test 12
@@ -6462,6 +6561,11 @@ int main(int argc, char *argv[]){
 		if((v = cli_get(argc, argv, "cfl"))   != "") CFL = stod(v);
 		if((v = cli_get(argc, argv, "bvisc")) != "") bvisc_mode = (v == "mag") ? BviscMagnetic : BviscMaterialShock;
 		if((v = cli_get(argc, argv, "out"))   != "") g_out_root = v;
+		if((v = cli_get(argc, argv, "ybc"))   != ""){
+			if(v == "wall")     y_bc = y_ConductingWall;
+			if(v == "open")     y_bc = y_Transmissive;
+			if(v == "periodic") y_bc = y_Periodic;
+		}
 		if((v = cli_get(argc, argv, "div"))   != ""){
 			if(v == "stag")   magfield = StaggerCT;
 			if(v == "unstag") magfield = UnStaggerCT;
@@ -6474,7 +6578,11 @@ int main(int argc, char *argv[]){
 		          << " eta_H=" << (add_hyperresistive ? eta_hyper : 0.0)
 		          << " bvisc=" << (bvisc_mode == BviscMagnetic ? "magnetic(Eq.83)" : "material+shock")
 		          << " div=" << (magfield == StaggerCT ? "StaggerCT" : magfield == UnStaggerCT ? "UnStaggerCT" : magfield == PotentialA ? "PotentialA" : "none")
+		          << " ybc=" << (y_bc == y_ConductingWall ? "wall" : y_bc == y_Transmissive ? "open" : y_bc == y_Periodic ? "periodic" : "other")
 		          << " t_end=" << time_stop << std::endl;
+		if(y_bc == y_ConductingWall && magfield != StaggerCT)
+			std::cout << "# WARNING: the conducting-wall condition on the vector potential is only a linear"
+			             " extrapolation; use div=stag with ybc=wall" << std::endl;
 	}
 	
 	dx = (x_1 - x_0)/(nxPoints-1);
@@ -6813,7 +6921,7 @@ int main(int argc, char *argv[]){
 			}
 			double xe=x_0+(im-ghost_cells+0.5)*dx, ye=y_0+(jm-ghost_cells+0.5)*dy;
 			std::cout<<"DIAG ts="<<timestep<<" t="<<t<<" emin="<<emin<<" at("<<xe<<","<<ye<<")"
-			<<" mass="<<mass*dx*dy<<" intE="<<intE*dx*dy<<" Etot="<<Etot*dx*dy<<" vmax="<<vmax<<" magE_max="<<mmax
+			<<" mass="<<mass*dx*dy<<" intE="<<intE*dx*dy<<" Etot="<<std::setprecision(12)<<Etot*dx*dy<<std::setprecision(6)<<" vmax="<<vmax<<" magE_max="<<mmax
 			<<" gmresMV="<<g_gmres_matvec
 			<<" dt_ideal="<<g_dt_ideal<<" dt_hall="<<g_dt_hall<<std::endl;
 		}
@@ -6854,11 +6962,11 @@ int main(int argc, char *argv[]){
 					num1 = u_con(i,j,6);  ex1 =  ver_eps*cos(ph);
 					num2 = u_con(i,j,7);  ex2 = -ver_eps*sin(ph);
 				}else if(test == testResistiveDecay){
-					num1 = u_con(i,j,5);  ex1 = ver_eps*sin(2.0*M_PI*y)*exp(-eta_resistive*4.0*M_PI*M_PI*t);
+					num1 = u_con(i,j,5);  ex1 = ver_eps*ver_shape(y)*exp(-eta_resistive*4.0*M_PI*M_PI*t);
 					num2 = u_con(i,j,5);  ex2 = ex1;
 				}else{
 					double d = exp(-mu_visc*4.0*M_PI*M_PI*t);
-					num1 = u_con(i,j,1)/u_con(i,j,0);  ex1 = ver_eps*sin(2.0*M_PI*y)*d;
+					num1 = u_con(i,j,1)/u_con(i,j,0);  ex1 = ver_eps*ver_shape(y)*d;
 					num2 = u_con(i,j,3)/u_con(i,j,0);  ex2 = ex1;
 				}
 				e2 += (num1-ex1)*(num1-ex1);  n2 += ex1*ex1;
