@@ -12,8 +12,11 @@ import matplotlib.pyplot as plt
 def load(d, name):
     f = glob.glob(d + '/**/RK_' + name + '.dat', recursive=True)[0]
     a = np.loadtxt(f)
-    x, y = np.unique(a[:, 0]), np.unique(a[:, 1])
-    return x, y, a[:, 2].reshape(len(x), len(y)).T          # [j, i]
+    nx, ny = len(np.unique(a[:, 0].round(9))), len(np.unique(a[:, 1].round(9)))
+    # rebuild exactly equidistant coordinates (the text output is not, at round-off level)
+    x = np.linspace(a[:, 0].min(), a[:, 0].max(), nx)
+    y = np.linspace(a[:, 1].min(), a[:, 1].max(), ny)
+    return x, y, a[:, 2].reshape(nx, ny).T                   # [j, i]
 
 
 def main():
