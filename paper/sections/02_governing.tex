@@ -29,11 +29,14 @@ with the mechanical, thermal and chemical relaxation terms
 p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
 \label{eq:sources}
 \end{equation}
-The three terms drive the phases towards mechanical, thermal and chemical equilibrium. Pressure relaxation
-$\mathcal P$ changes the volume fraction, with the associated interfacial work, until $p_1=p_2$; temperature
-relaxation $\mathcal Q$ is the interphase heat exchange, which drives $T_1=T_2$; and Gibbs-free-energy relaxation
-$\mathcal M$ is the mass transfer of phase change (evaporation or condensation, $\mathcal M>0$ from phase 2 to
-phase 1), which drives $g_1=g_2$. The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy
+The three terms drive the phases towards equilibrium:
+\begin{itemize}
+\item mechanical relaxation $\mathcal P$: the volume fraction changes, with the associated interfacial work, until $p_1=p_2$;
+\item thermal relaxation $\mathcal Q$: interphase heat exchange, which drives $T_1=T_2$;
+\item chemical relaxation $\mathcal M$: mass transfer by phase change (evaporation or condensation, $\mathcal M>0$
+from phase 2 to phase 1), which drives $g_1=g_2$.
+\end{itemize}
+The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy
 equation is redundant for smooth solutions, but it is the conservative one and fixes the mixture internal
 energy at shocks (the ``+1'' equation of SPB 2009). The interfacial density $\rho_I$ and energy $e_I$ cancel in
 every closure used here and need not be specified. The system can be written in the non-conservative form
