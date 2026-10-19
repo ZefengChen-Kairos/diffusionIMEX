@@ -334,6 +334,7 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 // 诊断（facediag=1，不改变计算）：重构面态是否违反 NASG/SG 的可容许约束 alpha>0, m>0, alpha-mb>0, eps-mq-(alpha-mb)pi>0（论文引理 Face states）。
 // FD_CUR[0] 面值总数，[1] 违反数，[2] 模板三格都可容许时的违反数；级成功后累加到 FD_TOT[级是否 Qe=Qs][...]
 int FACEDIAG = 0; long FD_CUR[3] = {0, 0, 0}; long FD_TOT[2][3] = {{0, 0, 0}, {0, 0, 0}};
+int MOOD = 0;   // 1：不可容许时先在同一步长上改用后向 Euler（旧的 MOOD 回退，对照用）；0（默认）：直接减半步长，保持二阶
 static bool fd_adm(double a1, double m1, double m2, double e1, double e2) {
 	const double a[2] = {a1, 1.0 - a1}, m[2] = {m1, m2}, e[2] = {e1, e2};
 	for (int k = 0; k < 2; k++) {
@@ -1119,7 +1120,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d; else if (k == "mood") MOOD = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1216,6 +1217,7 @@ int main(int argc, char *argv[]){
 	if (!std::isfinite(P_REF)) P_REF = 0.0;
 	for (int j = 0; j < nyCells; j++) for (int i = 0; i < nxCells; i++) P.at(i, j) = pbar_of(u_con.cell(IG(i), IG(j))) - P_REF;
 	double dtprev = -1;
+	bool startup = true;   // 起步斜坡：首次达到物质 CFL 步长之前的步用一阶；之后被 1.2 倍限制的步（拒绝减半之后）仍用二阶
 	do{
 		// ---- 时间步（caldt）：物质 CFL；起步时首步为声学步长，之后每步至多放大 ramp_factor 倍（2DEuler 的 full_step），被限制的步用一阶
 		bool ramping = false;
@@ -1230,8 +1232,9 @@ int main(int argc, char *argv[]){
 
 		bool done = false;
 		for (int attempt = 0; attempt < 30 && !done; attempt++) {
-			const bool lowered = attempt == 1 && RKs > 1 && !(RAMP && ramping);   // 上一次尝试不可容许：同一步长改用一阶（B10 的 MOOD 回退）
-			const int rk = ((RAMP && ramping) || lowered) ? 1 : RKs; if (rk == 1) st_rk1++; if (lowered) st_mood++;
+			const bool first_order = RAMP && ramping && startup;
+			const bool lowered = MOOD && attempt == 1 && RKs > 1 && !first_order;   // MOOD=1：上一次尝试不可容许时同一步长改用一阶
+			const int rk = (first_order || lowered) ? 1 : RKs; if (rk == 1) st_rk1++; if (lowered) st_mood++;
 			set_tab(rk);
 			if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // B6.7
 			copy(u_con_n,u_con);
@@ -1273,13 +1276,12 @@ int main(int argc, char *argv[]){
 				}
 			}
 			if (ok) { copy(u_con, Ust); P = Pst; done = true; }
-			// 不可容许的处理（B10）：先在同一步长上改用一阶（后向 Euler 级 Qs = Qe，显式预测满足 B3 的保正条件）；仍不可容许才减半步长。
-			// IMEX-RK 第二级的 X* = Qs - r div F(Qe) 中 Qs != Qe，B3 的保正论证不成立，微量相可变负（十二烷，devlog V14）
-			if (!done && attempt == 0 && RKs > 1 && !(RAMP && ramping)) continue;
+			// 不可容许的处理（B10）：步长减半重算（V23）。MOOD=1 时先在同一步长上改用后向 Euler（Qs = Qe，B3 的保正条件成立）
+			if (!done && MOOD && attempt == 0 && RKs > 1 && !first_order) continue;
 			if (!done) { st_reject++; dt *= 0.5; if (VERBOSE) fprintf(stderr, "reject: t %.4e new dt %.3e\n", t, dt); }
 		}
 		if (!done) { fprintf(stderr, "FAILED at t = %.6e (step %ld)\n", t, st_steps); write_profile(u_con, out_file); return 2; }
-		t = t + dt; dtprev = dt; st_steps++; timestep++;
+		t = t + dt; dtprev = dt; st_steps++; timestep++; if (!ramping) startup = false;
 		if (SNAPI < SNAP.size() && t >= SNAP[SNAPI] * (1 - 1e-12)) { write_profile(u_con, snap_name(out_file, SNAPI)); SNAPI++; }
 		if (HAS_PROBE) probe_write(u_con, false);
 		if (VERBOSE > 1 && st_steps % 50 == 0) fprintf(stderr, "step %ld t %.4e dt %.3e newton it %ld\n", st_steps, t, dt, st_newton_it);
