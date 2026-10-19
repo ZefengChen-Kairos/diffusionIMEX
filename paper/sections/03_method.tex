@@ -21,9 +21,9 @@ $\delta_y[G]_{i,j}=G_{i,j+1/2}-G_{i,j-1/2}$. Where the $y$-direction is analogou
 
 \subsection{Advective sub-system}
 \label{sec:advective}
-The advective sub-system transports every quantity with the flow velocity. In the model the volume fraction is advected
-by the non-conservative product $u\,\partial_x\alpha_1$, so that, before the volume-transport rewriting of Sec.~\ref{sec:split},
-the transport system is a non-conservative hyperbolic system
+The advective sub-system transports every quantity with the flow velocity. Since the volume fraction is advected by the
+non-conservative product $u\,\partial_x\alpha_1$, the transport of all quantities by the flow forms a non-conservative hyperbolic
+system
 \begin{equation}
 \partial_t\mathbf Q+\mathbf A(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,
 \label{eq:transport_nc}
@@ -64,9 +64,11 @@ D^-_{i+1/2}[\alpha_1]+D^+_{i-1/2}[\alpha_1]+D_i[\alpha_1]=\delta_x\big[F^e[\alph
 -\Big[\tfrac12\big(\bar\alpha_1\Delta u\big)_{i+1/2}+\big(\bar\alpha_1\Delta u\big)_i+\tfrac12\big(\bar\alpha_1\Delta u\big)_{i-1/2}\Big].
 \label{eq:pc_rusanov}
 \end{equation}
-The bracket is the discrete form of $\int\alpha_1\partial_xu\,\mathrm dx$ over the cell. The scheme keeps the conservative part in the
-explicit step and moves the volume strain to the pressure sub-system \eqref{eq:pressure_sub}, where it is evaluated with
-$u^{n+1}$ together with the pressure work (Sec.~\ref{sec:implicit}). The explicit step is therefore the same conservative
+The bracket is the discrete form of $\int\alpha_1\partial_xu\,\mathrm dx$ over the cell. This is the splitting of
+Sec.~\ref{sec:split}: the conservative part is the $\alpha_1$ row of the advective flux $\mathbf F^c$ and is kept in the explicit step,
+and the volume strain is the $\alpha_1$ row of $\mathbf B^p\partial_xu$, which belongs to the pressure sub-system \eqref{eq:pressure_sub} and is
+evaluated with $u^{n+1}$ together with the pressure work (Sec.~\ref{sec:implicit}). Evaluating the strain with the same velocity
+as the incremental volume flux keeps $\sum_k\alpha_k=1$ exactly (Sec.~\ref{sec:implicit}). The explicit step is therefore the same conservative
 update for all transported quantities,
 \begin{equation}
 X^*_{i,j}=X^n_{i,j}-\frac{\Delta t}{\Delta x}\,\delta_x\big[F^e[X]\big]_{i,j}-\frac{\Delta t}{\Delta y}\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
