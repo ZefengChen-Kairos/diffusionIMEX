@@ -2,14 +2,14 @@
 against the exact cell averages (written by the solver with init=1).  Variables: alpha2 rho2, alpha2 rho2 u, alpha2 (as BB Table 1),
 mixture density rho, velocity vector |u - u_ex|, mixture pressure p.  p0 = 1 ... 1e4 and N = 32 ... 256 as BB Table 1, h = 10/N.
 One table per initial data: lim0 = cell averages (as BB), wp = discretely well-prepared velocity (wellprep=1).
-usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_{lim0,wp}.png/.tex/.md)"""
+usage: python3 tests/vortex_bb_table.py OUT_PREFIX [RUNDIR=run/v22/vortex]     (writes OUT_PREFIX_{lim0,wp}.png/.tex/.md)"""
 import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
+BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_all.sh builds it; only used with init=1 (exact initial cell averages)
 if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True)
 REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
-DIRS = [os.path.join(H, 'run', 'v21e', 'vortex')]
+DIRS = [sys.argv[2] if len(sys.argv) > 2 else os.path.join(H, 'run', 'v22', 'vortex')]
 P0 = ['1', '10', '100', '1000', '10000']; NS = [32, 64, 128, 256]
 def load(f): d = np.loadtxt(f); return d
 def ref(N, p0):

@@ -1,7 +1,7 @@
 """Reproductions of the paper figures with the IMEX program (src/SPB6_TV_IMEX.cpp, V21): the variables, units and relaxation levels
 of each paper figure, against the exact solutions of the relaxed limit models:
   5-eq. (p-relaxed, tests/exact5.py), 4-eq. (pT-relaxed) and activation-limited pT -> pTg (tests/exact_relaxed.py).
-usage: python3 tests/plot_paper_figs.py RUNDIR OUTDIR [FIG ...]   (RUNDIR from tests/run_archive.sh)"""
+usage: python3 tests/plot_paper_figs.py RUNDIR OUTDIR [FIG ...]   (RUNDIR from tests/run_all.sh)"""
 import os, sys
 import numpy as np
 import matplotlib
@@ -18,7 +18,7 @@ plt.rcParams.update({'font.size': 9, 'axes.titlesize': 9, 'legend.fontsize': 7, 
 # per-test settings of src/spb6_physics.h test_setup (material CFL; Rusanov speed local unless noted)
 SET = {'spb19': 'material CFL 0.05', 'ps3': 'material CFL 0.05', 'spb20': 'material CFL 0.2, global Rusanov speed'}
 def imex_lab(fig): return 'IMEX (TV-split, LSDIRK2, %s)' % SET.get(fig, 'material CFL 0.2')
-# archive names (tests/run_archive.sh) of the figure runs
+# archive names (tests/run_all.sh) of the figure runs
 ALIAS = {'spb5': 'spb41', 'spb6': 'spb42', 'spb8': 'spb431', 'spb10': 'spb432', 'spb12': 'spb45', 'spb19': 'spb51', 'spb20': 'spb52',
          'pel1': 'pel811', 'pel4': 'pel821', 'pel6': 'pel822'}
 

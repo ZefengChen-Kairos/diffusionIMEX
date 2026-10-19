@@ -8,7 +8,7 @@ import re, glob, os, sys, math, subprocess
 import numpy as np
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 root = sys.argv[1] if len(sys.argv) > 1 else 'run/v21e/allmach'
-BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
+BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_all.sh builds it; only used with init=1 (exact initial cell averages)
 if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True)
 num = r'([-+0-9.eE]+)'
 

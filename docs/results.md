@@ -16,8 +16,8 @@
 
 **复现。**
 
-- `bash tests/run_archive.sh run/archive`：编译并在论文网格上运行全部算例（IMEX）；`python3 tests/make_archive.py run/archive data` 写 `data/`；
-- `python3 tests/plot_paper_figs.py run/archive docs/figures`、`python3 tests/plot_2d_paper.py run/archive docs/figures`：画图。
+- `bash tests/run_all.sh run/v22`：编译并运行全部算例（IMEX，论文网格；Barták、全马赫、Schropff 也在内）；`python3 tests/make_archive.py run/v22 data`、`python3 tests/archive_extra.py run/v22 data` 写 `data/`；
+- `python3 tests/plot_paper_figs.py run/v22 docs/figures`、`python3 tests/plot_2d_paper.py run/v22 docs/figures`：画图。
 
 ---
 

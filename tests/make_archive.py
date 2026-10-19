@@ -1,4 +1,4 @@
-"""Write data/<test>/ from the raw IMEX runs of tests/run_archive.sh: the profiles of every variable plotted in the paper figures
+"""Write data/<test>/ from the raw IMEX runs of tests/run_all.sh: the profiles of every variable plotted in the paper figures
 (.dat; 2D snapshots as .dat.gz with the plotted columns) and note.md with the paper, figure, grid, CFL and all other settings.
 usage: python3 tests/make_archive.py RUNDIR DATADIR"""
 import os, sys, re, gzip, shutil, subprocess
@@ -24,7 +24,7 @@ COLS_DOC = """| column | meaning | unit |
 COLS2 = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13]   # 2D: x y p u v rho alpha2 Y2 T1 T2
 COLS2_NAMES = 'x y p u v rho alpha2 Y2 T1 T2'
 
-SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V21: energy-defect split from the shock relations (II.5), devlog V16; trace-phase-positive increment donors and compact shock-budget stencil, devlog V21), code commit `{commit}`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
+SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V22: energy-defect split from the shock relations (II.5) with the exact constant share of the shock profile, devlog V22; trace-phase-positive increment donors, compact shock-budget stencil and admissible face states, devlog V21-V22), code commit `{commit}`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **{cfl}**. Newton tolerance 1e-13."""
@@ -109,9 +109,12 @@ T = [
 ]
 CFL = {3: '0.05', 12: '0.05'}
 RUS = {13: 'global maximum speed, `rus=0`', 71: 'global maximum speed, `rus=0`', 72: 'global maximum speed, `rus=0`'}
-ARGS = {}   # command line per raw name, from tests/run_archive.sh
-for line in open(os.path.join(H, 'run_archive.sh')):
-    for m in re.finditer(r'"(\w+)\|([^"]+)"', line): ARGS[m.group(1)] = m.group(2)
+ARGS = {}   # command line per raw name, from tests/jobs_all.txt (1D) and tests/run_all.sh (2D)
+for line in open(os.path.join(H, 'jobs_all.txt')):
+    p = line.strip().split('|')
+    if len(p) == 3 and p[0] == '.': ARGS[p[1]] = p[2]
+for line in open(os.path.join(H, 'run_all.sh')):
+    for m in re.finditer(r'"\.\|(\w+)\|([^"]+)"', line): ARGS[m.group(1)] = m.group(2)
 
 
 def stat(name):
@@ -157,9 +160,12 @@ for folder, paper, fig, desc, case, st, files, extra in T:
     short = {'SPB2009': 'Saurel, Petitpas & Berry 2009', 'PS2014': 'Pelanti & Shyue 2014', 'Pelanti2022': 'Pelanti 2022'}[folder.split('_')[0]]
     index.append('| [%s](%s/note.md) | %s | %s | %s | %s |' % (folder, folder, short, fig, st['N'], cfl))
 open(os.path.join(DATA, 'README.md'), 'w').write('\n'.join([
-    '# Data of the IMEX reproductions of the paper figures (V21)', '',
+    '# Data of the IMEX results (V22)', '',
     'One folder per test; each has the data files and `note.md` (paper, figure, cells, CFL and all settings, command, run statistics).',
-    'Produced by `bash tests/run_archive.sh run/archive` and `python3 tests/make_archive.py run/archive data`; figures by '
-    '`python3 tests/plot_paper_figs.py run/archive docs/figures` and `python3 tests/plot_2d_paper.py run/archive docs/figures`.', '',
-    '| test | paper | figure | cells | material CFL |', '|---|---|---|---|---|'] + index + ['']))
+    'Produced by `bash tests/run_all.sh run/v22`, `python3 tests/make_archive.py run/v22 data` and `python3 tests/archive_extra.py run/v22 data`; figures by '
+    '`python3 tests/plot_paper_figs.py run/v22 docs/figures` and `python3 tests/plot_2d_paper.py run/v22 docs/figures`.', '',
+    '| test | paper | figure | cells | material CFL |', '|---|---|---|---|---|'] + index + [
+    '| [Pelanti2022_8.2.4_Bartak](Pelanti2022_8.2.4_Bartak) | Pelanti 2022 | Fig. 8 (probe at x = 48 mm) | 1000 | 0.2 (default) |',
+    '| [Schropff2026_Riemann_problems](Schropff2026_Riemann_problems/note.md) | Schropff, Petitpas & Daniel 2026 | Secs. 5.1-5.2 | 200, 1000 (and 5000) | 0.2 (default) |',
+    '| [allmach_convergence](allmach_convergence) | Battisti & Boscheri 2025 | Secs. 4.1, 4.4 (tables; fields in `fields/`) | 32-256 | fixed dt / 0.2 |', '']))
 print('wrote', DATA)
