@@ -27,7 +27,7 @@
 | 界面判据 $\epsilon_I$ | $10^{-4}$（热、化学松弛只在 $\epsilon_I\le\alpha_1\le1-\epsilon_I$ 的格） | 同左 |
 | 质量分数下限 $Y_{\min}$ | $10^{-10}$（$pTg$、有限 $\nu$ 的钳位） | 同左 |
 
-命令行 `key=value`：`case= N= ny= cfl= rus= relax= mu= theta= nu= epsI= rk= cflac= ramp= tol= dt= limiter= order= tend= out= snap= probe= prec= p0= vtk= verbose=`。收敛阶试验另加 `limiter=0`（不限制的中心斜率）。
+命令行 `key=value`：`case= N= ny= cfl= rus= relax= mu= theta= nu= epsI= rk= cflac= ramp= tol= dt= limiter= order= tend= out= snap= probe= prec= p0= wellprep= vtk= verbose=`。收敛阶试验另加 `limiter=0`（不限制的中心斜率）。
 
 ---
 

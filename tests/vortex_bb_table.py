@@ -1,8 +1,8 @@
 """Battisti-Boscheri Table-1 style convergence tables for the two-phase isentropic vortex (case 56), t = 5, L2 = sqrt(sum e^2 dx dy)
 against the exact cell averages (written by the solver with init=1).  Variables: alpha2 rho2, alpha2 rho2 u, alpha2 (as BB Table 1),
-mixture density rho, velocity vector |u - u_ex|, mixture pressure p.  Cell-average initial data and p0 = 1 ... 1e4 as BB Table 1,
-N = 32 ... 256, h = 10/N.
-usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_lim0.png/.tex/.md)"""
+mixture density rho, velocity vector |u - u_ex|, mixture pressure p.  p0 = 1 ... 1e4 and N = 32 ... 256 as BB Table 1, h = 10/N.
+One table per initial data: lim0 = cell averages (as BB), wp = discretely well-prepared velocity (wellprep=1).
+usage: python3 tests/vortex_bb_table.py OUT_PREFIX     (writes OUT_PREFIX_{lim0,wp}.png/.tex/.md)"""
 import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,9 +29,9 @@ def errors(f, N, p0):
             L2(d[:, 5] - e[:, 5]), L2(np.hypot(d[:, 3] - e[:, 3], d[:, 4] - e[:, 4])), L2(d[:, 2] - e[:, 2])]
 HEAD = [r'$N$', r'$h$', r'$L_2(\alpha_2\rho_2)$', r'$\mathcal{O}$', r'$L_2(\alpha_2\rho_2u)$', r'$\mathcal{O}$', r'$L_2(\alpha_2)$', r'$\mathcal{O}$',
         r'$L_2(\rho)$', r'$\mathcal{O}$', r'$L_2(\mathbf{u})$', r'$\mathcal{O}$', r'$L_2(p)$', r'$\mathcal{O}$']
-TITLE = {'lim0': 'cell-average initial data (as Battisti-Boscheri)'}
+TITLE = {'lim0': 'cell-average initial data (as Battisti-Boscheri)', 'wp': 'discretely well-prepared initial velocity'}
 out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(H, 'docs', 'figures', 'vortex_table')
-for tag in ['lim0']:
+for tag in ['lim0', 'wp']:
     blocks = []
     for p0 in P0:
         rows, prev = [], None
