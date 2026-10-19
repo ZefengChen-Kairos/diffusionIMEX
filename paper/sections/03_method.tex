@@ -63,12 +63,52 @@ p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\p
 \varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ .
 \label{eq:faces}
 \end{equation}
-% Derivations in the text, not theorems:
-%  - weight phi = (1 - nu)^+ from the per-stage acoustic viscosity 1/2 c dx (nu + phi)
-%    (B9.5 Thm 6; short von Neumann argument, details in an appendix);
-%  - psi^P coupled with the shared limiter, psi^u from u alone: Jameson's LED criterion (B9.5 Thm 7);
-%  - frozen sound speed is subcharacteristic, rho c_f >= rho c_eq (remark, cite Flatten--Lund 2011).
-% Low-Mach behaviour of the complement (phi = 0 when c tau >= dx).
+\paragraph{Weight of the acoustic complement}
+% Derivation in the text (B9.5 Thm 6):
+Consider one implicit stage (backward Euler, step $\tau$) of linear acoustics about a state at rest
+with sound speed $c$, written with the face quantities \eqref{eq:faces} and both complement terms
+multiplied by the same weight $\varphi\ge0$. Expanding the amplification matrix for small wave numbers
+gives, for both acoustic characteristic variables, the effective viscosity
+\begin{equation}
+D_{\rm stage}=\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x\,(\nu+\varphi)+O(k^2),\qquad \nu=\frac{c\tau}{\Delta x},
+\label{eq:dstage}
+\end{equation}
+the first term coming from backward Euler and the second from the complement.
+% TODO: one line on the expansion (or the modified equation) and the numerical check.
+The three-point semi-discretisation $\dot w_i=-\frac{c}{2\Delta x}(w_{i+1}-w_{i-1})+\frac{D}{\Delta x^2}\delta^2w_i$
+has non-negative coefficients if and only if $D\ge\tfrac12c\Delta x$, the upwind (Godunov) viscosity.
+Requiring that every stage carries at least this viscosity on resolved acoustic waves, and no more,
+\[
+D_{\rm stage}=\max\big(\tfrac12c\Delta x,\ \tfrac12c^2\tau\big),
+\]
+fixes the weight uniquely: $\varphi=1-\nu$ for $\nu<1$, and $\varphi=0$ for $\nu\ge1$, where backward
+Euler alone already supplies $\tfrac12c^2\tau\ge\tfrac12c\Delta x$. Hence $\varphi=(1-\nu)^+$ in
+\eqref{eq:faces}. The two terms are the two halves of the Godunov dissipation on the two characteristic
+variables and therefore share the weight.
+% TODO remarks:
+%  - tau -> 0: phi = 1, the acoustic Godunov (Riemann) face states are recovered;
+%  - c tau >= dx: phi = 0, the scheme is unchanged; in particular phi = 0 for M < a_ii CFL (low-Mach limit);
+%  - phi = 1 instead adds 1/2 c^2 tau, which does not vanish under refinement at fixed nu
+%    (Taylor--Green p order 1.81 -> 1.41, Sec. 5).
+
+\paragraph{Second-order factors}
+% Derivation in the text (B9.5 Thm 7): Jameson's LED criterion -- a dissipative term must be first
+% order at a local extremum of every quantity transported by the flux it modifies, and may be second
+% order where all of them are smooth.
+\begin{equation}
+\psi^P_f=1-\big(1-\psi^{\rm mm}_f[P]\big)\min(\phi_i,\phi_{i+1}),\qquad \psi^u_f=\psi^{\rm mm}_f[u].
+\label{eq:psi}
+\end{equation}
+% TODO: the pressure-diffusion term modifies u_f, i.e. the volume flux of every volume-transported
+% quantity (alpha_k, m_k, eps_k) and the flux of the P equation -> coupled with the shared limiter phi
+% (0 at extrema); the velocity-jump term modifies only the momentum flux -> psi from u alone.
+% Smooth regions: psi^mm = 1 - (sigma_L + sigma_R)/(2D) = O(dx).
+% Without the coupling the shock tops overshoot (SPB 5.1 max p/p* 1.033, 5.2 1.024).
+
+\paragraph{Sound speed in the complement}
+% Remark: the frozen sound speed is subcharacteristic for every relaxed closure,
+% rho c_f >= rho c_eq (Flatten--Lund 2011; Pelanti--Shyue 2014), so the complement with c_f is never
+% less dissipative than the Godunov dissipation of the relaxed wave.
 
 \subsubsection{Incremental fluxes and transported states}
 % TODO: increment I_f = X^L_f w^L + X^R_f w^R with the reconstructed face values
@@ -121,7 +161,9 @@ m_k&=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
 % (i) weak shocks: the (II.5)-consistent share is unique, lambda_k ~ alpha_k G_k / K_k^2;
 % (ii) no continuous local rule is (II.5)-consistent for all shock strengths
 %      (counterexample from the shock-profile ODE) -> the budget needs non-local data.
-% Proof of (ii) in an appendix.
+% Proof of (ii) in the text: (i) makes the weak-shock share the only candidate local rule;
+% the shock-profile ODE with that rule gives a strong-shock counterexample
+% (water + 1e-3 air, 1e10 Pa: final pressure 6% off, air temperature 49x the (II.5) value).
 \end{theorem}
 \begin{proposition}[Error split]\label{prop:error_split}
 % TODO (B9.5 Thm 12): lambda^E_k = E_k / sum E is the unique delta-linear split
@@ -148,9 +190,34 @@ m_k&=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
 %     equilibrium model (Kapila volume equation);
 % (ii) rates -> 0: the frozen scheme is recovered exactly.
 \end{theorem}
-\begin{proposition}[Low-Mach limit]\label{prop:lowmach}
-% TODO (B7 Thm 3).
+\begin{proposition}[Formal low-Mach limit]\label{prop:lowmach}
+Non-dimensionalise pressure by $\rho_rc_r^2$, keep $\Delta t$ and $\Delta x$ fixed, and take
+well-prepared data $P=P_0+M^2P_2$ with $P_0$ constant and $\mathbf u=O(1)$. Then, formally as $M\to0$,
+every implicit stage satisfies
+\begin{enumerate}
+\item $(\delta\cdot u_f)_i=O(M^2)$: the face velocities are discretely divergence-free;
+\item $\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(M^2)$: $P_2$ solves the discrete
+Poisson equation of a face-velocity projection;
+\item the cell velocities are corrected by the density-weighted face average of $P_2$ ($P_0$ cancels),
+an approximate projection;
+\item the acoustic complement vanishes ($\varphi_f=0$ once $M<a_{ii}\,\mathrm{CFL}$), the explicit part
+carries only the material-speed Rusanov dissipation, and the closure returns equilibrium states, all
+independently of $M$.
+\end{enumerate}
+The limit scheme is therefore a consistent discretisation of the incompressible mixture Euler equations
+(explicit convection plus a face-velocity projection), with a time step independent of $M$.
 \end{proposition}
+% Proof in the text: linearise G_i(P) = 0; the coefficient of P in u_f is tau/(M^2 rho dx);
+% insert P = P_0 + M^2 P_2 and collect O(M^-2) (item 1) and O(1) (item 2); momentum update (item 3);
+% complement and explicit part term by term (item 4).
+% Remark (uniformity, not only the limit; Dellacherie 2010, BB Sec. 3.6): at intermediate M and in the
+% start-up ramp no O(1/M) dissipation -- pressure diffusion O(M) relative, velocity term in divergence
+% form O(M), explicit part material-speed only.
+% Remark (solver): pressure-perturbation unknown P - P_ref, finite-difference steps on the natural
+% scale of P, two-level preconditioner; double-precision floor below M ~ 1e-5.
+% Numerical evidence: Taylor--Green vortex (Sec. 5): face divergence proportional to M^2 down to
+% M = 8.45e-7, velocity and p errors independent of M for M <= 1e-3, ||rho - 1||_2 / M^2 -> 0.220,
+% 0 rejections, 1.00 Newton iterations per stage.
 
 \subsection{Global nonlinear system and its solution}
 \label{sec:solver}
@@ -160,7 +227,7 @@ m_k&=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
 % (residual scale / Jacobian scale); pressure-perturbation unknown P - P_ref;
 % Thomas (1D) / BiCGStab with a two-level preconditioner (Jacobi + constant coarse space);
 % convergence criterion and the round-off floor:
-% (round-off floor of the closure, B9.5 Prop 11: implementation remark / appendix)
+% Convergence criterion and the round-off floor of the closure (B9.5 Prop 11): a short paragraph in the text.
 
 \subsection{Time integration}
 \label{sec:time}

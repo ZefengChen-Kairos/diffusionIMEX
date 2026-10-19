@@ -583,7 +583,7 @@ $$
 
 这些退化是**逐位**的：代码里速率为 0 与“关掉松弛”走同一组公式。
 
-**定理 3（低马赫极限，V11）。** 混合物的低马赫极限（BB §3.6 的意义：一个混合物马赫数 $M$）。无量纲化：压力以 $\rho_rc_r^2$ 为尺度，$\Delta t,\Delta x$ 固定，well-prepared 初值 $P=P_0+M^2P_2$，$P_0$ 为常数。
+**定理 3（形式低马赫极限，V11）。** 混合物的形式低马赫极限（形式渐近展开，不是严格收敛证明）（BB §3.6 的意义：一个混合物马赫数 $M$）。无量纲化：压力以 $\rho_rc_r^2$ 为尺度，$\Delta t,\Delta x$ 固定，well-prepared 初值 $P=P_0+M^2P_2$，$P_0$ 为常数。
 
 - **压力方程。** 隐式级的方程 $G_i(P)=\bar p^{\rm cl}_i-P_i=0$ 线性化后是 $P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i+\dots$，$K=\rho c_W^2=O(1)$（无量纲），而面速度里 $P$ 的系数是 $\tau/(M^2\bar\rho\Delta x)$。代入 $P=P_0+M^2P_2$：$O(M^{-2})$ 与 $O(1)$ 两阶给出 $(\delta\cdot u_f)_i=O(M^2)$ 与
   $$\delta\cdot\Big(\bar u^*_f-\frac{\tau}{\bar\rho_f}\frac{\delta P_2}{\Delta x}\Big)=O(M^2) ,$$
@@ -607,13 +607,14 @@ $$
 
 V10 的逐维速度项在 $a_{ii}\mathrm{CFL}<M<1$ 和起步斜坡（$\varphi\approx0.9$，约 $\log(1/M)/\log1.2$ 步）里是声速量级的粘性。Gresho 涡 $M=0.1$ 时动能保持率 0.36。$M=0.01$ 时为 0.50：补足项只在斜坡里作用，只占其中不到 0.1%（速度项乘 $\theta$ 时为 0.503）；其余损失来自共用限制因子（B3）。V11 改成散度形式、速度单独重构后，三个马赫数都是 0.93–0.94（B4.1(c) 的表）。
 
-**直接检验（固定 $\Delta t$）。** AP 要求的是 $\Delta t$ 与 $M$ 无关时一致稳定、并收敛到极限。Gresho 涡用同一个 $\Delta t=0.0025$（503 步，无起步斜坡），$M=10^{-1}\ldots10^{-6}$（算例 50–55，`tests/run_gresho_ap.sh`）：
-- 每个 $M$ 都是 0 次拒绝，每级约 1 次 Newton；
-- 动能保持率 $M\le0.01$ 时到四位相同（0.9372），$M=0.1$ 为 0.930；
-- $|\rho-1|\le0.11M^2$；$p_2$ 与不可压精确解之差 $1.4\times10^{-2}$（离散误差），与 $M$ 无关；
-- 速度的 Cauchy 差（$M$ 与 $M/10$）为 $1.8\times10^{-3}$、$1.9\times10^{-6}$、$1.6\times10^{-7}$、$2.0\times10^{-9}$（$M=0.1\ldots10^{-4}$）。
+**直接检验（固定 $\Delta t$，Battisti–Boscheri §4.4 Taylor–Green 涡）。** AP 要求的是 $\Delta t$ 与 $M$ 无关时一致稳定、并收敛到极限。单相（算例 57）与两相（算例 58），$50^2$，$t=0.2$，同一个 $\Delta t=2.5\times10^{-3}$，$M=8.45\times10^{-2}\ldots8.45\times10^{-7}$（`data/allmach_convergence/taylor_green.md`）：
+- 每个 $M$ 都是 0 次拒绝，每级 1.00 次 Newton；
+- 格式自己的面散度 $\propto M^2$，一直到 $M=8.45\times10^{-7}$（$5.2\times10^{-3}\to3.0\times10^{-12}$）：压力方程把离散散度投影到 $O(M^2)$；
+- 速度、$p$ 与宽中心散度在 $M\le10^{-3}$ 时与 $M$ 无关（速度 $9.93\times10^{-5}$，$p$ $1.25\times10^{-2}$，`limiter=0`），随网格减小；
+- $\|\rho-1\|_2/M^2=0.197,0.218,0.220,0.220,0.220$，趋于与 $M$ 无关的常数（可压缩解对不可压定常解的 $O(M^2)$ 偏离），低马赫极限正确；
+- 收敛阶（$N=32\ldots256$，$\Delta t\propto h$）：速度 lim0 三阶、minmod 2.1，$p$ 二阶。
 
-做到这一点，求解器有三处必须与 $M$ 无关（B8）：未知量取压力扰动 $P-P_{\rm ref}$（否则舍入噪声 $\nu^2\varepsilon_{\rm mach}p_0$，以 $\rho U^2$ 为单位是 $O(\varepsilon_{\rm mach}/M^4)$）；差分步长与步长判据按 $P$ 的自然尺度 $s=N/D$；线性解法用两级预条件。离散格式本身不变。$M\le10^{-5}$ 时剩下的是双精度的底：$\rho U^2/p_0=\gamma M^2$，相对绝对压力的 Newton 容差以 $\rho U^2$ 为单位是 $2.4\times10^{-13}/M^2$，$M=10^{-6}$ 时 $p_2$ 有约 $10^{-2}$ 的噪声。详见 C. 开发记录 V11 §11.8，图 `docs/figures/gresho_ap.png`。
+做到这一点，求解器有三处必须与 $M$ 无关（B8）：未知量取压力扰动 $P-P_{\rm ref}$（否则舍入噪声 $\nu^2\varepsilon_{\rm mach}p_0$，以 $\rho U^2$ 为单位是 $O(\varepsilon_{\rm mach}/M^4)$）；差分步长与步长判据按 $P$ 的自然尺度 $s=N/D$；线性解法用两级预条件。离散格式本身不变。$M\le10^{-5}$ 时剩下的是双精度的底：$\rho U^2/p_0=\gamma M^2$，相对绝对压力的 Newton 容差以 $\rho U^2$ 为单位是 $2.4\times10^{-13}/M^2$，$M=10^{-6}$ 时 $p_2$ 有约 $10^{-2}$ 的噪声。详见 C. 开发记录 V11 §11.8、V17。
 
 ---
 
@@ -720,13 +721,13 @@ $$D_{\rm stage}=\tfrac12c\Delta x\,(\nu+\varphi)+O(k^2)$$
 $$\varphi=(1-\nu)^+ .$$
 其中 $\tfrac12c\Delta x$ 是三点半离散格式 $\dot u_i=-\tfrac c{2\Delta x}(u_{i+1}-u_{i-1})+\tfrac D{\Delta x^2}\delta^2u_i$ 系数非负（单调）所需的最小粘性：$u_{i+1}$ 的系数 $-\tfrac c{2\Delta x}+\tfrac D{\Delta x^2}\ge0\iff D\ge\tfrac12c\Delta x$。
 *证明：* 由 $D_{\rm stage}$ 的表达式，$\nu<1$ 时 $\tfrac12c\Delta x(\nu+\varphi)=\tfrac12c\Delta x\Rightarrow\varphi=1-\nu$；$\nu\ge1$ 时后向 Euler 已有 $\tfrac12c^2\tau\ge\tfrac12c\Delta x$，不多加即 $\varphi=0$。∎
-*附注：* 两项是 Godunov 耗散在两个声学特征变量上的两半，用同一个 $\varphi$。$\varphi\equiv1$ 给出 $\tfrac12c\Delta x(1+\nu)$，多出 $\tfrac12c^2\tau$；低马赫收敛序列里 $\nu$ 固定，这部分不随网格消失（TG 的 $p$ 阶 1.81 → 1.41，C. 开发记录 20.4、21.2）。$\nu\ge1$ 时速度的奇偶模态只由 Rusanov 阻尼（$|1-2C|$）。
+*附注：* 两项是 Godunov 耗散在两个声学特征变量上的两半，用同一个 $\varphi$。$\varphi\equiv1$ 给出 $\tfrac12c\Delta x(1+\nu)$，多出 $\tfrac12c^2\tau$；低马赫收敛序列里 $\nu$ 固定，这部分不随网格消失（TG 的 $p$ 阶 1.81 → 1.41）。$\nu\ge1$ 时速度的奇偶模态只由 Rusanov 阻尼（$|1-2C|$）。
 
 **定理 7（二阶因子与 LED，B4.1，V21）。** 补足项的两个二阶因子
 $$\psi^P_f=1-\big(1-\psi^{\rm mm}_f[P]\big)\min(\phi_i,\phi_{i+1}),\qquad \psi^u_f=\psi^{\rm mm}_f[u]$$
 满足 Jameson（1995）的局部极值不增（LED）判据：每个耗散项在它所修改的通量的每个被输运量取局部极值处为一阶（$\psi=1$），所有这些量都光滑处为二阶（$\psi=O(\Delta x)$）。
 *证明：* 压力扩散项修改 $u_f$，而 $u_f$ 是所有体积输运量 $(\alpha_k,m_k,\varepsilon_k)$ 的面体积通量（B4.2）以及 $P$ 方程的通量；$\phi$ 是这些量的共用限制因子（极值处 0），$\psi^{\rm mm}[P]$ 在 $P$ 的极值处为 1，所以 $\psi^P=1$ 当且仅当某个这样的量在极值处。速度跳跃项只修改动量通量，只需速度的 $\psi^{\rm mm}[u]$。光滑处 $\psi^{\rm mm}=1-\frac{\sigma_L+\sigma_R}{2D}=O(\Delta x)$。∎
-*附注：* 只用 $\psi^{\rm mm}[P]$ 的写法不满足 LED，实测激波顶部过冲（SPB 5.1 $\max p/p^*$ 1.033，5.2 1.024，C. 开发记录 21.3）。
+*附注：* 只用 $\psi^{\rm mm}[P]$ 的写法不满足 LED，实测激波顶部过冲（SPB 5.1 $\max p/p^*$ 1.033，5.2 1.024）。
 
 **定理 8（弱激波下与 (II.5) 相容的局部份额唯一，B5.2）。** 弱激波 $\Delta p=p_1-p_0\to0$。按 (II.5)（每相沿自己的 Hugoniot）相 $k$ 每单位混合体积得到的耗散为
 $$Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\Delta p^3+O(\Delta p^4),\qquad K_k=\rho_kc_k^2,\ \ \mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big),$$
