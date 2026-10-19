@@ -694,8 +694,10 @@ Each stage is one application of the first-order scheme: the explicit fluxes \eq
 $U_{E,i}$, the update starts from $\tilde U_{I,i}$ instead of $U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
 value $U_i$ and $K_i=(U_i-\tilde U_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $U^{n+1}=U_2$. The first step uses the
 acoustic Courant number $0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one;
-the steps limited by this rule before the time step first reaches \eqref{eq:cfl} use one backward-Euler stage. If a stage
-returns an inadmissible state or the pressure system does not converge, the step is repeated with half the time step,
+the steps limited by this rule before the time step first reaches \eqref{eq:cfl} use one backward-Euler stage. If in some stage
+the explicit predictor has a non-positive density or volume in a cell, a local closure has no root with both phases
+admissible (the cone of Sec.~\ref{sec:positivity} for stiffened and Noble--Abel stiffened gases, $c_k^2>0$ for Mie--Gr\"uneisen
+phases), or the Newton iteration for \eqref{eq:global} does not converge, the step is repeated with half the time step,
 with the same scheme. With a prescribed fixed time step the start-up rule is not applied.
 
 \subsection{Fully discrete scheme in two dimensions}
