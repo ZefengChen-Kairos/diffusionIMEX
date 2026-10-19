@@ -92,18 +92,55 @@ variables and therefore share the weight.
 %    (Taylor--Green p order 1.81 -> 1.41, Sec. 5).
 
 \paragraph{Second-order factors}
-% Derivation in the text (B9.5 Thm 7): Jameson's LED criterion -- a dissipative term must be first
-% order at a local extremum of every quantity transported by the flux it modifies, and may be second
-% order where all of them are smooth.
+The complement \eqref{eq:faces} is the acoustic Godunov dissipation evaluated on the cell values
+$(P_i,u_i)$, $(P_{i+1},u_{i+1})$, i.e.\ it is first order. To make it second order where the solution is
+smooth we evaluate it on the reconstructed face states of the explicit operator (Sec.~\ref{sec:explicit}),
+which are the states the same face carries. Write $D=P_{i+1}-P_i$ and let $\sigma_i$ be the slope of $P$ in
+cell $i$; the jump of the reconstructed face pressures is
 \begin{equation}
-\psi^P_f=1-\big(1-\psi^{\rm mm}_f[P]\big)\min(\phi_i,\phi_{i+1}),\qquad \psi^u_f=\psi^{\rm mm}_f[u].
-\label{eq:psi}
+P^R-P^L=D-\tfrac12(\sigma_i+\sigma_{i+1})=:\psi_f D .
+\label{eq:psi_def}
 \end{equation}
-% TODO: the pressure-diffusion term modifies u_f, i.e. the volume flux of every volume-transported
-% quantity (alpha_k, m_k, eps_k) and the flux of the P equation -> coupled with the shared limiter phi
-% (0 at extrema); the velocity-jump term modifies only the momentum flux -> psi from u alone.
-% Smooth regions: psi^mm = 1 - (sigma_L + sigma_R)/(2D) = O(dx).
-% Without the coupling the shock tops overshoot (SPB 5.1 max p/p* 1.033, 5.2 1.024).
+The pressure is not reconstructed by the scheme; it is a function of the reconstructed volume-transported
+quantities $X\in\{\alpha_k,m_k,\varepsilon_k\}$ and of the velocity. These are reconstructed with the
+shared limiter, $X^{L,R}=X_i\pm\tfrac12\phi_i\,\delta^cX_i$ with $\phi_i\in[0,1]$ the largest factor for
+which every slope is a minmod slope, $\phi_i=0$ at a local extremum of any of them, and the velocity
+separately with its own minmod slope (Sec.~\ref{sec:explicit}). Linearising $P(Q^R)-P(Q^L)$ about the
+cell states gives
+\[
+P(Q^R)-P(Q^L)=D-\tfrac12\phi_s\big(\delta^cP_i+\delta^cP_{i+1}\big)+O(\Delta x^3),\qquad \phi_s=\min(\phi_i,\phi_{i+1}),
+\]
+so the pressure slope of the scheme's own face states is the central slope scaled by the shared factor
+(in $\phi_i$ we also include the smoothness ratio of the velocity, since the face state $Q$ contains $u$).
+Two requirements fix $\sigma$:
+\begin{enumerate}
+\item the dissipation must not exceed the scheme's own reconstruction, $\sigma_i=\phi_s\,\cdot$(slope of $P$),
+so that the pressure jump is that of the face states carrying the transported quantities;
+\item the dissipation must be LED for $P$ itself (Jameson 1995): its coefficient must be non-negative and
+equal to the first-order value at a local extremum of $P$, which holds if the slope of $P$ is a minmod
+slope, $\sigma_i=\phi_s\,\sigma^{\rm mm}_i[P]$.
+\end{enumerate}
+Inserting $\sigma_i=\phi_s\sigma^{\rm mm}_i[P]$ into \eqref{eq:psi_def} gives
+\begin{equation}
+\psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad
+\psi^{\rm mm}_f[P]=1-\frac{\sigma^{\rm mm}_i[P]+\sigma^{\rm mm}_{i+1}[P]}{2D}\in[0,1].
+\label{eq:psiP}
+\end{equation}
+The velocity-jump term modifies only the momentum flux and acts on the separately reconstructed velocity;
+the same two requirements with the velocity's own minmod slope give
+\begin{equation}
+\psi^u_f=\psi^{\rm mm}_f[u].
+\label{eq:psiu}
+\end{equation}
+Consequently: (i) $0\le\psi\le1$, so both dissipation coefficients in \eqref{eq:faces} stay non-negative;
+(ii) $\psi^P_f=1$ (first order, the full Godunov dissipation) at a local extremum of $P$ or of any
+volume-transported quantity, in particular at a contact, where $P$ and $u$ are continuous but the
+impedance jumps; $\psi^u_f=1$ at a local extremum of $u$; (iii) where everything is smooth,
+$\psi=O(\Delta x)$ and the complement is second order. This is the LED criterion of Jameson (1995) for a
+limited dissipation: first order at an extremum of every quantity carried by the flux that the term
+modifies, second order otherwise.
+% Remark (numerics, Sec. 5): with psi^P = psi^mm[P] only (requirement 1 dropped) the shock tops overshoot
+% (SPB 5.1 max p/p* 1.033, SPB 5.2 1.024); with the coupling 1.005 and 1.001.
 
 \paragraph{Sound speed in the complement}
 % Remark: the frozen sound speed is subcharacteristic for every relaxed closure,
