@@ -651,9 +651,7 @@ static bool cell_residual(const StageData& S, int i, int j, double Pc, double PW
 		X[k] -= S.rx * (inc(fe, k) - inc(fw, k));
 		if (twoD) X[k] -= S.ry * (inc(fn, k) - inc(fs, k));
 	}
-	// alpha1：非守恒输运 u d(alpha1)/dx 的隐式增量（与 m、eps 的增量同样按 u_f 迎风）：本格作为右面的左格取 wR、作为左面的右格取 wL
-	X[0] -= S.rx * (fe.wR * (fe.cR[0] - fe.cL[0]) + fw.wL * (fw.cR[0] - fw.cL[0]));
-	if (twoD) X[0] -= S.ry * (fn.wR * (fn.cR[0] - fn.cL[0]) + fs.wL * (fs.cR[0] - fs.cL[0]));
+	// alpha 只在显式步由 path-conservative Rusanov 更新（u^e），隐式步不再输运 alpha；alpha2 = 1 - alpha1
 	X[1] = 1.0 - X[0];
 	// 体积应变 s = tau div(u_f)（面速度的离散散度）；压力功 alpha_k^tr p_k s。闭合的输入写成 alpha_k^tr (1 - s)，
 	// 于是 omega_k = alpha_k^tr、alpha_k = alpha_k^tr + chi_k R，闭合的公式不变
