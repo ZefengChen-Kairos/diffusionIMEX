@@ -13,8 +13,8 @@ one-dimensional problems: the advection of material interfaces, which checks the
 Riemann problems over a wide range of Mach numbers; shock tubes with mechanical relaxation, with stiffened-gas and
 Mie--Gr\"uneisen equations of state and with a shock in a two-phase mixture, which checks the distribution of the
 energy defect; and expansion, evaporation and depressurisation problems with thermal and chemical relaxation, at
-instantaneous and finite rates. We next consider two-dimensional problems with interfaces, shocks, cavitation and
-phase transition. Finally, the low Mach number limit of the mixture is examined on the Taylor--Green vortex.
+instantaneous and finite rates. The low Mach number limit of the mixture is then examined on the Taylor--Green
+vortex. Finally, we consider two-dimensional problems with interfaces, shocks, cavitation and phase transition.
 
 Unless otherwise stated, all computations use the scheme of Sec.~\ref{sec:method} with LSDIRK2, the material CFL condition
 \eqref{eq:cfl} with $C=0.2$, minmod reconstruction, a local Rusanov speed on each face and the Newton tolerance of
@@ -168,6 +168,22 @@ step and frozen over the stages. With instantaneous mass transfer the solution a
 homogeneous equilibrium model, which is computed exactly.
 
 % ---------------------------------------------------------------------
+\subsection{Low Mach number limit: Taylor--Green vortex}
+\label{sec:res_tg}
+This test of Battisti and Boscheri \cite[Sec.~4.4]{BattistiBoscheri2025} checks the low-Mach limit of Sec.~\ref{sec:ap}. On $[0,2\pi]^2$ with periodic
+boundaries both phases are ideal gases with $\gamma=1.4$, and
+\begin{equation}
+\rho_1=\rho_2=1,\qquad u=\sin x\cos y,\qquad v=-\cos x\sin y,\qquad p_1=p_2=p_0+\tfrac14(\cos2x+\cos2y),
+\label{eq:tg}
+\end{equation}
+a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
+case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
+$p_0=10^2,10^4,\dots,10^{12}$ gives $M=1/\sqrt{1.4\,p_0}$ from $8.45\times10^{-2}$ to $8.45\times10^{-7}$. On a $50\times50$ grid the
+solution is computed to $t=0.2$ with the fixed time step $\Delta t=2.5\times10^{-3}$, independent of $M$; the order of
+accuracy is measured for $p_0=10^6$ and $10^{10}$ on $N=32,\dots,256$ with $\Delta t=0.08/N$. Both computations are made with
+unlimited central slopes and with minmod. The errors are measured in $L_2$ against the $4\times4$-point cell averages of
+\eqref{eq:tg}, together with the discrete divergence of the face velocities.
+% ---------------------------------------------------------------------
 \subsection{Shock--helium bubble interaction}
 \label{sec:res_he}
 A Mach 1.5 shock in air hits a helium bubble \cite[Sec.~4.6]{SPB2009}, after the experiment of Layes and Le M\'etayer \cite{LayesLeMetayer2007}. The domain is $[0,0.3]\times[0,0.08]$ with
@@ -205,19 +221,3 @@ $\rho=2000$, $p=4.6406\times10^{10}$\,Pa and $\alpha=1-10^{-6}$ inside a circle 
 $\rho=1044$, $p=10^5$\,Pa outside. The domain is $[-1.35,1.35]\times[-1.5,0]$ with a wall at $y=0$ and transmissive
 boundaries elsewhere. $361\times200$ cells (half the resolution of \cite{Pelanti2022}), $t_{\rm end}=0.4$\,ms, $p$ relaxation; the pressure is recorded at the wall
 centre $(0,0)$.
-% ---------------------------------------------------------------------
-\subsection{Low Mach number limit: Taylor--Green vortex}
-\label{sec:res_tg}
-This test of Battisti and Boscheri \cite[Sec.~4.4]{BattistiBoscheri2025} checks the low-Mach limit of Sec.~\ref{sec:ap}. On $[0,2\pi]^2$ with periodic
-boundaries both phases are ideal gases with $\gamma=1.4$, and
-\begin{equation}
-\rho_1=\rho_2=1,\qquad u=\sin x\cos y,\qquad v=-\cos x\sin y,\qquad p_1=p_2=p_0+\tfrac14(\cos2x+\cos2y),
-\label{eq:tg}
-\end{equation}
-a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
-case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
-$p_0=10^2,10^4,\dots,10^{12}$ gives $M=1/\sqrt{1.4\,p_0}$ from $8.45\times10^{-2}$ to $8.45\times10^{-7}$. On a $50\times50$ grid the
-solution is computed to $t=0.2$ with the fixed time step $\Delta t=2.5\times10^{-3}$, independent of $M$; the order of
-accuracy is measured for $p_0=10^6$ and $10^{10}$ on $N=32,\dots,256$ with $\Delta t=0.08/N$. Both computations are made with
-unlimited central slopes and with minmod. The errors are measured in $L_2$ against the $4\times4$-point cell averages of
-\eqref{eq:tg}, together with the discrete divergence of the face velocities.
