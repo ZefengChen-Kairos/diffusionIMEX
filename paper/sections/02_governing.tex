@@ -4,28 +4,34 @@
 % =====================================================================
 \section{System of governing equations}
 \label{sec:governing}
-
-We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry \cite{SPB2009},
-augmented with the heat- and mass-transfer terms of Pelanti and Shyue \cite{PelantiShyue2014} and Pelanti
-\cite{Pelanti2022}. For phases $k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density,
-$m_k=\alpha_k\rho_k$ the partial density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy
-per unit mixture volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed and Gibbs free
-energy. The mixture density is $\rho=m_1+m_2$, the velocity $\mathbf u=(u,v)$, the mixture pressure $\bar p=\alpha_1p_1+\alpha_2p_2$ and
-the total energy $E=\varepsilon_1+\varepsilon_2+\tfrac12\rho|\mathbf u|^2$. The model reads
+We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry \cite{SPB2009}, with the
+mixture total energy as additional equation and with the heat- and mass-transfer terms of Pelanti and Shyue
+\cite{PelantiShyue2014} and Pelanti \cite{Pelanti2022}. In vector form it reads
 \begin{equation}
+\left\{
 \begin{aligned}
-&\partial_t\alpha_1+\mathbf u\cdot\nabla\alpha_1=\mathcal P+\mathcal M/\rho_I,\\
-&\partial_t m_1+\nabla\cdot(m_1\mathbf u)=\mathcal M,\qquad \partial_t m_2+\nabla\cdot(m_2\mathbf u)=-\mathcal M,\\
-&\partial_t(\rho\mathbf u)+\nabla\cdot(\rho\mathbf u\otimes\mathbf u+\bar p\,\mathbf I)=\mathbf 0,\\
-&\partial_t\varepsilon_1+\nabla\cdot(\varepsilon_1\mathbf u)+\alpha_1p_1\,\nabla\cdot\mathbf u=-p_I\mathcal P+\mathcal Q+e_I\mathcal M,\\
-&\partial_t\varepsilon_2+\nabla\cdot(\varepsilon_2\mathbf u)+\alpha_2p_2\,\nabla\cdot\mathbf u=+p_I\mathcal P-\mathcal Q-e_I\mathcal M,\\
-&\partial_t E+\nabla\cdot\big((E+\bar p)\mathbf u\big)=0 .
-\end{aligned}
+&\frac{\partial\alpha_1}{\partial t}+\mathbf u\cdot\nabla\alpha_1=\mathcal P+\frac{\mathcal M}{\rho_I},\\
+&\frac{\partial m_1}{\partial t}+\nabla\cdot(m_1\mathbf u)=\mathcal M,\qquad \frac{\partial m_2}{\partial t}+\nabla\cdot(m_2\mathbf u)=-\mathcal M,\\
+&\frac{\partial(\rho\mathbf u)}{\partial t}+\nabla\cdot\big(\rho\mathbf u\otimes\mathbf u+\bar p\,\mathbf I\big)=\mathbf 0,\\
+&\frac{\partial\varepsilon_1}{\partial t}+\nabla\cdot(\varepsilon_1\mathbf u)+\alpha_1p_1\,\nabla\cdot\mathbf u=-p_I\mathcal P+\mathcal Q+e_I\mathcal M,\\
+&\frac{\partial\varepsilon_2}{\partial t}+\nabla\cdot(\varepsilon_2\mathbf u)+\alpha_2p_2\,\nabla\cdot\mathbf u=p_I\mathcal P-\mathcal Q-e_I\mathcal M,\\
+&\frac{\partial E}{\partial t}+\nabla\cdot\big((E+\bar p)\mathbf u\big)=0 .
+\end{aligned}\right.
 \label{eq:model}
 \end{equation}
-The first equation evolves the volume fraction, the next two the mass of each phase, the fourth the mixture momentum,
-the next two the internal energy of each phase, with the pressure work of the phase, and the last the mixture total
-energy. The right-hand sides are the mechanical, thermal and chemical relaxation terms
+The first equation evolves the volume fraction of phase 1, the next two enforce the conservation of the mass of each
+phase, the fourth governs the mixture momentum (one equation per spatial direction), the next two account for the
+internal energy of each phase, with its pressure work, and the last for the conservation of the mixture total energy.
+Here, for phases $k=1,2$, $\alpha_k$ is the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
+density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy per unit mixture volume;
+$p_k$, $T_k$, $c_k$ and $g_k$ are the phase pressure, temperature, sound speed and Gibbs free energy. The mixture density is
+$\rho=m_1+m_2$, $\mathbf u=[u,v]^{\mathsf T}$ is the velocity field, $\bar p=\alpha_1p_1+\alpha_2p_2$ the mixture pressure, and $E$ the total energy
+per unit volume, the sum of the phase internal energies and the kinetic energy,
+\begin{equation}
+E=\varepsilon_1+\varepsilon_2+k,\qquad k=\tfrac12\rho|\mathbf u|^2 .
+\label{eq:energy}
+\end{equation}
+The right-hand sides are the mechanical, thermal and chemical relaxation terms
 \begin{equation}
 \mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\qquad
 p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
@@ -38,26 +44,42 @@ The three terms drive the phases towards equilibrium:
 \item chemical relaxation $\mathcal M$: mass transfer by phase change (evaporation or condensation, $\mathcal M>0$
 from phase 2 to phase 1), which drives $g_1=g_2$.
 \end{itemize}
-The rate parameters $\mu,\theta,\nu\ge0$ set the speed of the three processes and may be stiff. The total-energy equation is redundant for
-smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks (the ``+1'' equation
-of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in every closure used here and need not be
-specified. Each phase is closed by an equation of state $p_k=p_k(\rho_k,e_k)$; we consider the Noble--Abel
-stiffened-gas law, for which the internal energy is affine in the pressure (Sec.~\ref{sec:nasg}), and Mie--Gr\"uneisen
-laws with nonlinear reference curves (Sec.~\ref{sec:mg}).
+The rate parameters $\mu,\theta,\nu\ge0$ set the speed of the three processes and may be stiff. The total-energy equation is
+redundant for smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks (the
+``+1'' equation of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in every closure used here and
+need not be specified.
 
-For one-dimensional flows along $x$, \eqref{eq:model} can be written in the non-conservative form
+An equation of state $p_k=p_k(\rho_k,e_k)$ is required for each phase to close the system. In this work we consider two
+families: the Noble--Abel stiffened-gas law, for which the internal energy is affine in the pressure (Sec.~\ref{sec:nasg}),
+and Mie--Gr\"uneisen laws with nonlinear reference curves (Sec.~\ref{sec:mg}).
+
+Letting $\mathbf Q=(\alpha_1,m_1,m_2,\rho\mathbf u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ denote the vector of unknowns, system \eqref{eq:model} can be
+written in compact form as
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q),\qquad
-\mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\top},
+\partial_t\mathbf Q+\nabla\cdot\boldsymbol{\mathcal F}(\mathbf Q)+\mathbf B(\mathbf Q)\cdot\nabla\mathbf Q=\mathbf S(\mathbf Q),
+\label{eq:compact}
+\end{equation}
+where $\boldsymbol{\mathcal F}$ collects the flux vectors, $\mathbf B$ the non-conservative products and $\mathbf S$ the relaxation terms. For
+one-dimensional flows aligned with the $x$-direction, \eqref{eq:model} reads
+\begin{equation}
+\frac{\partial}{\partial t}\begin{bmatrix}\alpha_1\\ m_1\\ m_2\\ \rho u\\ \varepsilon_1\\ \varepsilon_2\\ E\end{bmatrix}
++\frac{\partial}{\partial x}\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2+\bar p\\ \varepsilon_1u\\ \varepsilon_2u\\ (E+\bar p)u\end{bmatrix}
++\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\ \alpha_1p_1\,\partial_xu\\ \alpha_2p_2\,\partial_xu\\0\end{bmatrix}
+=\begin{bmatrix}\mathcal P+\mathcal M/\rho_I\\ \mathcal M\\ -\mathcal M\\ 0\\ -p_I\mathcal P+\mathcal Q+e_I\mathcal M\\ p_I\mathcal P-\mathcal Q-e_I\mathcal M\\ 0\end{bmatrix},
 \label{eq:general}
 \end{equation}
-where $\mathbf F$ collects the fluxes, $\mathbf B$ the products $u\,\partial_x\alpha_1$ and $\alpha_kp_k\,\partial_xu$, and $\mathbf S$ the relaxation
-terms. Its eigenvalues are $u$ and $u\pm c_f$, with the frozen sound speed
+i.e.\ $\partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q)$. Without relaxation terms the system has seven eigenvalues,
 \begin{equation}
-c_f^2=\sum_kY_kc_k^2,\qquad Y_k=m_k/\rho ,
+\lambda_{1,7}=u\mp c_f,\qquad \lambda_{2,\dots,6}=u,
+\label{eq:eigs}
+\end{equation}
+with the phase sound speeds and the frozen sound speed of the mixture
+\begin{equation}
+c_k^2=\frac{\partial p_k}{\partial\rho_k}\Big|_{e_k}+\frac{p_k}{\rho_k^2}\,\frac{\partial p_k}{\partial e_k}\Big|_{\rho_k},\qquad
+c_f^2=\sum_kY_kc_k^2,\qquad Y_k=\frac{m_k}{\rho} .
 \label{eq:cf}
 \end{equation}
-so that a fully explicit scheme is restricted by
+A fully explicit scheme is therefore restricted by
 \begin{equation}
 \Delta t\le\mathrm{CFL}\,\min_\Omega\frac{\Delta x}{|u|+c_f},
 \label{eq:cfl_explicit}
