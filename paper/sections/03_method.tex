@@ -696,7 +696,7 @@ value $U_i$ and $K_i=(U_i-\tilde U_{I,i})/\tau$. Since $\mathbf b$ is the last r
 acoustic Courant number $0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one;
 the steps limited by this rule before the time step first reaches \eqref{eq:cfl} use one backward-Euler stage. If a stage
 returns an inadmissible state or the pressure system does not converge, the step is repeated with half the time step,
-with the same scheme. With a prescribed fixed time step neither rule is applied.
+with the same scheme. With a prescribed fixed time step the start-up rule is not applied.
 
 \subsection{Fully discrete scheme in two dimensions}
 \label{sec:fully}
