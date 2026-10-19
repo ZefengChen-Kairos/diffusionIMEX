@@ -34,12 +34,17 @@ Sec. & problem & EOS & $N$ & $t_{\rm end}$ & relaxation \\
 \midrule
 \ref{sec:res_vortex} & two-phase isentropic vortex & ideal gases & $32^2\ldots256^2$ & 5 & $p$ \\
 \ref{sec:res_tg} & Taylor--Green vortex & ideal gases & $50^2$; $32^2\ldots256^2$ & 0.2 & $p$ \\
-\ref{sec:res_interface} & interface advection & SG & 200 & 2.79\,ms & $p$ \\
+\ref{sec:res_interface} & water--air interface, $u=100$\,m/s & SG & 200 & 2.79\,ms & $p$ \\
+ & water--air interface, $u=1$\,m/s & SG & 200; 1000 & 0.25\,s & $p$ \\
+ & air density step, $u=1$\,m/s & ideal gas & 200; 1000 & 0.5\,s & -- \\
+\ref{sec:res_single} & five single-phase Riemann problems & ideal gas; SG & 200; 1000 & Table~\ref{tab:single} & -- \\
 \ref{sec:res_shock} & water--air, 1\,GPa & SG & 1000; 100 & 240\,$\mu$s & $p$ \\
+ & water--air, 1\,GPa, $\rho_{\rm air}=50$ & SG & 200; 1000; 5000 & 241\,$\mu$s & $p$ \\
  & water--air, 1\,TPa & SG & 1000 & 8.3\,$\mu$s & $p$ \\
  & nitromethane & Cochran--Chan & 500 & 67\,$\mu$s & $p$ \\
  & detonation products--water & JWL / NASG & 500 & 0.9\,ms & $p$ \\
  & epoxy--spinel, $10^{10}$\,Pa ($C=0.05$) & SG & 500 & 80\,$\mu$s & $p$ \\
+ & epoxy--spinel, $10^{10}$\,Pa & SG & 200; 1000 & 30\,$\mu$s & $p$ \\
  & epoxy--spinel, $2\times10^{11}$\,Pa (global) & SG & 500 & 34\,$\mu$s & $p$ \\
 \ref{sec:res_cav} & water--air expansion tube & SG & 1000 & 1.85\,ms & $p$ \\
  & water cavitation tube, $\mp2$, $\mp500$\,m/s & SG & 5000 & 3.2, 0.58\,ms & four levels \\
@@ -100,8 +105,37 @@ with the discrete divergence of the face velocities.
 A water--air interface is advected in $[0,1]$ with transmissive boundaries (Saurel et al.\ 2009, Sec.~4.1). Water is a
 stiffened gas with $\gamma=4.4$, $\pi=6\times10^8$\,Pa, air an ideal gas with $\gamma=1.4$. Initially $u=100$\,m/s,
 $p=10^5$\,Pa, $\rho_{\rm water}=1000$, $\rho_{\rm air}=10$, and $\alpha_{\rm water}=1-10^{-8}$ for $x<0.5$, $10^{-8}$ otherwise. The
-computation uses 200 cells and ends at $t=2.79$\,ms, when the interface is at $x=0.779$. Uniform velocity and
-pressure must be preserved (Proposition~\ref{prop:wb}).
+computation uses 200 cells and ends at $t=2.79$\,ms, when the interface is at $x=0.779$. Two low-Mach variants follow
+Schropff et al.\ (2026): the same fluids with $u=1$\,m/s, $\rho_{\rm air}=0.01$, $\alpha_{\rm water}=1-10^{-7}$ for $x<0.25$ and $10^{-7}$
+otherwise, $t_{\rm end}=0.25$\,s ($M\approx3\times10^{-3}$); and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
+and $\rho=0.01$ otherwise, $u=1$\,m/s, $p=10^5$\,Pa, $t_{\rm end}=0.5$\,s, so that $M$ ranges from $2.7\times10^{-4}$ to
+$8.5\times10^{-2}$. Both use 200 and 1000 cells. In all three cases uniform velocity and pressure must be preserved
+(Proposition~\ref{prop:wb}).
+
+% ---------------------------------------------------------------------
+\subsection{Single-phase Riemann problems}
+\label{sec:res_single}
+The Riemann problems of Table~\ref{tab:single} (Schropff et al.\ 2026) test the scheme for a single fluid over a wide
+range of Mach numbers. A single fluid is represented by two identical phases in the same state, with
+$\alpha_1=1-10^{-8}$. Air is an ideal gas with $\gamma=1.4$ and water the stiffened gas of Sec.~\ref{sec:res_interface}. The
+domain is $[0,1]$ with transmissive boundaries, the initial discontinuity is at $x=0.5$, and 200 and 1000 cells are
+used. The reference is the exact solution of the Euler equations.
+\begin{table}[t]
+\centering\small
+\caption{Single-phase Riemann problems (Schropff et al.\ 2026): left and right states and final time.}
+\label{tab:single}
+\begin{tabular}{lllll}
+\toprule
+problem & fluid & $(\rho,u,p)_L$ & $(\rho,u,p)_R$ & $t_{\rm end}$ \\
+\midrule
+low-Mach shock tube & water & $(1000,\ 0,\ 10^8)$ & $(1000,\ 15,\ 0.98\times10^8)$ & $10^{-4}$ \\
+liquid--liquid shock tube & water & $(1000,\ 0,\ 10^6)$ & $(1000,\ 0,\ 10^5)$ & $1.5\times10^{-4}$ \\
+Lax shock tube & air & $(0.445,\ 0.698,\ 3.528)$ & $(0.5,\ 0,\ 0.571)$ & 0.14 \\
+strong shock tube & air & $(1,\ 0,\ 10^{10})$ & $(0.125,\ 0,\ 0.1)$ & $2.5\times10^{-6}$ \\
+two rarefactions & air & $(1,\ -1,\ 0.4)$ & $(1,\ 1,\ 0.4)$ & 0.15 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % ---------------------------------------------------------------------
 \subsection{Shock tubes with mechanical relaxation}
@@ -113,7 +147,8 @@ at rest initially.
 \paragraph{Water--air shock tube}
 Water and air as in Sec.~\ref{sec:res_interface} (Saurel et al.\ 2009, Sec.~4.3.1). For $x<0.75$, water with
 $\alpha_{\rm water}=1-10^{-6}$, $\rho=1000$, $p=10^9$\,Pa; for $x>0.75$, air with $\alpha_{\rm air}=1-10^{-6}$, $\rho=1$, $p=10^5$\,Pa;
-$t_{\rm end}=240\,\mu$s, with 1000 and 100 cells.
+$t_{\rm end}=240\,\mu$s, with 1000 and 100 cells. In the variant of Schropff et al.\ (2026) the interface is at $x=0.7$,
+$\alpha_{\rm water}=1-10^{-7}$ or $10^{-7}$, $\rho_{\rm air}=50$ and $t_{\rm end}=241\,\mu$s, with 200, 1000 and 5000 cells.
 
 \paragraph{Water--air shock tube at 1\,TPa}
 The same fluids with $p=10^{12}$\,Pa in the water, $\rho_{\rm air}=10$ and the interface at $x=0.6$, the position consistent
@@ -146,7 +181,8 @@ $p=4.6406\times10^{10}$\,Pa) fill $x<0$ and water ($\rho=1044$, $p=10^5$\,Pa) $x
 A mixture of epoxy (SG, $\gamma=2.43$, $\pi=5.3\times10^9$\,Pa) and spinel (SG, $\gamma=1.62$, $\pi=1.41\times10^{11}$\,Pa) with
 $\alpha_{\rm epoxy}=0.5954$, $\rho_{\rm epoxy}=1185$, $\rho_{\rm spinel}=3622$ everywhere (Saurel et al.\ 2009, Secs.~5.1--5.2). The pressure
 is $10^{10}$\,Pa for $x<0.6$ and $10^5$\,Pa otherwise, $t_{\rm end}=80\,\mu$s; in the second case it is $2\times10^{11}$\,Pa,
-$t_{\rm end}=34\,\mu$s. 500 cells. Both phases are compressed through the same shock; the test checks the partition of
+$t_{\rm end}=34\,\mu$s. 500 cells. The first case is also computed to $t_{\rm end}=30\,\mu$s with 200 and 1000 cells and $C=0.2$
+(Schropff et al.\ 2026). Both phases are compressed through the same shock; the test checks the partition of
 the energy defect of Sec.~\ref{sec:closure}. The first case uses $C=0.05$, the second the global Rusanov speed.
 
 % ---------------------------------------------------------------------

@@ -677,7 +677,17 @@ enum Test {
 	testSPB_HeBubble = 70,        // SPB 2009 4.6  二维：空气中 Mach 1.5 激波打氦气泡（Layes & Le Métayer）
 	testSPB_RM = 71,              // SPB 2009 4.7  二维：空化 Richtmyer-Meshkov（水 | 气，-200 m/s 撞左壁）
 	testPS_BubbleComp = 72,       // P-S 2014 5.4  二维：活塞压缩十二烷汽泡（SG，热、化学松弛）
-	testPel_UNDEX = 73            // Pelanti 2022 8.1.2  二维：近壁水下爆炸（JWL 气泡 | NASG 水）
+	testPel_UNDEX = 73,           // Pelanti 2022 8.1.2  二维：近壁水下爆炸（JWL 气泡 | NASG 水）
+	// Schropff-Petitpas-Daniel 2026（JCP 547, 114545）5.1、5.1.1、5.2：[0, 1] m，透射边界。单相算例两相取同一流体、同一状态（alpha1 = 1 - 1e-8）
+	testSchAirAdv = 80,           // 表 2  低马赫空气平移：rho 1000 | 0.01，u = 1，p = 1e5，界面 0.25，t = 0.5 s
+	testSchWaterLM = 81,          // 表 2  低马赫水激波管：rho 1000，u 0 | 15，p 1e8 | 0.98e8，t = 1e-4 s
+	testSchLax = 82,              // 表 2  Lax 激波管（空气）：(0.445, 0.698, 3.528) | (0.5, 0, 0.571)，t = 0.14
+	testSchStrong = 83,           // 表 2  强激波管（空气）：(1, 0, 1e10) | (0.125, 0, 0.1)，t = 2.5e-6 s
+	testSchTwoRare = 84,          // 表 2  双稀疏波（空气）：rho 1，u -1 | 1，p 0.4，t = 0.15
+	testSchLiqLiq = 85,           // 5.1.1  液-液激波管：水 rho 1000，p 1e6 | 1e5，t = 0.15 ms
+	testSchWaterAirAdv = 86,      // 表 3  水(1)-气(2) 平移：alpha1 1 - 1e-7 | 1e-7，rho1 1000，rho2 0.01，u = 1，p = 1e5，界面 0.25，t = 0.25 s
+	testSchWaterAirST = 87,       // 表 3  水-气激波管：rho1 1000，rho2 50，p 1e9 | 1e5，界面 0.7，t = 241 us
+	testSchEpoxySpinel = 88       // 表 3  环氧-尖晶石：alpha1 = 0.5954，rho 1185 / 3622，p 1e10 | 1e5，界面 0.6，t = 30 us
 };
 struct TestSetup { double x0, x1, y0, y1, tend; x_boundary_condition xbc; y_boundary_condition ybc;
 	int bc[4] = {-1, -1, -1, -1};      // 每一边（左、右、下、上）单独给：BC_TRANS / BC_WALL；-1 表示用 xbc / ybc
@@ -794,6 +804,12 @@ static bool test_setup(int test, TestSetup& S) {
 		PH[0] = Phase{}; PH[0].kind = 2; PH[0].G = 0.25; PH[0].rr = 1840.0; PH[0].c1 = 854.5e9; PH[0].c2 = 20.5e9; PH[0].e1 = 4.6; PH[0].e2 = 1.35; PH[0].e0 = 0.0; PH[0].g = 1.25;
 		PH[1] = {1.187, 7028e5, -1177788.0, 0.0, 3610.0, 6.61e-4};
 		S.x0 = -1.35; S.x1 = 1.35; S.y0 = -1.5; S.y1 = 0.0; S.tend = 0.4e-3; S.xbc = x_Transmissive; S.ybc = y_Transmissive; S.bc[3] = BC_WALL; S.sub = 4; S.nx = 361; S.ny = 200; break;   // 论文网格 721 x 400（N=721 ny=400）IMEX 约 14 h；默认用一半分辨率（devlog V14）
+	case testSchAirAdv: case testSchLax: case testSchStrong: case testSchTwoRare:
+		set_SG(0, 1.4, 0); set_SG(1, 1.4, 0);
+		S.tend = test == testSchAirAdv ? 0.5 : test == testSchLax ? 0.14 : test == testSchStrong ? 2.5e-6 : 0.15; S.nx = 1000; break;
+	case testSchWaterLM: case testSchLiqLiq: set_SG(0, 4.4, 6e8); set_SG(1, 4.4, 6e8); S.tend = test == testSchWaterLM ? 1e-4 : 0.15e-3; S.nx = 1000; break;
+	case testSchWaterAirAdv: case testSchWaterAirST: set_SG(0, 4.4, 6e8); set_SG(1, 1.4, 0); S.tend = test == testSchWaterAirAdv ? 0.25 : 241e-6; S.nx = 1000; break;
+	case testSchEpoxySpinel: set_SG(0, 2.43, 5.3e9); set_SG(1, 1.62, 141e9); S.tend = 30e-6; S.nx = 1000; break;
 	default: return false;
 	}
 	return true;
@@ -833,6 +849,21 @@ static void test_state(int test, double x, double y, double* Q) {
 	case testPel_UNDEX: {      // 与 8.1.1 同样的两个状态；气泡内 alpha_gas = 1 - 1e-6
 		const bool in = x * x + (y + 0.32) * (y + 0.32) < 0.05 * 0.05;
 		setcell(in ? 1 - 1e-6 : 1e-6, 2000.0, 1044.0, 0, 0, in ? 4.6406e10 : 1e5, in ? 4.6406e10 : 1e5); break; }
+	case testSchAirAdv: case testSchWaterLM: case testSchLax: case testSchStrong: case testSchTwoRare: case testSchLiqLiq: {   // 单相：两相同一状态
+		double xi = 0.5, rL = 0, uL = 0, pL = 0, rR = 0, uR = 0, pR = 0;
+		switch (test) {
+		case testSchAirAdv: xi = 0.25; rL = 1000; uL = 1; pL = 1e5; rR = 0.01; uR = 1; pR = 1e5; break;
+		case testSchWaterLM: rL = 1000; uL = 0; pL = 1e8; rR = 1000; uR = 15; pR = 0.98e8; break;
+		case testSchLax: rL = 0.445; uL = 0.698; pL = 3.528; rR = 0.5; uR = 0; pR = 0.571; break;
+		case testSchStrong: rL = 1; uL = 0; pL = 1e10; rR = 0.125; uR = 0; pR = 0.1; break;
+		case testSchTwoRare: rL = 1; uL = -1; pL = 0.4; rR = 1; uR = 1; pR = 0.4; break;
+		default: rL = 1000; uL = 0; pL = 1e6; rR = 1000; uR = 0; pR = 1e5; break; }
+		const bool L = x < xi; const double r = L ? rL : rR, u = L ? uL : uR, p = L ? pL : pR;
+		setcell(1 - 1e-8, r, r, u, 0, p, p); break; }
+	case testSchWaterAirAdv: case testSchWaterAirST: {
+		const bool adv = test == testSchWaterAirAdv, L = x < (adv ? 0.25 : 0.7);
+		setcell(L ? 1 - 1e-7 : 1e-7, 1000.0, adv ? 0.01 : 50.0, adv ? 1.0 : 0.0, 0, adv ? 1e5 : (L ? 1e9 : 1e5), adv ? 1e5 : (L ? 1e9 : 1e5)); break; }
+	case testSchEpoxySpinel: { const double p = x < 0.6 ? 1e10 : 1e5; setcell(0.5954, 1185.0, 3622.0, 0, 0, p, p); break; }
 	case testSPB_Interface: { const bool L = x < 0.5; setcell(L ? 1 - 1e-8 : 1e-8, 1000.0, 10.0, 100.0, 0, 1e5, 1e5); break; }
 	case testSPB_WaterAir: case testSPB_WaterAirTPa: {
 		// 4.3.1 界面 0.75 m（正文）；4.3.2 正文说“同 4.3.1”，但论文图 10 的波位置（稀疏波头 0.035、波尾 0.765、接触 0.857、激波 0.910，t = 8.3 us）
