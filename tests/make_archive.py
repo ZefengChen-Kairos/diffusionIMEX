@@ -25,7 +25,7 @@ COLS2 = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13]   # 2D: x y p u v rho alpha2 Y2 T1 T2
 COLS2_NAMES = 'x y p u v rho alpha2 Y2 T1 T2'
 
 SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V22: energy-defect split from the shock relations (II.5) with the exact constant share of the shock profile, devlog V22; trace-phase-positive increment donors, compact shock-budget stencil and admissible face states, devlog V21-V22), code commit `{commit}`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
-- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
+- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped start-up steps first order; an inadmissible step is redone with half the time step (LSDIRK2 kept).
 - Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit pressure with the acoustic complement (B4.1).
 - Material CFL: **{cfl}**. Newton tolerance 1e-13."""
 
@@ -151,7 +151,7 @@ for folder, paper, fig, desc, case, st, files, extra in T:
             '| relaxation | %s |' % st['relax'], '| material CFL | %s |' % cfl, '| Rusanov speed | %s |' % RUS.get(case, 'local per face (default)'), '',
             '## Scheme', '', SCHEME.format(commit=COMMIT, cfl=cfl, rus=RUS.get(case, 'local per face')), '']
     if extra: note += ['## Remarks', '', extra, '']
-    note += ['## Files', '', '| file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |', '|---|---|---|---|'] + rows + ['']
+    note += ['## Files', '', '| file | content | arguments | run statistics (steps, first-order start-up steps, rejects = halved steps, Newton, conservation, wall time) |', '|---|---|---|---|'] + rows + ['']
     if any(o.endswith('.gz') for _, o, _ in files):
         note += ['2D snapshots are gzipped text (`numpy.loadtxt` reads them directly), columns `%s`, 8 significant digits, one line per cell.' % COLS2_NAMES, '']
     if any(not o.endswith('.gz') and not r.endswith('.probe') for r, o, _ in files):

@@ -14,7 +14,7 @@
 //      线性方程组用 GMRES_Solver（与 2DEuler 一样实际是 BiCGStab，这里加了 Jacobi 预条件与相对容差）或一维 Thomas。
 //      2DEuler 的 ShockDetector 与压力 Laplacian 去掉，作用由 B4.1 的声学迎风项承担。
 //    - 时间：2DEuler 的半隐式 IMEX-RK（Ae/Ai/Hs）不变；起步改为声学步长后每步至多放大 1.2 倍（代替 full_step 个声学步，B10）；
-//      不可容许时先在同一步长上改用一阶（MOOD），仍不可容许才减半 dt（B8、B10）；瞬时热/化学松弛每步开始时激活并投影到平衡流形（B6.7）。
+//      不可容许时步长减半重算（B8、B10）；瞬时热/化学松弛每步开始时激活并投影到平衡流形（B6.7）。
 //    - 能量亏损 delta 的分配（B5.2，V16）：物理耗散按 SPB (II.5) 的相 Hugoniot 能隙份额（每级先算紧致模板（±1，V21）上的激波预算），离散误差按
 //      可容许能量份额；对 delta 连续，Newton 无分支校正。逐步说明见 docs/derivation/E_code_path.md。
 //
@@ -83,7 +83,7 @@ std::string out_file = "out.dat", vtk_dir = "";
 double st_Tmax[2] = {0.0, 0.0};
 std::vector<double> DIVF;   // 最后一级的面散度 delta . u_f = s / tau（每格，诊断：算例 57、58 的低马赫一致性）   // 各相温度的最大值（诊断，日志行；alpha_k > 1e-9 的格）
 long st_steps = 0, st_reject = 0, st_newton_it = 0, st_stage = 0, st_rk1 = 0, st_floor = 0;   // st_floor：Newton 停在闭合舍入底而被接受的级数（devlog 16.9）
-double st_maxres = 0; long st_mood = 0;
+double st_maxres = 0;
 
 
 struct Tensor
@@ -334,7 +334,6 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 // 诊断（facediag=1，不改变计算）：重构面态是否违反 NASG/SG 的可容许约束 alpha>0, m>0, alpha-mb>0, eps-mq-(alpha-mb)pi>0（论文引理 Face states）。
 // FD_CUR[0] 面值总数，[1] 违反数，[2] 模板三格都可容许时的违反数；级成功后累加到 FD_TOT[级是否 Qe=Qs][...]
 int FACEDIAG = 0; long FD_CUR[3] = {0, 0, 0}; long FD_TOT[2][3] = {{0, 0, 0}, {0, 0, 0}};
-int MOOD = 0;   // 1：不可容许时先在同一步长上改用后向 Euler（旧的 MOOD 回退，对照用）；0（默认）：直接减半步长，保持二阶
 static bool fd_adm(double a1, double m1, double m2, double e1, double e2) {
 	const double a[2] = {a1, 1.0 - a1}, m[2] = {m1, m2}, e[2] = {e1, e2};
 	for (int k = 0; k < 2; k++) {
@@ -1120,7 +1119,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d; else if (k == "mood") MOOD = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1233,8 +1232,7 @@ int main(int argc, char *argv[]){
 		bool done = false;
 		for (int attempt = 0; attempt < 30 && !done; attempt++) {
 			const bool first_order = RAMP && ramping && startup;
-			const bool lowered = MOOD && attempt == 1 && RKs > 1 && !first_order;   // MOOD=1：上一次尝试不可容许时同一步长改用一阶
-			const int rk = (first_order || lowered) ? 1 : RKs; if (rk == 1) st_rk1++; if (lowered) st_mood++;
+			const int rk = first_order ? 1 : RKs; if (rk == 1) st_rk1++;
 			set_tab(rk);
 			if (RELAX_LEVEL > 0) RelaxationActivation(u_con);   // B6.7
 			copy(u_con_n,u_con);
@@ -1276,8 +1274,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			if (ok) { copy(u_con, Ust); P = Pst; done = true; }
-			// 不可容许的处理（B10）：步长减半重算（V23）。MOOD=1 时先在同一步长上改用后向 Euler（Qs = Qe，B3 的保正条件成立）
-			if (!done && MOOD && attempt == 0 && RKs > 1 && !first_order) continue;
+			// 不可容许的处理（B10）：步长减半重算，仍用 LSDIRK2（V23）
 			if (!done) { st_reject++; dt *= 0.5; if (VERBOSE) fprintf(stderr, "reject: t %.4e new dt %.3e\n", t, dt); }
 		}
 		if (!done) { fprintf(stderr, "FAILED at t = %.6e (step %ld)\n", t, st_steps); write_profile(u_con, out_file); return 2; }
@@ -1327,8 +1324,8 @@ int main(int argc, char *argv[]){
 		printf("TG p0 %g M %.3e N %d | div L1 %.4e L2 %.4e Linf %.4e | u-err L1 %.4e L2 %.4e Linf %.4e | p2 L2 %.4e | rho L2 %.4e max|rho-1| %.3e\n", VORTEX_P0, 1.0 / std::sqrt(1.4 * VORTEX_P0), nxCells,
 			d1, std::sqrt(d2), dinf, e1, std::sqrt(e2), einf, std::sqrt(ep), std::sqrt(er), drho);
 	}
-	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld floor %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
-		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_floor, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
+	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld) rejects %ld floor %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
+		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_reject, st_floor, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
 	if (FACEDIAG) printf("facediag | stage Qe=Qs: faces %ld violations %ld (admissible stencil %ld) | later stages: faces %ld violations %ld (admissible stencil %ld)\n", FD_TOT[0][0], FD_TOT[0][1], FD_TOT[0][2], FD_TOT[1][0], FD_TOT[1][1], FD_TOT[1][2]);
 	return 0;

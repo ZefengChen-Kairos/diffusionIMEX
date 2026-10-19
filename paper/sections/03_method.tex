@@ -693,9 +693,10 @@ K_i=\mathcal H\big(U_{E,i},\ \tilde U_{I,i}+\Delta t\,a_{ii}K_i\big).
 Each stage is one application of the first-order scheme: the explicit fluxes \eqref{eq:explicit} are evaluated on
 $U_{E,i}$, the update starts from $\tilde U_{I,i}$ instead of $U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
 value $U_i$ and $K_i=(U_i-\tilde U_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $U^{n+1}=U_2$. The first step uses the
-acoustic Courant number $0.4$, and no step may exceed $1.2$ times the previous one; a step limited by this rule (in
-practice the start-up and the steps after a shortened step) uses one backward-Euler stage. With a prescribed fixed time
-step the rule is not applied.
+acoustic Courant number $0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one;
+the steps limited by this rule before the time step first reaches \eqref{eq:cfl} use one backward-Euler stage. If a stage
+returns an inadmissible state or the pressure system does not converge, the step is repeated with half the time step,
+with the same scheme. With a prescribed fixed time step neither rule is applied.
 
 \subsection{Fully discrete scheme in two dimensions}
 \label{sec:fully}
