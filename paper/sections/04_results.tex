@@ -8,7 +8,7 @@
 
 All computations use the scheme of Sec.~\ref{sec:method} with the same settings: LSDIRK2, the material CFL condition
 \eqref{eq:cfl} with $C=0.2$, minmod reconstruction, a local Rusanov speed on each face and the Newton tolerance
-of Sec.~\ref{sec:fully}. Thermal and chemical relaxation are active in cells with $10^{-4}\le\alpha_1\le1-10^{-4}$. The
+of Sec.~\ref{sec:pressure_system}. Thermal and chemical relaxation are active in cells with $10^{-4}\le\alpha_1\le1-10^{-4}$. The
 exceptions are stated with each test and collected in Table~\ref{tab:tests}. Where a phase is absent its volume
 fraction is set to $10^{-8}$ or $10^{-6}$ as indicated; initial data in two dimensions are cell averages computed with
 $4\times4$ sub-cells. Units are SI unless stated otherwise.
