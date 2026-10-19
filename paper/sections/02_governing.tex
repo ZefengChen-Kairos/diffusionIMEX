@@ -5,8 +5,8 @@
 \section{Mathematical model}
 \label{sec:governing}
 
-We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry (SPB 2009),
-augmented with the heat- and mass-transfer terms of Pelanti and Shyue (2014) and Pelanti (2022). For phases
+We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry \cite{SPB2009},
+augmented with the heat- and mass-transfer terms of Pelanti and Shyue \cite{PelantiShyue2014} and Pelanti \cite{Pelanti2022}. For phases
 $k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
 density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy per unit mixture
 volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed and Gibbs free energy. The
@@ -38,7 +38,7 @@ from phase 2 to phase 1), which drives $g_1=g_2$.
 \end{itemize}
 The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy
 equation is redundant for smooth solutions, but it is the conservative one and fixes the mixture internal
-energy at shocks (the ``+1'' equation of SPB 2009). The interfacial density $\rho_I$ and energy $e_I$ cancel in
+energy at shocks (the ``+1'' equation of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in
 every closure used here and need not be specified. The system can be written in the non-conservative form
 \begin{equation}
 \partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q),\qquad
@@ -69,9 +69,9 @@ isentrope, $\varepsilon_r'=p_r/\rho^2$; in phase-volume form
 $\varepsilon_k=m_k\varepsilon_r(\rho_k)+\alpha_k(p-p_r(\rho_k))/\Gamma_k$, and admissibility is $c^2>0$.
 
 \paragraph{Relaxed models and wave speeds}
-For $\mu\to\infty$ the model reduces to the five-equation pressure-equilibrium model of Kapila et al.; adding
+For $\mu\to\infty$ the model reduces to the five-equation pressure-equilibrium model of Kapila et al.\ \cite{Kapila2001}; adding
 $\theta\to\infty$ gives the four-equation $pT$ model and adding $\nu\to\infty$ the homogeneous equilibrium model ($pTg$)
-(Pelanti 2022). The sound speeds satisfy the subcharacteristic ordering
+\cite{Pelanti2022}. The sound speeds satisfy the subcharacteristic ordering
 \begin{equation}
 c_{pTg}\le c_{pT}\le c_p\le c_f,\qquad c_f^2=\sum_kY_kc_k^2,\qquad \frac1{\rho c_p^2}=\sum_k\frac{\alpha_k}{\rho_kc_k^2},
 \label{eq:subchar}

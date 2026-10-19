@@ -14,7 +14,7 @@ fraction is set to $10^{-8}$ or $10^{-6}$ as indicated; initial data in two dime
 $4\times4$ sub-cells. Units are SI unless stated otherwise.
 
 Mechanical relaxation is instantaneous in all tests; finite rates are used for thermal and chemical relaxation only.
-The relaxation levels are denoted as in Pelanti and Shyue (2014). $p$: instantaneous mechanical relaxation only.
+The relaxation levels are denoted as in Pelanti and Shyue \cite{PelantiShyue2014}. $p$: instantaneous mechanical relaxation only.
 $p$--$pT$: in addition, instantaneous thermal relaxation in interface cells. $p$--$pT$--$pTg$: in addition,
 instantaneous mass transfer in interface cells where the $pT$-equilibrium temperature exceeds $T_{\rm sat}(p)$. A finite rate replaces the corresponding instantaneous relaxation and
 is marked $(f)$. Reference solutions are exact Riemann solutions of the relaxed limit models: the five-equation
@@ -55,7 +55,7 @@ Sec. & problem & EOS & $N$ & $t_{\rm end}$ & relaxation \\
 % ---------------------------------------------------------------------
 \subsection{Two-phase isentropic vortex}
 \label{sec:res_vortex}
-This test of Battisti and Boscheri measures the order of accuracy for a smooth two-phase flow at decreasing
+This test of Battisti and Boscheri \cite[Sec.~4.1]{BattistiBoscheri2025} measures the order of accuracy for a smooth two-phase flow at decreasing
 Mach number. The domain is $[-5,5]^2$ with periodic boundaries; phase 1 is an ideal gas with $\gamma_1=1.35$ and
 phase 2 an ideal gas with $\gamma_2=1.4$. With $r^2=x^2+y^2$, $\varepsilon=5$ and $\gamma=1.4$,
 \begin{equation}
@@ -79,13 +79,13 @@ test in this section, the slopes are the unlimited central differences.
 % ---------------------------------------------------------------------
 \subsection{Low-Mach Taylor--Green vortex}
 \label{sec:res_tg}
-This test of Battisti and Boscheri checks the low-Mach limit of Sec.~\ref{sec:ap}. On $[0,2\pi]^2$ with periodic
+This test of Battisti and Boscheri \cite[Sec.~4.4]{BattistiBoscheri2025} checks the low-Mach limit of Sec.~\ref{sec:ap}. On $[0,2\pi]^2$ with periodic
 boundaries both phases are ideal gases with $\gamma=1.4$, and
 \begin{equation}
 \rho_1=\rho_2=1,\qquad u=\sin x\cos y,\qquad v=-\cos x\sin y,\qquad p_1=p_2=p_0+\tfrac14(\cos2x+\cos2y),
 \label{eq:tg}
 \end{equation}
-a stationary solution of the incompressible Euler equations. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
+a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
 case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
 $p_0=10^2,10^4,\dots,10^{12}$ gives $M=1/\sqrt{1.4\,p_0}$ from $8.45\times10^{-2}$ to $8.45\times10^{-7}$. On a $50\times50$ grid the
 solution is computed to $t=0.2$ with the fixed time step $\Delta t=2.5\times10^{-3}$, independent of $M$; the order of
@@ -95,11 +95,11 @@ with the discrete divergence of the face velocities.
 % ---------------------------------------------------------------------
 \subsection{Interface advection}
 \label{sec:res_interface}
-A water--air interface is advected in $[0,1]$ with transmissive boundaries (Saurel et al.\ 2009, Sec.~4.1). Water is a
+A water--air interface is advected in $[0,1]$ with transmissive boundaries \cite[Sec.~4.1]{SPB2009}. Water is a
 stiffened gas with $\gamma=4.4$, $\pi=6\times10^8$\,Pa, air an ideal gas with $\gamma=1.4$. Initially $u=100$\,m/s,
 $p=10^5$\,Pa, $\rho_{\rm water}=1000$, $\rho_{\rm air}=10$, and $\alpha_{\rm water}=1-10^{-8}$ for $x<0.5$, $10^{-8}$ otherwise. The
 computation uses 200 cells and ends at $t=2.79$\,ms, when the interface is at $x=0.779$. Two low-Mach variants follow
-Schropff et al.\ (2026): the same fluids with $u=1$\,m/s, $\rho_{\rm air}=0.01$, $\alpha_{\rm water}=1-10^{-7}$ for $x<0.25$ and $10^{-7}$
+Schropff et al.\ \cite{Schropff2026}: the same fluids with $u=1$\,m/s, $\rho_{\rm air}=0.01$, $\alpha_{\rm water}=1-10^{-7}$ for $x<0.25$ and $10^{-7}$
 otherwise, $t_{\rm end}=0.25$\,s ($M\approx3\times10^{-3}$); and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
 and $\rho=0.01$ otherwise, $u=1$\,m/s, $p=10^5$\,Pa, $t_{\rm end}=0.5$\,s, so that $M$ ranges from $2.7\times10^{-4}$ to
 $8.5\times10^{-2}$. Both use 200 and 1000 cells. In all three cases uniform velocity and pressure must be preserved
@@ -108,14 +108,14 @@ $8.5\times10^{-2}$. Both use 200 and 1000 cells. In all three cases uniform velo
 % ---------------------------------------------------------------------
 \subsection{Single-phase Riemann problems}
 \label{sec:res_single}
-The Riemann problems of Table~\ref{tab:single} (Schropff et al.\ 2026) test the scheme for a single fluid over a wide
+The Riemann problems of Table~\ref{tab:single} \cite[Secs.~5.1, 5.1.1]{Schropff2026} test the scheme for a single fluid over a wide
 range of Mach numbers. A single fluid is represented by two identical phases in the same state, with
 $\alpha_1=1-10^{-8}$. Air is an ideal gas with $\gamma=1.4$ and water the stiffened gas of Sec.~\ref{sec:res_interface}. The
 domain is $[0,1]$ with transmissive boundaries, the initial discontinuity is at $x=0.5$, and 200 and 1000 cells are
 used. The reference is the exact solution of the Euler equations.
 \begin{table}[t]
 \centering\small
-\caption{Single-phase Riemann problems (Schropff et al.\ 2026): left and right states and final time.}
+\caption{Single-phase Riemann problems \cite{Schropff2026}: left and right states and final time.}
 \label{tab:single}
 \begin{tabular}{lllll}
 \toprule
@@ -138,12 +138,12 @@ are computed with the $p$ relaxation and compared with the exact solution of the
 at rest initially.
 
 \paragraph{Water--air shock tube}
-Water and air as in Sec.~\ref{sec:res_interface} (Saurel et al.\ 2009, Sec.~4.3.1). For $x<0.75$, water with
+Water and air as in Sec.~\ref{sec:res_interface} \cite[Sec.~4.3.1]{SPB2009}. For $x<0.75$, water with
 $\alpha_{\rm water}=1-10^{-6}$, $\rho=1000$, $p=10^9$\,Pa; for $x>0.75$, air with $\alpha_{\rm air}=1-10^{-6}$, $\rho=1$, $p=10^5$\,Pa;
 $t_{\rm end}=240\,\mu$s, with 1000 and 100 cells.
 
 \paragraph{Nitromethane shock tube}
-Both phases are liquid nitromethane with the Cochran--Chan law (Saurel et al.\ 2009, Sec.~4.2),
+Both phases are liquid nitromethane with the Cochran--Chan law \cite{CochranChan1979} \cite[Sec.~4.2]{SPB2009},
 \begin{equation}
 p_r(\rho)=A_1x^{E_1}-A_2x^{E_2},\qquad
 \varepsilon_r(\rho)=\frac1\rho\Big(\frac{A_1x^{E_1}}{E_1-1}-\frac{A_2x^{E_2}}{E_2-1}\Big),\qquad x=\frac\rho{\rho_0},
@@ -155,7 +155,7 @@ $p=2\times10^5$\,Pa otherwise. 500 cells, $t_{\rm end}=67\,\mu$s. The nonlinear 
 discontinuity a test of pressure and velocity oscillations.
 
 \paragraph{Detonation products--water shock tube}
-Detonation products follow the JWL law (Pelanti 2022, Sec.~8.1.1),
+Detonation products follow the JWL law \cite{LeeHornigKury1968} \cite[Sec.~8.1.1]{Pelanti2022},
 \begin{equation}
 p_r(\rho)=Ae^{-R_1\rho_0/\rho}+Be^{-R_2\rho_0/\rho},\qquad
 \varepsilon_r(\rho)=\frac{A}{R_1\rho_0}e^{-R_1\rho_0/\rho}+\frac{B}{R_2\rho_0}e^{-R_2\rho_0/\rho},
@@ -167,7 +167,7 @@ $p=4.6406\times10^{10}$\,Pa) fill $x<0$ and water ($\rho=1044$, $p=10^5$\,Pa) $x
 
 \paragraph{Epoxy--spinel mixture}
 A mixture of epoxy (SG, $\gamma=2.43$, $\pi=5.3\times10^9$\,Pa) and spinel (SG, $\gamma=1.62$, $\pi=1.41\times10^{11}$\,Pa) with
-$\alpha_{\rm epoxy}=0.5954$, $\rho_{\rm epoxy}=1185$, $\rho_{\rm spinel}=3622$ everywhere (Saurel et al.\ 2009, Sec.~5.2). The pressure
+$\alpha_{\rm epoxy}=0.5954$, $\rho_{\rm epoxy}=1185$, $\rho_{\rm spinel}=3622$ everywhere \cite[Sec.~5.2]{SPB2009}. The pressure
 is $2\times10^{11}$\,Pa for $x<0.6$ and $10^5$\,Pa otherwise; 500 cells, $t_{\rm end}=34\,\mu$s, global Rusanov speed. Both phases
 are compressed through the same shock; the test checks the partition of the energy defect of Sec.~\ref{sec:closure}.
 
@@ -175,7 +175,7 @@ are compressed through the same shock; the test checks the partition of the ener
 \subsection{Water cavitation tube}
 \label{sec:res_cav}
 Two streams of liquid water moving apart from $x=0.5$ in $[0,1]$, with transmissive boundaries, produce a strong
-expansion at the centre (Pelanti 2022, Sec.~8.2.1). Water is NASG with liquid $(1.187,\ 7.028\times10^8,\ -1177788,\ 0,\ 3610,\ 6.61\times10^{-4})$
+expansion at the centre \cite[Sec.~8.2.1]{Pelanti2022}. Water is NASG with liquid $(1.187,\ 7.028\times10^8,\ -1177788,\ 0,\ 3610,\ 6.61\times10^{-4})$
 and vapour $(1.467,\ 0,\ 2077616,\ 14317,\ 955,\ 0)$. Initially $\alpha_v=10^{-2}$, both phases at $p=10^5$\,Pa and $T_0=353$\,K with
 $\rho_k=\rho_k(p,T_0)$, and $u=-2$\,m/s for $x<0.5$, $+2$\,m/s otherwise; 5000 cells, $t_{\rm end}=3$\,ms. The same configuration
 is computed with five levels: $p$; $p$--$pT(f)$ with $\theta=2000$; $p$--$pT$; $p$--$pT$--$pTg(f)$ with $\nu=10^{-4}$; $p$--$pT$--$pTg$.
@@ -183,7 +183,7 @@ is computed with five levels: $p$; $p$--$pT(f)$ with $\theta=2000$; $p$--$pT$; $
 % ---------------------------------------------------------------------
 \subsection{Dodecane liquid--vapour shock tube}
 \label{sec:res_dodecane}
-Liquid dodecane at high pressure expands into its vapour (Pelanti 2022, Sec.~8.2.2).
+Liquid dodecane at high pressure expands into its vapour \cite[Sec.~8.2.2]{Pelanti2022}.
 Dodecane is NASG with liquid $(1.206,\ 1.681\times10^8,\ -996054,\ 0,\ 2532,\ 7.51\times10^{-4})$ and vapour
 $(1.021,\ 0,\ -384592,\ -4301,\ 2274,\ 0)$. For $x<0.75$, liquid with $\alpha_l=1-10^{-8}$, $\rho_l=500$, $p=10^8$\,Pa; for $x>0.75$,
 vapour with $\alpha_v=1-10^{-8}$, $\rho_v=2$, $p=10^5$\,Pa; transmissive boundaries, 2000 cells, $t_{\rm end}=473\,\mu$s; levels $p$
@@ -192,7 +192,7 @@ and $p$--$pT$--$pTg$.
 % ---------------------------------------------------------------------
 \subsection{Bart\'ak rapid depressurisation}
 \label{sec:res_bartak}
-A pipe of length 1.7\,m filled with hot pressurised water is opened at one end (Pelanti 2022, Sec.~8.2.4). Water is
+A pipe of length 1.7\,m filled with hot pressurised water is opened at one end \cite[Sec.~8.2.4]{Pelanti2022}, after the experiment of Bart\'ak \cite{Bartak1990}. Water is
 NASG with liquid $(1.387,\ 8.899\times10^8,\ -1244191,\ 0,\ 3202,\ 4.78\times10^{-4})$ and vapour $(1.954,\ 0,\ 2287484,\ 6417,\ 462,\ 0)$.
 Initially $p=12.5$\,MPa, $T=563.15$\,K, $u=0$, $\alpha_v=10^{-3}$ and $\rho_k=\rho_k(p,T)$. The right end $x=1.7$ is a wall; at the
 left end the pressure $10^5$\,Pa is imposed: the ghost cells keep $\alpha$, $m_k$ and $u$ of the adjacent cell with both
@@ -211,7 +211,7 @@ homogeneous equilibrium model, which is computed exactly.
 % ---------------------------------------------------------------------
 \subsection{Shock--helium bubble interaction}
 \label{sec:res_he}
-A Mach 1.5 shock in air hits a helium bubble (Saurel et al.\ 2009, Sec.~4.6). The domain is $[0,0.3]\times[0,0.08]$ with
+A Mach 1.5 shock in air hits a helium bubble \cite[Sec.~4.6]{SPB2009}, after the experiment of Layes and Le M\'etayer \cite{LayesLeMetayer2007}. The domain is $[0,0.3]\times[0,0.08]$ with
 walls at $y=0$ and $y=0.08$ and transmissive boundaries in $x$; air is an ideal gas with $\gamma=1.4$, helium with
 $\gamma=1.67$. The bubble has diameter 0.04 and centre $(0.2,0.04)$; inside $\alpha_{\rm air}=10^{-6}$, outside $1-10^{-6}$. Ahead
 of the shock, air has $\rho=1.29$, $p=101325$\,Pa and helium $\rho=0.167$, both at rest. The shock is at $x=0.221$ and
@@ -221,7 +221,7 @@ $600\times160$ cells, $t_{\rm end}=600\,\mu$s, $p$ relaxation.
 % ---------------------------------------------------------------------
 \subsection{Cavitating Richtmyer--Meshkov instability}
 \label{sec:res_rm}
-A water column with a curved surface moving at $-200$\,m/s hits a wall (Saurel et al.\ 2009, Sec.~4.7). On $[0,3]\times[0,1]$,
+A water column with a curved surface moving at $-200$\,m/s hits a wall \cite[Sec.~4.7]{SPB2009}. On $[0,3]\times[0,1]$,
 water (SG, $\gamma=4.4$, $\pi=6\times10^8$\,Pa, $\rho=1000$) occupies $x<1.2+\sqrt{0.36-(y-0.5)^2}$ and gas (ideal, $\gamma=1.8$,
 $\rho=100$) the rest, with $\alpha=1-10^{-6}$ for the present phase; everywhere $u=-200$\,m/s and $p=101325$\,Pa. The left,
 bottom and top boundaries are walls and the right boundary is transmissive. $300\times100$ cells, $t_{\rm end}=8.6$\,ms,
@@ -230,7 +230,7 @@ $p$ relaxation, global Rusanov speed.
 % ---------------------------------------------------------------------
 \subsection{Compression of a vapour bubble}
 \label{sec:res_bubble}
-A dodecane vapour bubble in liquid dodecane is compressed by a piston (Pelanti and Shyue 2014, Sec.~5.4). Dodecane is SG
+A dodecane vapour bubble in liquid dodecane is compressed by a piston \cite[Sec.~5.4]{PelantiShyue2014}. Dodecane is SG
 with liquid $(2.35,\ 4\times10^8,\ -775.269\times10^3,\ 0,\ 1077.7)$ and vapour $(1.025,\ 0,\ -237.547\times10^3,\ -24.4\times10^3,\ 1956.45)$. On $[0,1]^2$ a bubble of radius 0.2 is centred at $(0.5,0.5)$;
 initially $p=10^5$\,Pa and $T=600$\,K, so $\rho_l=458.338$ and $\rho_v=3.408$, with $\alpha_l=10^{-6}$ inside the bubble and
 $\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$ (the grid
@@ -240,7 +240,7 @@ $p$--$pT$--$pTg$ relaxation, global Rusanov speed.
 % ---------------------------------------------------------------------
 \subsection{Underwater explosion near a wall}
 \label{sec:res_undex}
-A bubble of detonation products expands in water below a rigid wall (Pelanti 2022, Sec.~8.1.2). The states and the
+A bubble of detonation products expands in water below a rigid wall \cite[Sec.~8.1.2]{Pelanti2022}. The states and the
 equations of state are those of the detonation products--water shock tube of Sec.~\ref{sec:res_shock}: products with
 $\rho=2000$, $p=4.6406\times10^{10}$\,Pa and $\alpha=1-10^{-6}$ inside a circle of radius 0.05 centred at $(0,-0.32)$, water with
 $\rho=1044$, $p=10^5$\,Pa outside. The domain is $[-1.35,1.35]\times[-1.5,0]$ with a wall at $y=0$ and transmissive

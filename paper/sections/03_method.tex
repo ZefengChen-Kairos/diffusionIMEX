@@ -6,7 +6,7 @@
 \label{sec:method}
 
 We design an implicit--explicit scheme for \eqref{eq:model} which is second order in space and time. The
-convective terms are discretised explicitly with a Rusanov flux whose dissipation speed is the material
+convective terms are discretised explicitly with a Rusanov flux \cite{Rusanov1961} whose dissipation speed is the material
 speed; the pressure, its work on each phase and all relaxation terms are discretised implicitly and enter
 one local closure, in which the rates $\mu,\theta,\nu$ are parameters. Regardless of the Mach number and of the rates,
 the time step obeys
@@ -18,7 +18,7 @@ which is based only on the material speed.
 
 \subsection{First-order semi-discrete scheme in time}
 \label{sec:semidiscrete}
-Following the transport--velocity splitting of Toro and V\'azquez-Cend\'on, the flux of every transported
+Following the transport--velocity splitting of Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}, the flux of every transported
 quantity at the new time level is split as $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is explicit, the second,
 the incremental flux, implicit. The volume equation is written in volume-transport form: with
 $\bar u\,\Delta\alpha=\Delta(\alpha u)-\bar\alpha\,\Delta u$, the path-conservative fluctuation with the linear path is a conservative
@@ -55,7 +55,7 @@ pressure is given by the phase equations of state; no linearisation of the kinet
 \subsection{Second-order extension in time}
 \label{sec:time}
 Second order in time is obtained with the semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and
-Russo, using the stiffly accurate, L-stable LSDIRK2(2,2,2) tableaux
+Russo \cite{BoscarinoFilbetRusso2016}, using the stiffly accurate, L-stable LSDIRK2(2,2,2) tableaux
 \begin{equation}
 \begin{array}{c|cc}0&0&0\\ \hat c&\hat c&0\\\hline &1-\beta&\beta\end{array}\qquad
 \begin{array}{c|cc}\beta&\beta&0\\ 1&1-\beta&\beta\\\hline &1-\beta&\beta\end{array},\qquad \beta=1-\tfrac1{\sqrt2},\quad \hat c=\tfrac1{2\beta}.
@@ -136,12 +136,12 @@ the conservative mixture internal energy,
 \label{eq:defect}
 \end{equation}
 At a shock $\delta$ is the dissipation of the scheme, and its partition fixes the limit shock relations. We
-distribute it so that each phase follows its own Hugoniot (Saurel et al.\ 2007),
+distribute it so that each phase follows its own Hugoniot \cite{SaurelGavrilyukRenaud2003,SPB2009},
 \begin{equation}
 e_k-e_{k0}+\tfrac12(p_0+p_1)(v_k-v_{k0})=0 ,
 \label{eq:II5}
 \end{equation}
-the shock relations also used for the exact solutions of Sec.~5. The physical part is the
+the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. The physical part is the
 Hugoniot--isentrope energy gap of each phase between the pressure extrema $p_{\rm lo}<p_{\rm hi}$ on the compact
 stencil ($\pm1$; the five-point cross in 2D) of a compressing cell,
 \begin{equation}
@@ -208,7 +208,7 @@ $y$-independent data it reduces to the 1D jump.
 \subsection{Numerical dissipation}
 \label{sec:dissipation}
 \paragraph{Second-order reconstruction}
-The face values in \eqref{eq:rusanov} are MUSCL reconstructions with minmod. The volume-transported quantities
+The face values in \eqref{eq:rusanov} are MUSCL reconstructions \cite{vanLeer1979} with minmod. The volume-transported quantities
 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
 \begin{equation}
 X^{L,R}=X_i\pm\tfrac12\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad
@@ -233,7 +233,7 @@ acoustic waves, and no more, gives
 \label{eq:weight}
 \end{equation}
 for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, for $c\tau\ge\Delta x$ the complement vanishes. Since
-$\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure (Fl\aa tten and Lund 2011), the dissipation is never smaller than that
+$\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, the dissipation is never smaller than that
 of the relaxed waves.
 
 \paragraph{Second-order factors}
@@ -247,12 +247,12 @@ scaled by the shared factor $\phi_s=\min(\phi_i,\phi_{i+1})$; with the minmod sl
 \end{equation}
 the velocity-jump term acting on the separately reconstructed velocity. Both terms are first order at a local
 extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution
-is smooth (the LED criterion of Jameson 1995).
+is smooth (the LED criterion of Jameson \cite{Jameson1995}).
 
 \subsection{Relaxation closures}
 \label{sec:relaxation}
 The relaxation terms are not split from the transport: they enter the closure \eqref{eq:gibbs}, which for each set of
-rates reduces to one scalar equation in the cell pressure. We follow the ordering of Pelanti (2022) ($\mu=\infty$ if
+rates reduces to one scalar equation in the cell pressure. We follow the ordering of Pelanti \cite{Pelanti2022} ($\mu=\infty$ if
 $\theta>0$ or $\nu>0$; $\theta=\infty$ if $\nu>0$); on the active piece $\Lambda_k=\lambda_k\delta+\xi_k$.
 \begin{itemize}
 \item \emph{$p$ closure} ($\mu=\infty$, $\theta=\nu=0$). With $p_1=p_2=p$, \eqref{eq:gibbs} becomes the discrete Gibbs relation
