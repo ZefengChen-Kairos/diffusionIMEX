@@ -705,7 +705,7 @@ $r_y=\tau/\Delta y$, and $u_n$, $u_t$ denote the normal and tangential velocity 
 used, before the first stage of a step the relaxation closure of every cell is activated and $U^n$ is projected as in
 Sec.~\ref{sec:relaxation}.
 \begin{enumerate}
-\item \emph{Explicit advective sub-system.} The face values are reconstructed on $Q^e$ by \eqref{eq:shared_limiter}, and every
+\item \emph{Explicit advective sub-system.} The face values are reconstructed on $Q^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
 transported quantity is advanced with the Rusanov fluxes \eqref{eq:rusanov},
 \[
 X^*_{i,j}=X^s_{i,j}-r_x\,\delta_x\big[F^e[X]\big]_{i,j}-r_y\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
