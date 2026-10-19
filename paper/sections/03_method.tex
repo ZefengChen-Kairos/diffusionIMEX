@@ -48,6 +48,30 @@ reconstructed component-wise with its own minmod slope, the face momentum and en
 values, and the face value of $\alpha_2$ is $1-\alpha_1^{\rm face}$. Both the central part and the dissipation of
 \eqref{eq:rusanov} use the reconstructed values.
 
+\paragraph{Path-conservative Rusanov discretisation of the volume fraction}
+The volume fraction is transported by the non-conservative term $u\,\partial_x\alpha_k$ of \eqref{eq:model}, which is discretised by the path-conservative Rusanov scheme
+\cite{DalMaso1995,Pares2006,Castro2006} with the linear path $\Psi(s)=Q^L+s(Q^R-Q^L)$, $s\in[0,1]$. On this path
+\begin{equation}
+\int_0^1u(\Psi)\,\frac{\mathrm d\alpha_k(\Psi)}{\mathrm ds}\,\mathrm ds=\bar u_{i+1/2}\,\Delta\alpha_k,\qquad
+\bar u_{i+1/2}=\tfrac12(u^L+u^R),\qquad \Delta(\cdot)=(\cdot)^R-(\cdot)^L,
+\end{equation}
+and the identity $\bar u\,\Delta\alpha_k=\Delta(\alpha_ku)-\bar\alpha_k\Delta u$, $\bar\alpha_k=\tfrac12(\alpha^L_k+\alpha^R_k)$, splits the
+fluctuations into two parts,
+\begin{equation}
+D^\pm_{i+1/2}[\alpha_k]=\tfrac12\Big[\Delta(\alpha_ku)-\bar\alpha_{k,i+1/2}\Delta u\Big]_{i+1/2}\pm\tfrac12a_{i+1/2}\Delta\alpha_{k,i+1/2},
+\qquad
+D^-_{i+1/2}+D^+_{i-1/2}=\delta_x\big[F^e[\alpha_k]\big]_i-\tfrac12\big(\bar\alpha_k\Delta u\big)_{i+1/2}-\tfrac12\big(\bar\alpha_k\Delta u\big)_{i-1/2}.
+\label{eq:pc_rusanov}
+\end{equation}
+The first part is the Rusanov flux \eqref{eq:rusanov} of the volume $\alpha_ku$, of the same form as the fluxes of $m_k$ and
+$\varepsilon_k$; the second is the discrete volume strain $-\alpha_k\partial_xu$. The explicit step keeps the first part, which is
+\eqref{eq:explicit} for $X=\alpha_k$; the implicit step uses the same discretisation for the increment $u^{n+1}-u^e$
+(Sec.~\ref{sec:implicit}), and the volume strain, evaluated with $u^{n+1}$, enters the local closure together with the
+pressure work $\alpha_kp_k\partial_xu$. The volume-transport form used below is therefore the path-conservative Rusanov scheme
+written in conservative variables. Because $\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by one and the same linear
+operator, a state with uniform velocity and pressure is transported without changing the phase densities and energies;
+this is the origin of the well-balanced property of Sec.~\ref{sec:wb}.
+
 The time step is given by the CFL condition of the advective sub-system,
 \begin{equation}
 \Delta t=C\left(\frac{\max_\Omega|u|}{\Delta x}+\frac{\max_\Omega|v|}{\Delta y}\right)^{-1},
@@ -79,9 +103,10 @@ $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is the explicit flux of Sec.~\ref
 flux, is implicit. The volumes, partial densities and phase energies carry the same incremental flux, so that
 transport does not change the phase densities and specific energies; the momentum and kinetic-energy increments follow
 from the incremental mass flux. The non-conservative transport of the volume
-fraction is written in volume-transport form, $u\,\partial_x\alpha_k=\partial_x(\alpha_ku)-\alpha_k\partial_xu$: with the linear path, the
-path-conservative fluctuation is a conservative volume flux, treated like the fluxes of $m_k$ and $\varepsilon_k$, plus the volume
-strain $-\alpha_k\partial_xu$, treated implicitly together with the pressure work. In semi-discrete form,
+fraction is discretised by the path-conservative Rusanov scheme \eqref{eq:pc_rusanov}, $u\,\partial_x\alpha_k=\partial_x(\alpha_ku)-\alpha_k\partial_xu$:
+the conservative volume flux carries the same incremental flux as $m_k$ and $\varepsilon_k$, and the volume
+strain $-\alpha_k\partial_xu$ is treated implicitly together with the pressure work. The total strain $\sum_k$ is
+$-\Delta t\,\partial_xu^{n+1}$; its share between the phases is fixed by the local closure (Sec.~\ref{sec:closure}). In semi-discrete form,
 \begin{equation}
 \begin{aligned}
 X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
@@ -384,8 +409,9 @@ relaxation; with thermal or chemical relaxation active, this holds if in additio
 (ii) If each phase has uniform $p$ and $T_k$, transport does not change $\rho_k$, $e_k$, $T_k$.
 \end{proposition}
 \begin{proof}
-(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces
-and \eqref{eq:rusanov} is linear, so it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
+(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces,
+and since the path-conservative discretisation \eqref{eq:pc_rusanov} transports $\alpha_k$ with the same linear Rusanov operator
+\eqref{eq:rusanov} as $m_k$ and $\varepsilon_k$, it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
 vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$, so $P\equiv p$ solves
 \eqref{eq:global} (with $T_1=T_2$ the projection onto the $pT$ manifold leaves the state unchanged). (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are transported by the same
 linear operator.
