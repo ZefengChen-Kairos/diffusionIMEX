@@ -1,22 +1,17 @@
 % =====================================================================
-% Section 2. Governing equations
+% Section 2. Mathematical model  (structure as Battisti & Boscheri 2025, Sec. 2)
 % Source: docs/derivation/A_model_EOS_explicit.md (A1, A2, A2.1)
 % =====================================================================
-\section{Governing equations}
+\section{Mathematical model}
 \label{sec:governing}
 
 We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry (SPB 2009),
-augmented with the heat- and mass-transfer terms of Pelanti and Shyue (2014) and Pelanti (2022). Each phase
-has its own pressure, temperature and Gibbs free energy; three rates control their relaxation towards
-mechanical, thermal and chemical equilibrium.
-
-\subsection{Six-equation model with mechanical, thermal and chemical relaxation}
-\label{sec:model}
-For phases $k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$
-the partial density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal
-energy per unit mixture volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed
-and Gibbs free energy. The mixture density is $\rho=m_1+m_2$, the velocity $u$, the mixture pressure
-$\bar p=\alpha_1p_1+\alpha_2p_2$ and the total energy $E=\varepsilon_1+\varepsilon_2+\tfrac12\rho u^2$. In one space dimension
+augmented with the heat- and mass-transfer terms of Pelanti and Shyue (2014) and Pelanti (2022). For phases
+$k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
+density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy per unit mixture
+volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed and Gibbs free energy. The
+mixture density is $\rho=m_1+m_2$, the velocity $u$, the mixture pressure $\bar p=\alpha_1p_1+\alpha_2p_2$ and the total
+energy $E=\varepsilon_1+\varepsilon_2+\tfrac12\rho u^2$. In one space dimension the model reads
 \begin{equation}
 \begin{aligned}
 &\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I,\\
@@ -28,97 +23,80 @@ $\bar p=\alpha_1p_1+\alpha_2p_2$ and the total energy $E=\varepsilon_1+\varepsil
 \end{aligned}
 \label{eq:model}
 \end{equation}
-with the relaxation terms
+with the mechanical, thermal and chemical relaxation terms
 \begin{equation}
 \mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\qquad
 p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
 \label{eq:sources}
 \end{equation}
-The rates $\mu$ [Pa$^{-1}$s$^{-1}$], $\theta$ [Pa\,s$^{-1}$K$^{-1}$] and $\nu$ [Pa\,kg$^2$s$^{-1}$J$^{-2}$] are non-negative;
-$\mathcal M>0$ transfers mass from phase 2 to phase 1. The total-energy equation is a consequence of the others
-for smooth solutions, but it is the conservative one: at shocks the non-conservative phase energy equations
-are not reliable, and the conserved total energy fixes the mixture internal energy (the ``+1'' equation of
-SPB 2009). The interfacial density $\rho_I$ and energy $e_I$ cancel in every closure used here (Pelanti and
-Shyue 2014, Sec.~2.3; see Sec.~\ref{sec:closure}) and need not be specified. With the impedance-weighted
-interfacial pressure $p_I$ the entropy produced by mechanical relaxation is non-negative.
+The rates $\mu,\theta,\nu\ge0$ may be stiff; $\mathcal M>0$ transfers mass from phase 2 to phase 1. The total-energy
+equation is redundant for smooth solutions, but it is the conservative one and fixes the mixture internal
+energy at shocks (the ``+1'' equation of SPB 2009). The interfacial density $\rho_I$ and energy $e_I$ cancel in
+every closure used here and need not be specified. The system can be written in the non-conservative form
+\begin{equation}
+\partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q),\qquad
+\mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\top},
+\label{eq:general}
+\end{equation}
+where $\mathbf B$ collects the products $u\,\partial_x\alpha_1$ and $\alpha_kp_k\,\partial_xu$ and $\mathbf S$ the relaxation terms.
 
-\subsection{Relaxation hierarchy and limit models}
-\label{sec:hierarchy}
-Instantaneous mechanical relaxation, $\mu\to\infty$, gives the five-equation pressure-equilibrium model of
-Kapila et al.; adding $\theta\to\infty$ gives the four-equation pressure--temperature ($pT$) equilibrium model,
-and adding $\nu\to\infty$ the homogeneous equilibrium model ($pTg$, equal Gibbs free energies) (Pelanti 2022,
-Sec.~3). The sound speeds of the hierarchy satisfy the subcharacteristic ordering
+\paragraph{Equations of state}
+Each phase follows the Noble--Abel stiffened-gas (NASG) law with parameters $(\gamma,\pi,q,q',c_v,b)$,
+\begin{equation}
+p(\rho,e)=\frac{(\gamma-1)\rho(e-q)}{1-\rho b}-\gamma\pi,\qquad
+v(p,T)=\frac{(\gamma-1)c_vT}{p+\pi}+b,\qquad e(p,T)=c_vT\,\frac{p+\gamma\pi}{p+\pi}+q,
+\label{eq:nasg}
+\end{equation}
+with $g=(\gamma c_v-q')T-c_vT\ln\big(T^\gamma/(p+\pi)^{\gamma-1}\big)+bp+q$ and $c^2=\gamma(p+\pi)/\big(\rho(1-\rho b)\big)$; $b=0$
+gives the stiffened gas. The form used by the scheme is the internal energy of phase $k$ in a cell, where it
+occupies the volume $\alpha_k$ with mass $m_k$, at pressure $p$,
+\begin{equation}
+\varepsilon_k(\alpha_k,m_k,p)=\frac{(p+\gamma_k\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}+m_kq_k ,
+\label{eq:eps_nasg}
+\end{equation}
+which is affine in $(\alpha_k,m_k)$ at fixed $p$ and explicitly invertible for $\alpha_k$. The admissible set of a phase,
+$\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$, is a convex cone. The saturation temperature
+$T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$. Detonation products and nitromethane are described by
+Mie--Gr\"uneisen laws $p=\Gamma\rho(e-\varepsilon_r(\rho))+p_r(\rho)$ (JWL, Cochran--Chan), whose reference curve is an
+isentrope, $\varepsilon_r'=p_r/\rho^2$; in phase-volume form
+$\varepsilon_k=m_k\varepsilon_r(\rho_k)+\alpha_k(p-p_r(\rho_k))/\Gamma_k$, and admissibility is $c^2>0$.
+
+\paragraph{Relaxed models and wave speeds}
+For $\mu\to\infty$ the model reduces to the five-equation pressure-equilibrium model of Kapila et al.; adding
+$\theta\to\infty$ gives the four-equation $pT$ model and adding $\nu\to\infty$ the homogeneous equilibrium model ($pTg$)
+(Pelanti 2022). The sound speeds satisfy the subcharacteristic ordering
 \begin{equation}
 c_{pTg}\le c_{pT}\le c_p\le c_f,\qquad c_f^2=\sum_kY_kc_k^2,\qquad \frac1{\rho c_p^2}=\sum_k\frac{\alpha_k}{\rho_kc_k^2},
 \label{eq:subchar}
 \end{equation}
-with $Y_k=m_k/\rho$, $c_f$ the frozen and $c_p$ the Wood sound speed; $c_{pT}$ and $c_{pTg}$ are given in
-Pelanti (2022, eqs.~19, 25). The equilibrium models provide the exact solutions against which the scheme is
-tested in Sec.~5, and their equations are the limits that the scheme must reproduce
-(Theorem~\ref{thm:limits}).
+with $Y_k=m_k/\rho$. The eigenvalues of \eqref{eq:model} are $u$ and $u\pm c_f$, so a fully explicit scheme is restricted
+by
+\begin{equation}
+\Delta t\le\mathrm{CFL}\,\min_\Omega\frac{\Delta x}{|u|+c_f},
+\label{eq:cfl_explicit}
+\end{equation}
+which becomes prohibitive when the flow is slow compared with the sound speed, while the relaxation terms
+add their own stiffness.
 
-\subsection{Equations of state}
-\label{sec:eos}
-
-\subsubsection{Noble--Abel stiffened gas}
-Each phase has parameters $(\gamma,\pi,q,q',c_v,b)$; $b=0$ is the stiffened gas. With $v=1/\rho$,
+\subsection{Non-dimensional form}
+\label{sec:nondim}
+To identify the stiff terms we introduce reference values common to both phases (the mixture is
+characterised by one Mach number, as in Re and Abgrall and in Battisti and Boscheri): length $L_0$,
+velocity $u_0$, time $\tau_0=L_0/u_0$, density $\rho_0$ and pressure $p_0$, with internal and total energies
+scaled by $p_0$. With $\epsilon=\gamma_0M^2$, $M=u_0/c_0$, $c_0^2=\gamma_0p_0/\rho_0$, and dropping the tildes,
 \begin{equation}
 \begin{aligned}
-&p(\rho,e)=\frac{(\gamma-1)\rho(e-q)}{1-\rho b}-\gamma\pi,\qquad
-v(p,T)=\frac{(\gamma-1)c_vT}{p+\pi}+b,\qquad e(p,T)=c_vT\,\frac{p+\gamma\pi}{p+\pi}+q,\\
-&s=c_v\ln\frac{T^\gamma}{(p+\pi)^{\gamma-1}}+q',\qquad
-g=(\gamma c_v-q')T-c_vT\ln\frac{T^\gamma}{(p+\pi)^{\gamma-1}}+bp+q,\qquad
-c^2=\frac{\gamma(p+\pi)}{\rho(1-\rho b)} .
+&\partial_t\alpha_1+u\,\partial_x\alpha_1=\tilde\mu(p_1-p_2)+\dots,\qquad
+\partial_t m_k+\partial_x(m_ku)=\pm\tilde\nu\,(g_2-g_1),\\
+&\partial_t(\rho u)+\partial_x(\rho u^2)+\frac1\epsilon\,\partial_x\bar p=0,\\
+&\partial_t\varepsilon_k+\partial_x(\varepsilon_ku)+\alpha_kp_k\,\partial_xu=\mp p_I\tilde\mu(p_1-p_2)\pm\tilde\theta(T_2-T_1)+\dots,\\
+&\partial_t E+\partial_x\big((E+\bar p)u\big)=0,\qquad E=\textstyle\sum_k\varepsilon_k+\tfrac12\epsilon\,\rho u^2,
 \end{aligned}
-\label{eq:nasg}
+\label{eq:nondim}
 \end{equation}
-The form used throughout the scheme is the internal energy of phase $k$ in a cell, where it occupies the
-volume $\alpha_k$ with mass $m_k$, at pressure $p$:
-\begin{equation}
-\varepsilon_k(\alpha_k,m_k,p)=\frac{(p+\gamma_k\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}+m_kq_k .
-\label{eq:eps_nasg}
-\end{equation}
-For given $\alpha_k$, $m_k$ and mixture internal energy $\rho e=\sum_k\varepsilon_k$ it is linear in $p$, which gives the
-mixture pressure of the pressure-equilibrium model,
-\begin{equation}
-p=\frac{\rho e-\sum_km_kq_k-\sum_k\gamma_k\pi_k\frac{\alpha_k-m_kb_k}{\gamma_k-1}}{\sum_k\frac{\alpha_k-m_kb_k}{\gamma_k-1}} .
-\label{eq:pmix_nasg}
-\end{equation}
-The saturation curve $T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$; for stiffened gases it is a genuine phase
-equilibrium only where $v_2(p,T_{\rm sat})>v_1(p,T_{\rm sat})$, up to an end point $p_c$ where $v_1=v_2$.
-
-\subsubsection{Mie--Gr\"uneisen phases}
-The nitromethane test of SPB 2009 (Cochran--Chan) and the detonation products of Pelanti (2022) (JWL) use
-\begin{equation}
-p(\rho,e)=\Gamma\rho\big(e-\varepsilon_r(\rho)\big)+p_r(\rho),\qquad \Gamma={\rm const},
-\label{eq:mg}
-\end{equation}
-with $p_r=A_1x^{E_1}-A_2x^{E_2}$, $x=\rho/\rho_{\rm ref}$, for Cochran--Chan and
-$p_r=a\,e^{-r_1\rho_0/\rho}+b\,e^{-r_2\rho_0/\rho}$ for JWL. In both the reference curve is an isentrope,
-$\varepsilon_r'(\rho)=p_r(\rho)/\rho^2$, which is the only property used below. In phase-volume form, with $\rho_k=m_k/\alpha_k$,
-\begin{equation}
-\varepsilon_k(\alpha_k,m_k,p)=m_k\varepsilon_r(\rho_k)+\alpha_k\frac{p-p_r(\rho_k)}{\Gamma_k},\qquad
-c^2=\frac{(\Gamma+1)(p-p_r(\rho))}{\rho}+p_r'(\rho),
-\label{eq:eps_mg}
-\end{equation}
-admissibility is $c^2>0$, and the mixture pressure is again linear in $p$ (Pelanti 2022, eq.~28). The
-Mie--Gr\"uneisen phases are used with mechanical relaxation only.
-
-\subsubsection{Properties of the equations of state used by the scheme}
-\label{sec:eos_properties}
-The scheme relies on five properties of \eqref{eq:eps_nasg}:
-\begin{itemize}
-\item[(E1)] at fixed $p$, $\varepsilon_k$ is affine in $(\alpha_k,m_k)$: any linear transport operator applied to
-$(\alpha_k,m_k,\varepsilon_k)$ preserves a uniform pressure, so contacts are not perturbed (Sec.~\ref{sec:properties});
-\item[(E2)] \eqref{eq:eps_nasg} can be solved explicitly for $\alpha_k$: the discrete Gibbs closure is algebraic
-(Sec.~\ref{sec:closure});
-\item[(E3)] $v(p,T)$ and $e(p,T)$ are explicit and $e$ is linear in $T$: the temperature is explicit in the $pT$,
-$pTg$ and finite-rate closures;
-\item[(E4)] $g_1=g_2$ defines $T_{\rm sat}(p)$: the $pTg$ closure and the activation of mass transfer;
-\item[(E5)] convexity, $c_k^2>0$, $\partial v/\partial p|_T<0$, $c_p>0$: the residuals of all local closures are
-monotone in $p$ and their roots unique.
-\end{itemize}
-For Mie--Gr\"uneisen phases (E1) holds when each phase has the same density on both sides of an interface
-(the setting of SPB 2009 Sec.~4.2), (E2) is replaced by a one-dimensional monotone root (Sec.~\ref{sec:closure}),
-(E3)--(E4) are not used, and (E5) follows from $c^2>0$. The admissible set of an NASG phase is
-$\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$, a convex cone defined by linear constraints.
+with the dimensionless rates $\tilde\mu=\mu p_0\tau_0$, $\tilde\theta=\theta T_0\tau_0/p_0$ and $\tilde\nu=\nu p_0\tau_0/\rho_0^2$. Two
+sources of stiffness appear. The pressure gradient in the momentum equation carries $1/\epsilon$; it is coupled to
+the pressure work $\alpha_kp_k\,\partial_xu$ in the phase energy equations and to the enthalpy part of the energy flux,
+$(E+\bar p)u=\tfrac12\epsilon\rho u^2u+(\rho e+\bar p)u$, which together determine the pressure response to compression.
+The relaxation terms carry $\tilde\mu,\tilde\theta,\tilde\nu$, which may be arbitrarily large. Both groups are treated
+implicitly by the scheme of Sec.~\ref{sec:method}, the second inside the same local closure as the first.

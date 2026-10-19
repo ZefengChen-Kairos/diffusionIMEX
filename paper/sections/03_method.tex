@@ -1,85 +1,91 @@
 % =====================================================================
-% Section 3. Numerical method
+% Section 3. Numerical scheme  (structure as Battisti & Boscheri 2025, Sec. 3)
 % Source: docs/derivation/B_TV_IMEX.md, docs/derivation/E_code_path.md
 % =====================================================================
-\section{Numerical method}
+\section{Numerical scheme}
 \label{sec:method}
 
-The model \eqref{eq:model} is split into a transport subsystem, advanced explicitly with a Rusanov flux
-whose dissipation speed is the material speed, and a pressure subsystem, advanced implicitly, which contains
-the pressure, its work on each phase and all relaxation sources. The implicit part reduces to one scalar
-equation per cell for the mixture pressure; its residual is evaluated through a single local closure in
-which the rates $\mu,\theta,\nu$ are parameters. We describe one stage of the scheme in one space dimension on a
-uniform grid; $\tau$ is the implicit step of the stage, $r=\tau/\Delta x$, and $\delta_i[F_f]=F_{i+1/2}-F_{i-1/2}$.
-
-\subsection{Transport--velocity splitting}
-\label{sec:tv_split}
-Following Toro and V\'azquez-Cend\'on, the flux of every transported quantity at the new time level is
-written as
+We design an implicit--explicit scheme for \eqref{eq:model} which is second order in space and time. The
+convective terms are discretised explicitly with a Rusanov flux whose dissipation speed is the material
+speed; the pressure, its work on each phase and all relaxation terms are discretised implicitly and enter
+one local closure, in which the rates $\mu,\theta,\nu$ are parameters. Regardless of the Mach number and of the rates,
+the time step obeys
 \begin{equation}
-Xu^{n+1}=X\,u^{e}+X\,(u^{n+1}-u^{e}),
-\label{eq:tv}
+\Delta t\le C\,\min_\Omega\frac{\Delta x}{|u|},
+\label{eq:cfl}
 \end{equation}
-with $u^e$ the velocity of the explicit stage state: the first term is treated explicitly, the second, the
-incremental flux, implicitly (Table~\ref{tab:split}).
-\begin{table}[t]
-\centering
-\caption{Explicit and implicit parts of \eqref{eq:model}.}
-\label{tab:split}
-\begin{tabular}{lll}
-\toprule
-equation & explicit & implicit \\
-\midrule
-$\alpha_k$ & $\partial_x(\alpha_ku^e)$ & $\partial_x(\alpha^{\rm face}_k\Delta u)$, $-\alpha_k\partial_xu$, relaxation \\
-$m_k$ & $\partial_x(m_ku^e)$ & $\partial_x(m^{\rm face}_k\Delta u)$, mass transfer \\
-$\varepsilon_k$ & $\partial_x(\varepsilon_ku^e)$ & $\partial_x(\varepsilon^{\rm face}_k\Delta u)$, $\alpha_kp_k\partial_xu$, relaxation \\
-$\rho u$ & $\partial_x(\rho u\,u^e)$ & $\partial_x\bar p$, $\partial_x(u\,\hat M\Delta u)$ \\
-$E$ & $\partial_x(E\,u^e)$ & $\partial_x(\bar pu)$, $\partial_x(\hat E\Delta u)$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-The explicit subsystem has the single eigenvalue $u$, so its dissipation speed is the material speed. All
-three phase quantities $\alpha_k$, $m_k$, $\varepsilon_k$ carry the same incremental flux, so that transport does not
-change the phase densities and specific energies.
+which is based only on the material speed.
 
-The non-conservative volume equation is written in volume-transport form: with the identity
-$\bar u\,\Delta\alpha=\Delta(\alpha u)-\bar\alpha\,\Delta u$, the path-conservative Rusanov fluctuation with the linear path
-splits into a conservative volume flux, of the same form as the fluxes of $m_k$ and $\varepsilon_k$, and the
-volume strain $-\bar\alpha_f\Delta u_f$. The volume flux is transported like the other quantities; the strain is
-moved into the implicit closure, where it is paired with the pressure work (Sec.~\ref{sec:closure}).
-
-\subsection{Explicit subsystem}
-\label{sec:explicit}
-On the explicit stage state $Q^e$ and for $X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,E\}$,
+\subsection{First-order semi-discrete scheme in time}
+\label{sec:semidiscrete}
+Following the transport--velocity splitting of Toro and V\'azquez-Cend\'on, the flux of every transported
+quantity at the new time level is split as $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is explicit, the second,
+the incremental flux, implicit. The volume equation is written in volume-transport form: with
+$\bar u\,\Delta\alpha=\Delta(\alpha u)-\bar\alpha\,\Delta u$, the path-conservative fluctuation with the linear path is a conservative
+volume flux, treated like the fluxes of $m_k$ and $\varepsilon_k$, plus the volume strain $-\alpha_k\partial_xu$, which is
+treated implicitly together with the pressure work. The semi-discrete scheme reads
 \begin{equation}
-F^e_{i+1/2}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_f\big(X^R-X^L\big),\qquad
-a_f=\max\big(|u^L_f|,|u^R_f|\big),
+\begin{aligned}
+X^*&=X^n-\Delta t\,\partial_x(X^nu^n),\qquad X\in\{\alpha_k,m_k,\varepsilon_k,\rho u,E\},\\
+X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
+(\rho u)^{n+1}&=(\rho u)^*-\Delta t\,\partial_x\bar p^{\,n+1}-\Delta t\,\partial_x\big(u\,\hat M\,(u^{n+1}-u^n)\big),\\
+E^{n+1}&=E^*-\Delta t\,\partial_x\Big(\textstyle\sum_k\varepsilon^{\rm face}_k(u^{n+1}-u^n)+\tfrac12u^2\hat M(u^{n+1}-u^n)+\bar p\,u\Big)^{n+1},
+\end{aligned}
+\label{eq:semidiscrete}
+\end{equation}
+where $\hat M$ is the incremental mass flux, and the phase states at $t^{n+1}$ follow from the transported states,
+the volume strain $s=\Delta t\,\partial_xu^{n+1}=1-\sum_k\alpha^{\rm tr}_k$ and the conservative mixture internal energy
+$(\rho e)^C=E^{n+1}-\tfrac12(\rho u)^{n+1\,2}/\rho^{n+1}$ through the closure of Sec.~\ref{sec:closure}. All three phase
+quantities carry the same incremental flux, so that transport does not change the phase densities and
+specific energies. The momentum and energy updates depend on $\bar p^{\,n+1}$, and the closure returns $\bar p^{\,n+1}$ as a
+function of $s$ and $(\rho e)^C$, so the stage reduces to one equation per cell for the pressure,
+\begin{equation}
+G(\bar p)\equiv\bar p^{\rm cl}\big(s(\bar p),X^{\rm tr}(\bar p),(\rho e)^C(\bar p);\ \mu,\theta,\nu\big)-\bar p=0 ,
+\label{eq:global_semi}
+\end{equation}
+a nonlinear and relaxing generalisation of $p^{n+1}=p^*-\Delta t\,\rho c^2\partial_xu^{n+1}$. The nonlinearity is local to each
+cell (the closure), so the Jacobian of the discrete system is tridiagonal.
+
+\begin{remark}[Mixture-energy consistency]
+The closure distributes the difference between the non-conservative and the conservative mixture internal
+energy to the phases (Sec.~\ref{sec:closure}), so that $\sum_k\varepsilon_k^{n+1}=E^{n+1}-\tfrac12\rho^{n+1}(u^{n+1})^2$ holds exactly and the
+pressure is given by the phase equations of state; no linearisation of the kinetic energy is involved.
+\end{remark}
+
+\subsection{Second-order extension in time}
+\label{sec:time}
+Second order in time is obtained with the semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and
+Russo, using the stiffly accurate, L-stable LSDIRK2(2,2,2) tableaux
+\begin{equation}
+\begin{array}{c|cc}0&0&0\\ \hat c&\hat c&0\\\hline &1-\beta&\beta\end{array}\qquad
+\begin{array}{c|cc}\beta&\beta&0\\ 1&1-\beta&\beta\\\hline &1-\beta&\beta\end{array},\qquad \beta=1-\tfrac1{\sqrt2},\quad \hat c=\tfrac1{2\beta}.
+\label{eq:lsdirk}
+\end{equation}
+Stage $i$ applies the semi-discrete scheme with the explicit terms evaluated on
+$Q^e=U^n+\Delta t\sum_{j<i}\tilde a_{ij}K_j$, the update base $Q^s=U^n+\Delta t\sum_{j<i}a_{ij}K_j$ and the implicit step
+$\tau=a_{ii}\Delta t$, giving $U_i$ and $K_i=(U_i-Q^s)/\tau$; $U^{n+1}$ is the last stage. The first step uses the acoustic
+Courant number $0.4$ and each step may grow by at most a factor $1.2$ until \eqref{eq:cfl} is reached; these
+steps use one backward-Euler stage.
+
+\subsection{Fully discrete scheme in space and time}
+\label{sec:fully}
+The domain is covered by a Cartesian grid of spacing $\Delta x$ (and $\Delta y$); we present the scheme in the
+$x$-direction, $r=\tau/\Delta x$, $\delta_i[F_f]=F_{i+1/2}-F_{i-1/2}$.
+
+\paragraph{Explicit fluxes}
+For $X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,E\}$ on $Q^e$,
+\begin{equation}
+F^e_{i+1/2}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_f\big(X^R-X^L\big),\qquad a_f=\max\big(|u^L_f|,|u^R_f|\big),
 \label{eq:rusanov}
 \end{equation}
-or $a_f$ equal to its maximum over the domain, and $X^*_i=X^s_i-r\,\delta_i[F^e[X]]$, with $Q^s$ the update base
-of the stage (Sec.~\ref{sec:time}). The face values are second-order MUSCL reconstructions with minmod.
-The volume-transported quantities $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
-\begin{equation}
-X^{L,R}=X_i\pm\tfrac12\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad
-\phi_i=\min_{X\in\mathcal X_V}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1],
-\label{eq:shared_limiter}
-\end{equation}
-so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ at uniform pressure, hold on
-the faces; quantities that are constant on the stencil to round-off are excluded from the minimum. The
-velocity is reconstructed component-wise with its own minmod slope, and the face momentum and energy are
-assembled from the face values. The face value of $\alpha_2$ is $1-\alpha_1^{\rm face}$.
+or $a_f$ equal to its maximum over the domain, and $X^*_i=X^s_i-r\,\delta_i[F^e[X]]$. The dissipation uses only the
+convective eigenvalue $u$. The face values $X^{L,R}$ are given in Sec.~\ref{sec:dissipation}.
 
-\subsection{Implicit subsystem}
-\label{sec:implicit}
-The unknowns are the cell mixture pressures $P_i$. Let $\rho^*_i=\sum_km^*_{k,i}$, $u^*_i=(\rho u)^*_i/\rho^*_i$ and
-$Z_i=\rho^*_ic_{f,i}$ with the frozen sound speed $c_f$ evaluated on $X^*$; since $\rho c_f\ge\rho c_{\rm eq}$ for every relaxed
-closure (Fl\aa tten and Lund 2011), the dissipation below is never smaller than that of the relaxed waves.
-
-\subsubsection{Face velocity and face pressure}
-\label{sec:faces}
-The face velocity is the average of the cell velocities plus the pressure acceleration of the two adjacent
-half cells, and the face pressure is the density-weighted average that conserves momentum. To these we add
-the upwind terms of the acoustic Riemann solution:
+\paragraph{Face velocity and face pressure}
+The unknowns are the cell pressures $P_i$. With $\rho^*_i=\sum_km^*_{k,i}$, $u^*_i=(\rho u)^*_i/\rho^*_i$ and $Z_i=\rho^*_ic_{f,i}$
+(frozen sound speed on $X^*$), the face velocity is the average of the cell velocities plus the pressure
+acceleration of the two adjacent half cells, the face pressure is the density-weighted average that
+conserves momentum, and both carry the upwind terms of the acoustic Riemann solution:
 \begin{equation}
 \begin{aligned}
 u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\varphi_f\,\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
@@ -87,45 +93,18 @@ p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\p
 \end{aligned}\qquad \bar\rho_f=\tfrac12(\rho^*_i+\rho^*_{i+1}),
 \label{eq:faces}
 \end{equation}
-with $\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$ and $D^*_f=u^*_{i+1}-u^*_i$ in 1D (Sec.~\ref{sec:multid} for 2D).
-The velocity-jump term damps the odd--even velocity mode, to which the central implicit acoustic operator is
-blind; the pressure-diffusion term makes the face velocity monotone across pressure jumps.
+with $\bar u^*_f=\tfrac12(u^*_i+u^*_{i+1})$ and $D^*_f=u^*_{i+1}-u^*_i$. The weight $\varphi_f$ and the second-order factors
+$\psi_f$ are given in Sec.~\ref{sec:dissipation}.
 
-\paragraph{Weight}
-For linear acoustics, one backward-Euler stage with \eqref{eq:faces} has, at low wave numbers, the effective
-viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(\nu+\varphi)$, $\nu=c\tau/\Delta x$. We require that each
-stage carries at least the upwind viscosity $\tfrac12c\Delta x$ on resolved acoustic waves, and no more; this gives
-\begin{equation}
-\varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ .
-\label{eq:weight}
-\end{equation}
-For $\tau\to0$ \eqref{eq:faces} reduces to the acoustic Godunov face states; for $c\tau\ge\Delta x$ the complement
-vanishes.
-
-\paragraph{Second-order factors}
-The factors $\psi\in[0,1]$ evaluate the complement on the reconstructed face states, $\psi D=X^R-X^L$ for a
-face jump $D$. The pressure is a function of the volume-transported quantities and the velocity, whose
-reconstruction is scaled by the shared factor $\phi_s=\min(\phi_i,\phi_{i+1})$; with the minmod slope of $P$ this gives
-\begin{equation}
-\psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad \psi^u_f=\psi^{\rm mm}_f[u],\qquad
-\psi^{\rm mm}_f[X]=1-\frac{\sigma^{\rm mm}_i[X]+\sigma^{\rm mm}_{i+1}[X]}{2D},
-\label{eq:psi}
-\end{equation}
-the velocity-jump term acting on the separately reconstructed velocity. Both terms are first order at a
-local extremum of any quantity whose flux they modify, in particular at contacts, and second order where
-the solution is smooth (the LED criterion of Jameson 1995).
-
-\subsubsection{Incremental fluxes and transported states}
-\label{sec:increments}
-The face sweeps $u_f\tau$ during the stage, of which the explicit part has already swept $\bar u^e_f\tau$,
-$\bar u^e_f=\tfrac12(u^L+u^R)^e$. The incremental flux supplies the difference from the upwind side of $u_f$,
-using the reconstructed face values of the explicit flux as donors:
+\paragraph{Incremental fluxes, transported states and conservative updates}
+The face sweeps $u_f\tau$ during the stage, of which the explicit flux has already swept $\bar u^e_f\tau$,
+$\bar u^e_f=\tfrac12(u^L+u^R)^e$; the increment supplies the difference from the upwind side of $u_f$, with the
+reconstructed face values of \eqref{eq:rusanov} as donors:
 \begin{equation}
 I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\}.
 \label{eq:increment}
 \end{equation}
-The transported states, the volume strain, momentum, total energy and the conservative mixture internal
-energy are
+Then
 \begin{equation}
 \begin{aligned}
 &X^{\rm tr}_i=X^*_i-r\,\delta_i\big[I_f[X]\big],\qquad s_i\equiv1-\sum_k\alpha^{\rm tr}_{k,i}=r\,\delta_i[u_f],\\
@@ -135,139 +114,89 @@ E^{n+1}_i=E^*_i-r\,\delta_i\Big[\textstyle\sum_kI_f[\varepsilon_k]+\tfrac12u_f^2
 \end{aligned}
 \label{eq:transported}
 \end{equation}
-with $\hat M_f=\sum_kI_f[m_k]$. They depend only on $(P_{i-1},P_i,P_{i+1})$.
+with $\hat M_f=\sum_kI_f[m_k]$; these depend only on $(P_{i-1},P_i,P_{i+1})$.
 
-\subsubsection{Closure}
+\paragraph{Closure}
 \label{sec:closure}
 Backward Euler of the implicit part of \eqref{eq:model}, with the strain shared between the phases by the
-frozen fractions $\omega_k=\alpha^{\rm tr}_k/\sum_j\alpha^{\rm tr}_j$ in both the volume change and the pressure work,
-gives ($\chi_1=+1$, $\chi_2=-1$)
+frozen fractions $\omega_k=\alpha^{\rm tr}_k/\sum_j\alpha^{\rm tr}_j$ in both the volume change and the pressure work, gives
+($\chi_1=+1$, $\chi_2=-1$)
 \begin{equation}
 \begin{aligned}
 \alpha_k&=\alpha^{\rm tr}_k+\omega_ks+\chi_kR,\qquad R=\tau\big(\mu(p_1-p_2)+\mathcal M/\rho_I\big),\\
 m_k&=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
-\varepsilon_k&=\varepsilon^{\rm tr}_k-\omega_kp_k\,s-\chi_k\,\tau p_I\mu(p_1-p_2)+\chi_k\tau\big(\mathcal Q+e_I\mathcal M\big)+\Lambda_k(\delta).
+\varepsilon_k&=\varepsilon^{\rm tr}_k-\omega_kp_k\,s-\chi_k\,\tau p_I\mu(p_1-p_2)+\chi_k\tau\big(\mathcal Q+e_I\mathcal M\big)+\Lambda_k(\delta),
 \end{aligned}
 \label{eq:gibbs}
 \end{equation}
-Since $\sum_k\omega_k=1$, $\sum_k\alpha_k=1$ holds for every pressure. The last term distributes the defect
+so $\sum_k\alpha_k=1$ for every pressure. The last term distributes the defect between the non-conservative and
+the conservative mixture internal energy,
 \begin{equation}
-\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k,\qquad \sum_k\Lambda_k(\delta)=\delta,
+\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k,\qquad \sum_k\Lambda_k(\delta)=\delta .
 \label{eq:defect}
 \end{equation}
-between the non-conservative and the conservative mixture internal energy, so that $\sum_k\varepsilon_k=(\rho e)^C$
-holds exactly inside the closure.
-
-\paragraph{Energy-defect partition}
-At a shock $\delta$ is the dissipation of the scheme, and its partition between the phases fixes the limit
-shock relations. We distribute it so that each phase follows its own Hugoniot (Saurel et al.\ 2007),
+At a shock $\delta$ is the dissipation of the scheme, and its partition fixes the limit shock relations. We
+distribute it so that each phase follows its own Hugoniot (Saurel et al.\ 2007),
 \begin{equation}
 e_k-e_{k0}+\tfrac12(p_0+p_1)(v_k-v_{k0})=0 ,
 \label{eq:II5}
 \end{equation}
-which is the closure used in the exact solutions of Sec.~5. The physical part is the Hugoniot--isentrope
-energy gap of each phase between the pressures $p_{\rm lo}<p_{\rm hi}$ found on the compact stencil
-($\pm1$; the five-point cross in 2D) of a compressing cell,
+the shock relations also used for the exact solutions of Sec.~5. The physical part is the
+Hugoniot--isentrope energy gap of each phase between the pressure extrema $p_{\rm lo}<p_{\rm hi}$ on the compact
+stencil ($\pm1$; the five-point cross in 2D) of a compressing cell,
 \begin{equation}
 Q_k=m_k\,(v^{\rm pre}_k-b_k)\,\frac{(p_{\rm hi}+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\qquad
 \tilde v_H=\frac{(\gamma_k-1)x_{\rm hi}+(\gamma_k+1)x_{\rm lo}}{(\gamma_k+1)x_{\rm hi}+(\gamma_k-1)x_{\rm lo}},\quad
 \tilde v_S=\Big(\frac{x_{\rm lo}}{x_{\rm hi}}\Big)^{1/\gamma_k},
 \label{eq:Qk}
 \end{equation}
-$x=p+\pi_k$, with $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil and $Q_k=0$ in expanding
-cells. Its share $Q_k/\sum_jQ_j$ is consistent with \eqref{eq:II5} for weak shocks. Indeed, under \eqref{eq:II5} the
-heat received by phase $k$ on a shock profile equals its compression work minus its Hugoniot work,
-$Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$ with $\bar p=p_0+\tfrac12\Delta p$. For $\Delta p=p_1-p_0\to0$ each phase is
-isentropic along the profile to the required order, $v_k(p)=v_{k0}\big[1-x/K_k+\mathcal G_kx^2/K_k^2+O(x^3)\big]$,
-$x=p-p_0$, $K_k=\rho_kc_k^2$, $\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$, and integrating term by term gives
+$x=p+\pi_k$, with $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil and $Q_k=0$ in expanding cells.
+Its share is consistent with \eqref{eq:II5} for weak shocks: under \eqref{eq:II5} the heat received by phase $k$ on a
+shock profile is its compression work minus its Hugoniot work, $Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$,
+$\bar p=p_0+\tfrac12\Delta p$; for $\Delta p\to0$ each phase is isentropic along the profile to the required order,
+$v_k(p)=v_{k0}[1-x/K_k+\mathcal G_kx^2/K_k^2+O(x^3)]$, $x=p-p_0$, $K_k=\rho_kc_k^2$, $\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$, and
 \[
 Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
 \]
-the entropy production of a single-phase shock in phase $k$. The weak-shock share is therefore
-$\alpha_k\mathcal G_k/K_k^2$ (normalised), and $Q_k/\sum_jQ_j$ reduces to it as $p_{\rm hi}\to p_{\rm lo}$. The remainder of $\delta$ is a discretisation error and is distributed in
-proportion to the energy of each phase above its admissibility bound,
+the entropy production of a single-phase shock; $Q_k/\sum_jQ_j$ reduces to this share as $p_{\rm hi}\to p_{\rm lo}$. The
+remainder of $\delta$ is a discretisation error, distributed in proportion to the energy of each phase above its
+admissibility bound,
 \begin{equation}
-\lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr},
+\lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr} .
 \label{eq:lambdaE}
 \end{equation}
-which changes $p_k+\pi_k$ of both phases by the same factor. It is the only linear split that keeps both phases
-admissible for every admissible $\delta$: with $\Lambda_k=\lambda_k\delta$, $\sum_k\lambda_k=1$, the requirement
-$E_k+\lambda_k\delta>0$ for $\delta\to+\infty$ gives $\lambda_k\ge0$, and for $\delta\to-\sum_jE_j$ gives
-$\lambda_k\le E_k/\sum_jE_j$; summing over $k$, both sides equal one, so $\lambda_k=E_k/\sum_jE_j$. Altogether
+It is the only linear split that keeps both phases admissible for every admissible $\delta$: with $\Lambda_k=\lambda_k\delta$,
+$\sum_k\lambda_k=1$, the requirement $E_k+\lambda_k\delta>0$ for $\delta\to+\infty$ gives $\lambda_k\ge0$, and for $\delta\to-\sum_jE_j$
+gives $\lambda_k\le E_k/\sum_jE_j$; summing over $k$, both sides equal one, so $\lambda_k=E_k/\sum_jE_j$. Altogether
 \begin{equation}
 \Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^E_k,&\delta\ge0,\\[4pt]
 \delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
 \label{eq:Lambda}
 \end{equation}
-a continuous, piecewise affine function of $\delta$; with $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$, the
-active piece is selected at the trial pressure. For Mie--Gr\"uneisen phases $Q_k$ and $E_k$ are computed from
-the Hugoniot and the isentrope $(p-p_r)v^{\Gamma+1}={\rm const}$ and from the thermal energy above the cold curve.
+a continuous, piecewise affine function of $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$, whose active piece is selected
+at the trial pressure. For Mie--Gr\"uneisen phases $Q_k$ and $E_k$ follow from the Hugoniot, the isentrope
+$(p-p_r)v^{\Gamma+1}={\rm const}$ and the thermal energy above the cold curve. The closures for each set of rates are
+given in Sec.~\ref{sec:relaxation}.
 
-\paragraph{Closures for each set of rates}
-With the ordering of Pelanti (2022) ($\mu=\infty$ if $\theta>0$ or $\nu>0$; $\theta=\infty$ if $\nu>0$), each closure is one
-scalar equation in the cell pressure; on the active piece $\Lambda_k=\lambda_k\delta+\xi_k$.
-\begin{itemize}
-\item \emph{$p$ closure} ($\mu=\infty$, $\theta=\nu=0$). With $p_1=p_2=p$, \eqref{eq:gibbs} becomes the discrete Gibbs
-relation $\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, and by \eqref{eq:eps_nasg}
-\[
-\alpha_k(p)=\frac{(\gamma_k-1)\big[A_k+B_kp\big]+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\quad
-A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks .
-\]
-$\Phi(p)=\sum_k\alpha_k(p)-1$ is decreasing for admissible phases and changes sign on $(\max_k(-\pi_k),\infty)$, so the
-root is unique. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the
-outer equation $\Phi(p)=0$ is then solved by a bracketed Newton iteration, without a global monotonicity
-result.
-\item \emph{Finite $\mu$}. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear system for $(p_1,p_2)$, followed by
-$R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$, increasing in $R$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
-\item \emph{$pT$ closure} ($\mu=\theta=\infty$). $T(p)$ follows explicitly from $\sum_km_ke_k(p,T)=(\rho e)^C$ and
-$\Phi(p)=\sum_km_kv_k(p,T(p))-1$.
-\item \emph{Finite $\theta$}. The exchanged heat is, in closed form,
-$\Delta Q(p)=\tau\theta\big(T^0_2(p)-T^0_1(p)\big)/\big(1+\tau\theta(C_{p1}^{-1}+C_{p2}^{-1})\big)$, $C_{pk}=\gamma_kc_{vk}m_k$.
-\item \emph{Finite $\nu$} ($\mu=\theta=\infty$). For given $p$ the vapour fraction solves
-$\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0$, increasing in $Y$, clamped to its admissible interval;
-then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$.
-\item \emph{$pTg$ closure} ($\mu=\theta=\nu=\infty$). $T=T_{\rm sat}(p)$, $Y$ from the energy, $\Phi(p)=\rho\sum_kY_kv_k-1$.
-\end{itemize}
-The interfacial quantities $\rho_I$, $e_I$ do not appear. Thermal and chemical relaxation are active in
-interface cells ($\epsilon_I\le\alpha_1\le1-\epsilon_I$), mass transfer only for $T>T_{\rm sat}(p)$. Activation is decided
-once per step on $U^n$, which is projected onto the equilibrium manifold of the activated closure (the same
-closure with $s=0$); the closure type is frozen over the stages.
-
-\subsubsection{Global system}
-\label{sec:solver}
-The stage is solved by
+\paragraph{Pressure system}
+The fully discrete counterpart of \eqref{eq:global_semi} is
 \begin{equation}
 G_i(P)\equiv\bar p^{\rm cl}_i\big(s_i,X^{\rm tr}_i,(\rho e)^C_i;\ \mu,\theta,\nu\big)-P_i=0 ,
 \label{eq:global}
 \end{equation}
-a three-point (five-point in 2D) system whose Jacobian is a diagonally dominant M-matrix. We use Newton's
-method with a finite-difference Jacobian and an Armijo line search that also requires every local closure to
-be admissible. The unknown is the pressure perturbation $P-P_{\rm ref}$; finite-difference steps and the step
-criterion are scaled by $s_i=N_i/D_i$, with $N_i=|P_i|+K_i+P_{E,i}$ the residual scale ($K$ the Wood bulk
+a three-point (five-point in 2D) system whose Jacobian is a diagonally dominant M-matrix. It is solved by
+Newton's method with a finite-difference Jacobian and an Armijo line search that also requires every local
+closure to be admissible. The unknown is the pressure perturbation $P-P_{\rm ref}$; finite-difference steps and
+the step criterion are scaled by $s_i=N_i/D_i$, with $N_i=|P_i|+K_i+P_{E,i}$ the residual scale ($K$ the Wood bulk
 modulus) and $D_i\approx1+2d\nu^2$ the scale of $\partial G_i/\partial P_i$; the linear systems are solved by the Thomas
-algorithm in 1D and by BiCGStab with a Jacobi plus constant-coarse-space preconditioner otherwise. These
-make the iteration independent of the Mach number. The iteration stops when $\max_i|G_i|/N_i<10^{-13}$ or
-the residual reaches the round-off floor of the closure.
+algorithm in 1D and by BiCGStab with a Jacobi plus constant-coarse-space preconditioner otherwise, which
+makes the iteration independent of the Mach number. The iteration stops when $\max_i|G_i|/N_i<10^{-13}$ or the
+residual reaches the round-off floor of the closure.
 
-\subsection{Time integration}
-\label{sec:time}
-We use the semi-implicit IMEX Runge--Kutta framework of Boscarino, Filbet and Russo with the stiffly
-accurate, L-stable LSDIRK2(2,2,2) tableau
-\[
-\tilde A=\begin{pmatrix}0&0\\ \tfrac1{2\gamma}&0\end{pmatrix},\qquad A=\begin{pmatrix}\gamma&0\\ 1-\gamma&\gamma\end{pmatrix},\qquad \gamma=1-\tfrac1{\sqrt2}.
-\]
-Stage $i$ sets $Q^e=U^n+\Delta t\sum_{j<i}\tilde a_{ij}K_j$, $Q^s=U^n+\Delta t\sum_{j<i}a_{ij}K_j$, applies the explicit and
-implicit subsystems with $\tau=a_{ii}\Delta t$ to obtain $U_i$, and $K_i=(U_i-Q^s)/\tau$; $U^{n+1}$ is the last stage. The
-time step is limited by the material speed only, $\Delta t=C\,[\max_i|u_i|/\Delta x+\max_i|v_i|/\Delta y]^{-1}$. The first
-step uses the acoustic Courant number $0.4$ and each step may grow by at most a factor $1.2$; ramped steps
-use one backward-Euler stage.
-
-\subsection{Multi-dimensional extension}
-\label{sec:multid}
-Fluxes are computed on the faces of each direction with the same reconstruction; the face velocity corrects
-the normal component, the incremental mass flux carries the donor's tangential velocity, and
-$s_{ij}=r_x\delta_x[u_f]+r_y\delta_y[v_f]$. In the velocity-jump term the normal jump is replaced by the vertex
-divergence
+\paragraph{Two space dimensions}
+Fluxes are computed on the faces of each direction; the face velocity corrects the normal component, the
+incremental mass flux carries the donor's tangential velocity, and $s_{ij}=r_x\delta_x[u_f]+r_y\delta_y[v_f]$. In the
+velocity-jump term the normal jump is replaced by the vertex divergence
 \begin{equation}
 D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+1/2,j-1/2}\big),\quad
 \mathrm{div}_{i+1/2,j+1/2}=\frac{u_{i+1,j}+u_{i+1,j+1}-u_{i,j}-u_{i,j+1}}{2\Delta x}+\frac{v_{i,j+1}+v_{i+1,j+1}-v_{i,j}-v_{i+1,j}}{2\Delta y},
@@ -276,29 +205,97 @@ D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+
 so that the term acts as a bulk viscosity on the divergence and leaves divergence-free motion untouched; for
 $y$-independent data it reduces to the 1D jump.
 
-\subsection{Properties}
-\label{sec:properties}
-\begin{proposition}[Contacts and temperature consistency]\label{prop:wb}
-(i) A state with uniform $u$ and $p$ and arbitrary $\alpha_k$, $\rho_k$ is preserved exactly.
-(ii) If each phase has uniform $p$ and $T_k$, transport does not change $\rho_k$, $e_k$, $T_k$.
-\end{proposition}
-\begin{proof}
-(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ in every cell; the shared limiter keeps this relation on
-the faces and \eqref{eq:rusanov} is linear, so it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces}
-beyond the averages vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the
-closure at $p$; by uniqueness $P\equiv p$. (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are
-transported by the same linear operator.
-\end{proof}
-\begin{proposition}[Positivity]\label{prop:positivity}
-In a stage with $Q^e=Q^s$, if $a_f\,r\le\tfrac12$ and $r(a_f+|u_f|)\le\tfrac12$ on every face ($\tfrac14$ per direction in
-2D), the transported state of every phase is a non-negative combination of reconstructed face values and
-hence admissible, independently of the content ratio of the phases.
-\end{proposition}
-\begin{proof}
-The explicit flux plus the increment is $X^L_f[\tfrac12(u^L+a)+w^L]+X^R_f[\tfrac12(u^R-a)+w^R]$; with
-$a\ge\max|u^{L,R}|$ the neighbour coefficients are $\ge(u_f)^+$ and $\ge-(u_f)^-$, and the own-cell coefficients are
-$\tfrac12-r(\cdot)$ with $(\cdot)\le a+|u_f|$. The admissible set is a convex cone.
-\end{proof}
+\subsection{Numerical dissipation}
+\label{sec:dissipation}
+\paragraph{Second-order reconstruction}
+The face values in \eqref{eq:rusanov} are MUSCL reconstructions with minmod. The volume-transported quantities
+$\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
+\begin{equation}
+X^{L,R}=X_i\pm\tfrac12\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad
+\phi_i=\min_{X\in\mathcal X_V}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1],
+\label{eq:shared_limiter}
+\end{equation}
+so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ at uniform pressure, hold on the
+faces; quantities that are constant on the stencil to round-off are excluded from the minimum. The velocity is
+reconstructed component-wise with its own minmod slope, the face momentum and energy are assembled from the
+face values, and the face value of $\alpha_2$ is $1-\alpha_1^{\rm face}$. Both the central part and the dissipation of
+\eqref{eq:rusanov} use the reconstructed values.
+
+\paragraph{Acoustic complement}
+The central implicit acoustic operator does not damp the odd--even velocity mode, and the material-speed
+dissipation of \eqref{eq:rusanov} does not act on pressure jumps; the terms with $\varphi_f$ in \eqref{eq:faces} supply the
+acoustic Godunov dissipation that is missing. For linear acoustics, one backward-Euler stage with
+\eqref{eq:faces} has, at low wave numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(\nu+\varphi)$,
+$\nu=c\tau/\Delta x$. Requiring that each stage carries at least the upwind viscosity $\tfrac12c\Delta x$ on resolved
+acoustic waves, and no more, gives
+\begin{equation}
+\varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ :
+\label{eq:weight}
+\end{equation}
+for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, for $c\tau\ge\Delta x$ the complement vanishes. Since
+$\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure (Fl\aa tten and Lund 2011), the dissipation is never smaller than that
+of the relaxed waves.
+
+\paragraph{Second-order factors}
+The factors $\psi\in[0,1]$ evaluate the complement on the reconstructed face states, $\psi D=X^R-X^L$ for a face jump
+$D$. The pressure is a function of the volume-transported quantities and the velocity, whose reconstruction is
+scaled by the shared factor $\phi_s=\min(\phi_i,\phi_{i+1})$; with the minmod slope of $P$ this gives
+\begin{equation}
+\psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad \psi^u_f=\psi^{\rm mm}_f[u],\qquad
+\psi^{\rm mm}_f[X]=1-\frac{\sigma^{\rm mm}_i[X]+\sigma^{\rm mm}_{i+1}[X]}{2D},
+\label{eq:psi}
+\end{equation}
+the velocity-jump term acting on the separately reconstructed velocity. Both terms are first order at a local
+extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution
+is smooth (the LED criterion of Jameson 1995).
+
+\subsection{Relaxation closures}
+\label{sec:relaxation}
+The relaxation terms are not split from the transport: they enter the closure \eqref{eq:gibbs}, which for each set of
+rates reduces to one scalar equation in the cell pressure. We follow the ordering of Pelanti (2022) ($\mu=\infty$ if
+$\theta>0$ or $\nu>0$; $\theta=\infty$ if $\nu>0$); on the active piece $\Lambda_k=\lambda_k\delta+\xi_k$.
+\begin{itemize}
+\item \emph{$p$ closure} ($\mu=\infty$, $\theta=\nu=0$). With $p_1=p_2=p$, \eqref{eq:gibbs} becomes the discrete Gibbs relation
+$\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, and by \eqref{eq:eps_nasg}
+\[
+\alpha_k(p)=\frac{(\gamma_k-1)\big[A_k+B_kp\big]+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\quad
+A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks .
+\]
+$\Phi(p)=\sum_k\alpha_k(p)-1$ is decreasing for admissible phases and changes sign on $(\max_k(-\pi_k),\infty)$, so the root
+is unique. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the outer
+equation $\Phi(p)=0$ is then solved by a bracketed Newton iteration, without a global monotonicity result.
+\item \emph{Finite $\mu$}. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear system for $(p_1,p_2)$, followed by
+$R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$, increasing in $R$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
+\item \emph{$pT$ closure} ($\mu=\theta=\infty$). $T(p)$ follows explicitly from $\sum_km_ke_k(p,T)=(\rho e)^C$, and
+$\Phi(p)=\sum_km_kv_k(p,T(p))-1$.
+\item \emph{Finite $\theta$}. The exchanged heat is, in closed form,
+$\Delta Q(p)=\tau\theta\big(T^0_2(p)-T^0_1(p)\big)/\big(1+\tau\theta(C_{p1}^{-1}+C_{p2}^{-1})\big)$, $C_{pk}=\gamma_kc_{vk}m_k$.
+\item \emph{Finite $\nu$} ($\mu=\theta=\infty$). For given $p$ the vapour fraction solves
+$\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0$, increasing in $Y$ and clamped to its admissible interval;
+then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$.
+\item \emph{$pTg$ closure} ($\mu=\theta=\nu=\infty$). $T=T_{\rm sat}(p)$, $Y$ from the energy, $\Phi(p)=\rho\sum_kY_kv_k-1$.
+\end{itemize}
+The interfacial quantities $\rho_I$, $e_I$ do not appear. Thermal and chemical relaxation are active in interface cells
+($\epsilon_I\le\alpha_1\le1-\epsilon_I$), mass transfer only for $T>T_{\rm sat}(p)$. Activation is decided once per step on $U^n$,
+which is projected onto the equilibrium manifold of the activated closure (the same closure with $s=0$); the
+closure type is frozen over the stages.
+
+\paragraph{Summary of the scheme}
+One stage of the scheme consists of the following steps.
+\begin{enumerate}
+\item Reconstruct the face values on $Q^e$ (Sec.~\ref{sec:dissipation}) and compute the explicit prediction $X^*$ with
+\eqref{eq:rusanov}.
+\item Solve the pressure system \eqref{eq:global} by Newton's method; each residual evaluation computes the face
+quantities \eqref{eq:faces}, the incremental fluxes and conservative updates \eqref{eq:increment}--\eqref{eq:transported},
+and the local closure \eqref{eq:gibbs} with the partition \eqref{eq:Lambda} and the relaxation closure of
+Sec.~\ref{sec:relaxation}.
+\item Take momentum and total energy from \eqref{eq:transported} and the phase states from the closure at the
+converged pressure.
+\end{enumerate}
+
+\subsection{Asymptotic preserving property}
+\label{sec:ap}
+\paragraph{Relaxation limits}
 \begin{theorem}[Relaxation limits]\label{thm:limits}
 (i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding equilibrium closure
 with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\tau\nu))$, and the limit scheme is a consistent
@@ -313,15 +310,48 @@ Kapila model. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau is stiffly accurate and L-stable, so every stage lies on the equilibrium
 manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
+
+\paragraph{Low-Mach limit of the mixture}
+In \eqref{eq:nondim} with impermeable boundaries and well-prepared data, the expansion
+$\bar p=\bar p_{(0)}+\epsilon\bar p_{(1)}+\epsilon^2\bar p_{(2)}+\dots$ gives at order $\epsilon^{-1}$ in the momentum equation
+$\partial_x\bar p_{(0)}=0$; integrating the pressure equation of the mixture,
+$\partial_t\bar p+u\,\partial_x\bar p+\rho c_p^2\,\partial_xu=0$, over the domain then gives $\bar p_{(0)}={\rm const}$ and
+$\partial_xu_{(0)}=0$: the incompressible limit of the mixture.
 \begin{proposition}[Formal low-Mach limit]\label{prop:lowmach}
-For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+M^2P_2$, formally as $M\to0$: the face velocities are
-discretely divergence-free to $O(M^2)$, $P_2$ solves the discrete Poisson equation
-$\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(M^2)$, the acoustic complement vanishes
-($\varphi=0$ once $M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step
-independent of $M$.
+For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+\epsilon P_2$, formally as $\epsilon\to0$: the face velocities are
+discretely divergence-free to $O(\epsilon)$, $P_2$ solves the discrete Poisson equation
+$\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(\epsilon)$, the acoustic complement vanishes ($\varphi=0$ once
+$M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step independent of $\epsilon$.
 \end{proposition}
 \begin{proof}
-The pressure gradient in $u_f$ carries $1/M^2$; inserting $P=P_0+M^2P_2$ into the linearised closure
-$P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i$ and collecting the orders $M^{-2}$ and $1$ gives the first two statements;
+The pressure gradient in $u_f$ carries $1/\epsilon$; inserting $P=P_0+\epsilon P_2$ into the linearised closure
+$P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i$ and collecting the orders $\epsilon^{-1}$ and $1$ gives the first two statements;
 $c\tau/\Delta x=O(1/M)$ gives the third.
+\end{proof}
+
+\subsection{Well-balanced property}
+\label{sec:wb}
+\begin{proposition}[Contacts and temperature consistency]\label{prop:wb}
+(i) A state with uniform $u$ and $p$ and arbitrary $\alpha_k$, $\rho_k$ is preserved exactly.
+(ii) If each phase has uniform $p$ and $T_k$, transport does not change $\rho_k$, $e_k$, $T_k$.
+\end{proposition}
+\begin{proof}
+(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ in every cell; the shared limiter keeps this relation on the faces
+and \eqref{eq:rusanov} is linear, so it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
+vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$; by
+uniqueness $P\equiv p$. (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are transported by the same
+linear operator.
+\end{proof}
+
+\subsection{Positivity}
+\label{sec:positivity}
+\begin{proposition}[Positivity]\label{prop:positivity}
+In a stage with $Q^e=Q^s$, if $a_f\,r\le\tfrac12$ and $r(a_f+|u_f|)\le\tfrac12$ on every face ($\tfrac14$ per direction in 2D),
+the transported state of every phase is a non-negative combination of reconstructed face values and hence
+admissible, independently of the content ratio of the phases.
+\end{proposition}
+\begin{proof}
+The explicit flux plus the increment is $X^L_f[\tfrac12(u^L+a)+w^L]+X^R_f[\tfrac12(u^R-a)+w^R]$, $w^{L,R}$ the brackets of
+\eqref{eq:increment}; with $a\ge\max|u^{L,R}|$ the neighbour coefficients are $\ge(u_f)^+$ and $\ge-(u_f)^-$, and the
+own-cell coefficients are $\tfrac12-r(\cdot)$ with $(\cdot)\le a+|u_f|$. The admissible set is a convex cone.
 \end{proof}
