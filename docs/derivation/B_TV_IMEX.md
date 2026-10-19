@@ -102,7 +102,7 @@ MUSCL 的面速度 $(\rho u)^{L,R}/\rho^{L,R}$ 不是格速度的凸组合，可
 - **体积输运量共用一个限制因子**。记 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$，格 $i$ 的斜率为
   $$\sigma_{X,i}=\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad \phi_i=\min_{X\in\mathcal X_V}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1].$$
   - 对每个量，$|\sigma_X|$ 都不超过它自己的 minmod 斜率且同号，所以仍是 TVD。
-  - 所有量的斜率是**同一个**系数乘中心差分，所以量之间的线性关系在面上原样成立。均匀 $p$ 时 $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ 在面值上同样成立（(E1)），这是 WB 所需的。
+  - 所有量的斜率是**同一个**系数乘中心差分，所以量之间的线性关系在面上原样成立。均匀 $p$ 时 $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ 在面值上同样成立（(E1)），这是 WB 所需的。
   - 重构不经过 EOS，所以 $Q^e$ 只需 $\rho>0$；这一点对 IMEX-RK 的外推级态很重要（B10）。
   - 在模板内为常数（到舍入）的量不参与取最小（$0/0$）：$|X_i-X_{i-1}|,|X_{i+1}-X_i|\le10^{-12}\,S_X$，舍入尺度 $S_X$ 见下表；任一量在格 $i$ 取极值时 $\phi_i=0$。
 - **速度单独重构（V11）。** 速度 $\mathbf u=(u,v)$ 是单速度模型里独立的原始变量，各分量单独 minmod：$u^{L,R}=u_i\pm\tfrac12\,\mathrm{minmod}(u_i-u_{i-1},u_{i+1}-u_i)$，$u_i=(\rho u)_i/\rho_i$。面上的动量与总能由面值组装：
@@ -661,10 +661,12 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
   - 用扰动未知量之后，低马赫时舍入底变为 $\nu^2\varepsilon_{\rm mach}|P-P_{\rm ref}|$，不再随 $p_0$ 增大；判据仍保留，因为压力跨度大的问题（$|P-P_{\rm ref}|$ 大的格子）里同样的底仍可能高于容差。
   - 日志里的 `maxres` 是各级接受时的残量，可以略高于容差（它记的是舍入底）。
 
-**步长控制（不是补丁，而是可容许性条件）：** 以下任一情况发生时，拒绝本步，$\Delta t\leftarrow\Delta t/2$ 重算（至多 30 次，否则报告失败）：
+**步长控制（不是补丁，而是可容许性条件）：** 以下任一情况发生时，本步不可容许：
 - $Q^e$ 出现 $\rho\le0$（显式通量只需要这一条，B3）；
-- 闭合输入不可容许（$\alpha^{\rm tr}_k\le m^{\rm tr}_kb_k$、$m^{\rm tr}_k\le0$ 或 $N_k\le0$）；
+- 闭合输入不可容许（$\alpha^{\rm tr}_k\le m^{\rm tr}_kb_k$、$m^{\rm tr}_k\le0$），或闭合的解不可容许（NASG $p$ 闭合不要求各相 $N_k>0$，只要求 $\Phi$ 有带区间的根、解处各相可容许，B5.2(e)）；
 - Newton 不收敛。
+
+处理（与代码一致，B10）：先在**同一步长**上用单级后向 Euler 重算这一步（MOOD）；仍不可容许才 $\Delta t\leftarrow\Delta t/2$ 重算（至多 30 次，否则报告失败）。
 
 这和显式格式的正性 CFL 条件是同一类东西。所有拒绝都计数并报告。$\Delta t<10^{-12}t_{\rm end}$ 时报告失败并停止（V6：此前 $\Delta t$ 下溢为 0 时会无限循环）。
 
@@ -676,7 +678,7 @@ $G_i(P)=\bar p^{\rm cl}_i-P_i$ 只依赖 $(P_{i-1},P_i,P_{i+1})$（二维 5 点�
 
 设 $u\equiv u_0$、$p_k\equiv p$，$\alpha_k,\rho_k$ 任意（各相温度也可以任意）。
 
-1. **显式：** 由 (E1)，格均值满足 $\varepsilon_k=c_k(p)\alpha_k+q_km_k$、$\rho u=u_0\rho$；共用限制因子的重构保持这些线性关系，所以面值也满足。(B3.1) 对 $X$ 线性，所以 $\varepsilon^*_k=c_k\alpha^*_k+q_km^*_k$，$(\rho u)^*=u_0\rho^*$，$E^*=\sum\varepsilon^*_k+\tfrac12\rho^*u_0^2$。
+1. **显式：** 由 (E1)，格均值满足 $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$、$\rho u=u_0\rho$；共用限制因子的重构保持这些线性关系，所以面值也满足。(B3.1) 对 $X$ 线性，所以 $\varepsilon^*_k=c_k\alpha^*_k+q_km^*_k$，$(\rho u)^*=u_0\rho^*$，$E^*=\sum\varepsilon^*_k+\tfrac12\rho^*u_0^2$。
 2. **隐式：** 取 $P\equiv p$。$\bar u^*_f=u_0=\bar u^e_f$，(B4.1) 的两个压力项与速度跳跃项都为零，所以 $u_f=u_0$、$p_f=p$，$\Delta u_f=0$，(B4.2') 的增量为零，$s=0$，$X^{\rm tr}=X^*$。$(\rho u)^{n+1}=u_0\rho^*$，$E^{n+1}=E^*-r\delta[pu_0]=E^*$，所以 $(\rho e)^C=\sum\varepsilon^*_k$，$D_0=0$，$\delta=0$。
 3. **闭合：**
    - $p$ 闭合：$p$ 处 $\alpha_k=\alpha^*_k$ 满足 (B6.1) 与 EOS，$\sum\alpha^*_k=1$，由根唯一，$\bar p^{\rm cl}=p$，$G=0$。

@@ -295,9 +295,37 @@ cell with both phase pressures equal to the prescribed value, which enters the p
 
 \subsection{Positivity}
 \label{sec:positivity}
+The admissible set of a stiffened-gas or Noble--Abel stiffened-gas phase is the cone of states with $\alpha_k>0$, $m_k>0$
+and $L_k(X)>0$ for the two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. Positivity
+of the transported states requires first that the reconstructed face states belong to this cone.
+
+\begin{lemma}[Face states]\label{lem:faces}
+Let the cell states on the stencil $\{i-1,i,i+1\}$ be admissible. Then the face values \eqref{eq:shared_limiter} of $\alpha_k$ and
+$m_k$ are positive, and for $L\in\{L^{(1)}_k,L^{(2)}_k\}$
+\begin{equation}
+L\big(X^L_{i+1/2}\big)\ge L_i-\tfrac{\phi_i}4L_{i-1},\qquad L\big(X^R_{i-1/2}\big)\ge L_i-\tfrac{\phi_i}4L_{i+1},
+\label{eq:face_bound}
+\end{equation}
+with $L_j=L(X_j)$. The face states of cell $i$ are therefore admissible if $\phi_i\le4L_i/\max(L_{i-1},L_{i+1})$ for both functionals.
+This holds in particular when $L$ is proportional on the stencil to one of the volume-transported quantities, e.g.\ for a
+stiffened gas at locally uniform pressure, where $L^{(2)}_k=\alpha_k(p+\pi_k)/(\gamma_k-1)$, which covers interfaces and trace phases.
+\end{lemma}
+\begin{proof}
+For each $X\in\mathcal X_V$ the slope $\sigma_i$ has the sign of both one-sided differences and $|\sigma_i|\le\min(|X_{i+1}-X_i|,|X_i-X_{i-1}|)$, so
+$X^L_{i+1/2}=X_i+\tfrac12\sigma_i$ lies between $X_i$ and $\tfrac12(X_i+X_{i+1})$, and $X^R_{i-1/2}$ between $X_i$ and $\tfrac12(X_i+X_{i-1})$; hence the
+face values of $\alpha_k$ and $m_k$ are positive. All quantities share $\phi_i$, so $X^L_{i+1/2}=X_i+\tfrac{\phi_i}4(X_{i+1}-X_{i-1})$ for every
+component and, $L$ being linear, $L(X^L_{i+1/2})=L_i+\tfrac{\phi_i}4(L_{i+1}-L_{i-1})\ge L_i-\tfrac{\phi_i}4L_{i-1}$ since $L_{i+1}>0$; likewise for
+$X^R_{i-1/2}$. If $L=\kappa X$ on the stencil for some $X\in\mathcal X_V$ and $\kappa>0$, then $L(X^{L,R})=\kappa X^{L,R}$, which has the sign of the face
+values of $X$, positive by the first part.
+\end{proof}
+The bound \eqref{eq:face_bound} is sharp for a linear reconstruction with a common slope factor: a linear functional of
+the face state is not a convex combination of the cell values, and the minmod factors of the individual components do
+not bound it. Admissibility of the face states is therefore not guaranteed in general, e.g.\ at a strong pressure jump
+coinciding with a jump of the phase content.
+
 \begin{proposition}[Positivity]\label{prop:positivity}
 Let the phases be stiffened or Noble--Abel stiffened gases, and consider a stage with $Q^e=Q^s$ (a backward-Euler step
-or the first stage of \eqref{eq:lsdirk}) whose reconstructed face states are admissible. If $r(a_f+|u_f|)\le\tfrac12$ on every
+or the first stage of \eqref{eq:lsdirk}) whose reconstructed face states are admissible (Lemma~\ref{lem:faces}). If $r(a_f+|u_f|)\le\tfrac12$ on every
 face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported state $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ of every phase is a
 non-negative combination of reconstructed face values and hence admissible, independently of the content ratio of
 the phases.
