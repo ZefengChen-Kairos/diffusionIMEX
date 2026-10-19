@@ -248,13 +248,6 @@ void RusanovC_y(double *flux, double *QL, double *QR){
 
 // 显式更新 X* = Qs - adt div F^e(Qe)（B3）。另给出 alpha2*（用 alpha2 的通量 ubar^e - F[alpha1]）与面速度 ubar^e。
 // 耗散速度 a_Omega 先对格速度、再对所有面态速度取最大：MUSCL 的面速度不是格速度的凸组合，a_Omega 必须不小于它（B3 的保正条件）。
-// 体积应变的离散（path-conservative Rusanov 的非守恒部分）：1/2 (abar du)_{i-1/2} + (abar du)_i + 1/2 (abar du)_{i+1/2}。
-// 参数：左面左态（格 i-1 的右面值）、左面右态（格 i 的左面值）、右面左态（格 i 的右面值）、右面右态（格 i+1 的左面值）；IM 为法向动量分量
-template <class C> static double pc_strain(const C& wl, const C& cl, const C& cr, const C& wr, int IM) {
-	auto a = [](const C& q) { return q[IA1]; };
-	auto v = [IM](const C& q) { return q[IM] / (q[IM1] + q[IM2]); };
-	return 0.5 * 0.5 * (a(wl) + a(cl)) * (v(cl) - v(wl)) + 0.5 * (a(cl) + a(cr)) * (v(cr) - v(cl)) + 0.5 * 0.5 * (a(cr) + a(wr)) * (v(wr) - v(cr));
-}
 bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Grid &w_yR){
 	const int g = ghost_cells, nx = nxCells, ny = nyCells;
 	vx_max = 0; vy_max = 0;
@@ -302,8 +295,10 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 			for(int k = 0; k < NUM_VARS; k++){
 				u_con(i,j,k) = Qs(i,j,k) - adt / dx * (fp[k] - fm[k]);
 			}
-			// alpha1：path-conservative Rusanov（线性路径在重构变量上）= 体积通量的 Rusanov 差 - 体积应变（两个半面 + 格内）
-			u_con(i,j,IA1) += adt / dx * pc_strain(w_xR.cell(i - 1,j), w_xL.cell(i,j), w_xR.cell(i,j), w_xL.cell(i + 1,j), IMU);
+			// alpha1：u d(alpha1)/dx 的 path-conservative 离散。涨落 D^-_f = F_f - alpha_i ubar_f、D^+_f = alpha_{i+1} ubar_f - F_f，
+			// 两者之和 = ubar_f (alpha_{i+1} - alpha_i)（线性路径的积分）；即体积通量的 Rusanov 差减去本格 alpha_i 乘面速度的散度
+			// （Saurel-Abgrall 1999 的形式）。体积应变用本格的 alpha，与 m、eps 的通量相容（界面处速度跳跃时微量相不失真）
+			u_con(i,j,IA1) += adt / dx * Qe(i,j,IA1) * ((*ube_x)(i,j) - (*ube_x)(i - 1,j));
 
 			if(ny > 1){
 				double Q_yL[NUM_VARS], Q_yR[NUM_VARS], gp[NUM_VARS], gm[NUM_VARS];
@@ -320,7 +315,7 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 				for(int k = 0; k < NUM_VARS; k++){
 					u_con(i,j,k) -= adt / dy * (gp[k] - gm[k]);
 				}
-				u_con(i,j,IA1) += adt / dy * pc_strain(w_yR.cell(i,j - 1), w_yL.cell(i,j), w_yR.cell(i,j), w_yL.cell(i,j + 1), IMV);
+				u_con(i,j,IA1) += adt / dy * Qe(i,j,IA1) * ((*ube_y)(i,j) - (*ube_y)(i,j - 1));
 			}
 			(*a2_star)(i,j) = 1.0 - u_con(i,j,IA1);
 		}
