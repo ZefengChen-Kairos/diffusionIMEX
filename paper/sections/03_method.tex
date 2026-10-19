@@ -21,8 +21,10 @@ $\delta_y[G]_{i,j}=G_{i,j+1/2}-G_{i,j-1/2}$. Where the $y$-direction is analogou
 
 \subsection{Advective sub-system}
 \label{sec:advective}
-The advective sub-system \eqref{eq:advective} is discretised by an explicit conservative finite volume update of all
-transported quantities,
+The explicit step evaluates every transport flux $Xu$ with the velocity of the old time level: the fluxes of the
+advective sub-system \eqref{eq:advective} and the old-velocity part of the transport of $\alpha_k$ and $\varepsilon_k$ in the
+pressure sub-system \eqref{eq:pressure_sub}, which is completed implicitly in Sec.~\ref{sec:implicit}. All transported
+quantities are thus advanced by one explicit conservative finite volume update,
 \begin{equation}
 X^*_{i,j}=X^n_{i,j}-\frac{\Delta t}{\Delta x}\,\delta_x\big[F^e[X]\big]_{i,j}-\frac{\Delta t}{\Delta y}\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
 X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
@@ -58,10 +60,16 @@ other semi-implicit schemes of this class; all computations of Sec.~\ref{sec:res
 
 \subsection{Pressure--relaxation sub-system}
 \label{sec:implicit}
-The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly. Following the transport--velocity
-splitting \cite{ToroVazquez2012}, the flux of every transported quantity at the new time level is written as
-$Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is the explicit flux of Sec.~\ref{sec:advective}, the second, the
-incremental flux, is implicit. In semi-discrete form,
+The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly. As for the enthalpy flux
+$h^n(\rho u)^{n+1}$ of semi-implicit Toro--V\'azquez-Cend\'on schemes \cite{DumbserCasulli2016,BoscheriPareschi2021}, the
+transported quantities $\alpha_k$, $\varepsilon_k$ are taken from the explicit state and the velocity from the implicit one, and the
+flux is written as $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is included in the explicit update of
+Sec.~\ref{sec:advective}, the second, the incremental flux, is implicit. The partial densities carry the same
+incremental flux, so that transport does not change the phase densities and specific energies, and the momentum and
+kinetic-energy increments follow from the incremental mass flux. The non-conservative transport of the volume
+fraction is written in volume-transport form, $u\,\partial_x\alpha_k=\partial_x(\alpha_ku)-\alpha_k\partial_xu$: with the linear path, the
+path-conservative fluctuation is a conservative volume flux, treated like the fluxes of $m_k$ and $\varepsilon_k$, plus the volume
+strain $-\alpha_k\partial_xu$, treated implicitly together with the pressure work. In semi-discrete form,
 \begin{equation}
 \begin{aligned}
 X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
@@ -72,9 +80,7 @@ E^{n+1}&=E^*-\Delta t\,\partial_x\Big(\textstyle\sum_k\varepsilon^{\rm face}_k(u
 \end{equation}
 where $\hat M$ is the incremental mass flux. The phase states at $t^{n+1}$ follow from the transported states, the volume
 strain $s=\Delta t\,\partial_xu^{n+1}=1-\sum_k\alpha^{\rm tr}_k$ and the conservative mixture internal energy
-$(\rho e)^C=E^{n+1}-\tfrac12(\rho u)^{n+1\,2}/\rho^{n+1}$ through a local closure (Sec.~\ref{sec:closure}). All three phase
-quantities carry the same incremental flux, so that transport does not change the phase densities and specific
-energies. The momentum and energy updates depend on $\bar p^{\,n+1}$, and the closure returns $\bar p^{\,n+1}$ as a function of
+$(\rho e)^C=E^{n+1}-\tfrac12(\rho u)^{n+1\,2}/\rho^{n+1}$ through a local closure (Sec.~\ref{sec:closure}). The momentum and energy updates depend on $\bar p^{\,n+1}$, and the closure returns $\bar p^{\,n+1}$ as a function of
 $s$ and $(\rho e)^C$, so the implicit step reduces to one equation per cell for the pressure,
 \begin{equation}
 G(\bar p)\equiv\bar p^{\rm cl}\big(s(\bar p),X^{\rm tr}(\bar p),(\rho e)^C(\bar p);\ \mu,\theta,\nu\big)-\bar p=0 ,

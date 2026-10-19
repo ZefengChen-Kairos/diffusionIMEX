@@ -88,36 +88,39 @@ add their own stiffness.
 \subsection{Split form of the model}
 \label{sec:split}
 To treat the convective and the acoustic time scales differently we split the fluxes of \eqref{eq:model} following
-Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}. Writing the volume-fraction equation in volume-transport form,
-$\partial_t\alpha_k+u\,\partial_x\alpha_k=\partial_t\alpha_k+\partial_x(\alpha_ku)-\alpha_k\partial_xu$, the system becomes the sum of two
+Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}: the convective sub-system carries the transport of mass, momentum and
+kinetic energy, and the pressure sub-system the volume fraction, the phase internal energies, the pressure and the
+enthalpy flux, $(E+\bar p)u=\tfrac12\rho u^2u+\big(\sum_k\varepsilon_k+\bar p\big)u$. The system becomes the sum of two
 sub-systems for $\mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\top}$.
 \begin{enumerate}
-\item The \emph{advective sub-system} transports every quantity with the flow velocity,
+\item The \emph{advective sub-system} is
 \begin{equation}
-\partial_tX+\partial_x(Xu)=0,\qquad X\in\{\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E\}.
+\partial_tm_k+\partial_x(m_ku)=0,\qquad \partial_t(\rho u)+\partial_x(\rho u^2)=0,\qquad \partial_tE+\partial_x\big(\tfrac12\rho u^2u\big)=0,
 \label{eq:advective}
 \end{equation}
-Its Jacobian is $u\,\mathbf I+\mathbf Q\otimes\partial\,u/\partial\mathbf Q$, a rank-one perturbation of $u\,\mathbf I$ with
-$\mathbf Q\cdot\partial u/\partial\mathbf Q=0$, so that all eigenvalues equal $u$ and one eigenvector is missing: the sub-system is
-weakly hyperbolic, and its characteristic speed is the flow velocity alone.
-\item The \emph{pressure--relaxation sub-system} contains the pressure, its work on each phase and all relaxation
-terms,
+with $\alpha_1$ and $\varepsilon_k$ unchanged. Its eigenvalues are $0$ (four-fold) and $u$ (three-fold); the eigenvalue $u$ has only two
+eigenvectors, so the sub-system is weakly hyperbolic, as the pressureless gas dynamics it contains. Its characteristic
+speed is the flow velocity.
+\item The \emph{pressure--relaxation sub-system} contains the pressure, the transport and compression of the phase
+volumes and internal energies, and all relaxation terms,
 \begin{equation}
 \begin{aligned}
-&\partial_t\alpha_1-\alpha_1\partial_xu=\mathcal P+\mathcal M/\rho_I,\qquad \partial_tm_1=\mathcal M,\qquad \partial_tm_2=-\mathcal M,\\
-&\partial_t(\rho u)+\partial_x\bar p=0,\qquad \partial_t\varepsilon_k+\alpha_kp_k\partial_xu=\mathcal S_k,\qquad \partial_tE+\partial_x(\bar pu)=0,
+&\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I,\qquad \partial_tm_1=\mathcal M,\qquad \partial_tm_2=-\mathcal M,\\
+&\partial_t(\rho u)+\partial_x\bar p=0,\qquad \partial_t\varepsilon_k+\partial_x(\varepsilon_ku)+\alpha_kp_k\partial_xu=\mathcal S_k,\qquad
+\partial_tE+\partial_x\Big(\big(\textstyle\sum_k\varepsilon_k+\bar p\big)u\Big)=0,
 \end{aligned}
 \label{eq:pressure_sub}
 \end{equation}
-with $\mathcal S_k$ the right-hand sides of the phase energy equations in \eqref{eq:model}. Without sources, the densities
-are constant, each phase is compressed isentropically, $\partial_tp_k=-\rho_kc_k^2\partial_xu$, and the mixture pressure and
-velocity satisfy $\partial_tu+\rho^{-1}\partial_x\bar p=0$, $\partial_t\bar p+\rho a^2\partial_xu=0$ with
-$a^2=\sum_kY_k(c_k^2-p_k/\rho_k)=c_f^2-\bar p/\rho$. The coefficient matrix has rank two, so the eigenvalues are $0$
-(five-fold, with a complete set of eigenvectors) and $\pm a$. For stiffened-gas and Noble--Abel stiffened-gas phases
-$c_k^2-p_k/\rho_k\ge\big((\gamma_k-1)p_k+\gamma_k\pi_k\big)/\rho_k>0$ for every admissible state, so $a$ is real; in a liquid
-$p_k\ll\pi_k$ and $a\approx c_f$.
+with $\mathcal S_k$ the right-hand sides of the phase energy equations in \eqref{eq:model}. Without sources its eigenvalues are
+$0$ (three-fold), $u$ (two-fold) and
+\begin{equation}
+\lambda^p_\pm=\tfrac12\Big(u\pm\sqrt{u^2+4c_f^2}\Big),
+\label{eq:pressure_eig}
+\end{equation}
+the six-equation counterpart of the eigenvalues of the Toro--V\'azquez-Cend\'on pressure system, with the frozen sound
+speed $c_f$ of \eqref{eq:subchar}.
 \end{enumerate}
-In the low Mach number regime $a\gg|u|$, so the stiffness of the model resides entirely in the
+In the low Mach number regime $|\lambda^p_\pm|\approx c_f\gg|u|$, so the acoustic stiffness of the model resides entirely in the
 pressure--relaxation sub-system, together with the stiffness of the relaxation rates. The advective sub-system is
 therefore discretised explicitly, with a numerical dissipation proportional to the flow velocity, and the
 pressure--relaxation sub-system implicitly. Since only the advective eigenvalues enter the explicit stability
