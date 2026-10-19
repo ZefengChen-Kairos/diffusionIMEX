@@ -962,3 +962,67 @@ V13 及以前的“IMEX 1.2–1.4”是限制器开着测的（minmod 在光滑�
 V14 解决：光滑区阶（试验方法）、±500 m/s 起步加热、SPB 4.5 扇区误差、十二烷微量汽相拒绝（C. 开发记录 V14）。
 
 已解决：SPB 4.3.1 的界面速度过冲（V10，1.0014）；SPB 4.5 中心压力（V10）。
+## B14. PC 版本：体积分数完全在显式步由 path-conservative 格式更新（`src/SPB6_PC_IMEX.cpp`）
+
+原则：除源项外，$\alpha$ 的输运全部放在显式步；其余量仍按 TV 分裂。$\alpha$ 的方程 $\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I$ 是非守恒的，用 path-conservative 格式离散；隐式步只有它的源项。
+
+### B14.1 分裂
+
+完整系统（一维）：
+$$
+\begin{aligned}
+&\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I,\qquad
+\partial_t m_k+\partial_x(m_ku)=\chi_k\mathcal M,\qquad
+\partial_t(\rho u)+\partial_x(\rho u^2+\bar p)=0,\\
+&\partial_t\varepsilon_k+\partial_x(\varepsilon_ku)+\alpha_kp_k\,\partial_xu=\chi_k\big(-p_I\mathcal P+\mathcal Q+e_I\mathcal M\big),\qquad
+\partial_tE+\partial_x\big((E+\bar p)u\big)=0 .
+\end{aligned}
+$$
+
+**显式（对流）子系统**：$\partial_t\mathbf Q+\mathbf A(\mathbf Q)\partial_x\mathbf Q=\mathbf 0$，即 $\partial_t\alpha_1+u\partial_x\alpha_1=0$、$\partial_tX+\partial_x(Xu)=0$（$X=m_k,\rho u,\varepsilon_k,E$），特征值全为 $u$。
+
+**隐式（压力–松弛）子系统**：$\partial_t\alpha_1=\mathcal P+\mathcal M/\rho_I$，$\partial_tm_k=\chi_k\mathcal M$，$\partial_t(\rho u)+\partial_x\bar p=0$，$\partial_t\varepsilon_k+\alpha_kp_k\partial_xu=\chi_k(-p_I\mathcal P+\mathcal Q+e_I\mathcal M)$，$\partial_tE+\partial_x(\bar pu)=0$。
+
+### B14.2 显式步
+
+$m_k,\rho u,\varepsilon_k,E$：与 B3 相同的 MUSCL–Rusanov（速度 $u^e$）。$\alpha_1$：$u\,\partial_x\alpha_1$ 的 path-conservative 离散，涨落
+$$
+D^-_{i+1/2}=F_{i+1/2}-\alpha_{1,i}\,\bar u_{i+1/2},\qquad D^+_{i+1/2}=\alpha_{1,i+1}\,\bar u_{i+1/2}-F_{i+1/2},\qquad
+D^-_{i+1/2}+D^+_{i+1/2}=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i}),
+$$
+$F$ 为体积 $\alpha_1u$ 的 Rusanov 通量，$\bar u_f=\tfrac12(u^L+u^R)$。两者之和是线性路径的积分 $\int_0^1u\,\partial_s\alpha_1\,\mathrm ds$，所以格式与线性路径相容；涨落在两侧之间按 Saurel–Abgrall（1999）的方式分配：
+$$
+\alpha^*_{1,i}=\alpha^n_{1,i}-\frac{\Delta t}{\Delta x}\,\delta_x\big[F[\alpha_1]\big]_i+\frac{\Delta t}{\Delta x}\,\alpha_{1,i}\,\delta_x[\bar u]_i,\qquad \alpha^*_2=1-\alpha^*_1 ,
+$$
+即体积通量的 Rusanov 差减去**本格** $\alpha_{1,i}$ 乘面速度的散度。二维逐方向相同。$\alpha$ 的输运到此完成（速度 $u^e$），隐式步不再输运 $\alpha$。
+
+### B14.3 隐式步
+
+$m_k,\varepsilon_k,\rho u,E$ 照旧带增量通量 $X^{\rm face}(u^{n+1}-u^e)$（B4.2）。$\alpha$ 没有增量，只受源项改变。体积应变 $s=\tau\,\delta[u_f]/\Delta x$（面速度的离散散度），压力功 $\alpha^*_kp_k\,s$：
+$$
+\begin{aligned}
+\alpha_k&=\alpha^*_k+\chi_k\tau\big(\mu(p_1-p_2)+\mathcal M/\rho_I\big),\qquad m_k=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
+\varepsilon_k&=\varepsilon^{\rm tr}_k-\alpha^*_k\,p_k\,s-\chi_k\tau p_I\mu(p_1-p_2)+\chi_k\tau(\mathcal Q+e_I\mathcal M)+\Lambda_k(\delta).
+\end{aligned}
+$$
+$\mu=\infty$ 时 $\varepsilon_k=\varepsilon^{\rm tr}_k-p\big(\alpha_k-\alpha^*_k(1-s)\big)+\Lambda_k$，与 B6.1 同形，只是 $\alpha^{\rm tr}_k$ 换成 $\alpha^*_k(1-s)$。所以代码不改闭合，只把闭合的输入写成 $\alpha^*_k(1-s)$：于是 $\omega_k=\alpha^*_k$、$\alpha_k=\alpha^*_k+\chi_kR$，全部闭合（$p$、有限 $\mu$、$pT$、有限 $\theta$、有限 $\nu$、$pTg$）、能量亏损 $\delta=D_0+ps$ 与分配 $\Lambda_k$ 都不变。
+
+### B14.4 涨落分配的诊断（SPB 4.3.1）
+
+先试的“线性路径 + Rusanov 各分一半”（$D^\pm=\tfrac12\bar u\Delta\alpha\pm\tfrac12a\Delta\alpha$）把面上的体积应变按 $\tfrac12\bar\alpha\Delta u$ 分给两侧，$\bar\alpha$ 是**面两侧的平均**。界面面上 $\alpha$ 从 $10^{-8}$ 跳到 1、同时速度跳跃（起步、激波过界面）时，空气格的应变有一半记到水格的微量空气上；$m$、$\varepsilon$ 的守恒通量按自己的面值压缩，微量相的体积与质量、能量不相容，闭合把它压回压力平衡时做了巨大的功：$t=5\,\mu$s 时界面左格的空气 $2.6\times10^8$ K，终态 $L_1(u)$ 5.72（TV 1.82）。加不加隐式增量结果相同，原因是应变的分配，不是 $u^e$ 与 $u^{n+1}$。用本格 $\alpha$（B14.2）后：
+
+| 算例 | 指标 | TV 版本 | PC，线性路径各分一半 | PC，本格 $\alpha$ |
+|---|---|---|---|---|
+| SPB 4.3.1 | $L_1(u)$ | 1.82 | 5.72 | 1.87 |
+| SPB 4.3.1 | 微量空气最高温度 | $2.5\times10^6$ K | $6.5\times10^9$ K | $2.5\times10^6$ K（初值） |
+| SPB 5.2 | $\rho^*$（精确 3766.7） | 3776.1 | 3770.4 | 3770.0 |
+| SPB 4.5 | $L_1(u)$ | 0.0447 | 0.0468 | 0.0468 |
+| SPB 4.1 | 压力偏差 | $2.8\times10^{-10}$ | $2.3\times10^{-10}$ | $2.2\times10^{-10}$ |
+
+### B14.5 性质
+
+- **平衡保持**：$u,p$ 均匀时 $\delta[\bar u]=0$，$\alpha$、$m_k$、$\varepsilon_k$ 由同一个线性 Rusanov 算子输运（B9.1 的论证不变），$s=0$；界面平移数值核对到 $10^{-10}$。
+- **体积约束**：$\alpha_2=1-\alpha_1$，$\sum_k\alpha_k=1$ 自动成立。
+- **保正**：$\alpha^*$ 的更新在 $a\ge|u|$、$ra\le\tfrac12$ 下是单调的；但 $(\alpha,m,\varepsilon)$ 不再是面态的同一个非负组合，B4.2 的微量相保正论证（与含量比无关）不再直接成立，可容许性由闭合的检查与步长减半保证。
+
+全部算例用这一版重跑：`bash tests/run_all.sh run/pc SPB6_PC_IMEX.cpp`。
