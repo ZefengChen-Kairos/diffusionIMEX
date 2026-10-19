@@ -98,29 +98,26 @@ cavitating and evaporating flows.
 In this work we construct a second-order IMEX finite volume scheme for the six-equation model with total energy
 and the three relaxations, for stiffened-gas, Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in
 one and two space dimensions. The time step is set by a CFL condition on the material speed only, whatever the Mach
-number and the relaxation rates. The main ingredients are the following.
-\begin{itemize}
-\item The fluxes are split following Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}: the explicit part
-transports all phase quantities with the old velocity and a Rusanov flux whose dissipation speed is the material
-speed, and the implicit part carries the pressure, its work on each phase and an incremental flux of the
+number and the relaxation rates. The fluxes are split following Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}:
+the explicit part transports all phase quantities with the old velocity and a Rusanov flux whose dissipation speed is
+the material speed, and the implicit part carries the pressure, its work on each phase and an incremental flux of the
 transported quantities. The volume-fraction equation is written in volume-transport form, so that its
-non-conservative product becomes a conservative volume flux plus the volume strain.
-\item The implicit pressure work and the three relaxation processes enter a single local closure, which for
-each set of rates, finite or infinite, reduces to one scalar equation for the cell pressure. The stage then
-reduces to a nonlinear system for the cell pressures, mildly nonlinear in the sense of
-\cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D) Jacobian, solved by a Newton
-method whose iteration count is observed to be independent of the Mach number.
-\item The difference between the conservative and the non-conservative mixture internal energy, which at a
-shock is the dissipation of the scheme, is distributed between the phases according to the shock relations of the
-model \cite{SaurelGavrilyukRenaud2003}: the physical part in proportion to the Hugoniot--isentrope energy gap of
-each phase, the discretisation error in the unique linear proportion that keeps both phases admissible. No
-calibrated heat exchange is needed.
-\item The acoustic dissipation that the central implicit operator lacks is supplied at the faces by the
-acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind viscosity,
-and limited so that the scheme is second order in smooth regions and local-extremum-diminishing.
-\item Second order in time is obtained with the stiffly accurate, L-stable LSDIRK2 scheme
-\cite{BoscarinoFilbetRusso2016}; the start-up steps use one backward-Euler stage.
-\end{itemize}
+non-conservative product becomes a conservative volume flux plus the volume strain. The implicit pressure work and the
+three relaxation processes enter a single local closure, which for each set of rates, finite or infinite, reduces to
+one scalar equation for the cell pressure. The stage then reduces to a nonlinear system for the cell pressures, mildly
+nonlinear in the sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D)
+Jacobian, solved by a Newton method whose iteration count is observed to be independent of the Mach number.
+
+The difference between the conservative and the non-conservative mixture internal energy, which at a shock is the
+dissipation of the scheme, is distributed between the phases according to the shock relations of the model
+\cite{SaurelGavrilyukRenaud2003}: the physical part in proportion to the Hugoniot--isentrope energy gap of each phase,
+the discretisation error in the unique linear proportion that keeps both phases admissible, so that no calibrated heat
+exchange is needed. The acoustic dissipation that the central implicit operator lacks is supplied at the faces by the
+acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind viscosity, and
+limited so that the scheme is second order in smooth regions and local-extremum-diminishing. Second order in time is
+obtained with the stiffly accurate, L-stable LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016}, and the start-up steps use
+one backward-Euler stage.
+
 We prove that, under non-degeneracy assumptions, the scheme converges to the corresponding equilibrium scheme as each
 relaxation rate tends to infinity and reduces to the scheme without that relaxation as the rate vanishes; that it
 preserves moving contacts (with equal phase temperatures when thermal relaxation is active) and the temperature of each
