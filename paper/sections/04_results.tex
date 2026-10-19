@@ -143,24 +143,14 @@ $\alpha_{\rm water}=1-10^{-6}$, $\rho=1000$, $p=10^9$\,Pa; for $x>0.75$, air wit
 $t_{\rm end}=240\,\mu$s, with 1000 and 100 cells.
 
 \paragraph{Nitromethane shock tube}
-Both phases are liquid nitromethane with the Cochran--Chan law \cite{CochranChan1979} \cite[Sec.~4.2]{SPB2009},
-\begin{equation}
-p_r(\rho)=A_1x^{E_1}-A_2x^{E_2},\qquad
-\varepsilon_r(\rho)=\frac1\rho\Big(\frac{A_1x^{E_1}}{E_1-1}-\frac{A_2x^{E_2}}{E_2-1}\Big),\qquad x=\frac\rho{\rho_0},
-\label{eq:cochran}
-\end{equation}
+Both phases are liquid nitromethane with the Cochran--Chan law \eqref{eq:mg_ref} \cite[Sec.~4.2]{SPB2009}
 with $\Gamma=1.19$, $\rho_0=1134$, $A_1=0.819181$\,GPa, $A_2=1.50835$\,GPa, $E_1=4.52969$, $E_2=1.42144$. Phase 1 has
 $\rho_1=1134$ and phase 2 $\rho_2=1200$; $\alpha_1=1-10^{-8}$, $p=2\times10^{10}$\,Pa for $x<0.5$ and $\alpha_1=10^{-8}$,
 $p=2\times10^5$\,Pa otherwise. 500 cells, $t_{\rm end}=67\,\mu$s. The nonlinear reference curve makes the contact
 discontinuity a test of pressure and velocity oscillations.
 
 \paragraph{Detonation products--water shock tube}
-Detonation products follow the JWL law \cite{LeeHornigKury1968} \cite[Sec.~8.1.1]{Pelanti2022},
-\begin{equation}
-p_r(\rho)=Ae^{-R_1\rho_0/\rho}+Be^{-R_2\rho_0/\rho},\qquad
-\varepsilon_r(\rho)=\frac{A}{R_1\rho_0}e^{-R_1\rho_0/\rho}+\frac{B}{R_2\rho_0}e^{-R_2\rho_0/\rho},
-\label{eq:jwl}
-\end{equation}
+Detonation products follow the JWL law \eqref{eq:mg_ref} \cite[Sec.~8.1.1]{Pelanti2022}
 with $\Gamma=0.25$, $\rho_0=1840$, $A=854.5$\,GPa, $B=20.5$\,GPa, $R_1=4.6$, $R_2=1.35$; water is NASG with $(\gamma,\pi,q,q',c_v,b)=
 (1.187,\ 7.028\times10^8,\ -1177788,\ 0,\ 3610,\ 6.61\times10^{-4})$. On $[-10,10]$, the products ($\alpha=1-10^{-8}$, $\rho=2000$,
 $p=4.6406\times10^{10}$\,Pa) fill $x<0$ and water ($\rho=1044$, $p=10^5$\,Pa) $x>0$. 500 cells, $t_{\rm end}=0.9$\,ms.

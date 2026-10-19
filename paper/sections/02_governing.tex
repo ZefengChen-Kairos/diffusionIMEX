@@ -1,29 +1,31 @@
 % =====================================================================
-% Section 2. Mathematical model  (structure as Battisti & Boscheri 2025, Sec. 2)
-% Source: docs/derivation/A_model_EOS_explicit.md (A1, A2)
+% Section 2. System of governing equations  (structure as Chen et al. 2026, IMEX MHD, Sec. 2)
+% Source: docs/derivation/A_model_EOS_explicit.md (A1, A2), src/spb6_physics.h
 % =====================================================================
-\section{Mathematical model}
+\section{System of governing equations}
 \label{sec:governing}
 
 We consider the single-velocity six-equation two-phase model of Saurel, Petitpas and Berry \cite{SPB2009},
-augmented with the heat- and mass-transfer terms of Pelanti and Shyue \cite{PelantiShyue2014} and Pelanti \cite{Pelanti2022}. For phases
-$k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
-density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy per unit mixture
-volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed and Gibbs free energy. The
-mixture density is $\rho=m_1+m_2$, the velocity $u$, the mixture pressure $\bar p=\alpha_1p_1+\alpha_2p_2$ and the total
-energy $E=\varepsilon_1+\varepsilon_2+\tfrac12\rho u^2$. In one space dimension the model reads
+augmented with the heat- and mass-transfer terms of Pelanti and Shyue \cite{PelantiShyue2014} and Pelanti
+\cite{Pelanti2022}. For phases $k=1,2$ let $\alpha_k$ be the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density,
+$m_k=\alpha_k\rho_k$ the partial density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy
+per unit mixture volume; $p_k$, $T_k$, $c_k$, $g_k$ are the phase pressure, temperature, sound speed and Gibbs free
+energy. The mixture density is $\rho=m_1+m_2$, the velocity $\mathbf u=(u,v)$, the mixture pressure $\bar p=\alpha_1p_1+\alpha_2p_2$ and
+the total energy $E=\varepsilon_1+\varepsilon_2+\tfrac12\rho|\mathbf u|^2$. The model reads
 \begin{equation}
 \begin{aligned}
-&\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I,\\
-&\partial_t m_1+\partial_x(m_1u)=\mathcal M,\qquad \partial_t m_2+\partial_x(m_2u)=-\mathcal M,\\
-&\partial_t(\rho u)+\partial_x(\rho u^2+\bar p)=0,\\
-&\partial_t\varepsilon_1+\partial_x(\varepsilon_1u)+\alpha_1p_1\,\partial_xu=-p_I\mathcal P+\mathcal Q+e_I\mathcal M,\\
-&\partial_t\varepsilon_2+\partial_x(\varepsilon_2u)+\alpha_2p_2\,\partial_xu=+p_I\mathcal P-\mathcal Q-e_I\mathcal M,\\
-&\partial_t E+\partial_x\big((E+\bar p)u\big)=0,
+&\partial_t\alpha_1+\mathbf u\cdot\nabla\alpha_1=\mathcal P+\mathcal M/\rho_I,\\
+&\partial_t m_1+\nabla\cdot(m_1\mathbf u)=\mathcal M,\qquad \partial_t m_2+\nabla\cdot(m_2\mathbf u)=-\mathcal M,\\
+&\partial_t(\rho\mathbf u)+\nabla\cdot(\rho\mathbf u\otimes\mathbf u+\bar p\,\mathbf I)=\mathbf 0,\\
+&\partial_t\varepsilon_1+\nabla\cdot(\varepsilon_1\mathbf u)+\alpha_1p_1\,\nabla\cdot\mathbf u=-p_I\mathcal P+\mathcal Q+e_I\mathcal M,\\
+&\partial_t\varepsilon_2+\nabla\cdot(\varepsilon_2\mathbf u)+\alpha_2p_2\,\nabla\cdot\mathbf u=+p_I\mathcal P-\mathcal Q-e_I\mathcal M,\\
+&\partial_t E+\nabla\cdot\big((E+\bar p)\mathbf u\big)=0 .
 \end{aligned}
 \label{eq:model}
 \end{equation}
-with the mechanical, thermal and chemical relaxation terms
+The first equation evolves the volume fraction, the next two the mass of each phase, the fourth the mixture momentum,
+the next two the internal energy of each phase, with the pressure work of the phase, and the last the mixture total
+energy. The right-hand sides are the mechanical, thermal and chemical relaxation terms
 \begin{equation}
 \mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\qquad
 p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
@@ -36,54 +38,81 @@ The three terms drive the phases towards equilibrium:
 \item chemical relaxation $\mathcal M$: mass transfer by phase change (evaporation or condensation, $\mathcal M>0$
 from phase 2 to phase 1), which drives $g_1=g_2$.
 \end{itemize}
-The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy
-equation is redundant for smooth solutions, but it is the conservative one and fixes the mixture internal
-energy at shocks (the ``+1'' equation of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in
-every closure used here and need not be specified. The system can be written in the non-conservative form
+The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy equation is redundant for
+smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks (the ``+1'' equation
+of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in every closure used here and need not be
+specified. Each phase is closed by an equation of state $p_k=p_k(\rho_k,e_k)$; we consider the Noble--Abel
+stiffened-gas law, for which the internal energy is affine in the pressure (Sec.~\ref{sec:nasg}), and Mie--Gr\"uneisen
+laws with nonlinear reference curves (Sec.~\ref{sec:mg}).
+
+For one-dimensional flows along $x$, \eqref{eq:model} can be written in the non-conservative form
 \begin{equation}
 \partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q),\qquad
 \mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\top},
 \label{eq:general}
 \end{equation}
-where $\mathbf B$ collects the products $u\,\partial_x\alpha_1$ and $\alpha_kp_k\,\partial_xu$ and $\mathbf S$ the relaxation terms.
+where $\mathbf F$ collects the fluxes, $\mathbf B$ the products $u\,\partial_x\alpha_1$ and $\alpha_kp_k\,\partial_xu$, and $\mathbf S$ the relaxation
+terms. Its eigenvalues are $u$ and $u\pm c_f$, with the frozen sound speed
+\begin{equation}
+c_f^2=\sum_kY_kc_k^2,\qquad Y_k=m_k/\rho ,
+\label{eq:cf}
+\end{equation}
+so that a fully explicit scheme is restricted by
+\begin{equation}
+\Delta t\le\mathrm{CFL}\,\min_\Omega\frac{\Delta x}{|u|+c_f},
+\label{eq:cfl_explicit}
+\end{equation}
+which becomes prohibitive when the flow is slow compared with the sound speed, while the relaxation terms add their own
+stiffness.
 
-\paragraph{Equations of state}
-Each phase follows the Noble--Abel stiffened-gas (NASG) law with parameters $(\gamma,\pi,q,q',c_v,b)$,
+\paragraph{Relaxed models}
+For $\mu\to\infty$ the model reduces to the five-equation pressure-equilibrium model of Kapila et al.\ \cite{Kapila2001};
+adding $\theta\to\infty$ gives the four-equation $pT$ model and adding $\nu\to\infty$ the homogeneous equilibrium model ($pTg$)
+\cite{Pelanti2022}. Their sound speeds satisfy the subcharacteristic ordering \cite{FlattenLund2011}
+\begin{equation}
+c_{pTg}\le c_{pT}\le c_p\le c_f,\qquad \frac1{\rho c_p^2}=\sum_k\frac{\alpha_k}{\rho_kc_k^2} .
+\label{eq:subchar}
+\end{equation}
+
+\subsection{Noble--Abel stiffened-gas equation of state}
+\label{sec:nasg}
+The Noble--Abel stiffened-gas (NASG) law \cite{LeMetayerSaurel2016} has the parameters $(\gamma,\pi,q,q',c_v,b)$,
 \begin{equation}
 p(\rho,e)=\frac{(\gamma-1)\rho(e-q)}{1-\rho b}-\gamma\pi,\qquad
 v(p,T)=\frac{(\gamma-1)c_vT}{p+\pi}+b,\qquad e(p,T)=c_vT\,\frac{p+\gamma\pi}{p+\pi}+q,
 \label{eq:nasg}
 \end{equation}
-with $g=(\gamma c_v-q')T-c_vT\ln\big(T^\gamma/(p+\pi)^{\gamma-1}\big)+bp+q$ and $c^2=\gamma(p+\pi)/\big(\rho(1-\rho b)\big)$; $b=0$
-gives the stiffened gas. The form used by the scheme is the internal energy of phase $k$ in a cell, where it
-occupies the volume $\alpha_k$ with mass $m_k$, at pressure $p$,
+with the Gibbs free energy $g=(\gamma c_v-q')T-c_vT\ln\big(T^\gamma/(p+\pi)^{\gamma-1}\big)+bp+q$ and the sound speed
+$c^2=\gamma(p+\pi)/\big(\rho(1-\rho b)\big)$; $b=0$ gives the stiffened gas and $b=\pi=q=0$ the ideal gas. The form used by the
+scheme is the internal energy of phase $k$ in a cell, where it occupies the volume $\alpha_k$ with mass $m_k$, at pressure $p$,
 \begin{equation}
 \varepsilon_k(\alpha_k,m_k,p)=\frac{(p+\gamma_k\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}+m_kq_k ,
 \label{eq:eps_nasg}
 \end{equation}
-which is affine in $(\alpha_k,m_k)$ at fixed $p$ and explicitly invertible for $\alpha_k$. The admissible set of a phase,
-$\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$, is a convex cone. The saturation temperature
-$T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$. Detonation products and nitromethane are described by
-Mie--Gr\"uneisen laws $p=\Gamma\rho(e-\varepsilon_r(\rho))+p_r(\rho)$ (JWL, Cochran--Chan), whose reference curve is an
-isentrope, $\varepsilon_r'=p_r/\rho^2$; in phase-volume form
-$\varepsilon_k=m_k\varepsilon_r(\rho_k)+\alpha_k(p-p_r(\rho_k))/\Gamma_k$, and admissibility is $c^2>0$.
+which is affine in $(\alpha_k,m_k)$ at fixed $p$, affine in $p$ at fixed $(\alpha_k,m_k)$, and explicitly invertible for $\alpha_k$. The
+admissible set of a phase, $\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$, is a convex cone. The saturation
+temperature $T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$.
 
-\paragraph{Relaxed models and wave speeds}
-For $\mu\to\infty$ the model reduces to the five-equation pressure-equilibrium model of Kapila et al.\ \cite{Kapila2001}; adding
-$\theta\to\infty$ gives the four-equation $pT$ model and adding $\nu\to\infty$ the homogeneous equilibrium model ($pTg$)
-\cite{Pelanti2022}. The sound speeds satisfy the subcharacteristic ordering
+\subsection{Mie--Gr\"uneisen equations of state}
+\label{sec:mg}
+Detonation products and liquid nitromethane are described by Mie--Gr\"uneisen laws
 \begin{equation}
-c_{pTg}\le c_{pT}\le c_p\le c_f,\qquad c_f^2=\sum_kY_kc_k^2,\qquad \frac1{\rho c_p^2}=\sum_k\frac{\alpha_k}{\rho_kc_k^2},
-\label{eq:subchar}
+p=\Gamma\rho\big(e-\varepsilon_r(\rho)\big)+p_r(\rho),\qquad c^2=\frac{(\Gamma+1)(p-p_r)}{\rho}+p_r'(\rho),
+\label{eq:mg}
 \end{equation}
-with $Y_k=m_k/\rho$. The eigenvalues of \eqref{eq:model} are $u$ and $u\pm c_f$, so a fully explicit scheme is restricted
-by
+with constant $\Gamma$, whose reference curve is an isentrope, $\varepsilon_r'=p_r/\rho^2$. We use the Cochran--Chan law
+\cite{CochranChan1979} and the JWL law \cite{LeeHornigKury1968},
 \begin{equation}
-\Delta t\le\mathrm{CFL}\,\min_\Omega\frac{\Delta x}{|u|+c_f},
-\label{eq:cfl_explicit}
+\begin{aligned}
+&\text{Cochran--Chan:}\quad p_r(\rho)=A_1x^{E_1}-A_2x^{E_2},\qquad
+\varepsilon_r(\rho)=\frac1\rho\Big(\frac{A_1x^{E_1}}{E_1-1}-\frac{A_2x^{E_2}}{E_2-1}\Big),\qquad x=\frac\rho{\rho_0},\\
+&\text{JWL:}\quad p_r(\rho)=Ae^{-R_1\rho_0/\rho}+Be^{-R_2\rho_0/\rho},\qquad
+\varepsilon_r(\rho)=\frac{A}{R_1\rho_0}e^{-R_1\rho_0/\rho}+\frac{B}{R_2\rho_0}e^{-R_2\rho_0/\rho}.
+\end{aligned}
+\label{eq:mg_ref}
 \end{equation}
-which becomes prohibitive when the flow is slow compared with the sound speed, while the relaxation terms
-add their own stiffness.
+In phase-volume form $\varepsilon_k=m_k\varepsilon_r(m_k/\alpha_k)+\alpha_k\big(p-p_r(m_k/\alpha_k)\big)/\Gamma_k$, which is nonlinear in $\alpha_k$; admissibility
+is $c^2>0$.
 
 \subsection{Split form of the model}
 \label{sec:split}
