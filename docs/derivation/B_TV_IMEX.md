@@ -272,7 +272,7 @@ $$
 - **本格系数非负**的充分条件 $r\,(a_f+|u_f|)\le\tfrac12$（二维逐方向 $r_x(a+|u_f|)\le\tfrac14$、$r_y(a+|v_f|)\le\tfrac14$）。物质 CFL 0.2 时 $a_{ii}r\,a\approx0.06$；$u_f$ 偏离物质速度很多时这一条可能不成立，那时由 B8 的可容许性检查与步长减半处理（B10）。
 - 于是每一相的 $(\alpha_k,m_k,\varepsilon_k)$ 是面态的非负组合。面态本身要可容许：共用限制因子使每个分量落在相邻格值之间，但可容许泛函 $L^{(1)}=\alpha-mb$、$L^{(2)}=\varepsilon-mq-L^{(1)}\pi$ 的面值是 $L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$，不是格值的凸组合，强压力跳跃与含量跳跃重合时可以为负（诊断：SPB 4.3.2 有 24 个面）。所以 V23 起对 SG/NASG 相再加限制 $\phi_i\le2L_i/|L_{i+1}-L_{i-1}|$（两个泛函、两相），面值不低于 $\tfrac12L_i$，与 minmod 对单个非负单调分量的界相同；全部算例中只有 SPB 4.3.2 因此改变（诊断后 0 个违反）。SG/NASG 的可容许集 $\{\alpha>0,m>0,\alpha-mb>0,\varepsilon-mq-(\alpha-mb)\pi>0\}$ 是线性约束的凸锥，所以**每一相（含微量相）的输运态可容许，与含量比无关**。
 - **旧供体为什么不行。** 按格内含量退回时，本格相 $k$ 的变化里有 $-r\hat X_{k,\rm nb}|w|$，而显式部分送来的是 $X^{\rm face}_{k,\rm nb}$；本格的余量要与 $\hat X_{k,\rm nb}/\hat X_{k,i}$ 成比例，接触处约 $10^8$，任何步长条件都管不住（C. 开发记录 11.7、20.5）。
-- 保持的性质：$\sum_k\alpha^{\rm face}_k=1$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；体积输运量共用限制因子，$m_k=\rho_k\alpha_k$、$\varepsilon_k=\rho_ke_k\alpha_k$ 时面值保持同样比例，温度一致性 B9.2 不变；面值与格内含量差 $O(\Delta x)$，$\Delta u_f=O(\tau)$，精度阶不变。LSDIRK2 第二级 $Q^e\ne Q^s$ 时论证与 B3 一样不成立，由 MOOD 处理。
+- 保持的性质：$\sum_k\alpha^{\rm face}_k=1$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；体积输运量共用限制因子，$m_k=\rho_k\alpha_k$、$\varepsilon_k=\rho_ke_k\alpha_k$ 时面值保持同样比例，温度一致性 B9.2 不变；面值与格内含量差 $O(\Delta x)$，$\Delta u_f=O(\tau)$，精度阶不变。LSDIRK2 第二级 $Q^e\ne Q^s$ 时论证与 B3 一样不成立，由步长减半处理（B10）。
 
 **动量与总能的增量。** 记 $M_{L}=\sum_km^L_{k,f}\big[(u_f)^+-(\bar u^e_f)^+\big]$、$M_R=\sum_km^R_{k,f}\big[(u_f)^--(\bar u^e_f)^-\big]$，$\hat M_f=M_L+M_R$。增量质量携带新时间层的法向面速度 $u_f$，切向速度取各自供体格的 $v^*$。
 
