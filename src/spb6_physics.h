@@ -248,36 +248,128 @@ static const double YMIN = 1e-10;
 // 闭合在 delta 线性的每一段上用 A_k + B_k p = eps^tr_k - m_k q_k + p alpha^tr_k + Lambda_k(delta(p))：p 闭合在每个试探 p 处选段（closure_p），
 // 其余闭合按 delta(pguess) 选段，收敛时 pguess = p。
 
-// 相 k 从 (p0, v0) 被激波压到 p1：Hugoniot 能量减等熵能量。NASG 闭式，每单位波前有效体积 alpha - m b（(A2.2) 对 v - b 齐次）
-static double hug_gap(int k, double p0, double p1) {
+// ------------------------------------------------------------------ 激波的物理耗散与相份额（B5.2 (b)，V22）
+// 松弛极限（Kapila）的定常激波剖面：Rayleigh 线 P(v) = p0 + j^2 (v0 - v)，混合耗散 dq = (p - P) dv，按常数份额 lam_k 分给各相，
+//   de_k = -p dv_k + (lam_k / Y_k) dq,   sum_k Y_k v_k = v。
+// 份额 c = lam_1 是使剖面终态落在 (II.5)（每相各自的 Hugoniot）上的唯一常数；混合终态与份额无关，所以积分区间 [v0, v_end] 固定，对 c 打靶。
+// 弱激波（dp < 1e-2 min_k K_k）取解析极限（定理 8）：Y_k q_k = Y_k v_k G_k dp^3 / (6 K_k^2)。
+// 相 k 在 (p, v) 处的 de/dp|_v 与 de/dv|_p + p
+static inline void eos_ep_ev(int k, double p, double v, double& ep, double& evp) {
 	const Phase& P = PH[k];
-	const double x0 = p0 + P.pi, x1 = p1 + P.pi; if (!(x0 > 0 && x1 > x0)) return 0.0;
-	const double vH = ((P.g - 1.0) * x1 + (P.g + 1.0) * x0) / ((P.g + 1.0) * x1 + (P.g - 1.0) * x0);   // (v_H - b)/(v_0 - b)
-	const double vS = std::pow(x0 / x1, 1.0 / P.g);                                                       // (v_S - b)/(v_0 - b)
-	return std::max(0.0, (p1 + P.g * P.pi) * (vH - vS) / (P.g - 1.0));
+	if (P.kind) { double pr, dpr, er; const double r = 1.0 / v; mg_ref(k, r, pr, dpr, er); ep = v / P.G; evp = (p - pr) * (1.0 + 1.0 / P.G) + r * dpr / P.G; return; }
+	ep = (v - P.b) / (P.g - 1.0); evp = P.g * (p + P.pi) / (P.g - 1.0);
 }
-// MG（A2.5）：每单位质量，e(p, v) = er(1/v) + v (p - pr)/G；等熵线 (p - pr) v^(G+1) = const（Gamma 常数），Hugoniot 与等熵线都在 (0, v0] 上二分
-static double hug_gap_mg(int k, double p0, double p1, double v0) {
+static inline bool eos_ok(int k, double p, double v) {
+	if (!(v > 0) || !std::isfinite(p)) return false;
+	if (is_mg(k)) return c2_rp(k, 1.0 / v, p) > 0;
+	return v > PH[k].b && p + PH[k].pi > 0;
+}
+// 相 k 的 Hugoniot (II.5)：从 (p0, v0) 到 p1 的比容。NASG 闭式；MG 在 (0, v0] 上二分
+static double hug_v(int k, double p0, double p1, double v0) {
 	const Phase& P = PH[k];
+	if (!P.kind) {
+		const double x0 = p0 + P.pi, x1 = p1 + P.pi;
+		return P.b + (v0 - P.b) * ((P.g - 1.0) * x1 + (P.g + 1.0) * x0) / ((P.g + 1.0) * x1 + (P.g - 1.0) * x0);
+	}
 	auto e_pv = [&](double p, double v) { double pr, dpr, er; mg_ref(k, 1.0 / v, pr, dpr, er); return er + v * (p - pr) / P.G; };
-	double pr0, dpr0, er0; mg_ref(k, 1.0 / v0, pr0, dpr0, er0); const double e0 = er0 + v0 * (p0 - pr0) / P.G, c0 = p0 - pr0;
-	auto bisect = [&](auto g) -> double {   // g(v0) > 0；向下找 g < 0 的端点再二分
-		double hi = v0, lo = v0, gl = g(v0); if (!(gl > 0)) return v0;
-		for (int it = 0; it < 80 && gl > 0; it++) { hi = lo; lo *= 0.9; gl = g(lo); if (!std::isfinite(gl)) return NAN; }
-		if (gl > 0) return NAN;
-		for (int it = 0; it < 100; it++) { const double m = 0.5 * (lo + hi), gm = g(m); if (gm > 0) hi = m; else lo = m; if (hi - lo <= 1e-14 * v0) break; }
-		return 0.5 * (lo + hi); };
-	const double vS = bisect([&](double v) { double pr, dpr, er; mg_ref(k, 1.0 / v, pr, dpr, er); return p1 - (pr + c0 * std::pow(v0 / v, P.G + 1.0)); });
-	const double vH = bisect([&](double v) { return e_pv(p1, v) - e0 + 0.5 * (p0 + p1) * (v - v0); });
-	if (!(std::isfinite(vS) && std::isfinite(vH))) return NAN;
-	return std::max(0.0, e_pv(p1, vH) - e_pv(p1, vS));
+	const double e0 = e_pv(p0, v0);
+	auto g = [&](double v) { return e_pv(p1, v) - e0 + 0.5 * (p0 + p1) * (v - v0); };
+	double hi = v0, lo = v0, gl = g(v0); if (!(gl > 0)) return v0;
+	for (int it = 0; it < 80 && gl > 0; it++) { hi = lo; lo *= 0.9; gl = g(lo); if (!std::isfinite(gl)) return NAN; }
+	if (gl > 0) return NAN;
+	for (int it = 0; it < 100; it++) { const double m = 0.5 * (lo + hi), gm = g(m); if (gm > 0) hi = m; else lo = m; if (hi - lo <= 1e-14 * v0) break; }
+	return 0.5 * (lo + hi);
 }
-// 相 k 的物质（本格每单位体积的质量 m，波前比容 v_pre）被 p_lo -> p_hi 的激波压缩时按 (II.5) 应得的耗散，每单位（本格）体积：
-// m × 每单位质量的能隙。NASG 每单位质量 = (v_pre - b) hug_gap
-static double phys_dissipation(int k, double m, double vpre, double plo, double phi) {
-	if (!(phi > plo) || !(m > 0) || !(vpre > 0)) return 0.0;
-	if (is_mg(k)) { const double g = hug_gap_mg(k, plo, phi, vpre); return std::isfinite(g) ? m * g : 0.0; }
-	const double ve = vpre - PH[k].b; return ve > 0 ? m * ve * hug_gap(k, plo, phi) : 0.0;
+// 等熵体积模量 K = rho c^2 与基本导数 G = (1 + dK/dp|_s)/2（MG 沿等熵线 dv = -v dp / K 差分）
+static void K_G(int k, double p, double v, double& K, double& G) {
+	K = c2_rp(k, 1.0 / v, p) / v;
+	if (!is_mg(k)) { G = 0.5 * (PH[k].g + 1.0); return; }
+	const double dp = 1e-6 * K, K2 = c2_rp(k, 1.0 / (v * (1.0 - dp / K)), p + dp) / (v * (1.0 - dp / K));
+	G = 0.5 * (1.0 + (K2 - K) / dp);
+}
+// 给定份额 c 积分剖面到 v_end（自适应 Cash-Karp RK45）；返回终态 v_1 与混合耗散 q = int (p - P) dv（每单位混合质量）
+struct ShockProf { double Y[2], vk0[2], v0, p0, j2, vend; };
+static bool prof_rhs(const ShockProf& S, double c, double v, const double* y, double* dy) {
+	const double p = y[0], v1 = y[1], v2 = (v - S.Y[0] * v1) / S.Y[1], P = S.p0 + S.j2 * (S.v0 - v);
+	if (!eos_ok(0, p, v1) || !eos_ok(1, p, v2)) return false;
+	const double lam[2] = {c, 1.0 - c}, vk[2] = {v1, v2};
+	double num = -1.0, den = 0.0, r[2], ep[2], evp[2];
+	for (int k = 0; k < 2; k++) { eos_ep_ev(k, p, vk[k], ep[k], evp[k]); r[k] = lam[k] / S.Y[k] * (p - P); num += S.Y[k] * r[k] / evp[k]; den += S.Y[k] * ep[k] / evp[k]; }
+	dy[0] = num / den; dy[1] = (r[0] - ep[0] * dy[0]) / evp[0]; dy[2] = p - P;
+	return std::isfinite(dy[0]) && std::isfinite(dy[1]);
+}
+static bool prof_integrate(const ShockProf& S, double c, double& v1end, double& qend) {
+	static const double A[6] = {0, 0.2, 0.3, 0.6, 1.0, 0.875};
+	static const double B[6][5] = {{0}, {0.2}, {3.0 / 40, 9.0 / 40}, {0.3, -0.9, 1.2}, {-11.0 / 54, 2.5, -70.0 / 27, 35.0 / 27},
+		{1631.0 / 55296, 175.0 / 512, 575.0 / 13824, 44275.0 / 110592, 253.0 / 4096}};
+	static const double C5[6] = {37.0 / 378, 0, 250.0 / 621, 125.0 / 594, 0, 512.0 / 1771};
+	static const double C4[6] = {2825.0 / 27648, 0, 18575.0 / 48384, 13525.0 / 55296, 277.0 / 14336, 0.25};
+	double y[3] = {S.p0, S.vk0[0], 0.0}, v = S.v0;
+	const double L = S.vend - S.v0, sc[3] = {std::fabs(S.p0) + S.j2 * std::fabs(L), S.vk0[0], S.j2 * L * L + 1e-300};
+	double h = L / 32.0;
+	for (int it = 0; it < 4000; it++) {
+		const bool last = (L < 0 && v + h <= S.vend) || (L > 0 && v + h >= S.vend);
+		if (last) h = S.vend - v;
+		double k[6][3], yt[3];
+		bool ok = true;
+		for (int st = 0; st < 6 && ok; st++) {
+			for (int n = 0; n < 3; n++) { yt[n] = y[n]; for (int q = 0; q < st; q++) yt[n] += h * B[st][q] * k[q][n]; }
+			ok = prof_rhs(S, c, v + A[st] * h, yt, k[st]);
+		}
+		double err = 0.0, y5[3];
+		if (ok) for (int n = 0; n < 3; n++) {
+			double d5 = 0, d4 = 0; for (int st = 0; st < 6; st++) { d5 += C5[st] * k[st][n]; d4 += C4[st] * k[st][n]; }
+			y5[n] = y[n] + h * d5; err = std::max(err, std::fabs(h * (d5 - d4)) / sc[n]);
+		}
+		if (!ok || !(err <= 1e-8)) { h *= ok ? std::max(0.1, 0.9 * std::pow(1e-8 / err, 0.25)) : 0.25; if (std::fabs(h) < 1e-14 * std::fabs(L)) return false; continue; }
+		for (int n = 0; n < 3; n++) y[n] = y5[n];
+		if (last) { v1end = y[1]; qend = y[2]; return true; }
+		v += h;
+		h *= std::min(5.0, 0.9 * std::pow(1e-8 / std::max(err, 1e-30), 0.2));
+	}
+	return false;
+}
+// 波前 (p0, v_k^pre, Y_k) 被压到 p1：相份额 lam_k 与混合耗散 q（每单位混合质量）。失败返回 false
+static bool shock_share(const double Y[2], const double vpre[2], double p0, double p1, double lam[2], double& q) {
+	double K[2], G[2], w[2], sw = 0.0, Kmin = INF;
+	for (int k = 0; k < 2; k++) { K_G(k, p0, vpre[k], K[k], G[k]); if (!(K[k] > 0)) return false; Kmin = std::min(Kmin, K[k]); }
+	const double dp = p1 - p0;
+	if (dp < 1e-2 * Kmin) {    // 弱激波：定理 8
+		q = 0.0;
+		for (int k = 0; k < 2; k++) { w[k] = Y[k] * vpre[k] * G[k] / (K[k] * K[k]); sw += w[k]; }
+		for (int k = 0; k < 2; k++) lam[k] = w[k] / sw;
+		q = sw * dp * dp * dp / 6.0;
+		return true;
+	}
+	ShockProf S; S.p0 = p0;
+	double vH[2];
+	for (int k = 0; k < 2; k++) { S.Y[k] = Y[k]; S.vk0[k] = vpre[k]; vH[k] = hug_v(k, p0, p1, vpre[k]); if (!std::isfinite(vH[k])) return false; }
+	S.v0 = Y[0] * vpre[0] + Y[1] * vpre[1]; S.vend = Y[0] * vH[0] + Y[1] * vH[1];
+	if (!(S.vend < S.v0)) return false;
+	S.j2 = dp / (S.v0 - S.vend);
+	// 残量 F(c) = v_1(v_end; c) - v_1H，对 c 递增；在 logit(c) 上用 Illinois 法
+	auto F = [&](double t, double& qq) -> double { const double c = 1.0 / (1.0 + std::exp(-t)); double v1e;
+		if (!prof_integrate(S, c, v1e, qq)) return NAN; return (v1e - vH[0]) / vpre[0]; };
+	double ta = -40.0, tb = 40.0, qa, qb, fa = F(ta, qa), fb = F(tb, qb);
+	if (!std::isfinite(fa) || !std::isfinite(fb)) return false;
+	double t, qt;
+	if (fa >= 0) { t = ta; qt = qa; }
+	else if (fb <= 0) { t = tb; qt = qb; }
+	else {
+		int side = 0; t = ta; qt = qa;
+		for (int it = 0; it < 100; it++) {
+			t = (ta * fb - tb * fa) / (fb - fa);
+			if (!(t > ta && t < tb)) t = 0.5 * (ta + tb);
+			const double ft = F(t, qt);
+			if (!std::isfinite(ft)) return false;
+			if (std::fabs(ft) < 1e-10 || tb - ta < 1e-10) break;
+			if (ft < 0) { ta = t; fa = ft; if (side == -1) fb *= 0.5; side = -1; }
+			else { tb = t; fb = ft; if (side == 1) fa *= 0.5; side = 1; }
+		}
+	}
+	const double c = 1.0 / (1.0 + std::exp(-t));
+	lam[0] = c; lam[1] = 1.0 - c; q = qt;
+	return q > 0;
 }
 // 守恒量 c（IA1..IEN）-> 模板状态 st = {a1, a2, m1, m2, p, u, v}；p 是混合压力 (A2.3)，不可容许时 NAN（模板里跳过）
 inline void stencil_state(const double* c, double* st) {
@@ -287,7 +379,7 @@ inline void stencil_state(const double* c, double* st) {
 	if (a1 > 0 && a1 < 1 && m1 > 0 && m2 > 0) { const double p = p_mix(a1, m1, m2, c[IE1] + c[IE2]); if (p_admissible(0, a1, m1, p) && p_admissible(1, 1.0 - a1, m2, p)) st[4] = p; }
 }
 // 紧致模板（±1，二维为十字；V21，半径 1–4 结果相同到 0.1%，devlog V21）上的激波预算：cell(di, dj, st) 给出模板格的状态。压缩（中心差分散度 < 0）且模板上有压力差时，本格的物质（自己的 m_k）
-// 按 (II.5) 应得 Q_k = phys_dissipation(k, m_k, v_k^pre, p_lo, p_hi)；激波强度 p_lo -> p_hi 取模板上混合压力的极值，波前的相比容
+// 按 (II.5) 应得 Q_k = lam_k rho q（shock_share：剖面的精确常数份额与混合耗散，V22）；激波强度 p_lo -> p_hi 取模板上混合压力的极值，波前的相比容
 // v_k^pre = alpha_k/m_k 取模板里压力最低的格（相不存在时取本格）。否则 Q = 0（全部按误差分）。
 // 用本格自己的质量而不是波前格的 alpha_k：激波穿过接触/混合区时，被压缩的是本格的物质（均匀组分时两者的比例相同）
 template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
@@ -303,10 +395,16 @@ template <class F> static void shock_budget(F cell, bool twoD, double Q[2]) {
 		if (st[4] > phi) phi = st[4];
 	}
 	if (!(div < 0.0) || !(phi > plo)) return;
+	double Y[2], vpre[2], lam[2], q;
+	const double rho = c0[2] + c0[3];
+	if (!(rho > 0)) return;
 	for (int k = 0; k < 2; k++) {
-		const double vpre = (lo[k] > 0 && lo[2 + k] > 0) ? lo[k] / lo[2 + k] : (c0[2 + k] > 0 ? c0[k] / c0[2 + k] : 0.0);
-		Q[k] = phys_dissipation(k, c0[2 + k], vpre, plo, phi);
+		Y[k] = c0[2 + k] / rho;
+		vpre[k] = (lo[k] > 0 && lo[2 + k] > 0) ? lo[k] / lo[2 + k] : (c0[2 + k] > 0 ? c0[k] / c0[2 + k] : 0.0);
 	}
+	if (!(Y[0] > 0) || !(Y[1] > 0) || !(vpre[0] > 0) || !(vpre[1] > 0)) return;
+	if (!shock_share(Y, vpre, plo, phi, lam, q)) return;
+	for (int k = 0; k < 2; k++) Q[k] = lam[k] * rho * q;
 }
 // 可容许界之上的能量 E_k：NASG (p_k + pi_k)(alpha_k - m_k b_k)/(gamma_k - 1)；MG 冷曲线之上的热能 eps_k - m_k er
 static double E_above(const ClIn& in, int k) {

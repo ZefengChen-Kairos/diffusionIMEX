@@ -383,6 +383,25 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 					const double c = 0.5 * (a + b), m = std::fabs(a) < std::fabs(b) ? a : b;
 					phi = std::min(phi, m / c);
 				}
+				// 面态可容许（引理 lem:faces，V22）：NASG/SG 相的线性泛函 L1 = alpha - m b、L2 = eps - m q - L1 pi 的面值为
+				// L_i -/+ (phi/4)(L_{i+1} - L_{i-1})；phi <= 2 L_i / |L_{i+1} - L_{i-1}| 使面值不低于 L_i / 2（与 minmod 对单个量的界相同）
+				if(LIMITER && phi > 0.0){
+					const int cs[3][2] = {{ia, ja}, {i, j}, {ib, jb}};
+					for(int ph = 0; ph < 2; ph++){
+						if(is_mg(ph)) continue;
+						double L1[3], L2[3];
+						for(int n = 0; n < 3; n++){
+							const int ci = cs[n][0], cj = cs[n][1];
+							const double a = ph == 0 ? u_con(ci,cj,IA1) : 1.0 - u_con(ci,cj,IA1), m = u_con(ci,cj,ph == 0 ? IM1 : IM2), e = u_con(ci,cj,ph == 0 ? IE1 : IE2);
+							L1[n] = a - m * PH[ph].b; L2[n] = e - m * PH[ph].q - L1[n] * PH[ph].pi;
+						}
+						const double* Ls[2] = {L1, L2};
+						for(int l = 0; l < 2; l++){
+							const double dL = std::fabs(Ls[l][2] - Ls[l][0]);
+							if(Ls[l][1] > 0.0 && dL > 0.0) phi = std::min(phi, 2.0 * Ls[l][1] / dL);
+						}
+					}
+				}
 				for(int q = 0; q < 5; q++){
 					const int k = VOL[q];
 					const double sig = phi * 0.5 * (u_con(ib,jb,k) - u_con(ia,ja,k));

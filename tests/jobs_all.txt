@@ -1,0 +1,147 @@
+# SUBDIR|NAME|ARGUMENTS for tests/run_all.sh (V22): 1D paper tests (.), Bartak, Taylor-Green and two-phase vortex (all-Mach), Schropff Riemann problems
+.|spb41|case=4 N=200
+.|spb42|case=60 N=500
+.|spb431|case=5 N=1000
+.|spb431_n100|case=5 N=100
+.|spb432|case=6 N=1000
+.|spb45|case=0 N=1000
+.|spb51|case=12 N=500
+.|spb52|case=13 N=500
+.|pel811|case=61 N=500
+.|ps1_r0|case=1 N=5000 relax=0
+.|ps2_r0|case=2 N=5000 relax=0
+.|ps1_r1|case=1 N=5000 relax=1
+.|ps2_r1|case=2 N=5000 relax=1
+.|ps1_r2|case=1 N=5000 relax=2
+.|ps2_r2|case=2 N=5000 relax=2
+.|ps1_r3|case=1 N=5000 relax=3
+.|ps2_r3|case=2 N=5000 relax=3
+.|ps3_r0|case=3 N=2000 relax=0
+.|ps3_r2|case=3 N=2000 relax=2
+.|ps3_r3|case=3 N=2000 relax=3
+.|pel821_p|case=30 N=5000 relax=0
+.|pel821_pTf|case=30 N=5000 relax=1 theta=2000
+.|pel821_pT|case=30 N=5000 relax=1
+.|pel821_pTgf|case=30 N=5000 relax=2 nu=1e-4
+.|pel821_pTg|case=30 N=5000 relax=2
+.|pel822_r0|case=31 N=2000 relax=0
+.|pel822_r2|case=31 N=2000 relax=2
+bartak|nu|case=32 relax=2 nulaw=1 probe=0.048,0
+bartak|noMT|case=32 relax=1 probe=0.048,0
+bartak|inf|case=32 relax=2 probe=0.048,0
+allmach|tg57_p1e2_lim0_N50|case=57 p0=1e2 dt=2.5e-3 limiter=0
+allmach|tg57_p1e2_lim1_N50|case=57 p0=1e2 dt=2.5e-3 limiter=1
+allmach|tg57_p1e4_lim0_N50|case=57 p0=1e4 dt=2.5e-3 limiter=0
+allmach|tg57_p1e4_lim1_N50|case=57 p0=1e4 dt=2.5e-3 limiter=1
+allmach|tg57_p1e6_lim0_N50|case=57 p0=1e6 dt=2.5e-3 limiter=0
+allmach|tg57_p1e6_lim1_N50|case=57 p0=1e6 dt=2.5e-3 limiter=1
+allmach|tg57_p1e8_lim0_N50|case=57 p0=1e8 dt=2.5e-3 limiter=0
+allmach|tg57_p1e8_lim1_N50|case=57 p0=1e8 dt=2.5e-3 limiter=1
+allmach|tg57_p1e10_lim0_N50|case=57 p0=1e10 dt=2.5e-3 limiter=0
+allmach|tg57_p1e10_lim1_N50|case=57 p0=1e10 dt=2.5e-3 limiter=1
+allmach|tg57_p1e12_lim0_N50|case=57 p0=1e12 dt=2.5e-3 limiter=0
+allmach|tg57_p1e12_lim1_N50|case=57 p0=1e12 dt=2.5e-3 limiter=1
+allmach|tg58_p1e2_lim0_N50|case=58 p0=1e2 dt=2.5e-3 limiter=0
+allmach|tg58_p1e2_lim1_N50|case=58 p0=1e2 dt=2.5e-3 limiter=1
+allmach|tg58_p1e4_lim0_N50|case=58 p0=1e4 dt=2.5e-3 limiter=0
+allmach|tg58_p1e4_lim1_N50|case=58 p0=1e4 dt=2.5e-3 limiter=1
+allmach|tg58_p1e6_lim0_N50|case=58 p0=1e6 dt=2.5e-3 limiter=0
+allmach|tg58_p1e6_lim1_N50|case=58 p0=1e6 dt=2.5e-3 limiter=1
+allmach|tg58_p1e8_lim0_N50|case=58 p0=1e8 dt=2.5e-3 limiter=0
+allmach|tg58_p1e8_lim1_N50|case=58 p0=1e8 dt=2.5e-3 limiter=1
+allmach|tg58_p1e10_lim0_N50|case=58 p0=1e10 dt=2.5e-3 limiter=0
+allmach|tg58_p1e10_lim1_N50|case=58 p0=1e10 dt=2.5e-3 limiter=1
+allmach|tg58_p1e12_lim0_N50|case=58 p0=1e12 dt=2.5e-3 limiter=0
+allmach|tg58_p1e12_lim1_N50|case=58 p0=1e12 dt=2.5e-3 limiter=1
+vortex|lim0_p1_N32|case=56 N=32 ny=32 p0=1 limiter=0
+vortex|lim0_p10_N32|case=56 N=32 ny=32 p0=10 limiter=0
+vortex|lim0_p100_N32|case=56 N=32 ny=32 p0=100 limiter=0
+vortex|lim0_p1000_N32|case=56 N=32 ny=32 p0=1000 limiter=0
+vortex|lim0_p10000_N32|case=56 N=32 ny=32 p0=10000 limiter=0
+allmach|tg57_p1e6_lim0_N32|case=57 p0=1e6 N=32 ny=32 dt=0.0025 limiter=0
+allmach|tg57_p1e6_lim1_N32|case=57 p0=1e6 N=32 ny=32 dt=0.0025 limiter=1
+allmach|tg57_p1e10_lim0_N32|case=57 p0=1e10 N=32 ny=32 dt=0.0025 limiter=0
+allmach|tg57_p1e10_lim1_N32|case=57 p0=1e10 N=32 ny=32 dt=0.0025 limiter=1
+allmach|tg58_p1e6_lim0_N32|case=58 p0=1e6 N=32 ny=32 dt=0.0025 limiter=0
+allmach|tg58_p1e6_lim1_N32|case=58 p0=1e6 N=32 ny=32 dt=0.0025 limiter=1
+allmach|tg58_p1e10_lim0_N32|case=58 p0=1e10 N=32 ny=32 dt=0.0025 limiter=0
+allmach|tg58_p1e10_lim1_N32|case=58 p0=1e10 N=32 ny=32 dt=0.0025 limiter=1
+vortex|lim0_p1_N64|case=56 N=64 ny=64 p0=1 limiter=0
+vortex|lim0_p10_N64|case=56 N=64 ny=64 p0=10 limiter=0
+vortex|lim0_p100_N64|case=56 N=64 ny=64 p0=100 limiter=0
+vortex|lim0_p1000_N64|case=56 N=64 ny=64 p0=1000 limiter=0
+vortex|lim0_p10000_N64|case=56 N=64 ny=64 p0=10000 limiter=0
+allmach|tg57_p1e6_lim0_N64|case=57 p0=1e6 N=64 ny=64 dt=0.00125 limiter=0
+allmach|tg57_p1e6_lim1_N64|case=57 p0=1e6 N=64 ny=64 dt=0.00125 limiter=1
+allmach|tg57_p1e10_lim0_N64|case=57 p0=1e10 N=64 ny=64 dt=0.00125 limiter=0
+allmach|tg57_p1e10_lim1_N64|case=57 p0=1e10 N=64 ny=64 dt=0.00125 limiter=1
+allmach|tg58_p1e6_lim0_N64|case=58 p0=1e6 N=64 ny=64 dt=0.00125 limiter=0
+allmach|tg58_p1e6_lim1_N64|case=58 p0=1e6 N=64 ny=64 dt=0.00125 limiter=1
+allmach|tg58_p1e10_lim0_N64|case=58 p0=1e10 N=64 ny=64 dt=0.00125 limiter=0
+allmach|tg58_p1e10_lim1_N64|case=58 p0=1e10 N=64 ny=64 dt=0.00125 limiter=1
+vortex|lim0_p1_N128|case=56 N=128 ny=128 p0=1 limiter=0
+vortex|lim0_p10_N128|case=56 N=128 ny=128 p0=10 limiter=0
+vortex|lim0_p100_N128|case=56 N=128 ny=128 p0=100 limiter=0
+vortex|lim0_p1000_N128|case=56 N=128 ny=128 p0=1000 limiter=0
+vortex|lim0_p10000_N128|case=56 N=128 ny=128 p0=10000 limiter=0
+allmach|tg57_p1e6_lim0_N128|case=57 p0=1e6 N=128 ny=128 dt=0.000625 limiter=0
+allmach|tg57_p1e6_lim1_N128|case=57 p0=1e6 N=128 ny=128 dt=0.000625 limiter=1
+allmach|tg57_p1e10_lim0_N128|case=57 p0=1e10 N=128 ny=128 dt=0.000625 limiter=0
+allmach|tg57_p1e10_lim1_N128|case=57 p0=1e10 N=128 ny=128 dt=0.000625 limiter=1
+allmach|tg58_p1e6_lim0_N128|case=58 p0=1e6 N=128 ny=128 dt=0.000625 limiter=0
+allmach|tg58_p1e6_lim1_N128|case=58 p0=1e6 N=128 ny=128 dt=0.000625 limiter=1
+allmach|tg58_p1e10_lim0_N128|case=58 p0=1e10 N=128 ny=128 dt=0.000625 limiter=0
+allmach|tg58_p1e10_lim1_N128|case=58 p0=1e10 N=128 ny=128 dt=0.000625 limiter=1
+vortex|lim0_p1_N256|case=56 N=256 ny=256 p0=1 limiter=0
+vortex|lim0_p10_N256|case=56 N=256 ny=256 p0=10 limiter=0
+vortex|lim0_p100_N256|case=56 N=256 ny=256 p0=100 limiter=0
+vortex|lim0_p1000_N256|case=56 N=256 ny=256 p0=1000 limiter=0
+vortex|lim0_p10000_N256|case=56 N=256 ny=256 p0=10000 limiter=0
+allmach|tg57_p1e6_lim0_N256|case=57 p0=1e6 N=256 ny=256 dt=0.0003125 limiter=0
+allmach|tg57_p1e6_lim1_N256|case=57 p0=1e6 N=256 ny=256 dt=0.0003125 limiter=1
+allmach|tg57_p1e10_lim0_N256|case=57 p0=1e10 N=256 ny=256 dt=0.0003125 limiter=0
+allmach|tg57_p1e10_lim1_N256|case=57 p0=1e10 N=256 ny=256 dt=0.0003125 limiter=1
+allmach|tg58_p1e6_lim0_N256|case=58 p0=1e6 N=256 ny=256 dt=0.0003125 limiter=0
+allmach|tg58_p1e6_lim1_N256|case=58 p0=1e6 N=256 ny=256 dt=0.0003125 limiter=1
+allmach|tg58_p1e10_lim0_N256|case=58 p0=1e10 N=256 ny=256 dt=0.0003125 limiter=0
+allmach|tg58_p1e10_lim1_N256|case=58 p0=1e10 N=256 ny=256 dt=0.0003125 limiter=1
+allmach/check|tg57_p1e6_lim0_N256_halfdt|case=57 p0=1e6 N=256 ny=256 dt=0.00015625 limiter=0
+vortex|wp_p1_N256|case=56 N=256 ny=256 p0=1 limiter=0 wellprep=1
+vortex|wp_p10_N256|case=56 N=256 ny=256 p0=10 limiter=0 wellprep=1
+vortex|wp_p100_N256|case=56 N=256 ny=256 p0=100 limiter=0 wellprep=1
+vortex|wp_p1000_N256|case=56 N=256 ny=256 p0=1000 limiter=0 wellprep=1
+vortex|wp_p10000_N256|case=56 N=256 ny=256 p0=10000 limiter=0 wellprep=1
+vortex|wp_p1_N128|case=56 N=128 ny=128 p0=1 limiter=0 wellprep=1
+vortex|wp_p10_N128|case=56 N=128 ny=128 p0=10 limiter=0 wellprep=1
+vortex|wp_p100_N128|case=56 N=128 ny=128 p0=100 limiter=0 wellprep=1
+vortex|wp_p1000_N128|case=56 N=128 ny=128 p0=1000 limiter=0 wellprep=1
+vortex|wp_p10000_N128|case=56 N=128 ny=128 p0=10000 limiter=0 wellprep=1
+vortex|wp_p1_N64|case=56 N=64 ny=64 p0=1 limiter=0 wellprep=1
+vortex|wp_p10_N64|case=56 N=64 ny=64 p0=10 limiter=0 wellprep=1
+vortex|wp_p100_N64|case=56 N=64 ny=64 p0=100 limiter=0 wellprep=1
+vortex|wp_p1000_N64|case=56 N=64 ny=64 p0=1000 limiter=0 wellprep=1
+vortex|wp_p10000_N64|case=56 N=64 ny=64 p0=10000 limiter=0 wellprep=1
+vortex|wp_p1_N32|case=56 N=32 ny=32 p0=1 limiter=0 wellprep=1
+vortex|wp_p10_N32|case=56 N=32 ny=32 p0=10 limiter=0 wellprep=1
+vortex|wp_p100_N32|case=56 N=32 ny=32 p0=100 limiter=0 wellprep=1
+vortex|wp_p1000_N32|case=56 N=32 ny=32 p0=1000 limiter=0 wellprep=1
+vortex|wp_p10000_N32|case=56 N=32 ny=32 p0=10000 limiter=0 wellprep=1
+sch|c80_200|case=80 N=200
+sch|c80_1000|case=80 N=1000
+sch|c81_200|case=81 N=200
+sch|c81_1000|case=81 N=1000
+sch|c82_200|case=82 N=200
+sch|c82_1000|case=82 N=1000
+sch|c83_200|case=83 N=200
+sch|c83_1000|case=83 N=1000
+sch|c84_200|case=84 N=200
+sch|c84_1000|case=84 N=1000
+sch|c85_200|case=85 N=200
+sch|c85_1000|case=85 N=1000
+sch|c86_200|case=86 N=200
+sch|c86_1000|case=86 N=1000
+sch|c87_200|case=87 N=200
+sch|c87_1000|case=87 N=1000
+sch|c88_200|case=88 N=200
+sch|c88_1000|case=88 N=1000
+sch|c87_5000|case=87 N=5000
