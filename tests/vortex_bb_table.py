@@ -7,7 +7,8 @@ import os, sys, math, glob, subprocess
 import numpy as np, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 H = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(H, 'src', 'spb6_imex')   # tests/run_archive.sh builds it; only used with init=1 (exact initial cell averages)
-if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True); REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
+if not os.path.exists(BIN): subprocess.run(['g++', '-O2', '-std=c++17', '-fopenmp', '-I/usr/include/eigen3', os.path.join(H, 'src', 'SPB6_TV_IMEX.cpp'), '-o', BIN], check=True)
+REF = os.path.join(H, 'run', 'vortex_ref'); os.makedirs(REF, exist_ok=True)
 DIRS = [os.path.join(H, 'run', 'v21e', 'vortex')]
 P0 = ['1', '10', '100', '1000', '10000']; NS = [32, 64, 128, 256]
 def load(f): d = np.loadtxt(f); return d
