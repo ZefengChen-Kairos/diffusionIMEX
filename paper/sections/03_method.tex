@@ -25,14 +25,25 @@ The advective sub-system transports every quantity with the flow velocity. In th
 by the non-conservative product $u\,\partial_x\alpha_1$, so that, before the volume-transport rewriting of Sec.~\ref{sec:split},
 the transport system is a non-conservative hyperbolic system
 \begin{equation}
-\partial_t\mathbf Q+\mathbf A(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\qquad
-\mathbf A(\mathbf Q)=u\,\mathbf I+\hat{\mathbf Q}\otimes\frac{\partial u}{\partial\mathbf Q},\qquad
-\hat{\mathbf Q}=\begin{bmatrix}0\\ m_1\\ m_2\\ \rho u\\ \varepsilon_1\\ \varepsilon_2\\ E\end{bmatrix},\qquad
-\frac{\partial u}{\partial\mathbf Q}=\frac1\rho\big(0,\,-u,\,-u,\,1,\,0,\,0,\,0\big),
+\partial_t\mathbf Q+\mathbf A(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,
 \label{eq:transport_nc}
 \end{equation}
-whose coefficient matrix is the Jacobian of the transport flux $Xu$ in every row except that of $\alpha_1$, $u\,\partial_x\alpha_1$, which is
-not the derivative of any flux. It is discretised by the path-conservative Rusanov scheme \cite{DalMaso1995,Pares2006,Castro2006},
+with
+\begin{equation}
+\mathbf Q=\begin{bmatrix}\alpha_1\\ m_1\\ m_2\\ \rho u\\ \varepsilon_1\\ \varepsilon_2\\ E\end{bmatrix},\qquad
+\mathbf A(\mathbf Q)=\begin{bmatrix}
+u&0&0&0&0&0&0\\
+0&u(1-Y_1)&-uY_1&Y_1&0&0&0\\
+0&-uY_2&u(1-Y_2)&Y_2&0&0&0\\
+0&-u^2&-u^2&2u&0&0&0\\
+0&-u\varepsilon_1/\rho&-u\varepsilon_1/\rho&\varepsilon_1/\rho&u&0&0\\
+0&-u\varepsilon_2/\rho&-u\varepsilon_2/\rho&\varepsilon_2/\rho&0&u&0\\
+0&-uE/\rho&-uE/\rho&E/\rho&0&0&u
+\end{bmatrix},
+\label{eq:A_transport}
+\end{equation}
+$Y_k=m_k/\rho$. The coefficient matrix $\mathbf A$ is the Jacobian of the transport flux $Xu$ in every row except the first,
+$u\,\partial_x\alpha_1$, which is not the derivative of any flux. It is discretised by the path-conservative Rusanov scheme \cite{DalMaso1995,Pares2006,Castro2006},
 \begin{equation}
 \mathbf Q^*_i=\mathbf Q^n_i-\frac{\Delta t}{\Delta x}\Big(\mathbf D^-_{i+1/2}+\mathbf D^+_{i-1/2}+\mathbf D_i\Big),\qquad
 \mathbf D^\pm_{i+1/2}=\tfrac12\int_0^1\mathbf A(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds\pm\tfrac12a_{i+1/2}\,\Delta\mathbf Q_{i+1/2},
