@@ -18,7 +18,7 @@
 
 ## Setting
 
-Program `src/SPB6_TV_IMEX.cpp` (V21), LSDIRK2, material CFL 0.2, minmod, local Rusanov speed, Newton tolerance 1e-13 (the defaults; no per-test setting). Command: `src/spb6_imex case=C N=N out=cC_N.dat`. Files `c81_N_ac.dat`, `c85_N_ac.dat`: the two acoustic problems with the fixed time step `dt=` 0.5 dx / 1770 (acoustic Courant number 0.5). Figures `docs/figures/sch80.png` ... `sch88.png` by `python3 tests/plot_schropff.py run/sch docs/figures` (also prints the L1 table, Eq. (51) of the paper).
+Program `src/SPB6_TV_IMEX.cpp` (V21), LSDIRK2, material CFL 0.2, minmod, local Rusanov speed, Newton tolerance 1e-13 (the defaults; no per-test setting). Command: `src/spb6_imex case=C N=N out=cC_N.dat`. Figures `docs/figures/sch80.png` ... `sch88.png` by `python3 tests/plot_schropff.py run/sch docs/figures` (also prints the L1 table, Eq. (51) of the paper).
 
 ## Run statistics (steps, first-order ramp steps, rejects, Newton iterations per stage, wall time in s with 5 runs in parallel)
 
@@ -27,9 +27,7 @@ Program `src/SPB6_TV_IMEX.cpp` (V21), LSDIRK2, material CFL 0.2, minmod, local R
 | `c80_1000.dat` | 2537 | 42 | 0 | 0.00 | 28.40 |
 | `c80_200.dat` | 537 | 42 | 0 | 0.00 | 1.01 |
 | `c81_1000.dat` | 25 | 23 | 0 | 2.81 | 0.50 |
-| `c81_1000_ac.dat` | 354 | 0 | 0 | 2.00 | 45.56 |
 | `c81_200.dat` | 17 | 17 | 0 | 2.88 | 0.09 |
-| `c81_200_ac.dat` | 71 | 0 | 0 | 2.00 | 19.69 |
 | `c82_1000.dat` | 1082 | 4 | 0 | 2.51 | 40.21 |
 | `c82_200.dat` | 218 | 4 | 0 | 2.55 | 1.58 |
 | `c83_1000.dat` | 1503 | 37 | 8 | 4.09 | 72.57 |
@@ -37,9 +35,7 @@ Program `src/SPB6_TV_IMEX.cpp` (V21), LSDIRK2, material CFL 0.2, minmod, local R
 | `c84_1000.dat` | 750 | 0 | 0 | 2.00 | 29.45 |
 | `c84_200.dat` | 150 | 0 | 0 | 2.02 | 0.98 |
 | `c85_1000.dat` | 27 | 27 | 0 | 2.00 | 0.28 |
-| `c85_1000_ac.dat` | 531 | 0 | 0 | 1.62 | 46.79 |
 | `c85_200.dat` | 18 | 18 | 0 | 2.00 | 0.05 |
-| `c85_200_ac.dat` | 107 | 0 | 0 | 1.99 | 27.22 |
 | `c86_1000.dat` | 1287 | 42 | 0 | 0.00 | 12.97 |
 | `c86_200.dat` | 287 | 42 | 0 | 0.00 | 0.36 |
 | `c87_1000.dat` | 588 | 6 | 0 | 3.00 | 23.55 |

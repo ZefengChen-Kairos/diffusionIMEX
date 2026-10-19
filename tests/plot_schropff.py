@@ -1,7 +1,7 @@
 """Schropff, Petitpas & Daniel (2026, JCP 547, 114545) Secs. 5.1, 5.1.1, 5.2 with the IMEX program (cases 80-88):
 density, velocity, pressure and Mach number against the exact solution (tests/exact5.py: 5-equation model; single-phase
 cases are two identical phases), and the relative L1 density error of their Eq. (51).
-usage: python3 tests/plot_schropff.py RUNDIR OUTDIR   (RUNDIR holds c<case>_<N>.dat and, for cases 81, 85, c<case>_<N>_ac.dat)"""
+usage: python3 tests/plot_schropff.py RUNDIR OUTDIR   (RUNDIR holds c<case>_<N>.dat)"""
 import os, sys
 import numpy as np
 import matplotlib
@@ -59,8 +59,6 @@ for c, (title, P1, P2, L, R, x0, t, grids) in CASES.items():
         q[1] = ('du', '$u-u_0$ (m/s)'); q[2] = ('dp', '$p/p_0-1$'); ex['du'] = 0 * xe; ex['dp'] = 0 * xe
     for k, (v, lab) in enumerate(q): ax[k].plot(xe, ex[v], 'k-', lw=1.4, label='exact')
     runs = [(n, '', 'IMEX %d cells' % n) for n in grids]
-    if c in (81, 85):   # acoustic problems: also the fixed time step 0.5 dx / c (c = 1770 m/s), files c<case>_<N>_ac.dat
-        runs += [(n, '_ac', r'IMEX %d cells, $\Delta t=0.5\Delta x/c$' % n) for n in grids]
     for n, tag, name in runs:
         s = load(c, n, tag)
         if s is None: continue
