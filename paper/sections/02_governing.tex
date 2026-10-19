@@ -38,7 +38,7 @@ The three terms drive the phases towards equilibrium:
 \item chemical relaxation $\mathcal M$: mass transfer by phase change (evaporation or condensation, $\mathcal M>0$
 from phase 2 to phase 1), which drives $g_1=g_2$.
 \end{itemize}
-The rates $\mu,\theta,\nu\ge0$ are inverse relaxation times and may be stiff. The total-energy equation is redundant for
+The rate parameters $\mu,\theta,\nu\ge0$ set the speed of the three processes and may be stiff. The total-energy equation is redundant for
 smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks (the ``+1'' equation
 of \cite{SPB2009}). The interfacial density $\rho_I$ and energy $e_I$ cancel in every closure used here and need not be
 specified. Each phase is closed by an equation of state $p_k=p_k(\rho_k,e_k)$; we consider the Noble--Abel
@@ -91,7 +91,8 @@ scheme is the internal energy of phase $k$ in a cell, where it occupies the volu
 \end{equation}
 which is affine in $(\alpha_k,m_k)$ at fixed $p$, affine in $p$ at fixed $(\alpha_k,m_k)$, and explicitly invertible for $\alpha_k$. The
 admissible set of a phase, $\{\alpha>0,\ m>0,\ \alpha-mb>0,\ \varepsilon-mq-(\alpha-mb)\pi>0\}$, is a convex cone. The saturation
-temperature $T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$.
+temperature $T_{\rm sat}(p)$ solves $g_1(p,T)=g_2(p,T)$ on the branch with $v_2>v_1$; this branch ends at a pressure $p_c$,
+above which no two-phase equilibrium exists.
 
 \subsection{Mie--Gr\"uneisen equations of state}
 \label{sec:mg}
@@ -112,7 +113,7 @@ with constant $\Gamma$, whose reference curve is an isentrope, $\varepsilon_r'=p
 \label{eq:mg_ref}
 \end{equation}
 In phase-volume form $\varepsilon_k=m_k\varepsilon_r(m_k/\alpha_k)+\alpha_k\big(p-p_r(m_k/\alpha_k)\big)/\Gamma_k$, which is nonlinear in $\alpha_k$; admissibility
-is $c^2>0$.
+is $c^2>0$. Mie--Gr\"uneisen phases are used with instantaneous mechanical relaxation only.
 
 \subsection{Split form of the model}
 \label{sec:split}

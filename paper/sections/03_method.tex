@@ -33,17 +33,17 @@ with the Rusanov flux \cite{Rusanov1961}
 F^e_{i+1/2,j}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_{i+1/2,j}\big(X^R-X^L\big),\qquad a_{i+1/2,j}=\max\big(|u^L|,|u^R|\big),
 \label{eq:rusanov}
 \end{equation}
-or $a$ equal to its maximum over the domain. The dissipation uses only the eigenvalue $u$ of the advective
+or $a$ equal to the maximum of $|u^L|$, $|u^R|$ over all faces of the same direction. The dissipation uses only the eigenvalue $u$ of the advective
 sub-system, so that it is proportional to the flow velocity. The face values $X^{L,R}$ are MUSCL reconstructions
 \cite{vanLeer1979} with minmod. The volume-transported quantities $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share
 one limiter,
 \begin{equation}
-X^{L,R}=X_i\pm\tfrac12\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad
+X^L_{i+1/2}=X_i+\tfrac12\sigma_i,\quad X^R_{i+1/2}=X_{i+1}-\tfrac12\sigma_{i+1},\qquad \sigma_i=\phi_i\,\tfrac12(X_{i+1}-X_{i-1}),\qquad
 \phi_i=\min_{X\in\mathcal X_V}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1],
 \label{eq:shared_limiter}
 \end{equation}
-so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ at uniform pressure, hold on the
-faces; quantities that are constant on the stencil to round-off are excluded from the minimum. The velocity is
+so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+\big(q_k-b_kc_k(p)\big)m_k$, $c_k(p)=(p+\gamma_k\pi_k)/(\gamma_k-1)$, at
+uniform pressure, hold on the faces; quantities that are constant on the stencil to round-off are excluded from the minimum. The velocity is
 reconstructed component-wise with its own minmod slope, the face momentum and energy are assembled from the face
 values, and the face value of $\alpha_2$ is $1-\alpha_1^{\rm face}$. Both the central part and the dissipation of
 \eqref{eq:rusanov} use the reconstructed values.
@@ -53,7 +53,8 @@ The time step is given by the CFL condition of the advective sub-system,
 \Delta t=C\left(\frac{\max_\Omega|u|}{\Delta x}+\frac{\max_\Omega|v|}{\Delta y}\right)^{-1},
 \label{eq:cfl}
 \end{equation}
-which depends on the flow velocity only. A proof of stability under \eqref{eq:cfl} is not available, as for the
+which depends on the flow velocity only; $C=0.2$ unless stated otherwise, and the first steps are limited by the
+start-up rule of Sec.~\ref{sec:time}. A proof of stability under \eqref{eq:cfl} is not available, as for the
 other semi-implicit schemes of this class; all computations of Sec.~\ref{sec:results} are advanced with it.
 
 \subsection{Pressure--relaxation sub-system}
@@ -70,12 +71,13 @@ strain $-\alpha_k\partial_xu$, treated implicitly together with the pressure wor
 \begin{equation}
 \begin{aligned}
 X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
-(\rho u)^{n+1}&=(\rho u)^*-\Delta t\,\partial_x\bar p^{\,n+1}-\Delta t\,\partial_x\big(u\,\hat M\,(u^{n+1}-u^n)\big),\\
-E^{n+1}&=E^*-\Delta t\,\partial_x\Big(\textstyle\sum_k\varepsilon^{\rm face}_k(u^{n+1}-u^n)+\tfrac12u^2\hat M(u^{n+1}-u^n)+\bar p\,u\Big)^{n+1},
+(\rho u)^{n+1}&=(\rho u)^*-\Delta t\,\partial_x\bar p^{\,n+1}-\Delta t\,\partial_x\big(u^{n+1}\hat M\big),\\
+E^{n+1}&=E^*-\Delta t\,\partial_x\Big(\textstyle\sum_k\varepsilon^{\rm face}_k(u^{n+1}-u^n)+\tfrac12(u^{n+1})^2\hat M+\bar p^{\,n+1}u^{n+1}\Big),
 \end{aligned}
 \label{eq:semidiscrete}
 \end{equation}
-where $\hat M$ is the incremental mass flux. The phase states at $t^{n+1}$ follow from the transported states, the volume
+where $\hat M=\sum_km^{\rm face}_k(u^{n+1}-u^n)$ is the incremental mass flux and the face values are taken from the explicit
+state. The phase states at $t^{n+1}$ follow from the transported states, the volume
 strain $s=\Delta t\,\partial_xu^{n+1}=1-\sum_k\alpha^{\rm tr}_k$ and the conservative mixture internal energy
 $(\rho e)^C=E^{n+1}-\tfrac12(\rho u)^{n+1\,2}/\rho^{n+1}$ through a local closure (Sec.~\ref{sec:closure}). The momentum and energy updates depend on $\bar p^{\,n+1}$, and the closure returns $\bar p^{\,n+1}$ as a function of
 $s$ and $(\rho e)^C$, so the implicit step reduces to one equation per cell for the pressure,
@@ -117,15 +119,17 @@ e_k-e_{k0}+\tfrac12(p_0+p_1)(v_k-v_{k0})=0 ,
 \label{eq:II5}
 \end{equation}
 the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. The physical part is the
-Hugoniot--isentrope energy gap of each phase between the pressure extrema $p_{\rm lo}<p_{\rm hi}$ on the compact stencil
-($\pm1$; the five-point cross in 2D) of a compressing cell,
+Hugoniot--isentrope energy gap of each phase between the extrema $p_{\rm lo}<p_{\rm hi}$ of the mixture-equilibrium pressure
+of $X^*$ on the compact stencil ($\pm1$; the five-point cross in 2D) of a compressing cell, i.e.\ a cell where the central
+difference of $u^*$ (and $v^*$) has negative sum,
 \begin{equation}
 Q_k=m_k\,(v^{\rm pre}_k-b_k)\,\frac{(p_{\rm hi}+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\qquad
 \tilde v_H=\frac{(\gamma_k-1)x_{\rm hi}+(\gamma_k+1)x_{\rm lo}}{(\gamma_k+1)x_{\rm hi}+(\gamma_k-1)x_{\rm lo}},\quad
 \tilde v_S=\Big(\frac{x_{\rm lo}}{x_{\rm hi}}\Big)^{1/\gamma_k},
 \label{eq:Qk}
 \end{equation}
-$x=p+\pi_k$, with $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil and $Q_k=0$ in expanding cells. Its
+$x=p+\pi_k$, with $m_k$ of the cell itself, $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil, and $Q_k=0$ in
+other cells; $Q_k$ is computed once per stage on $X^*$ and frozen. Its
 share is consistent with \eqref{eq:II5} for weak shocks: under \eqref{eq:II5} the heat received by phase $k$ on a shock
 profile is its compression work minus its Hugoniot work, $Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$, $\bar p=p_0+\tfrac12\Delta p$; for
 $\Delta p\to0$ each phase is isentropic along the profile to the required order,
@@ -148,8 +152,9 @@ gives $\lambda_k\le E_k/\sum_jE_j$; summing over $k$, both sides equal one, so $
 \delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
 \label{eq:Lambda}
 \end{equation}
-a continuous, piecewise affine function of $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$, whose active piece is
-selected at the trial pressure. For Mie--Gr\"uneisen phases $Q_k$ and $E_k$ follow from the Hugoniot, the isentrope
+a continuous, piecewise affine function of $\delta$; with a common pressure $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$.
+The NASG $p$ closure selects the active piece at every trial pressure of its root solve; the other closures that use
+$\Lambda_k$ (finite $\mu$ and $\theta$, Mie--Gr\"uneisen phases) select it at the current Newton iterate of the cell pressure. For Mie--Gr\"uneisen phases $Q_k$ and $E_k$ follow from the Hugoniot, the isentrope
 $(p-p_r)v^{\Gamma+1}={\rm const}$ and the thermal energy above the cold curve.
 
 \subsubsection{Relaxation closures}
@@ -164,24 +169,33 @@ $\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, 
 \alpha_k(p)=\frac{(\gamma_k-1)\big[A_k+B_kp\big]+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\quad
 A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks .
 \]
-$\Phi(p)=\sum_k\alpha_k(p)-1$ is decreasing for admissible phases and changes sign on $(\max_k(-\pi_k),\infty)$, so the root
-is unique. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the outer
+$\Phi(p)=\sum_k\alpha_k(p)-1$ tends to $+\infty$ as $p\downarrow\max_k(-\pi_k)$ and is negative for $p\to\infty$; it is decreasing, and the root
+unique, when $N_k=A_k-(B_k-m_kb_k)\pi_k>0$ for both phases. In general the root is bracketed on $(\max_k(-\pi_k),\infty)$ and
+found by a safeguarded Newton iteration, and admissibility is checked at the solution. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the outer
 equation $\Phi(p)=0$ is then solved by a bracketed Newton iteration, without a global monotonicity result.
-\item \emph{Finite $\mu$}. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear system for $(p_1,p_2)$, followed by
-$R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$, increasing in $R$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
+\item \emph{Finite $\mu$}. The impedances in $p_I$ are frozen on $X^*$. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear
+system for $(p_1,p_2)$, with $\delta=D_0+s\sum_k\omega_kp_k$; the scalar equation $R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$ is increasing in $R$
+and its root lies between $0$ and $\tau\mu(p_1-p_2)|_{R=0}$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
 \item \emph{$pT$ closure} ($\mu=\theta=\infty$). $T(p)$ follows explicitly from $\sum_km_ke_k(p,T)=(\rho e)^C$, and
 $\Phi(p)=\sum_km_kv_k(p,T(p))-1$.
-\item \emph{Finite $\theta$}. The exchanged heat is, in closed form,
-$\Delta Q(p)=\tau\theta\big(T^0_2(p)-T^0_1(p)\big)/\big(1+\tau\theta(C_{p1}^{-1}+C_{p2}^{-1})\big)$, $C_{pk}=\gamma_kc_{vk}m_k$.
+\item \emph{Finite $\theta$}. With $\alpha^0_k(p)$, $T^0_k(p)$ the volumes and temperatures of the $p$ closure at $p$, the heat
+$\Delta Q$ added to phase 1 changes the volumes by $\alpha_k=\alpha^0_k+\chi_k(\gamma_k-1)\Delta Q/\big(\gamma_k(p+\pi_k)\big)$ and the temperatures by
+$\chi_k\Delta Q/C_{pk}$, $C_{pk}=\gamma_kc_{vk}m_k$, so that
+$\Delta Q(p)=\tau\theta\big(T^0_2(p)-T^0_1(p)\big)/\big(1+\tau\theta(C_{p1}^{-1}+C_{p2}^{-1})\big)$ in closed form, and $\Phi(p)=\sum_k\alpha_k(p)-1$.
 \item \emph{Finite $\nu$} ($\mu=\theta=\infty$). For given $p$ the vapour fraction solves
 $\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0$, increasing in $Y$ and clamped to its admissible interval;
-then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$.
-\item \emph{$pTg$ closure} ($\mu=\theta=\nu=\infty$). $T=T_{\rm sat}(p)$, $Y$ from the energy, $\Phi(p)=\rho\sum_kY_kv_k-1$.
+then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. A state-dependent rate (Sec.~\ref{sec:res_bartak}) is evaluated in each cell from its
+$pT$-equilibrium state at the beginning of the step and frozen over the stages.
+\item \emph{$pTg$ closure} ($\mu=\theta=\nu=\infty$). $T=T_{\rm sat}(p)$, $Y$ from the energy, $\Phi(p)=\rho\sum_kY_kv_k-1$; $Y$ is clamped to
+$[Y_{\min},1-Y_{\min}]$, $Y_{\min}=10^{-10}$, with $T$ then from the energy, and for $p\ge p_c$ the cell is single-phase.
 \end{itemize}
-The interfacial quantities $\rho_I$, $e_I$ do not appear. Thermal and chemical relaxation are active in interface cells
-($\epsilon_I\le\alpha_1\le1-\epsilon_I$), mass transfer only for $T>T_{\rm sat}(p)$. Activation is decided once per time step on
-$U^n$, which is projected onto the equilibrium manifold of the activated closure (the same closure with $s=0$); the
-closure type is frozen over the stages.
+The interfacial quantities $\rho_I$, $e_I$ do not appear. Thermal and chemical relaxation are active in interface cells,
+$\epsilon_I\le\alpha_1\le1-\epsilon_I$ with $\epsilon_I=10^{-4}$. Mass transfer is activated where the temperature of the $pT$-equilibrium
+state exceeds $T_{\rm sat}(p)$, or, when thermal and chemical relaxation act together, where a phase temperature of the
+mechanical-equilibrium state exceeds $T_{\rm sat}(p)$ (the levels of Sec.~\ref{sec:results}). Activation is decided once per
+time step on $U^n$; for the instantaneous $pT$ and $pTg$ closures $U^n$ is projected onto their equilibrium manifold (the
+same closure with $s=0$), and a cell whose projection has no admissible solution uses the mechanical closure for that
+step. The closure type is frozen over the stages.
 
 \subsubsection{Solution of the pressure system}
 \label{sec:pressure_system}
@@ -193,15 +207,19 @@ G_{i,j}(P)\equiv\bar p^{\rm cl}_{i,j}\big(s_{i,j},X^{\rm tr}_{i,j},(\rho e)^C_{i
 \end{equation}
 for the cell pressures $P_{i,j}$. Its residual in cell $(i,j)$ depends only on the pressures of the cell and its four
 neighbours, and the nonlinearity, which carries the equations of state and the relaxation, is local to the cell, as in
-the mildly nonlinear systems of \cite{DumbserCasulli2016,CasulliZanolli2012}. The Jacobian is a three-point
-(five-point in 2D) diagonally dominant M-matrix. The system is solved by Newton's method with a finite-difference
-Jacobian and an Armijo line search that also requires every local closure to be admissible. The unknown is the
-pressure perturbation $P-P_{\rm ref}$; finite-difference steps and the step criterion are scaled by $\sigma_{i,j}=N_{i,j}/D_{i,j}$,
-with $N_{i,j}=|P_{i,j}|+K_{i,j}+P_{E,i,j}$ the residual scale ($K$ the Wood bulk modulus) and $D_{i,j}\approx1+2d\nu^2$ the scale
-of $\partial G_{i,j}/\partial P_{i,j}$ ($d$ the number of space dimensions, $\nu$ the acoustic Courant number). The linear systems
-are solved by the Thomas algorithm in 1D and by BiCGStab with a Jacobi plus constant-coarse-space preconditioner in
-2D, which makes the iteration independent of the Mach number. The iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$
-or the residual reaches the round-off floor of the closure.
+the mildly nonlinear systems of \cite{DumbserCasulli2016,CasulliZanolli2012}. The Jacobian is a three-point (five-point in 2D) matrix with negative diagonal and non-negative off-diagonal entries.
+The system is solved by Newton's method with a finite-difference Jacobian and a backtracking line search that also
+requires every local closure to be admissible. The unknown is the pressure perturbation $P-P_{\rm ref}$, with $P_{\rm ref}$ the
+minimum of the initial mixture pressure. The residual of cell $(i,j)$ is scaled by $N_{i,j}=|P_{i,j}|+K_{i,j}+P_{E,i,j}+1$, where
+$K$ is the Wood bulk modulus $\rho c_p^2$ of $X^*$ and $P_{E}=\sum_k\big(|\varepsilon^*_k|+|m^*_kq_k|\big)/\sum_k\partial\varepsilon_k/\partial p|_{\alpha_k,m_k}$ the
+pressure scale of the energy round-off; the natural scale of $P$ is $\sigma_{i,j}=N_{i,j}/D_{i,j}$ with
+$D_{i,j}=1+(K_{i,j}+P_{E,i,j})\sum_f(\tau/h_f)\kappa_f$, the scale of $\partial G_{i,j}/\partial P_{i,j}$ ($\kappa_f$ the pressure coefficient of $u_f$, Sec.~\ref{sec:fully}),
+and the finite-difference increments are $10^{-7}\sigma$. The linear systems are solved by the Thomas algorithm for
+non-periodic one-dimensional problems and otherwise by BiCGStab with a Jacobi plus constant-coarse-space
+preconditioner (relative tolerance $10^{-13}$), which makes the iteration independent of the Mach number. The
+iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step satisfies $\max|\delta P_{i,j}|/(|P_{i,j}-P_{\rm ref}|+\sigma_{i,j})<10^{-13}$;
+if the line search cannot reduce the residual, the solution is accepted when every $|G_{i,j}|$ lies within $10^{-13}N_{i,j}$ plus the
+round-off floor of the closure, at most 60 iterations being allowed.
 
 \subsection{Face velocity, face pressure and acoustic dissipation}
 \label{sec:dissipation}
@@ -234,23 +252,27 @@ at low wave numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c
 Requiring that each step carries at least the upwind viscosity $\tfrac12c\Delta x$ on resolved acoustic waves, and no
 more, gives
 \begin{equation}
-\varphi_f=\Big(1-\frac{\tau\min(c_{i,j},c_{i+1,j})}{\Delta x}\Big)^+ :
+\varphi_f=\Big(1-\frac{\tau\min(c_{f,i,j},c_{f,i+1,j})}{\Delta x}\Big)^+ :
 \label{eq:weight}
 \end{equation}
-for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, for $c\tau\ge\Delta x$ the complement vanishes. Since
-$\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, the dissipation is never smaller than that of
-the relaxed waves.
+for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, for $c\tau\ge\Delta x$ the complement vanishes. The frozen sound speed is used since
+$\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, so that the dissipation is never smaller than that of
+the relaxed waves. Where $X^*$ is not admissible, $c_f=\infty$ and the face carries no acoustic terms.
 
 \paragraph{Second-order factors}
 The factors $\psi\in[0,1]$ evaluate the complement on the reconstructed face states, $\psi D=X^R-X^L$ for a face jump $D$.
 The pressure is a function of the volume-transported quantities and the velocity, whose reconstruction is scaled by
-the shared factor $\phi_s=\min(\phi_{i,j},\phi_{i+1,j})$; with the minmod slope of $P$ this gives
+$\phi_s=\min(\hat\phi_{i,j},\hat\phi_{i+1,j})$, with $\hat\phi$ the minimum of the shared factor \eqref{eq:shared_limiter} and of the smoothness ratios
+(minmod over central slope) of the velocity components; with the minmod slope of $P$ this gives
 \begin{equation}
 \psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad \psi^u_f=\psi^{\rm mm}_f[u],\qquad
 \psi^{\rm mm}_f[X]=1-\frac{\sigma^{\rm mm}_{i,j}[X]+\sigma^{\rm mm}_{i+1,j}[X]}{2D},
 \label{eq:psi}
 \end{equation}
-the velocity-jump term acting on the separately reconstructed velocity. Both terms are first order at a local
+the velocity-jump term acting on the separately reconstructed velocity. The slopes of $P$ are those of the pressure field
+of the previous Newton initial guess (the pressure of the previous stage), and those of $u$ are taken on $u^*$, so that
+the factors are frozen during the solution of the stage; with unlimited central slopes $\sigma$ are the central slopes,
+clipped to $\psi\in[0,1]$. Both terms are first order at a local
 extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution is
 smooth (the LED criterion of Jameson \cite{Jameson1995}).
 
@@ -263,6 +285,13 @@ D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+
 \end{equation}
 so that the term acts as a bulk viscosity on the divergence and leaves divergence-free motion untouched; for
 $y$-independent data it reduces to the one-dimensional jump.
+
+\paragraph{Boundaries}
+Ghost cells are filled by copying (transmissive), reflecting (walls) or wrapping (periodic) the interior cells, and the
+pressure of a ghost cell equals that of the adjacent interior cell. On a wall face the face velocity is the wall velocity
+($u_f=0$ for a fixed wall, with no incremental flux; the piston of Sec.~\ref{sec:res_bubble} moves the wall face). At a
+prescribed-pressure boundary the ghost cells keep the volume fractions, partial densities and velocity of the adjacent
+cell with both phase pressures equal to the prescribed value, which enters the pressure system as a given value.
 
 \subsection{Positivity}
 \label{sec:positivity}

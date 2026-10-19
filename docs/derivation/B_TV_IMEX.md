@@ -43,7 +43,7 @@ $u^e$ 是显式级态的速度。
 | $\alpha_k$ | $\partial_x(\alpha_ku^e)$ | $\partial_x(\alpha^{\rm face}_k\Delta u)$，体积应变 $-\alpha_k\partial_xu$，松弛 |
 | $m_k$ | $\partial_x(m_ku^e)$ | $\partial_x(m^{\rm face}_k\Delta u)$，传质 |
 | $\varepsilon_k$ | $\partial_x(\varepsilon_ku^e)$ | $\partial_x(\hat\varepsilon_k\Delta u)$，压力功 $\alpha_kp_k\partial_xu$，松弛 |
-| $\rho u$ | $\partial_x(\rho uu^e)$ | $\partial_x\bar p$，$\partial_x(u\,\hat M\Delta u)$ |
+| $\rho u$ | $\partial_x(\rho uu^e)$ | $\partial_x\bar p$，$\partial_x(u_f\hat M)$，$\hat M=\sum_km^{\rm face}_k\Delta u$（增量质量通量，已含 $\Delta u$） |
 | $E$ | $\partial_x(Eu^e)$ | $\partial_x(\bar pu)$，$\partial_x(\hat E\Delta u)$ |
 
 - 显式子系统的特征值全是 $u$。$\alpha,m,\varepsilon$ 是线性输运；$(\rho,\rho u)$ 是无压气体，特征值是二重的 $u$。所以 Rusanov 的耗散速度取物质速度就够了，与声速无关。
