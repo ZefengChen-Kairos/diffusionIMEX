@@ -59,6 +59,20 @@ other semi-implicit schemes of this class; all computations of Sec.~\ref{sec:res
 
 \subsection{Pressure--relaxation sub-system}
 \label{sec:implicit}
+Having evolved the advective sub-system, we now consider the pressure--relaxation sub-system, in which all remaining
+contributions are treated implicitly. They are solved together, within a single step, in the following sequence,
+repeated at every iteration of the pressure solver:
+\begin{enumerate}
+\item for given cell pressures, the face velocities give the incremental fluxes, the transported phase states, the
+volume strain and the conservative updates of momentum and total energy;
+\item a local closure in every cell, containing the pressure work and the three relaxation processes, returns the cell
+pressure and the phase states consistent with them;
+\item the pressure system, which requires the closure pressure to equal the cell pressure, is solved by Newton's method.
+\end{enumerate}
+This section derives the implicit step in semi-discrete form; the fully discrete counterpart is given in
+Sec.~\ref{sec:fully}.
+
+\paragraph{Semi-discrete implicit step}
 The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly. Following the splitting of
 Sec.~\ref{sec:split}, the flux of every transported quantity at the new time level is written as
 $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is the explicit flux of Sec.~\ref{sec:advective}, the second, the incremental
@@ -86,6 +100,31 @@ G(\bar p)\equiv\bar p^{\rm cl}\big(s(\bar p),X^{\rm tr}(\bar p),(\rho e)^C(\bar 
 \label{eq:global_semi}
 \end{equation}
 a nonlinear and relaxing generalisation of the pressure wave equation $p^{n+1}=p^*-\Delta t\,\rho c^2\partial_xu^{n+1}$.
+
+\paragraph{Derivation of the pressure wave equation}
+The structure of \eqref{eq:global_semi} is seen by linearising it. To first order in $\Delta t$ the closure gives the cell
+pressure as the pressure $P^*$ of the explicit state minus the response of the mixture to the volume strain,
+\begin{equation}
+\bar p^{\,n+1}=P^*-K^W s,\qquad s=\Delta t\,\partial_xu^{n+1},\qquad K^W=\rho c_p^2 ,
+\label{eq:p_linear}
+\end{equation}
+with the Wood bulk modulus of the mixture at mechanical equilibrium ($K^W$ is replaced by the stiffness of the activated
+closure). The momentum update of \eqref{eq:semidiscrete}, without the incremental term, provides the missing link,
+\begin{equation}
+u^{n+1}=u^*-\frac{\Delta t}{\rho}\,\partial_x\bar p^{\,n+1},
+\label{eq:u_update}
+\end{equation}
+and inserting it into \eqref{eq:p_linear} eliminates the velocity, giving an elliptic equation for the pressure,
+\begin{equation}
+\bar p^{\,n+1}-\Delta t^2K^W\,\partial_x\Big(\frac1\rho\,\partial_x\bar p^{\,n+1}\Big)=P^*-\Delta t\,K^W\,\partial_xu^* .
+\label{eq:wave}
+\end{equation}
+This is the pressure equation of semi-implicit schemes for single-phase flows \cite{DumbserCasulli2016,BoscheriPareschi2021} and of
+the seven-equation scheme of \cite{BattistiBoscheri2025}, with the stiffness of the two-phase mixture. The scheme does not
+use the linearisation: the closure evaluates the pressure response exactly for the equations of state and the
+relaxation rates, and also contains the incremental fluxes and the distribution of the energy defect, so that the
+discrete system \eqref{eq:global_semi} keeps the structure of \eqref{eq:wave}, a nonlinearity local to each cell together
+with a linear coupling through the face velocities, without its linearisation errors.
 
 \begin{remark}[Mixture-energy consistency]
 The closure distributes the difference between the non-conservative and the conservative mixture internal
