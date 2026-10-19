@@ -1,0 +1,184 @@
+% =====================================================================
+% Section 3. Numerical method
+% Source: docs/derivation/B_TV_IMEX.md (B0-B11, theorems in B9.5),
+%         docs/derivation/E_code_path.md (algorithm, settings)
+% =====================================================================
+\section{Numerical method}
+\label{sec:method}
+
+% One paragraph: overview. Transport--velocity (TV) splitting; explicit
+% material-speed Rusanov for transport; one implicit pressure equation that
+% contains the acoustic part and all relaxation through a single local closure;
+% the rates mu, theta, nu are parameters of that closure.
+
+\subsection{Design requirements}
+\label{sec:requirements}
+% TODO: table R1-R7; every discrete choice below is tied to one of them.
+%  R1 conservation of m_k, rho u, E;
+%  R2 uniform (p,u) preserved for arbitrary alpha_k, rho_k (well-balanced contacts);
+%  R3 alpha_k, m_k, eps_k transported by the same face operator (temperature consistency);
+%  R4 the same Delta V_k in volume change and pressure work (discrete Gibbs relation);
+%  R5 the implicit pressure equation sees the relaxed stiffness;
+%  R6 mixture internal energy consistent with the conserved total energy;
+%  R7 one closure, rates as parameters, both limits exact.
+
+\subsection{Transport--velocity splitting}
+\label{sec:tv_split}
+% TODO: Toro--Vazquez-Cendon splitting; incremental flux form
+%   X u^{n+1} = X u^e (explicit) + X (u^{n+1} - u^e) (implicit increment);
+% table: explicit / implicit part of each equation;
+% eigenvalues of the explicit subsystem are all u -> dissipation speed = material speed;
+% mass also carries the increment (temperature consistency, R3).
+
+\subsection{Volume-transport form and path-conservative Rusanov}
+\label{sec:volume_transport}
+% TODO: linear path, \bar u_f = (u_L+u_R)/2; identity
+%   \bar u \Delta\alpha = \Delta(\alpha u) - \bar\alpha \Delta u;
+% conservative volume flux + volume strain -\bar\alpha_f \Delta u_f;
+% the strain is moved to the implicit closure and paired with the pressure work (R4).
+
+\subsection{Explicit operator}
+\label{sec:explicit}
+% TODO: MUSCL reconstruction (shared limiter for volume-transported quantities,
+% velocity separately); Rusanov flux with material speed
+\begin{equation}
+F^e_{i+1/2}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_f\big(X^R-X^L\big),\qquad a_f\ge\max\big(|u^L_f|,|u^R_f|\big).
+\label{eq:rusanov}
+\end{equation}
+% local or global a_f (per test); positivity:
+\begin{theorem}[Positivity of the explicit operator]\label{thm:pos_explicit}
+% TODO statement (B9.5 Thm 4): a >= |u^{L,R}| on every face and a r <= 1/2.
+\end{theorem}
+% Remark: any Sweby-TVD limiter works (B9.5 Note 15); minmod is a choice.
+
+\subsection{Implicit operator: face velocity, face pressure and incremental fluxes}
+\label{sec:implicit_faces}
+
+\subsubsection{Face velocity and face pressure}
+% TODO: momentum-consistent pressure acceleration (half-cell momentum balance),
+% density-weighted face pressure; acoustic complement:
+\begin{equation}
+\begin{aligned}
+u_f&=\bar u^*_f-\frac{\tau(P_{i+1}-P_i)}{\bar\rho_f\Delta x}-\varphi_f\,\psi^P_f\,\frac{P_{i+1}-P_i}{Z_i+Z_{i+1}},\\
+p_f&=\frac{\rho^*_{i+1}P_i+\rho^*_iP_{i+1}}{\rho^*_i+\rho^*_{i+1}}-\varphi_f\,\psi^u_f\,\frac{Z_iZ_{i+1}}{Z_i+Z_{i+1}}\,D^*_f,
+\end{aligned}\qquad
+\varphi_f=\Big(1-\frac{\tau\min(c_i,c_{i+1})}{\Delta x}\Big)^+ .
+\label{eq:faces}
+\end{equation}
+\begin{theorem}[Weight of the acoustic complement]\label{thm:weight}
+% TODO (B9.5 Thm 6): per-stage viscosity 1/2 c dx (nu + phi); unique phi giving
+% max(1/2 c dx, 1/2 c^2 tau) is (1 - nu)^+.
+\end{theorem}
+\begin{theorem}[Second-order factors and the LED criterion]\label{thm:led}
+% TODO (B9.5 Thm 7): psi^P coupled with the shared limiter, psi^u from u alone.
+\end{theorem}
+\begin{theorem}[Frozen sound speed]\label{thm:frozen_c}
+% TODO (B9.5 Thm 10): rho c_f >= rho c_eq for every relaxed closure (subcharacteristic).
+\end{theorem}
+% Low-Mach behaviour of the complement (phi = 0 when c tau >= dx).
+
+\subsubsection{Incremental fluxes and transported states}
+% TODO: increment I_f = X^L_f w^L + X^R_f w^R with the reconstructed face values
+% of the explicit operator as donors (upwind by u_f);
+% alpha_2 face value = 1 - alpha_1 face value; sum of face volumes = 1.
+\begin{theorem}[Positivity of the implicit increment]\label{thm:pos_increment}
+% TODO (B9.5 Thm 5): r (a_f + |u_f|) <= 1/2 -> every phase is a non-negative
+% combination of admissible face states, independent of the content ratio.
+\end{theorem}
+
+\subsection{Unified implicit closure}
+\label{sec:closure}
+
+\subsubsection{Discrete Gibbs relation}
+% TODO: backward Euler of the implicit part; volume strain shared with frozen
+% fractions omega_k; relaxation terms with chi_k = +-1:
+\begin{equation}
+\begin{aligned}
+\alpha_k&=\alpha^{\rm tr}_k+\omega_ks+\chi_kR,\qquad R=\tau\big(\mu(p_1-p_2)+\mathcal M/\rho_I\big),\\
+m_k&=m^{\rm tr}_k+\chi_k\tau\mathcal M,\\
+\varepsilon^{\rm nc}_k&=\varepsilon^{\rm tr}_k-\omega_kp_k\,s-\chi_k\,\tau p_I\mu(p_1-p_2)+\chi_k\tau\big(\mathcal Q+e_I\mathcal M\big).
+\end{aligned}
+\label{eq:gibbs}
+\end{equation}
+
+\subsubsection{Mixture-energy consistency and the energy-defect partition}
+% TODO: defect delta = (rho e)^C - sum eps^tr + s sum omega_k p_k;
+% eps_k = eps^nc_k + Lambda_k(delta), sum Lambda_k = delta;
+% (a) the partition fixes the limit shock relations;
+% (b) physical dissipation: share of the phase Hugoniot--isentrope energy gap Q_k (II.5);
+% (c) local shock strength from the compact +-1 stencil, compression criterion;
+% (d) discretisation error: split by the admissible energy E_k;
+% (e) continuity in delta, piecewise affine Lambda_k.
+\begin{theorem}[Weak-shock share]\label{thm:weak_share}
+% TODO (B9.5 Thm 8): lambda_k proportional to alpha_k G_k / K_k^2.
+\end{theorem}
+\begin{theorem}[No local share is (II.5)-consistent for all shock strengths]\label{thm:nonlocal}
+% TODO (B9.5 Thm 9): uniqueness from Thm 8 + shock-profile counterexample.
+\end{theorem}
+\begin{theorem}[Error split]\label{thm:error_split}
+% TODO (B9.5 Thm 12): lambda^E_k = E_k / sum E is the unique delta-linear split
+% keeping both phases admissible for all |delta| < sum E.
+\end{theorem}
+\begin{proposition}[Variational characterisation]\label{prop:variational}
+% TODO (B9.5 Prop 13): minimiser of sum Lambda_k^2 / E_k.
+\end{proposition}
+\begin{theorem}[Compression criterion]\label{thm:compression}
+% TODO (B9.5 Thm 14): G_k > 0 -> admissible shocks are compressive.
+\end{theorem}
+
+\subsubsection{Closures for each set of rates}
+% TODO: one subsection-level paragraph each, residual and its monotonicity:
+%  mu = inf, theta = nu = 0       : p closure (algebraic, NASG; 1D root for MG);
+%  finite mu                      : two-pressure closure;
+%  mu = theta = inf, nu = 0       : pT closure;
+%  finite theta                   : implicit heat exchange Delta Q(p);
+%  mu = theta = inf, finite nu    : finite-rate mass transfer;
+%  mu = theta = nu = inf          : pTg closure on the saturation curve;
+% activation criteria (interface cells, T > T_sat) and projection of U^n.
+
+\subsection{Asymptotic limits}
+\label{sec:limits}
+\begin{theorem}[Infinite rates: asymptotic preservation]\label{thm:ap}
+% TODO (B7 Thm 1): O(1/(tau mu)), O(1/(tau theta)), O(1/(tau nu)); limit scheme
+% is a consistent discretisation of the equilibrium model (Kapila volume equation).
+\end{theorem}
+\begin{theorem}[Zero rates: frozen limit]\label{thm:frozen}
+% TODO (B7 Thm 2).
+\end{theorem}
+\begin{theorem}[Low-Mach limit]\label{thm:lowmach}
+% TODO (B7 Thm 3).
+\end{theorem}
+
+\subsection{Global nonlinear system and its solution}
+\label{sec:solver}
+% TODO: G_i(P) = \bar p^{cl}_i(P) - P_i with a 3-point (5-point) stencil;
+% monotonicity -> diagonally dominant M-matrix;
+% Newton with finite-difference Jacobian scaled by the natural pressure scale
+% (residual scale / Jacobian scale); pressure-perturbation unknown P - P_ref;
+% Thomas (1D) / BiCGStab with a two-level preconditioner (Jacobi + constant coarse space);
+% convergence criterion and the round-off floor:
+\begin{proposition}[Round-off floor of the closure]\label{prop:floor}
+% TODO (B9.5 Prop 11).
+\end{proposition}
+
+\subsection{Time integration}
+\label{sec:time}
+% TODO: semi-implicit IMEX Runge--Kutta (Boscarino--Filbet--Russo);
+% LSDIRK2(2,2,2), gamma = 1 - 1/sqrt(2); explicit stage states;
+% time step from the material speed only (material CFL);
+% start-up ramp (first step at acoustic CFL 0.4, growth <= 1.2, first order while ramping);
+% a-posteriori fallback (MOOD): an inadmissible stage -> same step at first order, then halve.
+
+\subsection{Multi-dimensional extension}
+\label{sec:multid}
+% TODO: dimension-by-dimension faces; vertex-divergence form of D^*_f
+% (reduces bitwise to 1D for y-uniform data); positivity bounds per direction (1/4);
+% cross stencil for the shock budget.
+
+\subsection{Summary of properties}
+\label{sec:properties}
+% TODO: short list with pointers: well-balanced contacts (R2), temperature
+% consistency (R3), conservation (R1), mixture-energy consistency (R6),
+% positivity (Thms 1-2 of this section), limits (Sec. 3.8).
+% Remaining choices that are not derived: material CFL, local/global Rusanov
+% speed, minmod, start-up ramp and MOOD constants, activation threshold eps_I.

@@ -1,0 +1,88 @@
+% =====================================================================
+% Section 2. Governing equations
+% Source: docs/derivation/A_model_EOS_explicit.md (A1, A2, A2.1), B5.2(a)
+% =====================================================================
+\section{Governing equations}
+\label{sec:governing}
+
+% One paragraph: the six-equation single-velocity model of Saurel, Petitpas
+% and Berry (SPB 2009) with the heat- and mass-transfer terms of Pelanti and
+% Shyue (2014) and Pelanti (2022); three relaxation rates; why a redundant
+% total-energy equation is carried.
+
+\subsection{Six-equation model with mechanical, thermal and chemical relaxation}
+\label{sec:model}
+% TODO: notation (alpha_k, m_k = alpha_k rho_k, eps_k = alpha_k rho_k e_k,
+% rho, u, E, mixture pressure \bar p = sum alpha_k p_k); 1D form, multi-D in Sec. 3.
+\begin{equation}
+\begin{aligned}
+&\partial_t\alpha_1+u\,\partial_x\alpha_1=\mathcal P+\mathcal M/\rho_I,\\
+&\partial_t m_1+\partial_x(m_1u)=\mathcal M,\qquad \partial_t m_2+\partial_x(m_2u)=-\mathcal M,\\
+&\partial_t(\rho u)+\partial_x(\rho u^2+\bar p)=0,\\
+&\partial_t\varepsilon_1+\partial_x(\varepsilon_1u)+\alpha_1p_1\,\partial_xu=-p_I\mathcal P+\mathcal Q+e_I\mathcal M,\\
+&\partial_t\varepsilon_2+\partial_x(\varepsilon_2u)+\alpha_2p_2\,\partial_xu=+p_I\mathcal P-\mathcal Q-e_I\mathcal M,\\
+&\partial_t E+\partial_x\big((E+\bar p)u\big)=0,
+\end{aligned}
+\label{eq:model}
+\end{equation}
+\begin{equation}
+\mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\qquad
+p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
+\label{eq:sources}
+\end{equation}
+% TODO:
+%  - units and meaning of mu, theta, nu; sign convention of M;
+%  - the total-energy equation is redundant for smooth solutions but is the
+%    conservative one: it fixes the mixture internal energy ("+1" of SPB);
+%  - rho_I, e_I cancel in every closure used here (P-S 2014 Sec. 2.3);
+%  - entropy inequality with the impedance-weighted p_I.
+
+\subsection{Relaxation hierarchy and limit models}
+\label{sec:hierarchy}
+% TODO: mu -> inf: five-equation (Kapila) p-equilibrium model;
+%       + theta -> inf: four-equation pT model;
+%       + nu -> inf: HEM (pTg).
+% Sound speeds and the subcharacteristic ordering
+%   c_{pTg} <= c_{pT} <= c_p (Wood) <= c_f (frozen)   [Flatten-Lund 2011; Pelanti 2022]
+% These limit models provide the exact solutions used in Sec. 5.
+
+\subsection{Equations of state}
+\label{sec:eos}
+
+\subsubsection{Noble--Abel stiffened gas}
+% TODO: parameters (gamma, pi, q, q', c_v, b); p(rho,e), v(p,T), e(p,T), s, g, c^2.
+% Key form used by the scheme: phase internal energy per cell at pressure p,
+\begin{equation}
+\varepsilon_k(\alpha_k,m_k,p)=\frac{(p+\gamma_k\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}+m_kq_k,
+\label{eq:eps_nasg}
+\end{equation}
+% and the mixture pressure (linear in p for fixed alpha_k, m_k):
+\begin{equation}
+p=\frac{\rho e-\sum_km_kq_k-\sum_k\gamma_k\pi_k\frac{\alpha_k-m_kb_k}{\gamma_k-1}}{\sum_k\frac{\alpha_k-m_kb_k}{\gamma_k-1}} .
+\label{eq:pmix_nasg}
+\end{equation}
+
+\subsubsection{Mie--Gr\"uneisen phases}
+% TODO: p = Gamma rho (e - eps_r(rho)) + p_r(rho); Cochran--Chan and JWL;
+% eps_r' = p_r / rho^2 (reference curve is an isentrope); phase-volume form,
+% sound speed, mixture pressure (Pelanti 2022 eq. 28).
+
+\subsubsection{Properties of the equations of state used by the scheme}
+% TODO: the five roles (E1)-(E5) as a short list:
+%  (E1) eps_k affine in (alpha_k, m_k) at fixed p  -> well-balancedness at contacts;
+%  (E2) explicit inversion for alpha_k             -> algebraic discrete Gibbs closure;
+%  (E3) v(p,T), e(p,T) explicit                    -> pT, pTg and finite-rate closures;
+%  (E4) g_1 = g_2 defines T_sat(p)                 -> pTg closure, activation;
+%  (E5) convexity                                  -> monotone local closures, unique roots.
+% Admissible set: p_k + pi_k > 0 (NASG), c_k^2 > 0 (MG); saturation curve and its end point.
+
+\subsection{Shock relations of the model}
+\label{sec:shock_relations}
+% TODO: the phase energy equations are non-conservative; across a shock the
+% conservation laws fix only the mixture Hugoniot e - e_0 + \bar p (v - v_0) = 0.
+% The partition of dissipation between phases is set by the shock structure.
+% Closure adopted: SPB (II.5) -- each phase on its own Hugoniot,
+%   e_k - e_{k,0} + 1/2 (p_0 + p_1)(v_k - v_{k,0}) = 0,
+% which is what the energy-defect partition of Sec. 3.6 reproduces.
+% Lax admissibility and the compression criterion (G_k > 0, Theorem 14) here
+% or in Sec. 3.6.
