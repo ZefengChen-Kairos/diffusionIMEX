@@ -72,7 +72,8 @@ assembled from the face values. The face value of $\alpha_2$ is $1-\alpha_1^{\rm
 \subsection{Implicit subsystem}
 \label{sec:implicit}
 The unknowns are the cell mixture pressures $P_i$. Let $\rho^*_i=\sum_km^*_{k,i}$, $u^*_i=(\rho u)^*_i/\rho^*_i$ and
-$Z_i=\rho^*_ic_{f,i}$ with the frozen sound speed $c_f$ evaluated on $X^*$.
+$Z_i=\rho^*_ic_{f,i}$ with the frozen sound speed $c_f$ evaluated on $X^*$; since $\rho c_f\ge\rho c_{\rm eq}$ for every relaxed
+closure (Fl\aa tten and Lund 2011), the dissipation below is never smaller than that of the relaxed waves.
 
 \subsubsection{Face velocity and face pressure}
 \label{sec:faces}
@@ -174,15 +175,25 @@ Q_k=m_k\,(v^{\rm pre}_k-b_k)\,\frac{(p_{\rm hi}+\gamma_k\pi_k)(\tilde v_H-\tilde
 \label{eq:Qk}
 \end{equation}
 $x=p+\pi_k$, with $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil and $Q_k=0$ in expanding
-cells. For weak shocks its share $Q_k/\sum_jQ_j$ reduces to $\alpha_k\mathcal G_k/K_k^2$, the entropy production of
-each phase under \eqref{eq:II5}. The remainder of $\delta$ is a discretisation error and is distributed in
+cells. Its share $Q_k/\sum_jQ_j$ is consistent with \eqref{eq:II5} for weak shocks. Indeed, under \eqref{eq:II5} the
+heat received by phase $k$ on a shock profile equals its compression work minus its Hugoniot work,
+$Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$ with $\bar p=p_0+\tfrac12\Delta p$. For $\Delta p=p_1-p_0\to0$ each phase is
+isentropic along the profile to the required order, $v_k(p)=v_{k0}\big[1-x/K_k+\mathcal G_kx^2/K_k^2+O(x^3)\big]$,
+$x=p-p_0$, $K_k=\rho_kc_k^2$, $\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$, and integrating term by term gives
+\[
+Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
+\]
+the entropy production of a single-phase shock in phase $k$. The weak-shock share is therefore
+$\alpha_k\mathcal G_k/K_k^2$ (normalised), and $Q_k/\sum_jQ_j$ reduces to it as $p_{\rm hi}\to p_{\rm lo}$. The remainder of $\delta$ is a discretisation error and is distributed in
 proportion to the energy of each phase above its admissibility bound,
 \begin{equation}
 \lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr},
 \label{eq:lambdaE}
 \end{equation}
-the only linear split that keeps both phases admissible for every admissible $\delta$; it changes $p_k+\pi_k$ of
-both phases by the same factor. Altogether
+which changes $p_k+\pi_k$ of both phases by the same factor. It is the only linear split that keeps both phases
+admissible for every admissible $\delta$: with $\Lambda_k=\lambda_k\delta$, $\sum_k\lambda_k=1$, the requirement
+$E_k+\lambda_k\delta>0$ for $\delta\to+\infty$ gives $\lambda_k\ge0$, and for $\delta\to-\sum_jE_j$ gives
+$\lambda_k\le E_k/\sum_jE_j$; summing over $k$, both sides equal one, so $\lambda_k=E_k/\sum_jE_j$. Altogether
 \begin{equation}
 \Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^E_k,&\delta\ge0,\\[4pt]
 \delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
@@ -203,7 +214,9 @@ relation $\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\La
 A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks .
 \]
 $\Phi(p)=\sum_k\alpha_k(p)-1$ is decreasing for admissible phases and changes sign on $(\max_k(-\pi_k),\infty)$, so the
-root is unique. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation.
+root is unique. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the
+outer equation $\Phi(p)=0$ is then solved by a bracketed Newton iteration, without a global monotonicity
+result.
 \item \emph{Finite $\mu$}. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear system for $(p_1,p_2)$, followed by
 $R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$, increasing in $R$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
 \item \emph{$pT$ closure} ($\mu=\theta=\infty$). $T(p)$ follows explicitly from $\sum_km_ke_k(p,T)=(\rho e)^C$ and
@@ -247,8 +260,7 @@ Stage $i$ sets $Q^e=U^n+\Delta t\sum_{j<i}\tilde a_{ij}K_j$, $Q^s=U^n+\Delta t\s
 implicit subsystems with $\tau=a_{ii}\Delta t$ to obtain $U_i$, and $K_i=(U_i-Q^s)/\tau$; $U^{n+1}$ is the last stage. The
 time step is limited by the material speed only, $\Delta t=C\,[\max_i|u_i|/\Delta x+\max_i|v_i|/\Delta y]^{-1}$. The first
 step uses the acoustic Courant number $0.4$ and each step may grow by at most a factor $1.2$; ramped steps
-use one backward-Euler stage. A step that produces an inadmissible state is recomputed with the same
-$\Delta t$ by one backward-Euler stage and, if still inadmissible, with $\Delta t/2$.
+use one backward-Euler stage.
 
 \subsection{Multi-dimensional extension}
 \label{sec:multid}
