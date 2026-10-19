@@ -270,7 +270,7 @@ X^{\rm tr}_i={}&X^L_{i+1/2}\Big[\tfrac12-r\big(\tfrac12(a+u^L)+w^L\big)_{i+1/2}\
 $$
 - **邻格系数非负，不需要新条件。** B3 的 $a\ge\max(|u^L|,|u^R|)$ 给出 $\tfrac12(a+u^L)\ge\bar u^{e+}$、$\tfrac12(a-u^R)\ge-\bar u^{e-}$，所以 $\tfrac12(a+u^L)+w^L\ge(u_f)^+\ge0$，$\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$：增量退回的量不超过显式部分实际送来的量。
 - **本格系数非负**的充分条件 $r\,(a_f+|u_f|)\le\tfrac12$（二维逐方向 $r_x(a+|u_f|)\le\tfrac14$、$r_y(a+|v_f|)\le\tfrac14$）。物质 CFL 0.2 时 $a_{ii}r\,a\approx0.06$；$u_f$ 偏离物质速度很多时这一条可能不成立，那时由 B8 的可容许性检查与 MOOD 处理。
-- 于是每一相的 $(\alpha_k,m_k,\varepsilon_k)$ 是面态的非负组合。共用限制因子（B3）使面值落在相邻格值之间，SG/NASG 的可容许集 $\{\alpha>0,m>0,\alpha-mb>0,\varepsilon-mq-(\alpha-mb)\pi>0\}$ 是线性约束的凸锥，所以**每一相（含微量相）的输运态可容许，与含量比无关**。
+- 于是每一相的 $(\alpha_k,m_k,\varepsilon_k)$ 是面态的非负组合。面态本身要可容许：共用限制因子使每个分量落在相邻格值之间，但可容许泛函 $L^{(1)}=\alpha-mb$、$L^{(2)}=\varepsilon-mq-L^{(1)}\pi$ 的面值是 $L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$，不是格值的凸组合，强压力跳跃与含量跳跃重合时可以为负（诊断：SPB 4.3.2 有 24 个面）。所以 V23 起对 SG/NASG 相再加限制 $\phi_i\le2L_i/|L_{i+1}-L_{i-1}|$（两个泛函、两相），面值不低于 $\tfrac12L_i$，与 minmod 对单个非负单调分量的界相同；全部算例中只有 SPB 4.3.2 因此改变（诊断后 0 个违反）。SG/NASG 的可容许集 $\{\alpha>0,m>0,\alpha-mb>0,\varepsilon-mq-(\alpha-mb)\pi>0\}$ 是线性约束的凸锥，所以**每一相（含微量相）的输运态可容许，与含量比无关**。
 - **旧供体为什么不行。** 按格内含量退回时，本格相 $k$ 的变化里有 $-r\hat X_{k,\rm nb}|w|$，而显式部分送来的是 $X^{\rm face}_{k,\rm nb}$；本格的余量要与 $\hat X_{k,\rm nb}/\hat X_{k,i}$ 成比例，接触处约 $10^8$，任何步长条件都管不住（C. 开发记录 11.7、20.5）。
 - 保持的性质：$\sum_k\alpha^{\rm face}_k=1$，所以 $\sum_kI_f[\alpha_k]=\Delta u_f$，(B4.4) 不变；体积输运量共用限制因子，$m_k=\rho_k\alpha_k$、$\varepsilon_k=\rho_ke_k\alpha_k$ 时面值保持同样比例，温度一致性 B9.2 不变；面值与格内含量差 $O(\Delta x)$，$\Delta u_f=O(\tau)$，精度阶不变。LSDIRK2 第二级 $Q^e\ne Q^s$ 时论证与 B3 一样不成立，由 MOOD 处理。
 
@@ -362,20 +362,21 @@ $$
 
 相 $k$ 得到的热 $=$ 它沿剖面的压缩功与 Hugoniot 功之差。
 - **弱激波。** 相 $k$ 沿剖面近似等熵，$v_k(p)=v_{k0}\big[1-x/K_k+\mathcal G_kx^2/K_k^2+\dots\big]$，$x=p-p_0$，$K_k=\rho_kc_k^2$，$\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$ 是基本导数（SG 为 $(\gamma_k+1)/2$）。代入 (B5.4)，每单位混合体积 $Y_kq_k\rho=\alpha_k\mathcal G_k\Delta p^3/(6K_k^2)$——正是相 $k$ 单相激波的熵产 $T_k\Delta s_k$，与路径无关。所以弱激波下与 (II.5) 相容的局部规则**唯一**：$\lambda_k\propto\alpha_k\mathcal G_k/K_k^2$。按质量 $Y_k$（V10–V15）、SPB 3.4 重初始化的 $\alpha_k/(\gamma_k-1)$、体积变化份额 $\alpha_k/K_k$ 都不满足。
-- **强激波。** $q_k=\int T_k\,\mathrm ds_k$ 依赖剖面，局部规则不可能精确。把剖面 ODE 用常数份额 $\lambda_1=c$ 积分、解出使终态满足 (II.5) 的 $c$（`scratchpad/profile.py`），$c$ 被**终压处的 Hugoniot–等熵能隙**逼近得很好：
-
+- **强激波（V23）。** $q_k=\int T_k\,\mathrm ds_k$ 依赖剖面，所以任何只看终态的闭式“能隙”都不精确。格式在激波经过一格期间按固定的 $Q_k/Q$ 分配，所以要的就是**使剖面终态满足 (II.5) 的那个常数份额** $c=\lambda_1$。它有确定的定义、可以直接算：混合物终态 $v_{\rm end}=\sum_kY_kv_{kH}$ 与份额无关（$v_{kH}$ 为相 $k$ 的 Hugoniot (II.5) 终态），$j^2=(p_1-p_0)/(v_0-v_{\rm end})$，于是在固定区间 $[v_0,v_{\rm end}]$ 上积分剖面方程
 $$
-Q_k=m_k\,(v^{\rm pre}_k-b_k)\,f_k(p_0\to p_1),\qquad
-f_k=\frac{(p_1+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\quad
-\tilde v_H=\frac{(\gamma_k-1)x_1+(\gamma_k+1)x_0}{(\gamma_k+1)x_1+(\gamma_k-1)x_0},\quad
-\tilde v_S=\Big(\frac{x_0}{x_1}\Big)^{1/\gamma_k},\tag{B5.5}
+\frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/b_k-1}{\sum_kY_ka_k/b_k},\qquad \frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-a_1\,\mathrm dp/\mathrm dv}{b_1},\qquad \frac{\mathrm dq}{\mathrm dv}=p-P(v),
 $$
+$a_k=\partial e_k/\partial p|_v$，$b_k=\partial e_k/\partial v|_p+p$，$r_k=(\lambda_k/Y_k)(p-P)$（一般 EOS；NASG $a_k=(v_k-b_k)/(\gamma_k-1)$、$b_k=\gamma_k(p+\pi_k)/(\gamma_k-1)$；MG $a_k=v_k/\Gamma_k$、$b_k=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$），对 $c$ 打靶使 $v_1(v_{\rm end})=v_{1H}$。残量对 $c$ 单调递增，在 $\mathrm{logit}(c)\in[-40,40]$ 上用 Illinois 法求根，积分用自适应 Cash–Karp RK45（相对容差 $10^{-8}$）。同一次积分给出混合耗散 $q=\int(p-P)\,\mathrm dv$（每单位混合质量），于是
+$$
+Q_k=c_k\,\rho\,q,\qquad Q=\sum_kQ_k=\rho\,q ,\tag{B5.5}
+$$
+$\rho=m_1+m_2$ 取本格，$Q$ 也是物理部分的上限（一次激波穿过一格，亏损之和恰为 $\rho q$）。弱激波（$p_1-p_0<10^{-2}\min_kK_k$）打靶的残量是 $O(\Delta p^3)$ 小量、病态，改用定理 8 的解析极限：$c_k=w_k$，$q=\sum_kY_kv_kG_k\Delta p^3/(6K_k^2)$（MG 的 $\mathcal G_k$ 沿等熵线差分）。`shock_share`（`src/spb6_physics.h`）。
 
-$x_i=p_i+\pi_k$；$f_k$ 对 $v-b$ 齐次，$(v^{\rm pre}_k-b_k)f_k$ 是每单位质量的能隙，乘本格的质量 $m_k$ 得每单位本格体积（NASG）。MG 相用 (A2.5) 的 Hugoniot 与等熵线 $(p-p_r)v^{\Gamma+1}=$ 常数，各在 $(0,v_0]$ 上二分（`hug_gap_mg`）。$\lambda^{\rm II.5}_k=Q_k/\sum_jQ_j$，弱极限自动回到 $\alpha_k\mathcal G_k/K_k^2$。
+  V16–V22 用的是终压处 Hugoniot–等熵线的**内能**差 $Q_k=m_k(e_H-e_S)|_{p_1}$。核对（V23）：它在弱激波极限不回到定理 8——热量是 $T\Delta s=\Delta h|_p$（焓差），内能差多乘了 $(\partial e/\partial h)_p=(p+\gamma\pi)/(\gamma(p+\pi))$，液体约 1、气体约 $1/\gamma$，水–空气混合物里水的份额偏大 40%（高精度算得 $8.85\times10^{-9}$ 对 $6.33\times10^{-9}$）。焓差在弱激波严格，但强激波偏差大；在某个温度下取 $\bar T\Delta s$、或“先等压加热再等熵”都差一个量级（剖面上熵大部分在低压段产生：$p$ 升到 10% 时空气的熵增已完成约 90%）。所以改为直接算精确份额。
 
-剖面 ODE（SG，$p_0=10^5$ Pa）给出的第一相份额，$c$ 为精确值：
+剖面 ODE 给出的第一相份额（精确 $c$）与各闭式的比较：剖面 ODE（SG，$p_0=10^5$ Pa）给出的第一相份额，$c$ 为精确值：
 
-| 混合物 | $p_1$ (Pa) | $c$ | $Q_k$ 能隙 (B5.5) | 弱规则（$p_0$ 处） | 质量 $Y_k$ | SPB $\alpha_k/(\gamma_k-1)$ |
+| 混合物 | $p_1$ (Pa) | $c$（V23 所用） | 内能差（V16–V22） | 弱规则（$p_0$ 处） | 质量 $Y_k$ | SPB $\alpha_k/(\gamma_k-1)$ |
 |---|---|---|---|---|---|---|
 | epoxy–spinel | $10^8$ | 0.9983 | 0.9983 | 0.9983 | 0.325 | 0.389 |
 | epoxy–spinel | $10^{10}$ | 0.9933 | 0.9923 | 0.9983 | 0.325 | 0.389 |
@@ -385,9 +386,9 @@ $x_i=p_i+\pi_k$；$f_k$ 对 $v-b$ 齐次，$(v^{\rm pre}_k-b_k)f_k$ 是每单位
 | 水 + 空气，$\alpha_{\rm a}=10^{-3}$ | $10^8$ | 0.582 | 0.559 | 0.0000 | 1.000 | 0.992 |
 | 水 + 空气，$\alpha_{\rm a}=10^{-3}$ | $10^{10}$ | 0.994 | 0.992 | 0.0000 | 1.000 | 0.992 |
 
-同一激波速度下各规则终态 $p_1$ 相对 (II.5) 的偏差：质量分配 epoxy–spinel $10^{10}$ 时 $+7.0\%$（$\rho_1/\rho_0$ 1.299 对 1.274）、$2\times10^{11}$ 时 $+9.8\%$，水–空气（0.5）$10^6$ 时已 $+9.9\%$、$10^8$ 时 $+11.7\%$；局部弱规则（$K_k$ 取剖面当地值）在 $p_1\le10^9$ 时偏差 $10^{-8}$–$10^{-3}$，但微量气体（$10^{-3}$，$10^{10}$）时 $+6\%$、气体温度比 (II.5) 高 50 倍（气体受热后体积不缩，份额 $\alpha_k\mathcal G_k/K_k^2$ 一直很大，正反馈）；能隙份额按构造与 $c$ 一致。
+同一激波速度下各规则终态 $p_1$ 相对 (II.5) 的偏差：质量分配 epoxy–spinel $10^{10}$ 时 $+7.0\%$（$\rho_1/\rho_0$ 1.299 对 1.274）、$2\times10^{11}$ 时 $+9.8\%$，水–空气（0.5）$10^6$ 时已 $+9.9\%$、$10^8$ 时 $+11.7\%$；局部弱规则（$K_k$ 取剖面当地值）在 $p_1\le10^9$ 时偏差 $10^{-8}$–$10^{-3}$，但微量气体（$10^{-3}$，$10^{10}$）时 $+6\%$、气体温度比 (II.5) 高 50 倍（气体受热后体积不缩，份额 $\alpha_k\mathcal G_k/K_k^2$ 一直很大，正反馈）；精确份额 $c$ 按构造满足 (II.5)。
 
-**(c) 局部激波强度。** $Q_k$ 需要 $p_0\to p_1$。取格式自身的紧致模板（$\pm1$，二维为十字；V21 起，V16–V20 为 $\pm2$）上 $X^*$ 混合压力 (A2.3) 的极值 $p_{\rm lo},p_{\rm hi}$，波前的相比容 $v^{\rm pre}_k=\alpha_k/m_k$ 取模板里压力最低的格、质量 $m_k$ 取本格自己的（激波穿过接触/混合区时被压缩的是本格的物质；组分均匀时与用波前格的 $\alpha_k$ 份额相同），只在压缩格（$u^*$ 的中心差分散度 $<0$）上算；否则 $Q_k=0$（`shock_budget`，`stencil_state`）。$Q_k$ 按级冻结（由 $X^*$ 算）。一次激波通过一格，各步亏损之和恰为物理耗散 $Q=\sum_kQ_k$（混合物落在 Hugoniot 上），所以每步 $\delta\le Q$；$\delta$ 超出 $Q$ 的部分一定是误差，光滑压缩区 $Q\propto\Delta p^3$ 几乎为零。
+**(c) 局部激波强度。** $Q_k$ 需要 $p_0\to p_1$ 与波前状态。取格式自身的紧致模板（$\pm1$，二维为十字；V21 起，V16–V20 为 $\pm2$）上 $X^*$ 混合压力 (A2.3) 的极值 $p_{\rm lo},p_{\rm hi}$，波前的相比容 $v^{\rm pre}_k=\alpha_k/m_k$ 取模板里压力最低的格、质量分数 $Y_k$ 与密度 $\rho$ 取本格自己的（激波穿过接触/混合区时被压缩的是本格的物质；组分均匀时与用波前格的 $\alpha_k$ 份额相同），只在压缩格（$u^*$ 的中心差分散度 $<0$）上算；否则 $Q_k=0$（`shock_budget`，`stencil_state`）。$Q_k$ 按级冻结（由 $X^*$ 算）。一次激波通过一格，各步亏损之和恰为物理耗散 $Q=\sum_kQ_k$（混合物落在 Hugoniot 上），所以每步 $\delta\le Q$；$\delta$ 超出 $Q$ 的部分一定是误差，光滑压缩区 $Q\propto\Delta p^3$ 几乎为零。
 
 **模板为什么是非局部的、又为什么取 $\pm1$（V21）。** (II.5) 是终态条件；(b) 的剖面分析表明，满足它的是**整个剖面上不变的**全跳跃份额，所以激波里任何一格都必须知道波后状态，而波后状态在空间上（在激波后面）。没有空间模板的“压缩历史预算”（每格从开始压缩时记 $p_{\rm on}$、沿质点路径用 $m_kd_k(p_{\rm on}\to p)$）在剖面前段用的是部分跳跃的弱激波份额，试过：SPB 5.2 $\rho^*$ 3819.9（模板 3778.9，精确 3766.7），所以非局部不可避免（B9.5 定理 9：任何只依赖当地状态的连续规则都不能对所有激波强度满足 (II.5)）。模板半径对结果不敏感（SPB 5.2 $\rho^*$：半径 1/2/3/4 为 3781.1/3778.9/3778.6/3778.6；5.1 不变；半径 3 的空化 RM 0 次拒绝；全部一维与二维粗网格算例 V21 半径 1 与 2 的差在千分之几），因为 $\delta\le Q$ 多数时候成立、强激波份额对强度不敏感。所以取最小的非局部模板，即格式通量本身的 $\pm1$ 模板，不引入额外长度。
 
@@ -735,7 +736,7 @@ $$\psi^P_f=1-\big(1-\psi^{\rm mm}_f[P]\big)\min(\phi_i,\phi_{i+1}),\qquad \psi^u
 $$Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\Delta p^3+O(\Delta p^4),\qquad K_k=\rho_kc_k^2,\ \ \mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big),$$
 所以与 (II.5) 相容的局部分配份额唯一：$\lambda_k\propto\alpha_k\mathcal G_k/K_k^2$（SG：$\mathcal G=(\gamma+1)/2$）。按质量 $Y_k$、按 $\alpha_k/(\gamma_k-1)$（SPB 3.4 重初始化）、按 $\alpha_k/K_k$ 都不满足。
 *证明：* (B5.4) $Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$，沿剖面 $v_k(p)=v_{k0}[1-x/K_k+\mathcal G_kx^2/K_k^2+\dots]$，$x=p-p_0$，$\bar p=p_0+\tfrac12\Delta p$；逐项积分到 $O(\Delta p^3)$。这正是相 $k$ 单相激波的熵产 $T_k\Delta s_k$，与路径无关。∎
-*强激波（数值结果，非定理）：* 剖面 ODE 用常数份额积分、解出使终态满足 (II.5) 的份额，它被终压处的 Hugoniot–等熵能隙 $Q_k=m_k(v^{\rm pre}_k-b_k)f_k(p_{\rm lo}\to p_{\rm hi})$ 逼近得很好（B5.2(b)），弱激波时 $Q_k$ 回到定理 8。
+*强激波（V23）：* 格式直接用剖面 ODE 解出使终态满足 (II.5) 的常数份额（B5.2(b)，(B5.5)），弱激波时它就是定理 8 的 $w_k$。V16–V22 用的终压处 Hugoniot–等熵内能差在弱极限不回到 $w_k$（差因子 $(\partial e/\partial h)_p$），已替换。
 
 **定理 9（局部份额不能与 (II.5) 全强度相容，B5.2(c)）。** 设松弛极限（5 方程 Kapila 模型）的激波剖面由单一耗散给出：沿 Rayleigh 线 $P(v)=p_0+j^2(v_0-v)$，耗散 $\mathrm dq=(p-P(v))\,\mathrm dv$ 按份额 $\lambda_k$ 分给各相，$Y_k\,\mathrm dq_k=\lambda_k\,\mathrm dq$，各相 $\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k$。称份额规则是**局部的**，如果 $\lambda_k=\Lambda_k(U)$ 只是当地状态 $U$ 的连续函数。则不存在对**所有**激波强度都使剖面终态满足 (II.5) 的局部规则。
 *证明：* (i) 唯一性。任取状态 $U_0$ 作为弱激波的波前态，剖面上的状态都在 $U_0$ 的 $O(\Delta p)$ 邻域内，$\Lambda_k$ 连续，所以终态的分配是 $\Lambda_k(U_0)+O(\Delta p)$。由定理 8，与 (II.5) 相容要求 $\Lambda_k(U_0)=w_k(U_0):=\dfrac{\alpha_k\mathcal G_k/K_k^2}{\sum_j\alpha_j\mathcal G_j/K_j^2}$。$U_0$ 任意，所以唯一可能的局部规则是 $\Lambda=w$。

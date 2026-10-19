@@ -110,7 +110,8 @@ Jacobian, solved by a Newton method whose iteration count is observed to be inde
 
 The difference between the conservative and the non-conservative mixture internal energy, which at a shock is the
 dissipation of the scheme, is distributed between the phases according to the shock relations of the model
-\cite{SaurelGavrilyukRenaud2003}: the physical part in proportion to the Hugoniot--isentrope energy gap of each phase,
+\cite{SaurelGavrilyukRenaud2003}: the physical part with the constant share for which the shock profile of the relaxed
+model ends on the Hugoniot of each phase, computed by shooting and reducing to a unique local share for weak shocks,
 the discretisation error in the unique linear proportion that keeps both phases admissible, so that no calibrated heat
 exchange is needed. The acoustic dissipation that the central implicit operator lacks is supplied at the faces by the
 acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind viscosity, and

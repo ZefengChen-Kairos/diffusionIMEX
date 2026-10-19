@@ -43,7 +43,7 @@ X^L_{i+1/2}=X_i+\tfrac12\sigma_i,\quad X^R_{i+1/2}=X_{i+1}-\tfrac12\sigma_{i+1},
 \label{eq:shared_limiter}
 \end{equation}
 so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+\big(q_k-b_kc_k(p)\big)m_k$, $c_k(p)=(p+\gamma_k\pi_k)/(\gamma_k-1)$, at
-uniform pressure, hold on the faces; quantities that are constant on the stencil to round-off are excluded from the minimum. The velocity is
+uniform pressure, hold on the faces; quantities that are constant on the stencil to round-off are excluded from the minimum. For stiffened and Noble--Abel stiffened gases $\phi_i$ is further limited by \eqref{eq:phi_cap} (Sec.~\ref{sec:positivity}) so that the face states remain admissible. The velocity is
 reconstructed component-wise with its own minmod slope, the face momentum and energy are assembled from the face
 values, and the face value of $\alpha_2$ is $1-\alpha_1^{\rm face}$. Both the central part and the dissipation of
 \eqref{eq:rusanov} use the reconstructed values.
@@ -230,21 +230,37 @@ of the state, then on a weak profile $\lambda_k=\lambda_k(U_0)+O(\Delta p)$, and
 \end{proof}
 
 A share by mass, by $\alpha_k/(\gamma_k-1)$ or by the volume-change fraction $\alpha_k/K_k$ is therefore not consistent with
-\eqref{eq:II5}. For strong shocks the heat \eqref{eq:heat} depends on the profile, and the share required by \eqref{eq:II5} depends on the
-pre- and post-shock states, which are not local. The scheme takes them on its compact stencil ($\pm1$, the five-point
-cross in 2D): $p_{\rm lo}<p_{\rm hi}$ are the extrema of the mixture-equilibrium pressure of $X^*$ on the stencil, and the physical part
-of the dissipation of phase $k$ is its Hugoniot--isentrope energy gap at $p_{\rm hi}$,
+\eqref{eq:II5}. For strong shocks the heat \eqref{eq:heat} depends on the profile, so that no closed-form gap between the end states
+reproduces it. Since the scheme distributes $\delta$ with a share that is constant while the shock crosses a cell, the
+share it needs is the constant share for which the profile \eqref{eq:profile} ends at the state \eqref{eq:II5}. This share is
+computed directly. The end volume of the mixture, $v_{\rm end}=\sum_kY_kv_{kH}$, with $v_{kH}$ the end volume of phase $k$ on its
+Hugoniot \eqref{eq:II5}, does not depend on the share, so that $j^2=(p_1-p_0)/(v_0-v_{\rm end})$ and the profile is integrated over
+the fixed interval $[v_0,v_{\rm end}]$. With $\lambda_1=c$, $\lambda_2=1-c$, \eqref{eq:profile} and $\sum_kY_kv_k=v$ give
 \begin{equation}
-Q_k=m_k\,(v^{\rm pre}_k-b_k)\,\frac{(p_{\rm hi}+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\qquad
-\tilde v_H=\frac{(\gamma_k-1)x_{\rm hi}+(\gamma_k+1)x_{\rm lo}}{(\gamma_k+1)x_{\rm hi}+(\gamma_k-1)x_{\rm lo}},\quad
-\tilde v_S=\Big(\frac{x_{\rm lo}}{x_{\rm hi}}\Big)^{1/\gamma_k},
+\frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/b_k-1}{\sum_kY_ka_k/b_k},\qquad
+\frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-a_1\,\mathrm dp/\mathrm dv}{b_1},\qquad
+\frac{\mathrm dq}{\mathrm dv}=p-P(v),
+\label{eq:profile_ode}
+\end{equation}
+with $a_k=\partial e_k/\partial p|_{v}$, $b_k=\partial e_k/\partial v|_{p}+p$ and $r_k=(\lambda_k/Y_k)(p-P)$; for SG and NASG phases
+$a_k=(v_k-b_k)/(\gamma_k-1)$, $b_k=\gamma_k(p+\pi_k)/(\gamma_k-1)$, and for Mie--Gr\"uneisen phases $a_k=v_k/\Gamma_k$,
+$b_k=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $c$ is the root of $v_1(v_{\rm end};c)=v_{1H}$, which is increasing in $c$; it is
+found by the Illinois method in ${\rm logit}(c)$, and \eqref{eq:profile_ode} is integrated by an adaptive Runge--Kutta--Fehlberg method
+(Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $q=\int(p-P)\,\mathrm dv$ per
+unit mass, and the physical part of the dissipation of phase $k$ per unit volume is
+\begin{equation}
+Q_k=\lambda_k\,\rho\,q,\qquad Q=\sum_kQ_k=\rho\,q .
 \label{eq:Qk}
 \end{equation}
-$x=p+\pi_k$, where $\tilde v_H$ and $\tilde v_S$ are the reduced volumes $(v-b_k)/(v^{\rm pre}_k-b_k)$ on the Hugoniot \eqref{eq:II5} and on the
-isentrope through the pre-shock state, $m_k$ is that of the cell itself and $v^{\rm pre}_k=\alpha_k/m_k$ is taken from the
-lowest-pressure cell of the stencil. For Mie--Gr\"uneisen phases $Q_k$ is the same energy gap computed from the Hugoniot
-and the isentrope $(p-p_r)v^{\Gamma+1}={\rm const}$. $Q_k$ is computed once per stage on $X^*$ and frozen. Since a shock passing
-through a cell deposits in total the mixture Hugoniot dissipation $Q=\sum_kQ_k$, the part of $\delta$ above $Q$ is an error. The
+For weak shocks, $p_1-p_0<10^{-2}\min_kK_k$, the residual of the shooting is $O(\Delta p^3)$ and the limit of
+Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $q=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
+satisfies \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks.
+
+The pre- and post-shock states are not local. The scheme takes them on its compact stencil ($\pm1$, the five-point
+cross in 2D): $p_0=p_{\rm lo}<p_1=p_{\rm hi}$ are the extrema of the mixture-equilibrium pressure of $X^*$ on the stencil, the
+pre-shock phase volumes $v_{k0}=\alpha_k/m_k$ are taken from the lowest-pressure cell of the stencil, and $Y_k$ and $\rho$ are those of
+the cell itself. $Q_k$ is computed once per stage on $X^*$ and frozen. Since a shock passing through a cell deposits in
+total the mixture dissipation $Q$, the part of $\delta$ above $Q$ is an error. The
 physical part is restricted to compressing cells by the following criterion.
 
 \begin{proposition}[Compression criterion]\label{prop:compression}
@@ -535,12 +551,19 @@ values of $X$, positive by the first part.
 \end{proof}
 The bound \eqref{eq:face_bound} is sharp for a linear reconstruction with a common slope factor: a linear functional of
 the face state is not a convex combination of the cell values, and the minmod factors of the individual components do
-not bound it. Admissibility of the face states is therefore not guaranteed in general, e.g.\ at a strong pressure jump
-coinciding with a jump of the phase content.
+not bound it, e.g.\ at a strong pressure jump coinciding with a jump of the phase content. The shared factor is therefore
+limited further, for every SG or NASG phase and both functionals,
+\begin{equation}
+\phi_i\le\frac{2L_i}{|L_{i+1}-L_{i-1}|},\qquad L\in\{L^{(1)}_k,L^{(2)}_k\},\ k=1,2 ,
+\label{eq:phi_cap}
+\end{equation}
+which by $L(X^{L,R})=L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$ keeps $L$ on both faces above $\tfrac12L_i$, the bound that minmod gives for a
+single non-negative monotone component. With \eqref{eq:phi_cap} the face states of every cell with an admissible stencil are
+admissible.
 
 \begin{proposition}[Positivity]\label{prop:positivity}
 Let the phases be stiffened or Noble--Abel stiffened gases, and consider a stage with $Q^e=Q^s$ (a backward-Euler step
-or the first stage of \eqref{eq:lsdirk}) whose reconstructed face states are admissible (Lemma~\ref{lem:faces}). If $r(a_f+|u_f|)\le\tfrac12$ on every
+or the first stage of \eqref{eq:lsdirk}), with admissible cell states and the limiter \eqref{eq:shared_limiter}, \eqref{eq:phi_cap}. If $r(a_f+|u_f|)\le\tfrac12$ on every
 face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported state $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ of every phase is a
 non-negative combination of reconstructed face values and hence admissible, independently of the content ratio of
 the phases.
