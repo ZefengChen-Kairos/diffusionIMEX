@@ -331,7 +331,20 @@ bool Update(Grid &u_con, Grid &Qe, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL,
 // “模板内为常数（到舍入）”的判据用该量的舍入尺度 S_X（B3 的表；devlog V8、V11）：
 //   alpha_1：1；m_k：自身大小；eps_k：sum |eps_k| + 1/2 rho |u|^2；u, v：|u| + c_f。
 // phi_x/phi_y 存 min(体积输运量的 phi, 速度的光滑比)：B4.1 的二阶 psi 用它判断“所有量都光滑”。
+// 诊断（facediag=1，不改变计算）：重构面态是否违反 NASG/SG 的可容许约束 alpha>0, m>0, alpha-mb>0, eps-mq-(alpha-mb)pi>0（论文引理 Face states）。
+// FD_CUR[0] 面值总数，[1] 违反数，[2] 模板三格都可容许时的违反数；级成功后累加到 FD_TOT[级是否 Qe=Qs][...]
+int FACEDIAG = 0; long FD_CUR[3] = {0, 0, 0}; long FD_TOT[2][3] = {{0, 0, 0}, {0, 0, 0}};
+static bool fd_adm(double a1, double m1, double m2, double e1, double e2) {
+	const double a[2] = {a1, 1.0 - a1}, m[2] = {m1, m2}, e[2] = {e1, e2};
+	for (int k = 0; k < 2; k++) {
+		if (is_mg(k)) continue;
+		const double L1 = a[k] - m[k] * PH[k].b, L2 = e[k] - m[k] * PH[k].q - L1 * PH[k].pi;
+		if (!(a[k] > 0 && m[k] > 0 && L1 > 0 && L2 > 0)) return false;
+	}
+	return true;
+}
 void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_yR){
+	if (FACEDIAG) { FD_CUR[0] = FD_CUR[1] = FD_CUR[2] = 0; }
 	const int g = ghost_cells, NXT = nxCells + 2 * g, NYT = nyCells + 2 * g;
 	w_xL.data = u_con.data; w_xR.data = u_con.data; w_yL.data = u_con.data; w_yR.data = u_con.data;
 	std::fill(phi_x->data.begin(), phi_x->data.end(), 0.0); std::fill(phi_y->data.begin(), phi_y->data.end(), 0.0);
@@ -375,6 +388,16 @@ void TVDReconstruction(Grid &u_con, Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_y
 					const double sig = phi * 0.5 * (u_con(ib,jb,k) - u_con(ia,ja,k));
 					wL(i,j,k) = u_con(i,j,k) - 0.5 * sig;
 					wR(i,j,k) = u_con(i,j,k) + 0.5 * sig;
+				}
+				if (FACEDIAG && i >= g && i < nxCells + g && j >= g && j < nyCells + g) {
+					const bool stencil_ok = fd_adm(u_con(ia,ja,IA1), u_con(ia,ja,IM1), u_con(ia,ja,IM2), u_con(ia,ja,IE1), u_con(ia,ja,IE2))
+						&& fd_adm(u_con(i,j,IA1), u_con(i,j,IM1), u_con(i,j,IM2), u_con(i,j,IE1), u_con(i,j,IE2))
+						&& fd_adm(u_con(ib,jb,IA1), u_con(ib,jb,IM1), u_con(ib,jb,IM2), u_con(ib,jb,IE1), u_con(ib,jb,IE2));
+					for (int side = 0; side < 2; side++) {
+						Grid &w = side == 0 ? wL : wR;
+						FD_CUR[0]++;
+						if (!fd_adm(w(i,j,IA1), w(i,j,IM1), w(i,j,IM2), w(i,j,IE1), w(i,j,IE2))) { FD_CUR[1]++; if (stencil_ok) FD_CUR[2]++; }
+					}
 				}
 				// 速度：各分量单独 minmod；sm 为速度的光滑比（极值处 0，模板内为常数时不约束）
 				const double ra = u_con(ia,ja,IM1) + u_con(ia,ja,IM2), rc = u_con(i,j,IM1) + u_con(i,j,IM2), rb = u_con(ib,jb,IM1) + u_con(ib,jb,IM2);
@@ -1077,7 +1100,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
@@ -1218,6 +1241,7 @@ int main(int argc, char *argv[]){
 				ok = Update(Ust, Qe, Qs, w_xL,w_xR,w_yL,w_yR);                      // 显式（对流）部分：X*
 
 				ok = ok && PressureSubsystem(Ust, Qs, Qe, Pst, adt, rks);           // 隐式（压力 + 闭合）部分
+				if (ok && FACEDIAG) for (int q = 0; q < 3; q++) FD_TOT[rks == 0 ? 0 : 1][q] += FD_CUR[q];
 
 				if (ok) {
 					for(int i = 0; i < nxCells + 2 * ghost_cells; i++){
@@ -1285,5 +1309,6 @@ int main(int argc, char *argv[]){
 	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld, mood %ld) rejects %ld floor %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
 		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_mood, st_reject, st_floor, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
+	if (FACEDIAG) printf("facediag | stage Qe=Qs: faces %ld violations %ld (admissible stencil %ld) | later stages: faces %ld violations %ld (admissible stencil %ld)\n", FD_TOT[0][0], FD_TOT[0][1], FD_TOT[0][2], FD_TOT[1][0], FD_TOT[1][1], FD_TOT[1][2]);
 	return 0;
 }
