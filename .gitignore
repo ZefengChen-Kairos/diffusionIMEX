@@ -5,6 +5,7 @@ run/
 *.o
 __pycache__/
 src/spb6*
+src/bin_*
 
 # headers are sources, not binaries
 !src/*.h
