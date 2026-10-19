@@ -1,5 +1,5 @@
 \documentclass[preprint,12pt]{elsarticle}
-% Target: Journal of Computational Physics.  Sections 1-4 drafted.
+% Target: Journal of Computational Physics.  Sections 1-5 drafted.
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -13,17 +13,38 @@
 \begin{document}
 
 \begin{frontmatter}
-\title{TODO}
+\title{A semi-implicit finite volume scheme for the six-equation two-phase model with mechanical, thermal and chemical relaxation at all Mach numbers}
 \begin{abstract}
-TODO
+We present a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation two-phase model
+with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas, Noble--Abel stiffened-gas and
+Mie--Gr\"uneisen equations of state. Following Toro and V\'azquez-Cend\'on, the fluxes are split into an advective part,
+in which all phase quantities are transported explicitly with a Rusanov flux whose dissipation speed is the material
+speed and the volume fraction is discretised by the path-conservative Rusanov scheme, and a pressure part, which carries
+the pressure, its work on each phase and an incremental flux of the transported quantities and is treated implicitly
+together with the relaxation terms. The time step is restricted by the flow velocity only, independently of the Mach
+number and of the relaxation rates. The implicit pressure work and the three relaxation processes, at finite or infinite
+rates, enter a single local closure that reduces to one scalar equation for the cell pressure, so that each stage
+requires the solution of a mildly nonlinear system for the cell pressures, solved by Newton's method. The defect between
+the conservative and the non-conservative mixture internal energy is distributed between the phases according to the
+shock relations of the model, without calibrated heat exchange, and the acoustic dissipation missing from the central
+implicit operator is supplied at the faces from the acoustic Riemann solution. Second order in time is obtained with a
+stiffly accurate, L-stable IMEX Runge--Kutta scheme. We prove that the scheme preserves moving contacts, that the transported
+phase states remain admissible under a face condition independent of the phase contents, and that it converges to the
+corresponding equilibrium schemes as the relaxation rates tend to infinity; formally, it is asymptotic preserving in the
+low Mach number limit. Numerical results in one and two space dimensions, from the incompressible limit to strong
+shocks, cavitation and phase transition, confirm the accuracy and robustness of the method.
 \end{abstract}
+\begin{keyword}
+two-phase flow \sep six-equation model \sep relaxation \sep phase transition \sep IMEX \sep semi-implicit \sep
+all Mach number \sep asymptotic preserving \sep well-balanced
+\end{keyword}
 \end{frontmatter}
 
 \input{sections/01_introduction}
 \input{sections/02_governing}
 \input{sections/03_method}
 \input{sections/04_results}
-% \input{sections/05_conclusions}
+\input{sections/05_conclusions}
 
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}

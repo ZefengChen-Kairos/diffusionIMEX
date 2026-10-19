@@ -174,90 +174,243 @@ conservative mixture internal energy,
 \delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k,\qquad \sum_k\Lambda_k(\delta)=\delta .
 \label{eq:defect}
 \end{equation}
-At a shock $\delta$ is the dissipation of the scheme, and its partition fixes the limit shock relations. We distribute
-it so that each phase follows its own Hugoniot \cite{SaurelGavrilyukRenaud2003,SPB2009},
+By \eqref{eq:gibbs} $\sum_k\varepsilon_k=(\rho e)^C$ for every $\Lambda_k$ with $\sum_k\Lambda_k=\delta$, so the closed state is
+mixture-energy consistent without a final projection, and $\delta$ does not depend on the relaxation terms, whose
+contributions cancel between the phases. In smooth flow $\delta$ is a discretisation error; at a shock it is the dissipation
+of the scheme, the kinetic energy that its numerical viscosity converts into internal energy. Its partition between the
+phases is not fixed by the inviscid model and determines the limit shock relations of the scheme.
+
+\paragraph{Shock relations and the weak-shock share}
+We require each phase to follow its own Hugoniot \cite{SaurelGavrilyukRenaud2003,SPB2009},
 \begin{equation}
-e_k-e_{k0}+\tfrac12(p_0+p_1)(v_k-v_{k0})=0 ,
+e_k-e_{k0}+\bar p\,(v_k-v_{k0})=0,\qquad \bar p=\tfrac12(p_0+p_1),\qquad k=1,2,
 \label{eq:II5}
 \end{equation}
-the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. The physical part is the
-Hugoniot--isentrope energy gap of each phase between the extrema $p_{\rm lo}<p_{\rm hi}$ of the mixture-equilibrium pressure
-of $X^*$ on the compact stencil ($\pm1$; the five-point cross in 2D) of a compressing cell, i.e.\ a cell where the central
-difference of $u^*$ (and $v^*$) has negative sum,
+the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. Consider a stationary shock profile of the
+relaxed model with mass flux $j$, total normal stress $P=p-\sigma$ ($\sigma$ the viscous stress), the Rayleigh line
+$P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm dq_k$,
+\begin{equation}
+\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k,\qquad Y_k\,\mathrm dq_k=\lambda_k\,\mathrm dq,\qquad \mathrm dq=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
+\label{eq:profile}
+\end{equation}
+with $\lambda_k=\partial\Lambda_k/\partial\delta$ the local share. Summing over $k$ recovers $\mathrm de=-P\,\mathrm dv$: whatever the share, the
+mixture ends on its Hugoniot, and the share only decides the end volumes of the phases. Integrating
+$\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k$ over the profile and comparing with \eqref{eq:II5}, the end state satisfies \eqref{eq:II5} if and only if
+\begin{equation}
+Y_kq_k=\int_{\rm profile}(p-\bar p)\,\mathrm dv_k ,\qquad k=1,2,
+\label{eq:heat}
+\end{equation}
+the heat received by phase $k$ is its compression work minus its Hugoniot work.
+
+\begin{theorem}[Weak-shock share]\label{thm:weak}
+Let $\Delta p=p_1-p_0\to0$, $K_k=\rho_kc_k^2$ and $\mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big)$ the fundamental derivative of phase $k$. Under
+\eqref{eq:II5} the heat received by phase $k$ per unit mixture volume is
+\begin{equation}
+Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
+\label{eq:weak_heat}
+\end{equation}
+the entropy production $T_k\Delta s_k$ of a single-phase shock of the same strength in phase $k$. Hence a share $\lambda_k$ that is
+consistent with \eqref{eq:II5} for weak shocks is unique and equal to
+$w_k=\big(\alpha_k\mathcal G_k/K_k^2\big)/\sum_j\alpha_j\mathcal G_j/K_j^2$; for stiffened and Noble--Abel stiffened gases $\mathcal G_k=(\gamma_k+1)/2$.
+\end{theorem}
+\begin{proof}
+To the order required each phase is isentropic along a weak profile, and with $x=p-p_0$
+\[
+v_k(p)=v_{k0}\Big[1-\frac{x}{K_k}+\mathcal G_k\frac{x^2}{K_k^2}+O(x^3)\Big],\qquad
+\mathrm dv_k=v_{k0}\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}+O(x^2)\Big]\mathrm dx .
+\]
+Inserting this in \eqref{eq:heat} with $p-\bar p=x-\tfrac12\Delta p$,
+\[
+Y_kq_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
+=v_{k0}Y_k\,\frac{2\mathcal G_k}{K_k^2}\,\frac{\Delta p^3}{12}+O(\Delta p^4),
+\]
+since the first term integrates to zero; with $\rho v_{k0}Y_k=\alpha_k$ this is \eqref{eq:weak_heat}. It equals $T_k\Delta s_k$ of the single-phase
+Hugoniot of phase $k$ at the same $\Delta p$ \cite{LandauLifshitz}, which does not depend on the path. If $\lambda_k$ is a continuous function
+of the state, then on a weak profile $\lambda_k=\lambda_k(U_0)+O(\Delta p)$, and \eqref{eq:heat} with \eqref{eq:weak_heat} requires $\lambda_k(U_0)=w_k(U_0)$.
+\end{proof}
+
+A share by mass, by $\alpha_k/(\gamma_k-1)$ or by the volume-change fraction $\alpha_k/K_k$ is therefore not consistent with
+\eqref{eq:II5}. For strong shocks the heat \eqref{eq:heat} depends on the profile, and the share required by \eqref{eq:II5} depends on the
+pre- and post-shock states, which are not local. The scheme takes them on its compact stencil ($\pm1$, the five-point
+cross in 2D): $p_{\rm lo}<p_{\rm hi}$ are the extrema of the mixture-equilibrium pressure of $X^*$ on the stencil, and the physical part
+of the dissipation of phase $k$ is its Hugoniot--isentrope energy gap at $p_{\rm hi}$,
 \begin{equation}
 Q_k=m_k\,(v^{\rm pre}_k-b_k)\,\frac{(p_{\rm hi}+\gamma_k\pi_k)(\tilde v_H-\tilde v_S)}{\gamma_k-1},\qquad
 \tilde v_H=\frac{(\gamma_k-1)x_{\rm hi}+(\gamma_k+1)x_{\rm lo}}{(\gamma_k+1)x_{\rm hi}+(\gamma_k-1)x_{\rm lo}},\quad
 \tilde v_S=\Big(\frac{x_{\rm lo}}{x_{\rm hi}}\Big)^{1/\gamma_k},
 \label{eq:Qk}
 \end{equation}
-$x=p+\pi_k$, with $m_k$ of the cell itself, $v^{\rm pre}_k=\alpha_k/m_k$ from the lowest-pressure cell of the stencil, and $Q_k=0$ in
-other cells; $Q_k$ is computed once per stage on $X^*$ and frozen. Its
-share is consistent with \eqref{eq:II5} for weak shocks: under \eqref{eq:II5} the heat received by phase $k$ on a shock
-profile is its compression work minus its Hugoniot work, $Y_kq_k=\int(p-\bar p)\,\mathrm dv_k$, $\bar p=p_0+\tfrac12\Delta p$; for
-$\Delta p\to0$ each phase is isentropic along the profile to the required order,
-$v_k(p)=v_{k0}[1-x/K_k+\mathcal G_kx^2/K_k^2+O(x^3)]$, $x=p-p_0$, $K_k=\rho_kc_k^2$, $\mathcal G_k=\tfrac12(1+\partial K_k/\partial p|_s)$, and
-\[
-Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
-\]
-the entropy production of a single-phase shock; $Q_k/\sum_jQ_j$ reduces to this share as $p_{\rm hi}\to p_{\rm lo}$. The
-remainder of $\delta$ is a discretisation error, distributed in proportion to the energy of each phase above its
-admissibility bound,
+$x=p+\pi_k$, where $\tilde v_H$ and $\tilde v_S$ are the reduced volumes $(v-b_k)/(v^{\rm pre}_k-b_k)$ on the Hugoniot \eqref{eq:II5} and on the
+isentrope through the pre-shock state, $m_k$ is that of the cell itself and $v^{\rm pre}_k=\alpha_k/m_k$ is taken from the
+lowest-pressure cell of the stencil. For Mie--Gr\"uneisen phases $Q_k$ is the same energy gap computed from the Hugoniot
+and the isentrope $(p-p_r)v^{\Gamma+1}={\rm const}$. $Q_k$ is computed once per stage on $X^*$ and frozen. Since a shock passing
+through a cell deposits in total the mixture Hugoniot dissipation $Q=\sum_kQ_k$, the part of $\delta$ above $Q$ is an error. The
+physical part is restricted to compressing cells by the following criterion.
+
+\begin{proposition}[Compression criterion]\label{prop:compression}
+If $\mathcal G_k>0$, every admissible shock (Lax entropy condition) is compressive: $v$ decreases across it and
+$\nabla\cdot\mathbf u<0$ in its profile.
+\end{proposition}
+\begin{proof}
+For $\mathcal G>0$ the isentropes $p(v)$ are convex; the Hugoniot has second-order contact with the isentrope at the
+pre-shock state and the entropy increases monotonically along it with $p$ (Bethe--Weyl \cite{MenikoffPlohr1989}), so the entropy condition
+requires $p_1>p_0$ and $v_1<v_0$.
+\end{proof}
+For SG and NASG phases $\mathcal G_k=(\gamma_k+1)/2>0$; for the Mie--Gr\"uneisen phases of Sec.~\ref{sec:results} $\mathcal G_k>0$ holds over the
+range of states of the tests. Accordingly $Q_k\ne0$ only in cells where the central difference of $u^*$ (and $v^*$) has negative
+sum.
+
+\paragraph{Partition of the discretisation error}
+The remainder of $\delta$ is a discretisation error. Let $E_k$ be the internal energy of phase $k$ above its admissibility
+bound, for SG and NASG phases
 \begin{equation}
-\lambda^E_k=\frac{E_k}{\sum_jE_j},\qquad E_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr} .
+E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr},
+\label{eq:Ek}
+\end{equation}
+and for Mie--Gr\"uneisen phases the thermal energy above the cold curve, $\varepsilon_k-m_k\varepsilon_r$.
+
+\begin{theorem}[Partition of the error]\label{thm:lambdaE}
+Let both phases be admissible, $E_k>0$, and let the error be distributed at fixed phase volumes linearly,
+$\Lambda_k=\lambda_k\delta$ with $\sum_k\lambda_k=1$. Both phases remain admissible, $E_k+\lambda_k\delta>0$, for every $\delta\in(-\sum_jE_j,0)$ if and only if
+\begin{equation}
+\lambda_k=\lambda^E_k=\frac{E_k}{\sum_jE_j} ,
 \label{eq:lambdaE}
 \end{equation}
-It is the only linear split that keeps both phases admissible for every admissible $\delta$: with $\Lambda_k=\lambda_k\delta$,
-$\sum_k\lambda_k=1$, the requirement $E_k+\lambda_k\delta>0$ for $\delta\to+\infty$ gives $\lambda_k\ge0$, and for $\delta\to-\sum_jE_j$
-gives $\lambda_k\le E_k/\sum_jE_j$; summing over $k$, both sides equal one, so $\lambda_k=E_k/\sum_jE_j$. Altogether
+and then both phases remain admissible for every $\delta>-\sum_jE_j$.
+\end{theorem}
+\begin{proof}
+Let $S=\sum_jE_j$. If $E_k+\lambda_k\delta>0$ for all $\delta\in(-S,0)$, letting $\delta\to-S$ gives $\lambda_k\le E_k/S$ for $k=1,2$. Summing,
+$1=\sum_k\lambda_k\le\sum_kE_k/S=1$, so every inequality is an equality. Conversely, $E_k+\lambda^E_k\delta=E_k(1+\delta/S)>0$ for every $\delta>-S$.
+For $\delta\le-S$ no admissible partition exists, since $\sum_k(E_k+\Lambda_k)=S+\delta\le0$.
+\end{proof}
+
+\begin{proposition}[Variational characterisation]\label{prop:variational}
+$\Lambda_k=\lambda^E_k\delta$ is the unique minimiser of $\sum_k\Lambda_k^2/E_k$ subject to $\sum_k\Lambda_k=\delta$. It changes the energy of all phases above
+their bounds by the same relative amount: for SG and NASG phases at fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_jE_j$.
+\end{proposition}
+\begin{proof}
+The objective is strictly convex; the Lagrange condition $2\Lambda_k/E_k=\ell$ gives $\Lambda_k\propto E_k$, and the constraint fixes the factor.
+\end{proof}
+With a volume strain the admissible margin becomes $E_k+\lambda_k(\delta-s(p+\pi_k))$; the theorem holds exactly for $s=0$, and the
+scheme uses $E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
+phases are at their bounds ($\sum_jE_j=0$) the error is distributed by mass. Altogether
 \begin{equation}
 \Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^E_k,&\delta\ge0,\\[4pt]
 \delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
 \label{eq:Lambda}
 \end{equation}
-a continuous, piecewise affine function of $\delta$; with a common pressure $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$.
-The NASG $p$ closure selects the active piece at every trial pressure of its root solve; the other closures that use
-$\Lambda_k$ (finite $\mu$ and $\theta$, Mie--Gr\"uneisen phases) select it at the current Newton iterate of the cell pressure. For Mie--Gr\"uneisen phases $Q_k$ and $E_k$ follow from the Hugoniot, the isentrope
-$(p-p_r)v^{\Gamma+1}={\rm const}$ and the thermal energy above the cold curve.
+a continuous, piecewise affine function of $\delta$ with break points $\delta=0$ and $\delta=Q$. On the active piece
+$\Lambda_k=\lambda_k\delta+\xi_k$, with $\xi_k=Q_k-Q\lambda^E_k$ on the third piece and $\xi_k=0$ otherwise. With a common pressure
+$\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$. The NASG $p$ closure selects the active piece at every trial pressure of its
+root solve, so that $\sum_k\varepsilon_k=(\rho e)^C$ holds exactly at every $p$; the other closures that use $\Lambda_k$ (finite $\mu$
+and $\theta$, Mie--Gr\"uneisen phases) select it at the current Newton iterate of the cell pressure. The residual of the
+pressure system is therefore continuous and piecewise smooth in $P$.
 
 \subsubsection{Relaxation closures}
 \label{sec:relaxation}
 The relaxation terms are not split from the transport: they enter the closure \eqref{eq:gibbs}, which for each set of
-rates reduces to one scalar equation in the cell pressure. We follow the ordering of Pelanti \cite{Pelanti2022}
-($\mu=\infty$ if $\theta>0$ or $\nu>0$; $\theta=\infty$ if $\nu>0$); on the active piece $\Lambda_k=\lambda_k\delta+\xi_k$.
-\begin{itemize}
-\item \emph{$p$ closure} ($\mu=\infty$, $\theta=\nu=0$). With $p_1=p_2=p$, \eqref{eq:gibbs} becomes the discrete Gibbs relation
-$\varepsilon_k=\varepsilon^{\rm tr}_k-p(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, and by \eqref{eq:eps_nasg}
+rates reduces to one scalar equation in the cell pressure, $\Phi(p)=0$. We follow the ordering of time scales of Pelanti
+\cite{Pelanti2022}: $\mu=\infty$ if $\theta>0$ or $\nu>0$, and $\theta=\infty$ if $\nu>0$. The closure returns the phase states and the
+mixture pressure $\bar p^{\rm cl}=\sum_k\alpha_kp_k$.
+
+\paragraph{Instantaneous mechanical relaxation: $p$ closure ($\mu=\infty$, $\theta=\nu=0$)}
+With $p_1=p_2=p_I=p$ and $\omega_ks+\chi_kR=\alpha_k-\alpha^{\rm tr}_k$, \eqref{eq:gibbs} becomes the discrete Gibbs relation
+\begin{equation}
+\varepsilon_k=\varepsilon^{\rm tr}_k-p\,(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k(\delta),\qquad \delta=D_0+ps ,
+\label{eq:pclosure}
+\end{equation}
+independent of $\omega_k$ and $p_I$. By \eqref{eq:eps_nasg}, on the active piece of \eqref{eq:Lambda},
+\begin{equation}
+\alpha_k(p)=\frac{(\gamma_k-1)\big[A_k+B_kp\big]+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\qquad
+A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks ,
+\label{eq:alpha_p}
+\end{equation}
+and $\Phi(p)=\sum_k\alpha_k(p)-1$. Here
 \[
-\alpha_k(p)=\frac{(\gamma_k-1)\big[A_k+B_kp\big]+(p+\gamma_k\pi_k)m_kb_k}{\gamma_k(p+\pi_k)},\quad
-A_k=\varepsilon^{\rm tr}_k-m_kq_k+\lambda_kD_0+\xi_k,\quad B_k=\alpha^{\rm tr}_k+\lambda_ks .
+\alpha_k'(p)=-\frac{(\gamma_k-1)N_k}{\gamma_k(p+\pi_k)^2},\qquad N_k=A_k-(B_k-m_kb_k)\pi_k .
 \]
-$\Phi(p)=\sum_k\alpha_k(p)-1$ tends to $+\infty$ as $p\downarrow\max_k(-\pi_k)$ and is negative for $p\to\infty$; it is decreasing, and the root
-unique, when $N_k=A_k-(B_k-m_kb_k)\pi_k>0$ for both phases. In general the root is bracketed on $(\max_k(-\pi_k),\infty)$ and
-found by a safeguarded Newton iteration, and admissibility is checked at the solution. For Mie--Gr\"uneisen phases $\alpha_k(p)$ is the unique root of a monotone scalar equation; the outer
-equation $\Phi(p)=0$ is then solved by a bracketed Newton iteration, without a global monotonicity result.
-\item \emph{Finite $\mu$}. The impedances in $p_I$ are frozen on $X^*$. For given $R$, \eqref{eq:gibbs} is a $2\times2$ linear
-system for $(p_1,p_2)$, with $\delta=D_0+s\sum_k\omega_kp_k$; the scalar equation $R-\tau\mu\big(p_1(R)-p_2(R)\big)=0$ is increasing in $R$
-and its root lies between $0$ and $\tau\mu(p_1-p_2)|_{R=0}$; $\bar p^{\rm cl}=\alpha_1p_1+\alpha_2p_2$.
-\item \emph{$pT$ closure} ($\mu=\theta=\infty$). $T(p)$ follows explicitly from $\sum_km_ke_k(p,T)=(\rho e)^C$, and
-$\Phi(p)=\sum_km_kv_k(p,T(p))-1$.
-\item \emph{Finite $\theta$}. With $\alpha^0_k(p)$, $T^0_k(p)$ the volumes and temperatures of the $p$ closure at $p$, the heat
-$\Delta Q$ added to phase 1 changes the volumes by $\alpha_k=\alpha^0_k+\chi_k(\gamma_k-1)\Delta Q/\big(\gamma_k(p+\pi_k)\big)$ and the temperatures by
-$\chi_k\Delta Q/C_{pk}$, $C_{pk}=\gamma_kc_{vk}m_k$, so that
-$\Delta Q(p)=\tau\theta\big(T^0_2(p)-T^0_1(p)\big)/\big(1+\tau\theta(C_{p1}^{-1}+C_{p2}^{-1})\big)$ in closed form, and $\Phi(p)=\sum_k\alpha_k(p)-1$.
-\item \emph{Finite $\nu$} ($\mu=\theta=\infty$). For given $p$ the vapour fraction solves
-$\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0$, increasing in $Y$ and clamped to its admissible interval;
-then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. A state-dependent rate (Sec.~\ref{sec:res_bartak}) is evaluated in each cell from its
-$pT$-equilibrium state at the beginning of the step and frozen over the stages.
-\item \emph{$pTg$ closure} ($\mu=\theta=\nu=\infty$). $T=T_{\rm sat}(p)$, $Y$ from the energy, $\Phi(p)=\rho\sum_kY_kv_k-1$; $Y$ is clamped to
-$[Y_{\min},1-Y_{\min}]$, $Y_{\min}=10^{-10}$, with $T$ then from the energy, and for $p\ge p_c$ the cell is single-phase.
-\end{itemize}
-The interfacial quantities $\rho_I$, $e_I$ do not appear. Thermal and chemical relaxation are active in interface cells,
+If the transported state of phase $k$ is admissible, $\varepsilon^{\rm tr}_k-m_kq_k-(\alpha^{\rm tr}_k-m_kb_k)\pi_k=E_k>0$, and $N_k=E_k+\lambda_k(D_0-s\pi_k)+\xi_k$. As
+$p\downarrow\max_k(-\pi_k)$, $\Phi\to+\infty$; as $p\to\infty$, $\Phi\to\sum_k\big((\gamma_k-1)B_k+m_kb_k\big)/\gamma_k-1<\sum_kB_k-1=0$, since $m_kb_k<B_k$ and $\sum_kB_k=1-s+s=1$. A
+root therefore exists; it is unique when $N_k>0$ for both phases, in which case $\Phi$ is decreasing. In general the root is
+bracketed on $(\max_k(-\pi_k),\infty)$ and found by a safeguarded Newton iteration, and admissibility is checked at the
+solution. For a Mie--Gr\"uneisen phase \eqref{eq:pclosure} with \eqref{eq:mg} gives $\alpha_k(p)$ as the root of
+\[
+f_k(\alpha)=m_k\varepsilon_r(m_k/\alpha)+\alpha\,\frac{p-p_r(m_k/\alpha)}{\Gamma_k}+p\,\alpha-A_k-B_kp=0,\qquad
+f_k'(\alpha)=\frac{\rho_kc_k^2}{\Gamma_k}>0 ,
+\]
+($A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0+\xi_k$), unique when $c_k^2>0$ and found by a bracketed Newton iteration in $\ln\alpha$; the outer equation is solved
+by a bracketed Newton iteration, without a global monotonicity result.
+
+\paragraph{Finite mechanical relaxation ($\mu<\infty$, $\theta=\nu=0$)}
+Let $a_k=\alpha^{\rm tr}_k+\omega_ks$, so that $\alpha_1=a_1+R$, $\alpha_2=a_2-R$, and $p_I=w_1p_1+w_2p_2$ with $w_1=Z_2/(Z_1+Z_2)$, the acoustic impedances
+$Z_k=\rho_kc_k$ being frozen on $X^*$. For given $R$, \eqref{eq:gibbs} with \eqref{eq:eps_nasg} is the $2\times2$ linear system
+\begin{equation}
+\Big(\frac{\alpha_k-m_kb_k}{\gamma_k-1}+\omega_ks\Big)p_k+\chi_kR\,(w_1p_1+w_2p_2)-\lambda_ks\,(\omega_1p_1+\omega_2p_2)
+=\varepsilon^{\rm tr}_k-m_kq_k-\frac{\gamma_k\pi_k(\alpha_k-m_kb_k)}{\gamma_k-1}+\lambda_kD_0+\xi_k
+\label{eq:twopressure}
+\end{equation}
+for $(p_1,p_2)$, $k=1,2$, with $\delta=D_0+s\sum_k\omega_kp_k$. $R$ solves the scalar equation
+\[
+\mathcal F(R)=R-\tau\mu\big(p_1(R)-p_2(R)\big)=0 .
+\]
+Increasing $R$ increases $\alpha_1$, decreases $p_1$ and increases $p_2$, so $\mathcal F$ is increasing on its admissible interval and
+the root is unique. Relaxation reduces $|p_1-p_2|$, so the root lies between $0$ and $R_1=\tau\mu(p_1-p_2)|_{R=0}$; if $R_1$ is not
+admissible, $\mathcal F$ tends to infinity with the correct sign at the singularity of \eqref{eq:twopressure}, and bisection towards
+$0$ gives an admissible bracket. For $\mu=0$, $R=0$: each phase does the Gibbs work at its own pressure,
+$\varepsilon_k-\varepsilon^{\rm tr}_k=-p_k(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, and the volumes change by $\alpha_k=\alpha^{\rm tr}_k/(1-s)$.
+
+\paragraph{Instantaneous thermal relaxation: $pT$ closure ($\mu=\theta=\infty$, $\nu=0$)}
+The masses are $m_k=m^{\rm tr}_k$. The mixture energy $\sum_km_ke_k(p,T)=(\rho e)^C$ gives the temperature explicitly, and
+\begin{equation}
+T(p)=\frac{(\rho e)^C-\sum_km_kq_k}{\sum_km_kc_{vk}\,\frac{p+\gamma_k\pi_k}{p+\pi_k}},\qquad
+\Phi(p)=\sum_km_kv_k\big(p,T(p)\big)-1 ,
+\label{eq:pTclosure}
+\end{equation}
+independent of $\alpha^{\rm tr}_k$, $s$ and $\Lambda_k$: the volume fractions are dependent variables, as in the four-equation $pT$ model.
+The admissible root is unique \cite{PelantiShyue2014}; the closure returns $\alpha_k=m_kv_k$, $\varepsilon_k=m_ke_k$ and $\bar p^{\rm cl}=p$.
+
+\paragraph{Finite thermal relaxation ($\mu=\infty$, $\theta<\infty$, $\nu=0$)}
+The heat $\Delta Q=\tau\theta(T_2-T_1)$ is added to \eqref{eq:pclosure}, $\varepsilon_1\mathrel{+}=\Delta Q$, $\varepsilon_2\mathrel{-}=\Delta Q$. By \eqref{eq:alpha_p}, $\alpha_k$ is linear in
+$\Delta Q$, $\alpha_k=\alpha^0_k(p)+\chi_k(\gamma_k-1)\Delta Q/\big(\gamma_k(p+\pi_k)\big)$, with $\alpha^0_k$ the volumes of the $p$ closure, and the
+temperatures $T_k=(\alpha_k/m_k-b_k)(p+\pi_k)/\big((\gamma_k-1)c_{vk}\big)$ change by
+\[
+T_k=T^0_k(p)+\chi_k\frac{\Delta Q}{C_{pk}},\qquad C_{pk}=\gamma_kc_{vk}m_k ,
+\]
+the heat at constant pressure being the enthalpy increase. Hence, in closed form,
+\begin{equation}
+\Delta Q(p)=\frac{\tau\theta\,\big(T^0_2(p)-T^0_1(p)\big)}{1+\tau\theta\,(C_{p1}^{-1}+C_{p2}^{-1})},
+\label{eq:dQ}
+\end{equation}
+and $\Phi(p)=\sum_k\alpha_k(p)-1$; $\theta=0$ gives the $p$ closure.
+
+\paragraph{Finite chemical relaxation ($\mu=\theta=\infty$, $\nu<\infty$)}
+The density $\rho=\sum_km^{\rm tr}_k$ is fixed. For given $p$ and vapour mass fraction $Y=Y_2$,
+\begin{equation}
+T(p,Y)=\frac{(\rho e)^C/\rho-(1-Y)q_1-Yq_2}{(1-Y)c_{v1}\phi_1+Yc_{v2}\phi_2},\quad \phi_k=\frac{p+\gamma_k\pi_k}{p+\pi_k},\qquad
+\mathcal R(Y)=\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0 .
+\label{eq:nuclosure}
+\end{equation}
+At fixed energy $T$ decreases with $Y$ ($e_2(p,T)>e_1(p,T)$) and $\partial_T(g_2-g_1)=-(s_2-s_1)<0$, so
+$\mathcal R'(Y)=\rho+\tau\nu(s_2-s_1)|\partial_YT|>0$ and $Y$ is unique on its admissible interval
+$[Y_{\min},\min(1-Y_{\min},(e-q_1)/(q_2-q_1))]$, the upper bound keeping $T>0$. If $\mathcal R(Y)$ does not change sign on the interval, $Y$ takes
+the end value: complete condensation or evaporation. Then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. A state-dependent rate (Sec.~\ref{sec:res_bartak})
+is evaluated in each cell from its $pT$-equilibrium state at the beginning of the step and frozen over the stages.
+
+\paragraph{Instantaneous chemical relaxation: $pTg$ closure ($\mu=\theta=\nu=\infty$)}
+$T=T_{\rm sat}(p)$, $Y$ follows from the energy and $\Phi(p)=\rho\sum_kY_kv_k-1$; $Y$ is clamped to $[Y_{\min},1-Y_{\min}]$, $Y_{\min}=10^{-10}$, with $T$
+then from the energy, which coincides with the end-value branch of the finite-rate closure, so $\Phi$ is continuous. For
+$p\ge p_c$ the cell is single-phase, the phase being chosen by comparing $1/\rho$ with $v_1(p_c,T_{\rm sat}(p_c))$.
+
+\paragraph{Activation and projection}
+The interfacial quantities $\rho_I$, $e_I$ do not appear in any closure. Thermal and chemical relaxation are active in interface cells,
 $\epsilon_I\le\alpha_1\le1-\epsilon_I$ with $\epsilon_I=10^{-4}$. Mass transfer is activated where the temperature of the $pT$-equilibrium
 state exceeds $T_{\rm sat}(p)$, or, when thermal and chemical relaxation act together, where a phase temperature of the
 mechanical-equilibrium state exceeds $T_{\rm sat}(p)$ (the levels of Sec.~\ref{sec:results}). Activation is decided once per
-time step on $U^n$; for the instantaneous $pT$ and $pTg$ closures $U^n$ is projected onto their equilibrium manifold (the
-same closure with $s=0$), and a cell whose projection has no admissible solution uses the mechanical closure for that
-step. The closure type is frozen over the stages.
+time step on $U^n$. An instantaneous relaxation activated inside a stage is an $O(1)$ jump of the state, which the stage
+combination of the IMEX scheme would extrapolate; for the instantaneous $pT$ and $pTg$ closures $U^n$ is therefore projected
+onto their equilibrium manifold (the same closure with $s=0$, conserving $m_k$ or $\rho$, $\rho\mathbf u$ and $E$), and a cell whose
+projection has no admissible solution uses the mechanical closure for that step. The closure type is frozen over the
+stages.
 
 \subsubsection{Solution of the pressure system}
 \label{sec:pressure_system}
@@ -393,9 +546,22 @@ non-negative combination of reconstructed face values and hence admissible, inde
 the phases.
 \end{proposition}
 \begin{proof}
-The explicit flux plus the increment is $X^L_f[\tfrac12(u^L+a)+w^L]+X^R_f[\tfrac12(u^R-a)+w^R]$, $w^{L,R}$ the brackets of
-\eqref{eq:increment}; with $a\ge\max|u^{L,R}|$ the neighbour coefficients are $\ge(u_f)^+$ and $\ge-(u_f)^-$, and the
-own-cell coefficients are $\tfrac12-r(\cdot)$ with $(\cdot)\le a+|u_f|$, using $X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$, which holds for $Q^e=Q^s$.
+Write $a=a_f$, $r=\tau/\Delta x$ and $(\cdot)^\pm=\max/\min(\cdot,0)$. For $Q^e=Q^s$ the cell value is the mean of its two face values,
+$X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$, and the explicit update \eqref{eq:explicit} reads
+\[
+X^*_i=X^L_{i+1/2}\Big[\tfrac12-\tfrac r2(a+u^L)_{i+1/2}\Big]+X^R_{i-1/2}\Big[\tfrac12-\tfrac r2(a-u^R)_{i-1/2}\Big]
++\tfrac r2(a-u^R)_{i+1/2}X^R_{i+1/2}+\tfrac r2(a+u^L)_{i-1/2}X^L_{i-1/2},
+\]
+with non-negative neighbour coefficients since $a\ge\max(|u^L|,|u^R|)$. The increment \eqref{eq:increment} is $I_f=X^L_fw^L+X^R_fw^R$ with
+$w^L=(u_f)^+-(\bar u^e_f)^+$, $w^R=(u_f)^--(\bar u^e_f)^-$, on the same face values, so the explicit flux plus the increment is
+\[
+F_f+I_f=X^L_f\Big[\tfrac12(u^L+a)+w^L\Big]+X^R_f\Big[\tfrac12(u^R-a)+w^R\Big].
+\]
+From $a\ge\max|u^{L,R}|$, $\tfrac12(a+u^L)\ge(\bar u^e)^+$ and $\tfrac12(a-u^R)\ge-(\bar u^e)^-$, hence $\tfrac12(a+u^L)+w^L\ge(u_f)^+\ge0$ and
+$\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$: in $X^{\rm tr}_i=X_i-r\,\delta_i[F+I]$ the coefficients of the neighbour face values are non-negative.
+The coefficients of the own face values are $\tfrac12-r\big[\tfrac12(a+u^L)+w^L\big]_{i+1/2}$ and $\tfrac12-r\big[\tfrac12(a-u^R)-w^R\big]_{i-1/2}$, whose
+brackets do not exceed $a+|u_f|$, so they are non-negative under the stated condition. In 2D the same holds per direction with $\tfrac14$.
+Thus $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ is a non-negative combination of admissible face states with coefficients that do not depend on $k$.
 The admissible set of SG and NASG phases is a convex cone.
 \end{proof}
 The condition involves the implicit face velocity and is not implied by \eqref{eq:cfl}; with $C=0.2$ the explicit part
@@ -434,9 +600,17 @@ discrete solution. The $\theta$ and $\nu$ limits follow in the same way from $T_
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
 the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
-Formally, the limit schemes are consistent discretisations of the relaxed models: linearising the $p$ closure, each
-phase is isentropic and $\mathrm d\alpha_k=s\,\frac{\alpha_k/(\rho_kc_k^2)}{\sum_j\alpha_j/(\rho_jc_j^2)}$, which with $s=\Delta t\,\partial_xu$ is the volume equation of
-the Kapila model.
+The limit schemes are consistent discretisations of the relaxed models. For the $p$ closure, linearising
+\eqref{eq:pclosure} with $\delta=0$, each phase is isentropic at the common pressure, $\mathrm dp=-K_k\,\mathrm d\alpha_k/\alpha_k$, and $\sum_k\mathrm d\alpha_k=s$ gives
+\[
+\mathrm d\alpha_k=s\,\frac{\alpha_k/K_k}{\sum_j\alpha_j/K_j},\qquad K_k=\rho_kc_k^2 .
+\]
+With $s=\Delta t\,\partial_xu$ and the transport part of $\alpha_k$ this is
+\[
+\partial_t\alpha_1+u\,\partial_x\alpha_1=\alpha_1\Big(\frac{\rho c_p^2}{\rho_1c_1^2}-1\Big)\partial_xu=\frac{\alpha_1\alpha_2(\rho_2c_2^2-\rho_1c_1^2)}{\alpha_1\rho_2c_2^2+\alpha_2\rho_1c_1^2}\,\partial_xu ,
+\]
+the volume-fraction equation of the Kapila model \cite{Kapila2001,Pelanti2022}, $c_p$ being the Wood sound speed. In the same way the $pT$
+and $pTg$ closures are the four-equation and homogeneous equilibrium models, whose volume fractions are dependent variables.
 
 \paragraph{Low-Mach limit of the mixture}
 Let $u_0$, $c_0$ and $\rho_0$ be a reference velocity, sound speed and density and $M=u_0/c_0$. With impermeable
@@ -452,10 +626,19 @@ $\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(M^2)$, 
 $M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step independent of $M$.
 \end{proposition}
 \begin{proof}
-For pressure variations of order $\rho_0c_0^2$ the pressure gradient in $u_f$ is $O(M^{-2})$ relative to the inertia; inserting
-$P=P_0+M^2P_2$ into the linearised closure $P_i-P^*_i=-K^W_i\,s_i$, $s_i=(\tau/\Delta x)\,\delta[u_f]_i$, with $P^*$ the mixture pressure of
-$X^*$ and $K^W=\rho c_p^2$ the Wood bulk modulus, and collecting the orders $M^{-2}$ and $1$
-gives the first two statements; $c\tau/\Delta x=O(1/M)$ gives the third.
+Scale pressures by $\rho_0c_0^2$, so that the pressure coefficient of the face velocity, $\tau/(\bar\rho_f\Delta x)$ in dimensional form, carries a
+factor $M^{-2}$ relative to the inertia. Linearising the closure about $X^*$, the pressure equation \eqref{eq:global} reads
+\[
+P_i-P^*_i=-K^W_i\,s_i+\dots,\qquad s_i=\frac\tau{\Delta x}\,\delta[u_f]_i,\qquad u_f=\bar u^*_f-\frac{\tau}{M^2\bar\rho_f}\frac{\delta P}{\Delta x}+\dots,
+\]
+with $P^*$ the mixture pressure of $X^*$ and $K^W=\rho c_p^2=O(1)$ the Wood bulk modulus. Insert $P=P_0+M^2P_2$ with $P_0$ constant. The term
+$K^W_is_i$ must be $O(M^2)$ because $P_i-P^*_i=O(M^2)$ for well-prepared data, so $\delta[u_f]_i=O(M^2)$: the face velocities are discretely
+divergence-free. The pressure gradient in $u_f$ is $\delta P/(M^2\Delta x)=\delta P_2/\Delta x$, and the order-one balance gives the compact Poisson
+equation of the statement, i.e.\ a projection of the explicit face velocities. In the momentum update $p_f$ is a weighted average of
+$P$, $P_0$ cancels in $\delta p_f$, and the cell velocity is corrected by $\tau\,\delta\overline{P_2}/\Delta x$. The acoustic Courant number is
+$c\tau/\Delta x=a_{ii}C\,c/\max|u|=O(1/M)$, so $\varphi=(1-c\tau/\Delta x)^+=0$ once $M<a_{ii}C$. The explicit Rusanov dissipation uses the material
+speed and the closures return states on the equilibrium manifold, both independently of $M$. The limit scheme is therefore
+explicit convection followed by a projection of the face velocities, with a time step set by \eqref{eq:cfl}.
 \end{proof}
 
 \subsection{Second-order time discretisation}
