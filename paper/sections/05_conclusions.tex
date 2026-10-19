@@ -17,15 +17,17 @@ The implicit pressure work and the relaxation terms enter a single local closure
 or infinite, reduces to one scalar equation for the cell pressure; the stage reduces to a mildly nonlinear system for
 the cell pressures with a three-point (five-point in 2D) Jacobian, solved by Newton's method. The difference between
 the conservative and the non-conservative mixture internal energy is distributed between the phases according to the
-shock relations of the model: we have shown that the share consistent with these relations for weak shocks is unique,
-and that the share of the discretisation error that keeps both phases admissible for every defect is unique. No
+shock relations of the model: the physical part with the constant share for which the shock profile of the relaxed
+model ends on the Hugoniot of each phase, computed by shooting, which for weak shocks reduces to the unique consistent
+local share, and the discretisation error with the unique share that keeps both phases admissible for every defect. No
 calibrated heat exchange is needed. The acoustic dissipation that the central implicit operator lacks is supplied at the
 faces from the acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind
 one and limited to second order in smooth regions. Second order in time is obtained with the stiffly accurate,
 L-stable LSDIRK2 scheme.
 
-We have proved that the scheme preserves moving contacts and the phase temperatures under transport, that the transported
-phase states of a backward-Euler stage remain admissible under a face condition independent of the phase contents, and
+We have proved that the scheme preserves moving contacts and the phase temperatures under transport, that with a
+limiter that keeps the reconstructed face states admissible the transported phase states of a backward-Euler stage remain
+admissible under a face condition independent of the phase contents, and
 that, under non-degeneracy assumptions, it converges to the corresponding equilibrium scheme as each relaxation rate tends
 to infinity and reduces to the scheme without that relaxation as the rate vanishes; formally, the scheme is asymptotic
 preserving in the low Mach number limit of the mixture. The numerical results confirm these properties: second-order
