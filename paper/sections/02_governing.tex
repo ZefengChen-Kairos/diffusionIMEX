@@ -1,6 +1,6 @@
 % =====================================================================
 % Section 2. Mathematical model  (structure as Battisti & Boscheri 2025, Sec. 2)
-% Source: docs/derivation/A_model_EOS_explicit.md (A1, A2, A2.1)
+% Source: docs/derivation/A_model_EOS_explicit.md (A1, A2)
 % =====================================================================
 \section{Mathematical model}
 \label{sec:governing}
@@ -84,26 +84,3 @@ by
 \end{equation}
 which becomes prohibitive when the flow is slow compared with the sound speed, while the relaxation terms
 add their own stiffness.
-
-\subsection{Non-dimensional form}
-\label{sec:nondim}
-To identify the stiff terms we introduce reference values common to both phases (the mixture is
-characterised by one Mach number, as in Re and Abgrall and in Battisti and Boscheri): length $L_0$,
-velocity $u_0$, time $\tau_0=L_0/u_0$, density $\rho_0$ and pressure $p_0$, with internal and total energies
-scaled by $p_0$. With $\epsilon=\gamma_0M^2$, $M=u_0/c_0$, $c_0^2=\gamma_0p_0/\rho_0$, and dropping the tildes,
-\begin{equation}
-\begin{aligned}
-&\partial_t\alpha_1+u\,\partial_x\alpha_1=\tilde\mu(p_1-p_2)+\dots,\qquad
-\partial_t m_k+\partial_x(m_ku)=\pm\tilde\nu\,(g_2-g_1),\\
-&\partial_t(\rho u)+\partial_x(\rho u^2)+\frac1\epsilon\,\partial_x\bar p=0,\\
-&\partial_t\varepsilon_k+\partial_x(\varepsilon_ku)+\alpha_kp_k\,\partial_xu=\mp p_I\tilde\mu(p_1-p_2)\pm\tilde\theta(T_2-T_1)+\dots,\\
-&\partial_t E+\partial_x\big((E+\bar p)u\big)=0,\qquad E=\textstyle\sum_k\varepsilon_k+\tfrac12\epsilon\,\rho u^2,
-\end{aligned}
-\label{eq:nondim}
-\end{equation}
-with the dimensionless rates $\tilde\mu=\mu p_0\tau_0$, $\tilde\theta=\theta T_0\tau_0/p_0$ and $\tilde\nu=\nu p_0\tau_0/\rho_0^2$. Two
-sources of stiffness appear. The pressure gradient in the momentum equation carries $1/\epsilon$; it is coupled to
-the pressure work $\alpha_kp_k\,\partial_xu$ in the phase energy equations and to the enthalpy part of the energy flux,
-$(E+\bar p)u=\tfrac12\epsilon\rho u^2u+(\rho e+\bar p)u$, which together determine the pressure response to compression.
-The relaxation terms carry $\tilde\mu,\tilde\theta,\tilde\nu$, which may be arbitrarily large. Both groups are treated
-implicitly by the scheme of Sec.~\ref{sec:method}, the second inside the same local closure as the first.

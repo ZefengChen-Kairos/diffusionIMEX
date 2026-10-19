@@ -312,21 +312,22 @@ manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm 
 \end{proof}
 
 \paragraph{Low-Mach limit of the mixture}
-In \eqref{eq:nondim} with impermeable boundaries and well-prepared data, the expansion
-$\bar p=\bar p_{(0)}+\epsilon\bar p_{(1)}+\epsilon^2\bar p_{(2)}+\dots$ gives at order $\epsilon^{-1}$ in the momentum equation
-$\partial_x\bar p_{(0)}=0$; integrating the pressure equation of the mixture,
-$\partial_t\bar p+u\,\partial_x\bar p+\rho c_p^2\,\partial_xu=0$, over the domain then gives $\bar p_{(0)}={\rm const}$ and
+Let $u_0$, $c_0$ and $\rho_0$ be a reference velocity, sound speed and density and $M=u_0/c_0$. With impermeable
+boundaries and well-prepared data, pressure variations are of the size of the inertial terms, $\rho_0u_0^2=M^2\rho_0c_0^2$,
+so that $\bar p=\bar p_{(0)}+M^2\bar p_{(2)}+\dots$ with $\bar p_{(2)}=O(\rho_0c_0^2)$. In the momentum equation the gradient of
+$\bar p_{(0)}$ would exceed the inertia by $M^{-2}$, hence $\partial_x\bar p_{(0)}=0$; integrating the pressure equation of the
+mixture, $\partial_t\bar p+u\,\partial_x\bar p+\rho c_p^2\,\partial_xu=0$, over the domain then gives $\bar p_{(0)}={\rm const}$ and
 $\partial_xu_{(0)}=0$: the incompressible limit of the mixture.
 \begin{proposition}[Formal low-Mach limit]\label{prop:lowmach}
-For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+\epsilon P_2$, formally as $\epsilon\to0$: the face velocities are
-discretely divergence-free to $O(\epsilon)$, $P_2$ solves the discrete Poisson equation
-$\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(\epsilon)$, the acoustic complement vanishes ($\varphi=0$ once
-$M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step independent of $\epsilon$.
+For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+M^2P_2$, formally as $M\to0$: the face velocities are
+discretely divergence-free to $O(M^2)$, $P_2$ solves the discrete Poisson equation
+$\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(M^2)$, the acoustic complement vanishes ($\varphi=0$ once
+$M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step independent of $M$.
 \end{proposition}
 \begin{proof}
-The pressure gradient in $u_f$ carries $1/\epsilon$; inserting $P=P_0+\epsilon P_2$ into the linearised closure
-$P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i$ and collecting the orders $\epsilon^{-1}$ and $1$ gives the first two statements;
-$c\tau/\Delta x=O(1/M)$ gives the third.
+For pressure variations of order $\rho_0c_0^2$ the pressure gradient in $u_f$ is $O(M^{-2})$ relative to the inertia; inserting
+$P=P_0+M^2P_2$ into the linearised closure $P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i$ and collecting the orders $M^{-2}$ and $1$
+gives the first two statements; $c\tau/\Delta x=O(1/M)$ gives the third.
 \end{proof}
 
 \subsection{Well-balanced property}
