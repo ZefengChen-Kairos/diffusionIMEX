@@ -97,8 +97,8 @@ cavitating and evaporating flows.
 
 In this work we construct a second-order IMEX finite volume scheme for the six-equation model with total energy
 and the three relaxations, for stiffened-gas, Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in
-one and two space dimensions. The time step is restricted only by the material speed, whatever the Mach number and
-the relaxation rates. The main ingredients are the following.
+one and two space dimensions. The time step is set by a CFL condition on the material speed only, whatever the Mach
+number and the relaxation rates. The main ingredients are the following.
 \begin{itemize}
 \item The fluxes are split following Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}: the explicit part
 transports all phase quantities with the old velocity and a Rusanov flux whose dissipation speed is the material
@@ -108,8 +108,8 @@ non-conservative product becomes a conservative volume flux plus the volume stra
 \item The implicit pressure work and the three relaxation processes enter a single local closure, which for
 each set of rates, finite or infinite, reduces to one scalar equation for the cell pressure. The stage then
 reduces to a nonlinear system for the cell pressures, mildly nonlinear in the sense of
-\cite{DumbserCasulli2016,CasulliZanolli2012}, with a tridiagonal (five-point in 2D) M-matrix Jacobian, solved by a
-Newton method whose convergence is independent of the Mach number.
+\cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D) Jacobian, solved by a Newton
+method whose iteration count is observed to be independent of the Mach number.
 \item The difference between the conservative and the non-conservative mixture internal energy, which at a
 shock is the dissipation of the scheme, is distributed between the phases according to the shock relations of the
 model \cite{SaurelGavrilyukRenaud2003}: the physical part in proportion to the Hugoniot--isentrope energy gap of
@@ -119,15 +119,18 @@ calibrated heat exchange is needed.
 acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind viscosity,
 and limited so that the scheme is second order in smooth regions and local-extremum-diminishing.
 \item Second order in time is obtained with the stiffly accurate, L-stable LSDIRK2 scheme
-\cite{BoscarinoFilbetRusso2016}.
+\cite{BoscarinoFilbetRusso2016}; the start-up steps use one backward-Euler stage.
 \end{itemize}
-We prove that the scheme converges to the corresponding equilibrium scheme as each relaxation rate tends to
-infinity, that it is formally asymptotic preserving in the low Mach number limit of the mixture, that it preserves
-moving contacts and the temperature consistency of the relaxed states, and that it is positivity preserving. The
-scheme is validated on twenty-two problems in one and two space dimensions: the convergence and low-Mach tests of
-\cite{BattistiBoscheri2025}, single-phase and two-phase Riemann problems at low and high Mach numbers
-\cite{Schropff2026}, and the interface, shock, cavitation, evaporation and depressurisation problems of
-\cite{SPB2009,PelantiShyue2014,Pelanti2022}.
+We prove that, under non-degeneracy assumptions, the scheme converges to the corresponding equilibrium scheme as each
+relaxation rate tends to infinity and reduces to the scheme without that relaxation as the rate vanishes; that it
+preserves moving contacts (with equal phase temperatures when thermal relaxation is active) and the temperature of each
+phase under transport; and that, for stiffened and Noble--Abel stiffened gases, the transported phase states of a
+backward-Euler stage remain admissible under a face condition independent of the phase contents. We show formally
+that the scheme is asymptotic preserving in the low Mach number limit of the mixture. The scheme is validated on
+twenty-two problems in one and two space dimensions (counting the single- and two-phase Taylor--Green vortices
+separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems and a
+low-Mach interface advection at low and high Mach numbers from \cite{Schropff2026}, and the interface, shock,
+cavitation, evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
 
 The rest of the paper is organised as follows. Section~\ref{sec:governing} presents the mathematical model, the
 equations of state and the relaxed limit models. Section~\ref{sec:method} describes the numerical scheme and proves

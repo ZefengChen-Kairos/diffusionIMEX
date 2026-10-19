@@ -296,27 +296,33 @@ cell with both phase pressures equal to the prescribed value, which enters the p
 \subsection{Positivity}
 \label{sec:positivity}
 \begin{proposition}[Positivity]\label{prop:positivity}
-In a step from $U^n$, if $a_f\,r\le\tfrac12$ and $r(a_f+|u_f|)\le\tfrac12$ on every face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in
-2D), the transported state of every phase is a non-negative combination of reconstructed face values and hence
-admissible, independently of the content ratio of the phases.
+Let the phases be stiffened or Noble--Abel stiffened gases, and consider a stage with $Q^e=Q^s$ (a backward-Euler step
+or the first stage of \eqref{eq:lsdirk}) whose reconstructed face states are admissible. If $r(a_f+|u_f|)\le\tfrac12$ on every
+face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported state $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ of every phase is a
+non-negative combination of reconstructed face values and hence admissible, independently of the content ratio of
+the phases.
 \end{proposition}
 \begin{proof}
 The explicit flux plus the increment is $X^L_f[\tfrac12(u^L+a)+w^L]+X^R_f[\tfrac12(u^R-a)+w^R]$, $w^{L,R}$ the brackets of
 \eqref{eq:increment}; with $a\ge\max|u^{L,R}|$ the neighbour coefficients are $\ge(u_f)^+$ and $\ge-(u_f)^-$, and the
-own-cell coefficients are $\tfrac12-r(\cdot)$ with $(\cdot)\le a+|u_f|$. The admissible set is a convex cone.
+own-cell coefficients are $\tfrac12-r(\cdot)$ with $(\cdot)\le a+|u_f|$, using $X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$, which holds for $Q^e=Q^s$.
+The admissible set of SG and NASG phases is a convex cone.
 \end{proof}
+The condition involves the implicit face velocity and is not implied by \eqref{eq:cfl}; with $C=0.2$ the explicit part
+satisfies $a_{ii}ra\approx0.06$, and the condition fails only where $u_f$ departs strongly from the material velocity.
 
 \subsection{Well-balanced property}
 \label{sec:wb}
 \begin{proposition}[Contacts and temperature consistency]\label{prop:wb}
-(i) A state with uniform $u$ and $p$ and arbitrary $\alpha_k$, $\rho_k$ is preserved exactly.
+(i) A state with uniform $u$ and $p$ and arbitrary $\alpha_k$, $\rho_k$ is preserved exactly by the scheme with mechanical
+relaxation; with thermal or chemical relaxation active, this holds if in addition $T_1=T_2$.
 (ii) If each phase has uniform $p$ and $T_k$, transport does not change $\rho_k$, $e_k$, $T_k$.
 \end{proposition}
 \begin{proof}
-(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+q_km_k$ in every cell; the shared limiter keeps this relation on the faces
+(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces
 and \eqref{eq:rusanov} is linear, so it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
-vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$; by
-uniqueness $P\equiv p$. (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are transported by the same
+vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$, so $P\equiv p$ solves
+\eqref{eq:global} (with $T_1=T_2$ the projection onto the $pT$ manifold leaves the state unchanged). (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are transported by the same
 linear operator.
 \end{proof}
 
@@ -324,19 +330,22 @@ linear operator.
 \label{sec:ap}
 \paragraph{Relaxation limits}
 \begin{theorem}[Relaxation limits]\label{thm:limits}
-(i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding equilibrium closure
-with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\tau\nu))$, and the limit scheme is a consistent
-discretisation of the equilibrium model. (ii) For vanishing rates the closure reduces exactly to the frozen
-scheme.
+Assume that the local closures have non-singular Jacobians at their solutions and that the Jacobian of
+\eqref{eq:global} is non-singular. (i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding
+equilibrium closure with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\tau\nu))$ (for $\nu$, where $Y$ is not clamped).
+(ii) For a vanishing rate the closure reduces exactly to the scheme with that relaxation switched off: $\mu=0$ gives
+the frozen two-pressure scheme, $\theta=0$ the $p$ closure and $\nu=0$ the $pT$ closure.
 \end{theorem}
 \begin{proof}
 (i) For $\mu$, with $\kappa=1/(\tau\mu)$ the closure reads $p_1-p_2=\kappa R$; at $\kappa=0$ it is the $p$ closure, and the
-implicit function theorem gives an $O(\kappa)$ difference. Linearising the $p$ closure, each phase is isentropic and
-$\mathrm d\alpha_k=s\,\frac{\alpha_k/(\rho_kc_k^2)}{\sum_j\alpha_j/(\rho_jc_j^2)}$, which with $s=\Delta t\,\partial_xu$ is the volume equation of the
-Kapila model. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
+implicit function theorem gives an $O(\kappa)$ difference for each cell; the non-singular global Jacobian carries it to the
+discrete solution. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
 the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
+Formally, the limit schemes are consistent discretisations of the relaxed models: linearising the $p$ closure, each
+phase is isentropic and $\mathrm d\alpha_k=s\,\frac{\alpha_k/(\rho_kc_k^2)}{\sum_j\alpha_j/(\rho_jc_j^2)}$, which with $s=\Delta t\,\partial_xu$ is the volume equation of
+the Kapila model.
 
 \paragraph{Low-Mach limit of the mixture}
 Let $u_0$, $c_0$ and $\rho_0$ be a reference velocity, sound speed and density and $M=u_0/c_0$. With impermeable
@@ -353,7 +362,8 @@ $M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, wit
 \end{proposition}
 \begin{proof}
 For pressure variations of order $\rho_0c_0^2$ the pressure gradient in $u_f$ is $O(M^{-2})$ relative to the inertia; inserting
-$P=P_0+M^2P_2$ into the linearised closure $P_i-P^*_i=-\tau K_i(\delta\cdot u_f)_i$ and collecting the orders $M^{-2}$ and $1$
+$P=P_0+M^2P_2$ into the linearised closure $P_i-P^*_i=-K^W_i\,s_i$, $s_i=(\tau/\Delta x)\,\delta[u_f]_i$, with $P^*$ the mixture pressure of
+$X^*$ and $K^W=\rho c_p^2$ the Wood bulk modulus, and collecting the orders $M^{-2}$ and $1$
 gives the first two statements; $c\tau/\Delta x=O(1/M)$ gives the third.
 \end{proof}
 
@@ -386,15 +396,17 @@ K_i=\mathcal H\big(U_{E,i},\ \tilde U_{I,i}+\Delta t\,a_{ii}K_i\big).
 Each stage is one application of the first-order scheme: the explicit fluxes \eqref{eq:explicit} are evaluated on
 $U_{E,i}$, the update starts from $\tilde U_{I,i}$ instead of $U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
 value $U_i$ and $K_i=(U_i-\tilde U_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $U^{n+1}=U_2$. The first step uses the
-acoustic Courant number $0.4$, and each step may grow by at most a factor $1.2$ until \eqref{eq:cfl} is reached; these
-steps use one backward-Euler stage.
+acoustic Courant number $0.4$, and no step may exceed $1.2$ times the previous one; a step limited by this rule (in
+practice the start-up and the steps after a shortened step) uses one backward-Euler stage. With a prescribed fixed time
+step the rule is not applied.
 
 \subsection{Fully discrete scheme in two dimensions}
 \label{sec:fully}
 One stage of the scheme, with the explicit state $Q^e=U_{E,i}$, the update base $Q^s=\tilde U_{I,i}$ and the implicit step
 $\tau=a_{ii}\Delta t$ ($Q^e=Q^s=U^n$, $\tau=\Delta t$ for a first-order step), consists of the following steps; $r_x=\tau/\Delta x$,
-$r_y=\tau/\Delta y$, and $u_n$, $u_t$ denote the normal and tangential velocity on a face. Before the first stage of a step the
-relaxation closure of every cell is activated and $U^n$ is projected as in Sec.~\ref{sec:relaxation}.
+$r_y=\tau/\Delta y$, and $u_n$, $u_t$ denote the normal and tangential velocity on a face. When thermal or chemical relaxation is
+used, before the first stage of a step the relaxation closure of every cell is activated and $U^n$ is projected as in
+Sec.~\ref{sec:relaxation}.
 \begin{enumerate}
 \item \emph{Explicit advective sub-system.} The face values are reconstructed on $Q^e$ by \eqref{eq:shared_limiter}, and every
 transported quantity is advanced with the Rusanov fluxes \eqref{eq:rusanov},
@@ -403,15 +415,16 @@ X^*_{i,j}=X^s_{i,j}-r_x\,\delta_x\big[F^e[X]\big]_{i,j}-r_y\,\delta_y\big[G^e[X]
 X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
 \]
 with $G^e$ the $y$-flux of \eqref{eq:rusanov} with $v$ in place of $u$.
-\item \emph{Face coefficients.} On every face the quantities of Sec.~\ref{sec:dissipation} are computed from $X^*$ and the
-pressures of the previous stage: the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
+\item \emph{Face coefficients.} On every face the quantities of Sec.~\ref{sec:dissipation} are computed from $X^*$, the
+limiter factors of the reconstruction of $Q^e$ and the pressures of the previous stage (the Newton initial guess): the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
 so that the face velocity and face pressure \eqref{eq:faces} are affine in the two adjacent cell pressures,
 \[
 u_f=\bar u^*_f-\kappa_f\,(P_R-P_L),\qquad p_f=w_fP_L+(1-w_f)P_R-\varpi_f ,
 \]
 with $\kappa_f=\tau/(\bar\rho_f h)+\varphi_f\psi^P_f/(Z_L+Z_R)$, $w_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and
-$\varpi_f=\varphi_f\psi^u_fZ_LZ_RD^*_f/(Z_L+Z_R)$, $h=\Delta x$ or $\Delta y$.
+$\varpi_f=\varphi_f\psi^u_fZ_LZ_RD^*_f/(Z_L+Z_R)$, $h=\Delta x$ or $\Delta y$; wall faces and prescribed-pressure
+boundaries are treated as in Sec.~\ref{sec:dissipation}.
 \item \emph{Incremental fluxes and conservative updates.} For given cell pressures, the incremental fluxes
 \eqref{eq:increment} are split into their donor parts $I_f=I^L_f+I^R_f$; the incremental mass fluxes are
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then
@@ -437,7 +450,7 @@ $u_n=u_f$ on $x$-faces and $u_n=v_f$ on $y$-faces. The conservative mixture inte
 $(\rho e)^C_{i,j}=E^{\rm new}_{i,j}-|(\rho\mathbf u)^{\rm new}_{i,j}|^2/(2\rho^{n+1}_{i,j})$. All these quantities depend only on the pressures of
 the cell and its four neighbours.
 \item \emph{Local closure.} In every cell the defect \eqref{eq:defect} is partitioned by \eqref{eq:Lambda}, with the
-physical budget \eqref{eq:Qk} computed at the beginning of the stage and frozen during it, and the relaxation closure of
+physical budget \eqref{eq:Qk} computed on $X^*$ after step 1 and frozen during the stage, and the relaxation closure of
 Sec.~\ref{sec:relaxation} returns $\bar p^{\rm cl}_{i,j}$ and the phase states.
 \item \emph{Pressure system.} The system \eqref{eq:global} is solved for the cell pressures by the Newton method of
 Sec.~\ref{sec:pressure_system}; every residual evaluation repeats steps 3 and 4.
@@ -453,4 +466,4 @@ dissipation of the explicit advective fluxes, which scales with the flow velocit
 terms of the acoustic complement in \eqref{eq:faces}: a pressure-jump term in the face velocity and a velocity-jump
 term in the face pressure, which act on the acoustic waves with the weight \eqref{eq:weight} and vanish as $c\tau/\Delta x$
 grows, i.e.\ in the low Mach number limit. Since all three are either explicit with the material speed or implicit,
-none restricts the time step beyond \eqref{eq:cfl}.
+none of them requires a time step smaller than \eqref{eq:cfl}.
