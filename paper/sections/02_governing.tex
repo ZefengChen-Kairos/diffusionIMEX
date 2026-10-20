@@ -166,7 +166,7 @@ and the one-dimensional system in split form reads
 \end{equation}
 Since both sub-systems contain non-conservative products, their wave structure is given in the primitive variables
 \begin{equation}
-\mathbf Q=(\alpha_1,m_1,m_2,u,\varepsilon_1,\varepsilon_2,p)^{\mathsf T},
+\mathbf Q=(\alpha_1,\rho_1,\rho_2,u,\varepsilon_1,\varepsilon_2,p)^{\mathsf T},
 \label{eq:primitive}
 \end{equation}
 where $p$ is the mixture pressure of the total energy, $\sum_k\varepsilon_k(\alpha_k,m_k,p)=E-\tfrac12\rho u^2$ with the phase energies at pressure $p$
@@ -183,8 +183,8 @@ In the primitive variables it reads
 \partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\qquad
 \mathbf A^c(\mathbf Q)=\begin{bmatrix}
 u&0&0&0&0&0&0\\
-0&u&0&m_1&0&0&0\\
-0&0&u&m_2&0&0&0\\
+0&u&0&\rho_1&0&0&0\\
+0&0&u&\rho_2&0&0&0\\
 0&0&0&u&0&0&0\\
 0&0&0&\varepsilon_1&u&0&0\\
 0&0&0&\varepsilon_2&0&u&0\\
@@ -193,8 +193,8 @@ u&0&0&0&0&0&0\\
 K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k}{\sum_k\alpha_k/\Gamma_k},
 \label{eq:Ac}
 \end{equation}
-since the volume fraction and the velocity are advected, the partial densities and phase energies are transported
-conservatively, and $E-\tfrac12\rho u^2$, transported conservatively too, determines $p$ at the advected volumes and
+since the volume fraction and the velocity are advected, the phases are compressed by the flow, the phase energies
+are transported conservatively, and $E-\tfrac12\rho u^2$, transported conservatively too, determines $p$ at the advected volumes and
 compressed masses; for stiffened and Noble--Abel stiffened gases $K^c=\sum_k\alpha_k(p+\gamma_k\pi_k)/(\gamma_k-1)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$.
 It admits the eigenvalues
 \begin{equation}
@@ -217,16 +217,16 @@ with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive va
 0&0&0&0&0&0&0\\
 0&0&0&0&0&0&0\\
 0&0&0&0&0&0&0\\
-\frac1\rho\sum_k\chi_k(p_k-\rho_k\kappa_k)&\frac{\kappa_1-\Gamma_1e_1}\rho&\frac{\kappa_2-\Gamma_2e_2}\rho&0&\frac{\Gamma_1}\rho&\frac{\Gamma_2}\rho&0\\
+\frac1\rho\sum_k\chi_k(p_k-\Gamma_k\rho_ke_k)&\frac{\alpha_1(\kappa_1-\Gamma_1e_1)}\rho&\frac{\alpha_2(\kappa_2-\Gamma_2e_2)}\rho&0&\frac{\Gamma_1}\rho&\frac{\Gamma_2}\rho&0\\
 0&0&0&\alpha_1p_1&0&0&0\\
 0&0&0&\alpha_2p_2&0&0&0\\
 0&0&0&\bar p\big/\sum_k(\alpha_k/\Gamma_k)&0&0&0
 \end{bmatrix},
 \label{eq:Ap}
 \end{equation}
-with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. The fourth row is $\partial_x\bar p/\rho$ with $\bar p=\sum_k\alpha_kp_k(\alpha_k,m_k,\varepsilon_k)$; the phase energies
+with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. The fourth row is $\partial_x\bar p/\rho$ with $\bar p=\sum_k\alpha_kp_k\big(\rho_k,\varepsilon_k/(\alpha_k\rho_k)\big)$; the phase energies
 receive the pressure work, and the internal energy $E-\tfrac12\rho u^2$ receives $-\bar p\,\partial_xu$, the flux $\partial_x(\bar pu)$ of the total energy
-minus the work $u\,\partial_x\bar p$ on the kinetic energy, at fixed volumes and masses. Only the velocity and the phase energies are
+minus the work $u\,\partial_x\bar p$ on the kinetic energy, at fixed volumes and phase densities. Only the velocity and the phase energies are
 coupled, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda^2-a^2)$ and the eigenvalues are
 \begin{equation}
 \lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm a,\qquad a^2=\frac1\rho\sum_k\Gamma_k\alpha_kp_k=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
