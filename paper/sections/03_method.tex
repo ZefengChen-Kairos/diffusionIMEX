@@ -707,3 +707,10 @@ step 3 and the volume fractions, partial densities and phase energies of the clo
 The operator $\mathcal H$ in \eqref{eq:stages} is the one-stage update given by steps 1--6: step 1 is the explicit part,
 evaluated on $U_{E,i}$, and steps 2--6 the implicit part over $\tau=a_{ii}\Delta t$. The construction is the same in one
 and two space dimensions.
+
+In summary, the scheme is stabilised by three sources of numerical dissipation. The first is the Rusanov
+dissipation of the explicit advective fluxes, which scales with the flow velocity. The second and third are the two
+implicit Laplace terms in \eqref{eq:faces}: a pressure Laplacian through the face velocity and a velocity Laplacian
+(bulk viscosity) through the face pressure, which act on the acoustic waves with the weight \eqref{eq:weight} and vanish as $c\tau/\Delta x$
+grows, i.e.\ in the low Mach number limit. Since all three are either explicit with the material speed or implicit,
+none of them requires a time step smaller than \eqref{eq:cfl}.
