@@ -1,13 +1,13 @@
 % Flowchart of the semi-implicit scheme (Sec. 3). Needs: tikz with the libraries positioning, arrows.meta, calc, fit, backgrounds.
 \begin{tikzpicture}[
-  font=\fontsize{8pt}{9.6pt}\selectfont, >={Stealth[length=2mm]}, node distance=4mm,
+  font=\fontsize{8pt}{9.6pt}\selectfont, >={Stealth[length=2.8mm,width=2.2mm]}, node distance=4mm,
   hdr/.style={fill=hdrblue, text=white, font=\fontsize{8pt}{9.6pt}\selectfont\bfseries, inner sep=2.5pt, rounded corners=1pt},
   eq/.style={draw=black!40, fill=white, inner sep=3pt, align=flush center},
   outer/.style={draw=hdrblue!80, fill=hdrblue!8, rounded corners=4pt, inner sep=5pt},
   step/.style={draw=black!45, fill=black!5, align=flush center, inner sep=3pt, text width=#1},
   step/.default=12.8cm,
   note/.style={align=flush center, font=\fontsize{7pt}{8.4pt}\selectfont},
-  dashedarrow/.style={->, dashed, black!70},
+  dashedarrow/.style={->, dashed, semithick, black!75},
 ]
 \definecolor{hdrblue}{RGB}{31,73,125}
 \definecolor{clgreen}{RGB}{214,232,220}
@@ -55,30 +55,30 @@
 \node[step, below=2mm of alh] (s0)
   {\textbf{0. Start of the time step} (thermal / chemical relaxation only)\\
    activation of the closures on $U^n$, projection onto the $pT$ / $pTg$ manifold;\\ closure type frozen over the stages};
-\node[step, below=2mm of s0] (s1)
+\node[step, below=5mm of s0] (s1)
   {\textbf{1. Explicit advective update} on $U_{E,i}$, from $\tilde U_{I,i}$\\
    $X^*=X^s-r\,\delta_x\big[F^e[X]\big]$, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
-\node[step, below=2mm of s1] (s2)
+\node[step, below=5mm of s1] (s2)
   {\textbf{2. Frozen coefficients} on $X^*$\\
    faces: $\bar u^*_f$, $\bar\rho_f$, $Z$, weight $\varphi_f=(1-\tau c_f/\Delta x)^+$, factors $\psi_f$, velocity jump $D^*_f$\\
    cells: shock budget $Q_k=\lambda_k\rho\mathcal D$ from the shock relations (shooting)};
-\node[step, below=2mm of s2] (s3)
+\node[step, below=5mm of s2] (s3)
   {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
    (a) $u_f=\bar u^*_f-\Theta_f(P_R-P_L)$, \ $p_f=W_fP_L+(1-W_f)P_R-\varpi_f$ \ (with implicit Laplace dissipation)\\
    (b) incremental fluxes $\Rightarrow$ $X^{\rm tr}$, strain $s$, $(\rho\mathbf u)^{\rm new}$, $E^{\rm new}$, $(\rho e)^C$\\
    (c) local closure in every cell $\Rightarrow$ $\bar p^{\rm cl}$ \\
    (d) $G(P)=\bar p^{\rm cl}-P=0$: Newton step (BiCGStab / Thomas, line search), repeat (a)--(c)};
-\node[step, below=2mm of s3] (s4)
+\node[step, below=5mm of s3] (s4)
   {\textbf{4. Stage value}: $\rho\mathbf u$, $E$ from 3(b); $\alpha_k$, $m_k$, $\varepsilon_k$ from the closure; \ $U^{n+1}=U_2$};
 \begin{scope}[on background layer]
   \node[outer, fit=(alh)(s0)(s1)(s2)(s3)(s4)] (algbox) {};
 \end{scope}
 \draw[->] (advbox.south) -- (advbox.south |- algbox.north);
 \draw[->] (prsbox.south) -- (prsbox.south |- algbox.north);
-\draw[->] (s0) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3); \draw[->] (s3) -- (s4);
+\draw[->, semithick] (s0) -- (s1); \draw[->, semithick] (s1) -- (s2); \draw[->, semithick] (s2) -- (s3); \draw[->, semithick] (s3) -- (s4);
 
 % ----------------------------------------------------------------- local closure with energy partition
-\node[step=6.05cm, fill=clgreen, draw=black!45, below left=12mm and 3.5mm of algbox.south, anchor=north east, minimum height=4.6cm] (cl)
+\node[step=5.8cm, fill=clgreen, draw=black!45, below left=12mm and 9mm of algbox.south, anchor=north east, minimum height=4.6cm] (cl)
   {\textbf{Local closure} (every residual evaluation)\\[2pt]
    $\alpha^{\rm tr}_k=\alpha^*_k(1-s)$, \ pressure work $\omega_kp_k\,s$\\[2pt]
    \textbf{energy defect}\\
@@ -90,7 +90,7 @@
    relaxation closure $\Rightarrow$ $\Phi(p)=0$\\ $\bar p^{\rm cl}=\sum_k\alpha_kp_k$};
 
 % ----------------------------------------------------------------- relaxation closures by rates
-\node[step=6.05cm, fill=rlpurple, draw=black!45, below right=12mm and 3.5mm of algbox.south, anchor=north west, minimum height=4.6cm] (rl)
+\node[step=5.8cm, fill=rlpurple, draw=black!45, below right=12mm and 9mm of algbox.south, anchor=north west, minimum height=4.6cm] (rl)
   {\textbf{Relaxation closure by rates}\\
    ordering: $\mu=\infty$ if $\theta>0$ or $\nu>0$\\ \phantom{ordering:} $\theta=\infty$ if $\nu>0$\\[3pt]
    \begin{tabular}{@{}l@{\ \ }l@{}}
@@ -104,9 +104,9 @@
    \end{tabular}\\[3pt]
    each case: one scalar equation\\ $\Phi(p)=0$ per cell};
 
-\draw[dashedarrow] (s3.west) -- ++(-6mm,0) |- node[pos=0.25, left, note, fill=white, inner sep=1pt] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.west);
-\draw[dashedarrow] (cl.east) -- node[above, note, fill=white, inner sep=1pt] {$\mu,\theta,\nu$} (rl.west);
-\draw[dashedarrow] (rl.east) -- ++(6mm,0) |- node[pos=0.25, right, note, fill=white, inner sep=1pt] {$\bar p^{\rm cl}$,\\phase states} (s3.east);
+\draw[dashedarrow] (s3.west) -- ++(-11mm,0) |- node[pos=0.25, left, note, fill=white, inner sep=1pt] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.west);
+\draw[dashedarrow] (cl.east) -- node[above=1pt, note] {$\mu,\theta,\nu$} (rl.west);
+\draw[dashedarrow] (rl.east) -- ++(9mm,0) |- node[pos=0.25, right, note, fill=white, inner sep=1pt] {$\bar p^{\rm cl}$,\\phase states} (s3.east);
 
 % ----------------------------------------------------------------- time step control
 \node[hdr, below=9mm of rl.south -| algbox.south, anchor=north, text width=12.8cm, align=flush center] (ctlh) {Time step control};
