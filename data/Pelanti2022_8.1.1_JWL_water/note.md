@@ -10,7 +10,7 @@
 
 | item | value |
 |---|---|
-| test case in the code | `case=61` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_TV_IMEX.cpp` or `case=61`) |
+| test case in the code | `case=61` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_PC_IMEX.cpp` or `case=61`) |
 | cells | 500 |
 | domain | [-10, 10] m |
 | boundaries | transmissive |
@@ -21,9 +21,9 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V21: energy-defect split from the shock relations (II.5), devlog V16; trace-phase-positive increment donors and compact shock-budget stencil, devlog V21), code commit `9aa22e2`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
-- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
-- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
+- Program: `src/SPB6_PC_IMEX.cpp` (final scheme: Zha-Bilgen split, volume fraction advanced entirely in the explicit step by the path-conservative Rusanov scheme; implicit pressure, pressure work, incremental fluxes and the three relaxations in one local closure; energy defect split by the shock relations (II.5); implicit Laplace dissipation of p and u), code commit `99bd20e`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
+- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped start-up steps first order; an inadmissible step is redone with half the time step (LSDIRK2 kept).
+- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit Laplace dissipation of pressure and velocity weighted by (1 - c tau/dx)+.
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
 
 ## Remarks
@@ -32,9 +32,9 @@ Exact solution: `python3 tests/exact_mg.py 61 -10 10 N` (p* = 2.191e10 Pa, u* = 
 
 ## Files
 
-| file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
+| file | content | arguments | run statistics (steps, first-order start-up steps, rejects = halved steps, Newton, conservation, wall time) |
 |---|---|---|---|
-| `JWL_water_t0.9ms.dat` | t = 0.9 ms | `case=61 N=500` | case 61 mode 1 order 2 rk 2 N 500 CFL 0.2 / steps 278 (rk1 4, mood 0) rejects 0 floor 0 / stages 552 newton it 1885 (3.41/stage) maxres 8.19e-14 Tmax 0 2.072e+04 / closure fails 0 / dM1/M 4.89e-15 dM2/M 1.78e-15 dE/E -5.72e-15 / wall 41.51 s |
+| `JWL_water_t0.9ms.dat` | t = 0.9 ms | `case=61 N=500` | case 61 mode 1 order 2 rk 2 N 500 CFL 0.2 / steps 349 (rk1 93) rejects 19 floor 0 / stages 624 newton it 2038 (3.27/stage) maxres 9.94e-14 Tmax 0 2.072e+04 / closure fails 0 / dM1/M 5.36e-15 dM2/M 1.67e-15 dE/E -3.77e-15 / wall 34.89 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 

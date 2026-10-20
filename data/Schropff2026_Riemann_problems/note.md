@@ -18,7 +18,7 @@
 
 ## Setting
 
-Program `src/SPB6_TV_IMEX.cpp` (V21), LSDIRK2, material CFL 0.2, minmod, local Rusanov speed, Newton tolerance 1e-13 (the defaults; no per-test setting). Command: `src/spb6_imex case=C N=N out=cC_N.dat`. Figures `docs/figures/sch80.png` ... `sch88.png` by `python3 tests/plot_schropff.py run/sch docs/figures` (also prints the L1 table, Eq. (51) of the paper).
+Program `src/SPB6_PC_IMEX.cpp` (final scheme: ZB split, path-conservative Rusanov), LSDIRK2, material CFL 0.2, minmod, local Rusanov speed, Newton tolerance 1e-13 (the defaults; no per-test setting). Command: `src/bin_SPB6_PC_IMEX case=C N=N out=cC_N.dat`. Figures `docs/figures/sch80.png` ... `sch88.png` by `python3 tests/plot_schropff.py run/pc/sch docs/figures` (also prints the L1 table, Eq. (51) of the paper).
 
 ## Run statistics (steps, first-order ramp steps, rejects, Newton iterations per stage, wall time in s with 5 runs in parallel)
 

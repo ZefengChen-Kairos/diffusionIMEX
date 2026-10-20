@@ -10,7 +10,7 @@
 
 | item | value |
 |---|---|
-| test case in the code | `case=3` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_TV_IMEX.cpp` or `case=3`) |
+| test case in the code | `case=3` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_PC_IMEX.cpp` or `case=3`) |
 | cells | 2000 |
 | domain | [0, 1] m |
 | boundaries | transmissive |
@@ -21,9 +21,9 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V21: energy-defect split from the shock relations (II.5), devlog V16; trace-phase-positive increment donors and compact shock-budget stencil, devlog V21), code commit `9aa22e2`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
-- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
-- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
+- Program: `src/SPB6_PC_IMEX.cpp` (final scheme: Zha-Bilgen split, volume fraction advanced entirely in the explicit step by the path-conservative Rusanov scheme; implicit pressure, pressure work, incremental fluxes and the three relaxations in one local closure; energy defect split by the shock relations (II.5); implicit Laplace dissipation of p and u), code commit `99bd20e`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
+- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped start-up steps first order; an inadmissible step is redone with half the time step (LSDIRK2 kept).
+- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit Laplace dissipation of pressure and velocity weighted by (1 - c tau/dx)+.
 - Material CFL: **0.05**. Newton tolerance 1e-13.
 
 ## Remarks
@@ -32,11 +32,11 @@ Material CFL 0.05: the 1e8 Pa rarefaction in the liquid is the structure to be r
 
 ## Files
 
-| file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
+| file | content | arguments | run statistics (steps, first-order start-up steps, rejects = halved steps, Newton, conservation, wall time) |
 |---|---|---|---|
-| `p_relax.dat` | p | `case=3 N=2000 relax=0` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 2675 (rk1 3, mood 0) rejects 0 floor 0 / stages 5347 newton it 10717 (2.00/stage) maxres 7.08e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M 4.12e-08 dM2/M 2.61e-15 dE/E 5.18e-08 / wall 91.03 s |
-| `p-pT-pTg_relax.dat` | p-pT-pTg | `case=3 N=2000 relax=2` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 5896 (rk1 3, mood 0) rejects 0 floor 0 / stages 11789 newton it 23587 (2.00/stage) maxres 9.79e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M -4.22e-03 dM2/M 3.16e+00 dE/E 6.47e-08 / wall 212.42 s |
-| `p-pTg_relax.dat` | p-pTg | `case=3 N=2000 relax=3` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 5896 (rk1 3, mood 0) rejects 0 floor 0 / stages 11789 newton it 23587 (2.00/stage) maxres 6.01e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M -4.22e-03 dM2/M 3.16e+00 dE/E 6.47e-08 / wall 214.71 s |
+| `p_relax.dat` | p | `case=3 N=2000 relax=0` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 2675 (rk1 3) rejects 0 floor 0 / stages 5347 newton it 10719 (2.00/stage) maxres 8.72e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M 4.12e-08 dM2/M 2.50e-15 dE/E 5.18e-08 / wall 112.59 s |
+| `p-pT-pTg_relax.dat` | p-pT-pTg | `case=3 N=2000 relax=2` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 5896 (rk1 3) rejects 0 floor 0 / stages 11789 newton it 23587 (2.00/stage) maxres 5.91e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M -4.22e-03 dM2/M 3.16e+00 dE/E 6.47e-08 / wall 264.16 s |
+| `p-pTg_relax.dat` | p-pTg | `case=3 N=2000 relax=3` | case 3 mode 1 order 2 rk 2 N 2000 CFL 0.05 / steps 5896 (rk1 3) rejects 0 floor 0 / stages 11789 newton it 23587 (2.00/stage) maxres 9.06e-14 Tmax 687.3 1.022e+06 / closure fails 0 / dM1/M -4.22e-03 dM2/M 3.16e+00 dE/E 6.47e-08 / wall 267.31 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 

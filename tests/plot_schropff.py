@@ -57,20 +57,23 @@ for c, (title, P1, P2, L, R, x0, t, grids) in CASES.items():
     adv = c in (80, 86)   # uniform u, p: plot the deviations u - u0, p/p0 - 1 (the exact ones are zero)
     if adv:
         q[1] = ('du', '$u-u_0$ (m/s)'); q[2] = ('dp', '$p/p_0-1$'); ex['du'] = 0 * xe; ex['dp'] = 0 * xe
-    for k, (v, lab) in enumerate(q): ax[k].plot(xe, ex[v], 'k-', lw=1.4, label='exact')
+    for k, (v, lab) in enumerate(q): ax[k].plot(xe, ex[v], 'k-', lw=1.0, label='exact')
     runs = [(n, '', 'IMEX %d cells' % n) for n in grids]
+    PLOT_N = 1000   # one relaxation level: the figure shows the 1000-cell solution (black hollow circles); the table has all grids
     for n, tag, name in runs:
         s = load(c, n, tag)
         if s is None: continue
         s['M'] = np.abs(s['u']) / s['cw']; s['du'] = s['u'] - L[3]; s['dp'] = s['p'] / L[4] - 1
-        for k, (v, lab) in enumerate(q): ax[k].plot(s['x'], s[v], '--' if tag else '-', lw=1.0, label=name)
+        mk = 'o'
+        if n == PLOT_N:
+            for k, (v, lab) in enumerate(q): ax[k].plot(s['x'], s[v], ls='none', marker=mk, mfc='none', ms=3.5, mew=0.8, color='k', markevery=0.012, label=name)
         dx = 1.0 / n; xc = (np.arange(n) + 0.5) * dx
         num = np.sum(np.abs(s['rho'] - exact(c, xc, t)['rho'])) * dx; den = np.sum(np.abs(exact(c, xc, 0)['rho'])) * dx
         rows.append((c, title + (' (dt = 0.5 dx/c)' if tag else ''), n, num / den))
     for k, (v, lab) in enumerate(q):
         ax[k].set_xlabel('$x$ (m)'); ax[k].set_ylabel(lab); ax[k].grid(alpha=.3)
         if (v == 'rho' and c in (80, 83, 86)) or (v == 'p' and c == 83): ax[k].set_yscale('log')
-    ax[0].legend(); fig.suptitle('%s (Schropff et al. 2026), $t$ = %g s; IMEX TV-split, LSDIRK2, material CFL 0.2' % (title, t))
+    ax[0].legend(); fig.suptitle('%s (Schropff et al. 2026), $t$ = %g s; IMEX ZB split, LSDIRK2, material CFL 0.2' % (title, t))
     fig.tight_layout(); fig.savefig(os.path.join(OUT, 'sch%d.png' % c), dpi=130); plt.close(fig)
 print('| case | test | cells | L1(rho) relative, Eq. (51) |\n|---|---|---|---|')
 for c, title, n, e in rows: print('| %d | %s | %d | %.3e |' % (c, title, n, e))

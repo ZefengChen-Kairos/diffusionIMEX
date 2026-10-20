@@ -10,7 +10,7 @@
 
 | item | value |
 |---|---|
-| test case in the code | `case=6` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_TV_IMEX.cpp` or `case=6`) |
+| test case in the code | `case=6` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_PC_IMEX.cpp` or `case=6`) |
 | cells | 1000 |
 | domain | [0, 1] m |
 | boundaries | transmissive |
@@ -21,16 +21,16 @@
 
 ## Scheme
 
-- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V21: energy-defect split from the shock relations (II.5), devlog V16; trace-phase-positive increment donors and compact shock-budget stencil, devlog V21), code commit `9aa22e2`; run script `tests/run_archive.sh`, this folder written by `tests/make_archive.py`.
-- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped steps first order; an inadmissible step is redone once at the same step with backward Euler (MOOD), then halved.
-- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit pressure with the acoustic complement (B4.1).
+- Program: `src/SPB6_PC_IMEX.cpp` (final scheme: Zha-Bilgen split, volume fraction advanced entirely in the explicit step by the path-conservative Rusanov scheme; implicit pressure, pressure work, incremental fluxes and the three relaxations in one local closure; energy defect split by the shock relations (II.5); implicit Laplace dissipation of p and u), code commit `99bd20e`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
+- Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped start-up steps first order; an inadmissible step is redone with half the time step (LSDIRK2 kept).
+- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed (local per face); implicit Laplace dissipation of pressure and velocity weighted by (1 - c tau/dx)+.
 - Material CFL: **0.2 (default)**. Newton tolerance 1e-13.
 
 ## Files
 
-| file | content | arguments | run statistics (steps, first-order steps, MOOD steps, rejects, Newton, conservation, wall time) |
+| file | content | arguments | run statistics (steps, first-order start-up steps, rejects = halved steps, Newton, conservation, wall time) |
 |---|---|---|---|
-| `water_air_TPa_t8.3us.dat` | t = 8.3 us | `case=6 N=1000` | case 6 mode 1 order 2 rk 2 N 1000 CFL 0.2 / steps 1376 (rk1 15, mood 0) rejects 3 floor 0 / stages 2740 newton it 8286 (3.02/stage) maxres 7.99e-14 Tmax 2.943e+05 3.13e+08 / closure fails 0 / dM1/M 3.65e-09 dM2/M 1.10e-14 dE/E 1.60e-08 / wall 40.79 s |
+| `water_air_TPa_t8.3us.dat` | t = 8.3 us | `case=6 N=1000` | case 6 mode 1 order 2 rk 2 N 1000 CFL 0.2 / steps 1377 (rk1 15) rejects 3 floor 0 / stages 2742 newton it 8292 (3.02/stage) maxres 7.15e-14 Tmax 2.943e+05 3.141e+08 / closure fails 0 / dM1/M 3.66e-09 dM2/M 1.09e-14 dE/E 1.61e-08 / wall 45.31 s |
 
 1D/2D profile columns (`x y p u v rho alpha2 Y2 rho1 rho2 c_frozen c_wood T1 T2 p1 p2 g1-g2`, one line per cell, full precision):
 

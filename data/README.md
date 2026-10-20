@@ -1,7 +1,7 @@
-# Data of the IMEX reproductions of the paper figures (V22)
+# Data of the IMEX results (final scheme, `src/SPB6_PC_IMEX.cpp`)
 
 One folder per test; each has the data files and `note.md` (paper, figure, cells, CFL and all settings, command, run statistics).
-Produced by `bash tests/run_all.sh run/v22`, `python3 tests/make_archive.py run/v22 data` and `python3 tests/archive_extra.py run/v22 data`; figures by `python3 tests/plot_paper_figs.py run/v22 docs/figures` and `python3 tests/plot_2d_paper.py run/v22 docs/figures`.
+Produced by `bash tests/run_all.sh run/pc`, `python3 tests/make_archive.py run/pc data` and `python3 tests/archive_extra.py run/pc data`; The 2D folders SPB2009_4.7_cavitating_Richtmyer_Meshkov, PS2014_vapour_bubble_compression and Pelanti2022_8.1.2_underwater_explosion still hold the V22 data until the 2D reruns finish. Figures by `python3 tests/plot_paper_figs.py run/pc docs/figures` and `python3 tests/plot_2d_paper.py run/pc docs/figures`.
 
 | test | paper | figure | cells | material CFL |
 |---|---|---|---|---|
@@ -13,12 +13,15 @@ Produced by `bash tests/run_all.sh run/v22`, `python3 tests/make_archive.py run/
 | [SPB2009_5.1_epoxy_spinel](SPB2009_5.1_epoxy_spinel/note.md) | Saurel, Petitpas & Berry 2009 | Fig. 19 | 500 | 0.05 |
 | [SPB2009_5.2_epoxy_spinel_extreme](SPB2009_5.2_epoxy_spinel_extreme/note.md) | Saurel, Petitpas & Berry 2009 | Fig. 20 | 500 | 0.2 (default) |
 | [SPB2009_4.6_shock_helium_bubble](SPB2009_4.6_shock_helium_bubble/note.md) | Saurel, Petitpas & Berry 2009 | Figs. 13-14 | 600 x 160 | 0.2 (default) |
-| [SPB2009_4.7_cavitating_Richtmyer_Meshkov](SPB2009_4.7_cavitating_Richtmyer_Meshkov/note.md) | Saurel, Petitpas & Berry 2009 | SPB Figs. 15-17 | 300 x 100 (P-S 2014 grid; SPB used 900 x 400: N=900 ny=400) | 0.2 (default) |
+| [SPB2009_4.7_cavitating_Richtmyer_Meshkov](SPB2009_4.7_cavitating_Richtmyer_Meshkov/note.md) | Saurel, Petitpas & Berry 2009 | SPB Figs. 15-17 | 900 x 400 (grid of SPB 2009) | 0.2 (default) |
 | [PS2014_water_cavitation_tube_2mps](PS2014_water_cavitation_tube_2mps/note.md) | Pelanti & Shyue 2014 | Fig. 1 | 5000 | 0.2 (default) |
 | [PS2014_water_cavitation_tube_500mps](PS2014_water_cavitation_tube_500mps/note.md) | Pelanti & Shyue 2014 | Fig. 2 | 5000 | 0.2 (default) |
 | [PS2014_dodecane_shock_tube](PS2014_dodecane_shock_tube/note.md) | Pelanti & Shyue 2014 | Fig. 3 | 2000 | 0.05 |
 | [PS2014_vapour_bubble_compression](PS2014_vapour_bubble_compression/note.md) | Pelanti & Shyue 2014 | Fig. 5 | 200 x 200 | 0.2 (default) |
 | [Pelanti2022_8.1.1_JWL_water](Pelanti2022_8.1.1_JWL_water/note.md) | Pelanti 2022 | Fig. 1 | 500 | 0.2 (default) |
-| [Pelanti2022_8.1.2_underwater_explosion](Pelanti2022_8.1.2_underwater_explosion/note.md) | Pelanti 2022 | Figs. 2-3 | 361 x 200 (half the paper grid 721 x 400: the IMEX run on the paper grid takes about 14 h; `N=721 ny=400` reproduces it) | 0.2 (default) |
+| [Pelanti2022_8.1.2_underwater_explosion](Pelanti2022_8.1.2_underwater_explosion/note.md) | Pelanti 2022 | Figs. 2-3 | 721 x 400 (grid of Pelanti 2022) | 0.2 (default) |
 | [Pelanti2022_8.2.1_water_cavitation](Pelanti2022_8.2.1_water_cavitation/note.md) | Pelanti 2022 | Figs. 4-5 | 5000 | 0.2 (default) |
 | [Pelanti2022_8.2.2_dodecane_NASG](Pelanti2022_8.2.2_dodecane_NASG/note.md) | Pelanti 2022 | Fig. 6 | 2000 | 0.2 (default) |
+| [Pelanti2022_8.2.4_Bartak](Pelanti2022_8.2.4_Bartak) | Pelanti 2022 | Fig. 8 (probe at x = 48 mm) | 1000 | 0.2 (default) |
+| [Schropff2026_Riemann_problems](Schropff2026_Riemann_problems/note.md) | Schropff, Petitpas & Daniel 2026 | Secs. 5.1-5.2 | 200, 1000 (and 5000) | 0.2 (default) |
+| [allmach_convergence](allmach_convergence) | Battisti & Boscheri 2025 | Secs. 4.1, 4.4 (tables; fields in `fields/`) | 32-256 | fixed dt / 0.2 |

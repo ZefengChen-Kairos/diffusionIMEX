@@ -24,9 +24,9 @@ COLS_DOC = """| column | meaning | unit |
 COLS2 = [0, 1, 2, 3, 4, 5, 6, 7, 12, 13]   # 2D: x y p u v rho alpha2 Y2 T1 T2
 COLS2_NAMES = 'x y p u v rho alpha2 Y2 T1 T2'
 
-SCHEME = """- Program: `src/SPB6_TV_IMEX.cpp` (TV-split IMEX, V22: energy-defect split from the shock relations (II.5) with the exact constant share of the shock profile, devlog V22; trace-phase-positive increment donors, compact shock-budget stencil and admissible face states, devlog V21-V22), code commit `{commit}`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
+SCHEME = """- Program: `src/SPB6_PC_IMEX.cpp` (final scheme: Zha-Bilgen split, volume fraction advanced entirely in the explicit step by the path-conservative Rusanov scheme; implicit pressure, pressure work, incremental fluxes and the three relaxations in one local closure; energy defect split by the shock relations (II.5); implicit Laplace dissipation of p and u), code commit `{commit}`; run script `tests/run_all.sh`, this folder written by `tests/make_archive.py`.
 - Time integration: LSDIRK2(2,2,2) (`rk=2`); start-up ramp from the acoustic CFL 0.4 (first step), at most x1.2 per step, ramped start-up steps first order; an inadmissible step is redone with half the time step (LSDIRK2 kept).
-- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit pressure with the acoustic complement (B4.1).
+- Space: second-order MUSCL, minmod (shared limiter for the volume-transported quantities, velocity separately), Rusanov with the material speed ({rus}); implicit Laplace dissipation of pressure and velocity weighted by (1 - c tau/dx)+.
 - Material CFL: **{cfl}**. Newton tolerance 1e-13."""
 
 # folder, paper, figure, description, case, settings dict, list of (raw name, archived file, label), extra text
@@ -146,7 +146,7 @@ for folder, paper, fig, desc, case, st, files, extra in T:
     cfl = CFL.get(case, '0.2 (default)') if case != 50 else 'fixed dt = 0.0025'
     note = ['# %s' % folder, '', '**Paper:** %s' % paper, '', '**Figure(s):** %s' % fig, '', '**Problem:** %s' % desc, '',
             '## Setting', '', '| item | value |', '|---|---|',
-            '| test case in the code | `case=%d` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_TV_IMEX.cpp` or `case=%d`) |' % (case, case),
+            '| test case in the code | `case=%d` (`Test` enum in `src/spb6_physics.h`; switch with `Test test = ...;` in `src/SPB6_PC_IMEX.cpp` or `case=%d`) |' % (case, case),
             '| cells | %s |' % st['N'], '| domain | %s |' % st['dom'], '| boundaries | %s |' % st['bc'], '| EOS | %s |' % st['eos'],
             '| relaxation | %s |' % st['relax'], '| material CFL | %s |' % cfl, '| Rusanov speed | %s |' % RUS.get(case, 'local per face (default)'), '',
             '## Scheme', '', SCHEME.format(commit=COMMIT, cfl=cfl, rus=RUS.get(case, 'local per face')), '']

@@ -1,4 +1,4 @@
-"""Reproductions of the paper figures with the IMEX program (src/SPB6_TV_IMEX.cpp, V21): the variables, units and relaxation levels
+"""Reproductions of the paper figures with the IMEX program (src/SPB6_PC_IMEX.cpp, final scheme): the variables, units and relaxation levels
 of each paper figure, against the exact solutions of the relaxed limit models:
   5-eq. (p-relaxed, tests/exact5.py), 4-eq. (pT-relaxed) and activation-limited pT -> pTg (tests/exact_relaxed.py).
 usage: python3 tests/plot_paper_figs.py RUNDIR OUTDIR [FIG ...]   (RUNDIR from tests/run_all.sh)"""
@@ -15,9 +15,9 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(H, '..', 'docs', 'figur
 ONLY = sys.argv[3:]
 os.makedirs(OUT, exist_ok=True)
 plt.rcParams.update({'font.size': 9, 'axes.titlesize': 9, 'legend.fontsize': 7, 'lines.linewidth': 1.1})
-# per-test settings of src/spb6_physics.h test_setup (material CFL; Rusanov speed local unless noted)
-SET = {'spb19': 'material CFL 0.05', 'ps3': 'material CFL 0.05', 'spb20': 'material CFL 0.2, global Rusanov speed'}
-def imex_lab(fig): return 'IMEX (TV-split, LSDIRK2, %s)' % SET.get(fig, 'material CFL 0.2')
+# per-test settings of src/spb6_physics.h test_setup (material CFL)
+SET = {'spb19': 'material CFL 0.05', 'ps3': 'material CFL 0.05'}
+def imex_lab(fig): return 'IMEX (ZB split, LSDIRK2, %s)' % SET.get(fig, 'material CFL 0.2')
 # archive names (tests/run_all.sh) of the figure runs
 ALIAS = {'spb5': 'spb41', 'spb6': 'spb42', 'spb8': 'spb431', 'spb10': 'spb432', 'spb12': 'spb45', 'spb19': 'spb51', 'spb20': 'spb52',
          'pel1': 'pel811', 'pel4': 'pel821', 'pel6': 'pel822'}
@@ -83,6 +83,10 @@ def ic_rho(P, p, T): return [1 / er.Fan(P, p, T, 0.5).v(k, p, T) for k in (0, 1)
 
 
 # ---------------------------------------------------------------------------------------------------- figure helpers
+# one relaxation level: exact solution solid black, IMEX black hollow circles (markers spaced along the curve, so shocks keep theirs)
+EXACT = dict(color='k', ls='-', lw=1.0)
+def circles(c): return dict(color=c, ls='none', marker='o', mfc='none', ms=3.5, mew=0.8, markevery=0.012)
+
 def panel(ax, v, curves, lab, log=False, ylim=None):
     for s, kw in curves:
         if s is not None and v in s: ax.plot(s['x'], s[v], **kw)
@@ -98,8 +102,8 @@ def single(name, title, cases, var, exact, ncol=2):
     I = load(cases + '_I'); P = exact[1]
     I = derived(I, P) if I else None
     nr = (len(var) + ncol - 1) // ncol; fig, axs = plt.subplots(nr, ncol, figsize=(4.6 * ncol, 2.9 * nr), squeeze=False)
-    curves = [(exact[0], dict(color='k', lw=1.0, label='exact (5-eq.)' if P is not None else 'exact (Euler)')),
-              (I, dict(color='tab:red', marker='.', ms=2.5, lw=0.9, label='IMEX'))]
+    curves = [(exact[0], dict(EXACT, label='exact (5-eq.)' if P is not None else 'exact (Euler)')),
+              (I, dict(circles('k'), label='IMEX'))]
     for ax, (v, lab, *opt) in zip(axs.flat, var): panel(ax, v, curves, lab, *opt)
     for ax in list(axs.flat)[len(var):]: ax.axis('off')
     axs.flat[0].legend(loc='best'); fig.suptitle(title + '\n' + imex_lab(name), fontsize=9)
@@ -139,7 +143,7 @@ def vs_exact(name, title, s, P, ex, exlab, var, centre):
     s = derived(s, P) if s else None
     fig, axs = plt.subplots(1, len(var), figsize=(3.6 * len(var), 3.2), squeeze=False)
     for ax, (v, lab, *opt) in zip(axs.flat, var):
-        panel(ax, v, [(ex, dict(color='k', ls=':', lw=1.3, label=exlab)), (s, dict(color='b', lw=1.0, label='IMEX'))], lab, *opt)
+        panel(ax, v, [(ex, dict(EXACT, label=exlab)), (s, dict(circles('k'), label='IMEX'))], lab, *opt)
         if centre and s is not None and v in s:
             i = len(s['x']) // 2; j = len(ex['x']) // 2
             ax.text(0.5, 0.04, 'x = 0.5: IMEX %.4g, exact %.4g' % (s[v][i], ex[v][j]), transform=ax.transAxes, ha='center', fontsize=7,
@@ -284,7 +288,7 @@ if want('spb6'):   # SPB 2009 Figs. 6-7: nitromethane (Cochran-Chan), 20 GPa | 0
     if I:
         fig, axs = plt.subplots(1, 2, figsize=(9.2, 3.0))
         for ax, (v, lab, ylim) in zip(axs, [('pGPa', 'pressure (GPa)', (9.6, 10.0)), ('u', 'velocity (m/s)', (1740, 1790))]):
-            for s_, kw in ((ex, dict(color='k', lw=1.0, label='exact')), (I, dict(color='tab:red', ls='--', marker='x', ms=3, label='IMEX'))):
+            for s_, kw in ((ex, dict(EXACT, label='exact')), (I, dict(circles('k'), markevery=1, label='IMEX'))):
                 ax.plot(s_['x'], s_[v], **kw)
             ax.set_xlim(0.55, 0.75); ax.set_ylim(*ylim); ax.set_xlabel('x (m)'); ax.set_ylabel(lab); ax.grid(alpha=0.25)
         axs[0].legend(); fig.suptitle('SPB 2009 Fig. 7: magnified around the contact (x = 0.5 + u* t = 0.619 m)\n' + imex_lab('spb7'), fontsize=9)
