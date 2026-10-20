@@ -59,10 +59,10 @@ An equation of state $p_k=p_k(\rho_k,e_k)$ is required for each phase to close t
 families: the Noble--Abel stiffened-gas law, for which the internal energy is affine in the pressure (Sec.~\ref{sec:nasg}),
 and Mie--Gr\"uneisen laws with nonlinear reference curves (Sec.~\ref{sec:mg}).
 
-Letting $\mathbf Q=(\alpha_1,m_1,m_2,\rho\mathbf u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ denote the vector of unknowns, system \eqref{eq:model} can be
+Letting $\mathbf U=(\alpha_1,m_1,m_2,\rho\mathbf u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ denote the vector of unknowns, system \eqref{eq:model} can be
 written in compact form as
 \begin{equation}
-\partial_t\mathbf Q+\nabla\cdot\boldsymbol{\mathcal F}(\mathbf Q)+\mathbf B(\mathbf Q)\cdot\nabla\mathbf Q=\mathbf S(\mathbf Q),
+\partial_t\mathbf U+\nabla\cdot\boldsymbol{\mathcal F}(\mathbf U)+\mathbf B(\mathbf U)\cdot\nabla\mathbf U=\mathbf S(\mathbf U),
 \label{eq:compact}
 \end{equation}
 where $\boldsymbol{\mathcal F}$ collects the flux vectors, $\mathbf B$ the non-conservative products and $\mathbf S$ the relaxation terms. For
@@ -74,7 +74,7 @@ one-dimensional flows aligned with the $x$-direction, \eqref{eq:model} reads
 =\begin{bmatrix}\mathcal P+\mathcal M/\rho_I\\ \mathcal M\\ -\mathcal M\\ 0\\ -p_I\mathcal P+\mathcal Q+e_I\mathcal M\\ p_I\mathcal P-\mathcal Q-e_I\mathcal M\\ 0\end{bmatrix},
 \label{eq:general}
 \end{equation}
-i.e.\ $\partial_t\mathbf Q+\partial_x\mathbf F(\mathbf Q)+\mathbf B(\mathbf Q)\,\partial_x\mathbf Q=\mathbf S(\mathbf Q)$. Without relaxation terms the system has seven eigenvalues,
+i.e.\ $\partial_t\mathbf U+\partial_x\mathbf F(\mathbf U)+\mathbf B(\mathbf U)\,\partial_x\mathbf U=\mathbf S(\mathbf U)$. Without relaxation terms the system has seven eigenvalues,
 \begin{equation}
 \lambda_{1,7}=u\mp c_f,\qquad \lambda_{2,\dots,6}=u,
 \label{eq:eigs}
@@ -149,59 +149,81 @@ To handle the different time scales of the model we split the fluxes in the mann
 \cite{ZhaBilgen1993}, which allows a different time discretisation for each sub-system according to its stiffness: every
 quantity is transported by the flow velocity in one sub-system, and the pressure, its work and the relaxation terms form
 the other. The terms of \eqref{eq:general} are separated into (i) the advective part, the transport of every component of
-$\mathbf Q$ by the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction; and (ii) the
+$\mathbf U$ by the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction; and (ii) the
 pressure--relaxation part, the pressure flux $\mathbf F^p$, the pressure work of each phase $\mathbf B^p\partial_xu$ and the relaxation terms.
 Explicitly,
 \begin{equation}
-\mathbf F^c(\mathbf Q)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\quad
-\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q=\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\0\\0\\0\end{bmatrix},\quad
-\mathbf F^p(\mathbf Q)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\quad
-\mathbf B^p(\mathbf Q)\,\partial_xu=\begin{bmatrix}0\\0\\0\\0\\ \alpha_1p_1\\ \alpha_2p_2\\0\end{bmatrix}\partial_xu ,
+\mathbf F^c(\mathbf U)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\quad
+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\0\\0\\0\end{bmatrix},\quad
+\mathbf F^p(\mathbf U)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\quad
+\mathbf B^p(\mathbf U)\,\partial_xu=\begin{bmatrix}0\\0\\0\\0\\ \alpha_1p_1\\ \alpha_2p_2\\0\end{bmatrix}\partial_xu ,
 \label{eq:split_fluxes}
 \end{equation}
 and the one-dimensional system in split form reads
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)+\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q+\partial_x\mathbf F^p(\mathbf Q)+\mathbf B^p(\mathbf Q)\,\partial_xu=\mathbf S(\mathbf Q).
+\partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U+\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U).
 \label{eq:split}
 \end{equation}
+Since both sub-systems contain non-conservative products, their wave structure is given in the primitive variables
+\begin{equation}
+\mathbf Q=(\alpha_1,\rho_1,\rho_2,u,p_1,p_2,\epsilon)^{\mathsf T},\qquad \epsilon=E-\varepsilon_1-\varepsilon_2-\tfrac12\rho u^2 ,
+\label{eq:primitive}
+\end{equation}
+where $\epsilon$, which vanishes for smooth solutions, accounts for the total-energy equation.
 \begin{enumerate}
 \item The advective sub-system is
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)+\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0
-\quad\Longleftrightarrow\quad
-\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,
+\partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\mathbf 0 .
 \label{eq:advective}
 \end{equation}
-with $\mathbf A^c=\partial\mathbf F^c/\partial\mathbf Q+\mathbf B^c$, which in the variables $\mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ reads
+In the primitive variables it reads
 \begin{equation}
+\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\qquad
 \mathbf A^c(\mathbf Q)=\begin{bmatrix}
 u&0&0&0&0&0&0\\
-0&u(1-Y_1)&-uY_1&Y_1&0&0&0\\
-0&-uY_2&u(1-Y_2)&Y_2&0&0&0\\
-0&-u^2&-u^2&2u&0&0&0\\
-0&-u\varepsilon_1/\rho&-u\varepsilon_1/\rho&\varepsilon_1/\rho&u&0&0\\
-0&-u\varepsilon_2/\rho&-u\varepsilon_2/\rho&\varepsilon_2/\rho&0&u&0\\
-0&-uE/\rho&-uE/\rho&E/\rho&0&0&u
-\end{bmatrix}.
+0&u&0&\rho_1&0&0&0\\
+0&0&u&\rho_2&0&0&0\\
+0&0&0&u&0&0&0\\
+0&0&0&\rho_1c_1^2-\Gamma_1p_1&u&0&0\\
+0&0&0&\rho_2c_2^2-\Gamma_2p_2&0&u&0\\
+0&0&0&\epsilon&0&0&u
+\end{bmatrix},
 \label{eq:Ac}
 \end{equation}
-It admits the eigenvalues
+with the Gr\"uneisen coefficient $\Gamma_k=\rho_k^{-1}\partial p_k/\partial e_k|_{\rho_k}$: the volume fraction, the velocity and the specific internal
+energies are advected, and the phases are compressed at constant specific internal energy,
+$\rho_kc_k^2-\Gamma_kp_k=\rho_k\,\partial p_k/\partial\rho_k|_{e_k}$. It admits the eigenvalues
 \begin{equation}
 \lambda^c_{1,\dots,7}=u .
 \label{eq:eig_adv}
 \end{equation}
-The $\alpha_1$ row is a non-conservative product; the other rows are conservative, and $\mathbf A^c-u\,\mathbf I$ is nilpotent of
-rank one, so one eigenvector is missing and the sub-system is weakly hyperbolic, as the pressureless gas dynamics it
-contains. The characteristic speed is the flow velocity alone. The volume fraction is transported only by this
-sub-system; in the pressure--relaxation sub-system it changes only through the relaxation terms.
+$\mathbf A^c-u\,\mathbf I$ is nilpotent of rank one, so one eigenvector is missing and the sub-system is weakly hyperbolic, as
+the pressureless gas dynamics it contains. The characteristic speed is the flow velocity alone. The volume fraction
+is transported only by this sub-system; in the pressure--relaxation sub-system it changes only through the relaxation
+terms.
 \item The pressure--relaxation sub-system is
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F^p(\mathbf Q)+\mathbf B^p(\mathbf Q)\,\partial_xu=\mathbf S(\mathbf Q),
+\partial_t\mathbf U+\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U),
 \label{eq:pressure_sub}
 \end{equation}
-with the relaxation terms $\mathbf S$ of \eqref{eq:general}. Without sources the volume fractions and the partial densities are
-constant, so each phase keeps its density and is heated by its pressure work,
-$\partial_tp_k=-\Gamma_kp_k\,\partial_xu$ with the Gr\"uneisen coefficient $\Gamma_k=\rho_k^{-1}\partial p_k/\partial e_k|_{\rho_k}$, and its Jacobian admits the eigenvalues
+with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive variables it reads
+\begin{equation}
+\partial_t\mathbf Q+\mathbf A^p(\mathbf Q)\,\partial_x\mathbf Q=\tilde{\mathbf S}(\mathbf Q),\qquad
+\mathbf A^p(\mathbf Q)=\begin{bmatrix}
+0&0&0&0&0&0&0\\
+0&0&0&0&0&0&0\\
+0&0&0&0&0&0&0\\
+(p_1-p_2)/\rho&0&0&0&\alpha_1/\rho&\alpha_2/\rho&0\\
+0&0&0&\Gamma_1p_1&0&0&0\\
+0&0&0&\Gamma_2p_2&0&0&0\\
+0&0&0&0&0&0&0
+\end{bmatrix},
+\label{eq:Ap}
+\end{equation}
+with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. Without sources the volume fractions and the phase densities are constant, so each
+phase is heated by its pressure work at constant density, $\partial_tp_k=-\Gamma_kp_k\,\partial_xu$, and the mixture pressure accelerates
+the flow; $\epsilon$ is constant since the work $\bar p\,\partial_xu$ on the phases and $u\,\partial_x\bar p$ on the kinetic energy add up to the flux
+$\partial_x(\bar pu)$ of the total energy. The characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda^2-a^2)$, so the eigenvalues are
 \begin{equation}
 \lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm a,\qquad a^2=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
 \label{eq:eig_p}

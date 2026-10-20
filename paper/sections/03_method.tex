@@ -20,18 +20,16 @@ $\delta_y[G]_{i,j}=G_{i,j+1/2}-G_{i,j-1/2}$. Where the $y$-direction is analogou
 
 \subsection{Advective sub-system}
 \label{sec:advective}
-The advective sub-system \eqref{eq:advective} transports every quantity with the flow velocity. Since the volume fraction
-is advected by the non-conservative product $u\,\partial_x\alpha_1$, it is a non-conservative hyperbolic system
-$\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0$, with $\mathbf A^c$ given in \eqref{eq:Ac}. The coefficient matrix is the Jacobian of the transport flux
-$Xu$ in every row except the first, $u\,\partial_x\alpha_1$, which is not the derivative of any flux. The sub-system is discretised by
-the path-conservative Rusanov scheme \cite{DalMaso1995,Pares2006,Castro2006},
+The advective sub-system \eqref{eq:advective} transports every quantity with the flow velocity. Its $\alpha_1$ row,
+$u\,\partial_x\alpha_1$, is not the derivative of any flux, and the sub-system is discretised by the path-conservative Rusanov scheme
+\cite{DalMaso1995,Pares2006,Castro2006},
 \begin{equation}
-\mathbf Q^*_i=\mathbf Q^n_i-\frac{\Delta t}{\Delta x}\Big(\mathbf D^-_{i+1/2}+\mathbf D^+_{i-1/2}\Big),\qquad
-\mathbf D^-_{i+1/2}+\mathbf D^+_{i+1/2}=\int_0^1\mathbf A^c(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds ,
+\mathbf U^*_i=\mathbf U^n_i-\frac{\Delta t}{\Delta x}\Big(\mathbf D^-_{i+1/2}+\mathbf D^+_{i-1/2}\Big),\qquad
+\mathbf D^-_{i+1/2}+\mathbf D^+_{i+1/2}=\mathbf F^c(\mathbf U^R)-\mathbf F^c(\mathbf U^L)+\int_0^1\mathbf B^c(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds ,
 \label{eq:pc_update}
 \end{equation}
 where $\boldsymbol\Psi(s)$, $s\in[0,1]$, is the path joining the two states of the face, and the Rusanov dissipation
-$\pm\tfrac12a_{i+1/2}\Delta\mathbf Q_{i+1/2}$ enters $\mathbf D^\mp_{i+1/2}$ with $\Delta(\cdot)=(\cdot)^R-(\cdot)^L$ and
+$\pm\tfrac12a_{i+1/2}\Delta\mathbf U_{i+1/2}$ enters $\mathbf D^\mp_{i+1/2}$ with $\Delta(\cdot)=(\cdot)^R-(\cdot)^L$ and
 \begin{equation}
 a_{i+1/2}=\max\big(|u^L_{i+1/2}|,|u^R_{i+1/2}|\big)
 \label{eq:rusanov_speed}
@@ -39,8 +37,8 @@ a_{i+1/2}=\max\big(|u^L_{i+1/2}|,|u^R_{i+1/2}|\big)
 (or its maximum over all faces of the same direction), the eigenvalue $u$ of the advective sub-system on the two face
 states, so that the dissipation is proportional to the flow velocity.
 
-For the rows of $m_k$, $\rho u$, $\varepsilon_k$ and $E$ the row of $\mathbf A^c$ is the gradient of the flux $Xu$, the path integral equals
-the jump of the flux whatever the path, and \eqref{eq:pc_update} is the conservative update with the Rusanov flux
+For the rows of $m_k$, $\rho u$, $\varepsilon_k$ and $E$ the non-conservative part vanishes, the fluctuations are the jump of the flux
+whatever the path, and \eqref{eq:pc_update} is the conservative update with the Rusanov flux
 \cite{Rusanov1961},
 \begin{equation}
 X^*_{i,j}=X^n_{i,j}-\frac{\Delta t}{\Delta x}\,\delta_x\big[F^e[X]\big]_{i,j}-\frac{\Delta t}{\Delta y}\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
@@ -656,13 +654,13 @@ with the same scheme. With a prescribed fixed time step the start-up rule is not
 
 \subsection{Fully discrete scheme in two dimensions}
 \label{sec:fully}
-One stage of the scheme, with the explicit state $Q^e=U_{E,i}$, the update base $Q^s=\tilde U_{I,i}$ and the implicit step
-$\tau=a_{ii}\Delta t$ ($Q^e=Q^s=U^n$, $\tau=\Delta t$ for a first-order step), consists of the following steps; $r_x=\tau/\Delta x$,
+One stage of the scheme, with the explicit state $U^e=U_{E,i}$, the update base $U^s=\tilde U_{I,i}$ and the implicit step
+$\tau=a_{ii}\Delta t$ ($U^e=U^s=U^n$, $\tau=\Delta t$ for a first-order step), consists of the following steps; $r_x=\tau/\Delta x$,
 $r_y=\tau/\Delta y$, and $u_n$, $u_t$ denote the normal and tangential velocity on a face. When thermal or chemical relaxation is
 used, before the first stage of a step the relaxation closure of every cell is activated and $U^n$ is projected as in
 Sec.~\ref{sec:relaxation}.
 \begin{enumerate}
-\item \emph{Explicit advective sub-system.} The face values are reconstructed on $Q^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
+\item \emph{Explicit advective sub-system.} The face values are reconstructed on $U^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
 transported quantity is advanced with the Rusanov fluxes \eqref{eq:rusanov},
 \[
 X^*_{i,j}=X^s_{i,j}-r_x\,\delta_x\big[F^e[X]\big]_{i,j}-r_y\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
@@ -671,7 +669,7 @@ X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
 with $G^e$ the $y$-flux of \eqref{eq:rusanov} with $v$ in place of $u$, and the volume fraction by the path-conservative update
 \eqref{eq:alpha_explicit} from $X^s$, $\alpha^*_2=1-\alpha^*_1$.
 \item \emph{Face coefficients.} On every face the quantities of Sec.~\ref{sec:dissipation} are computed from $X^*$, the
-limiter factors of the reconstruction of $Q^e$ and the pressures of the previous stage (the Newton initial guess): the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
+limiter factors of the reconstruction of $U^e$ and the pressures of the previous stage (the Newton initial guess): the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
 so that the face velocity and face pressure \eqref{eq:faces} are affine in the two adjacent cell pressures,
 \[
