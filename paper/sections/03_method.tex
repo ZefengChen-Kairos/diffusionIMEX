@@ -69,9 +69,10 @@ Their sum is the path integral, and the update of the cell reads
 the Rusanov difference of the volume flux minus the cell's own volume fraction times the divergence of the face
 velocities. The volume strain is assigned with the cell's own $\alpha_{1,i}$, which is the volume fraction of the
 mass and energy that the conservative fluxes of the cell compress, so that the volume, the mass and the energy of a
-trace phase stay consistent where the velocity jumps across an interface. With first-order face values \eqref{eq:alpha_explicit} is a convex combination of
-the neighbouring volume fractions when $C\le\tfrac12$, so that $\alpha^*_1\in(0,1)$; otherwise admissibility is ensured by the
-step rejection of Sec.~\ref{sec:time}.
+trace phase stay consistent where the velocity jumps across an interface. With first-order face values \eqref{eq:alpha_explicit} is a convex combination of the neighbouring volume
+fractions when $C\le\tfrac12$ for a first-order step (and for the first stage of the IMEX scheme of Sec.~\ref{sec:time}), so that
+$\alpha^*_1\in(0,1)$. In the second stage the update starts from $\tilde U_{I,2}$ while the fluxes are evaluated on $U_{E,2}$, and no
+such bound holds; there, as for second-order face values, admissibility is ensured by the step rejection of Sec.~\ref{sec:time}.
 
 The face values are MUSCL reconstructions \cite{vanLeer1979} with minmod. The volume-transported quantities
 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
@@ -218,7 +219,7 @@ I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\bi
 
 \paragraph{Acoustic weight}
 Backward Euler already damps acoustic waves: for linear acoustics, one step with \eqref{eq:faces} has, at low wave
-numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(\nu+\varphi)$, $\nu=c\tau/\Delta x$. Requiring that each step carries at least
+numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(C_a+\varphi)$, $C_a=c\tau/\Delta x$. Requiring that each step carries at least
 the upwind viscosity $\tfrac12c\Delta x$ on resolved acoustic waves, and no more, gives
 \begin{equation}
 \varphi_f=\Big(1-\frac{\tau\min(c_{f,i,j},c_{f,i+1,j})}{\Delta x}\Big)^+ :
@@ -279,7 +280,7 @@ e_k-e_{k0}+\bar p\,(v_k-v_{k0})=0,\qquad \bar p=\tfrac12(p_0+p_1),\qquad k=1,2,
 \label{eq:II5}
 \end{equation}
 the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. Consider a stationary shock profile of the
-relaxed model with mass flux $j$, total normal stress $P=p-\sigma$ ($\sigma$ the viscous stress), the Rayleigh line
+relaxed model with mass flux $j$, total normal stress $P=p-\Pi$ ($\Pi$ the viscous stress), the Rayleigh line
 $P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm d\mathcal D_k$,
 \begin{equation}
 \mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal D_k,\qquad Y_k\,\mathrm d\mathcal D_k=\lambda_k\,\mathrm d\mathcal D,\qquad \mathrm d\mathcal D=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
@@ -301,7 +302,7 @@ Let $\Delta p=p_1-p_0\to0$, $K_k=\rho_kc_k^2$ and $\mathcal G_k=\tfrac12\big(1+\
 Y_k\rho\,\mathcal D_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
 \label{eq:weak_heat}
 \end{equation}
-the entropy production $T_k\Delta s_k$ of a single-phase shock of the same strength in phase $k$. Hence a share $\lambda_k$ that is
+the entropy production $T_k\Delta\mathcal S_k$ of a single-phase shock of the same strength in phase $k$. Hence a share $\lambda_k$ that is
 consistent with \eqref{eq:II5} for weak shocks is unique and equal to
 $w_k=\big(\alpha_k\mathcal G_k/K_k^2\big)/\sum_j\alpha_j\mathcal G_j/K_j^2$; for stiffened and Noble--Abel stiffened gases $\mathcal G_k=(\gamma_k+1)/2$.
 \end{theorem}
@@ -316,7 +317,7 @@ Inserting this in \eqref{eq:heat} with $p-\bar p=x-\tfrac12\Delta p$,
 Y_k\mathcal D_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
 =v_{k0}Y_k\,\frac{2\mathcal G_k}{K_k^2}\,\frac{\Delta p^3}{12}+O(\Delta p^4),
 \]
-since the first term integrates to zero; with $\rho v_{k0}Y_k=\alpha_k$ this is \eqref{eq:weak_heat}. It equals $T_k\Delta s_k$ of the single-phase
+since the first term integrates to zero; with $\rho v_{k0}Y_k=\alpha_k$ this is \eqref{eq:weak_heat}. It equals $T_k\Delta\mathcal S_k$ of the single-phase
 Hugoniot of phase $k$ at the same $\Delta p$ \cite{LandauLifshitz}, which does not depend on the path. If $\lambda_k$ is a continuous function
 of the state, then on a weak profile $\lambda_k=\lambda_k(U_0)+O(\Delta p)$, and \eqref{eq:heat} with \eqref{eq:weak_heat} requires $\lambda_k(U_0)=w_k(U_0)$.
 \end{proof}
@@ -390,7 +391,9 @@ The share $\lambda^{\mathcal E}_k$ changes the energy of both phases above their
 fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_j\mathcal E_j$.
 With the pressure work the admissible margin becomes $\mathcal E_k+\lambda_k(\delta-s(p+\pi_k))$; the proposition holds exactly for $s=0$, and the
 scheme uses $\mathcal E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
-phases are at their bounds ($\sum_j\mathcal E_j=0$) the error is distributed by mass. Altogether
+phases are at their bounds ($\sum_j\mathcal E_j=0$) the error is distributed by mass. For Mie--Gr\"uneisen phases
+$\mathcal E_k>0$ is the positivity of the thermal energy only; their admissibility $c_k^2>0$ is checked at the solution of the
+closure and ensured by the step rejection of Sec.~\ref{sec:time}. Altogether
 \begin{equation}
 \Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^{\mathcal E}_k,&\delta\ge0,\\[4pt]
 \delta\,\lambda^{\mathcal E}_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
@@ -438,10 +441,10 @@ f_k'(\alpha)=\frac{\rho_kc_k^2}{\Gamma_k}>0 ,
 by a bracketed Newton iteration, without a global monotonicity result.
 
 \paragraph{Finite mechanical relaxation ($\mu<\infty$, $\theta=\nu=0$)}
-Since $\alpha^{\rm tr}_k+\omega_ks=\alpha^*_k$, $\alpha_1=\alpha^*_1+R$, $\alpha_2=\alpha^*_2-R$, and $p_I=w_1p_1+w_2p_2$ with $w_1=Z_2/(Z_1+Z_2)$, the acoustic impedances
+Since $\alpha^{\rm tr}_k+\omega_ks=\alpha^*_k$, $\alpha_1=\alpha^*_1+R$, $\alpha_2=\alpha^*_2-R$, and $p_I$ is given by \eqref{eq:sources}, the acoustic impedances
 $Z_k=\rho_kc_k$ being frozen on $X^*$. For given $R$, \eqref{eq:gibbs} with \eqref{eq:eps_nasg} is the $2\times2$ linear system
 \begin{equation}
-\Big(\frac{\alpha_k-m_kb_k}{\gamma_k-1}+\omega_ks\Big)p_k+\chi_kR\,(w_1p_1+w_2p_2)-\lambda_ks\,(\omega_1p_1+\omega_2p_2)
+\Big(\frac{\alpha_k-m_kb_k}{\gamma_k-1}+\omega_ks\Big)p_k+\chi_kR\,p_I-\lambda_ks\,(\omega_1p_1+\omega_2p_2)
 =\varepsilon^{\rm tr}_k-m_kq_k-\frac{\gamma_k\pi_k(\alpha_k-m_kb_k)}{\gamma_k-1}+\lambda_kD_0+\xi_k
 \label{eq:twopressure}
 \end{equation}
@@ -466,15 +469,15 @@ independent of $\alpha^{\rm tr}_k$, $s$ and $\Lambda_k$: the volume fractions ar
 The admissible root is unique \cite{PelantiShyue2014}; the closure returns $\alpha_k=m_kv_k$, $\varepsilon_k=m_ke_k$ and $\bar p^{\rm cl}=p$.
 
 \paragraph{Finite thermal relaxation ($\mu=\infty$, $\theta<\infty$, $\nu=0$)}
-The heat $\Delta Q=\tau\theta(T_2-T_1)$ is added to \eqref{eq:pclosure}, $\varepsilon_1\mathrel{+}=\Delta Q$, $\varepsilon_2\mathrel{-}=\Delta Q$. By \eqref{eq:alpha_p}, $\alpha_k$ is linear in
-$\Delta Q$, $\alpha_k=\alpha^0_k(p)+\chi_k(\gamma_k-1)\Delta Q/\big(\gamma_k(p+\pi_k)\big)$, with $\alpha^0_k$ the volumes of the $p$ closure, and the
+The heat $\tau\mathcal Q=\tau\theta(T_2-T_1)$ is added to \eqref{eq:pclosure}, $\varepsilon_1\mathrel{+}=\tau\mathcal Q$, $\varepsilon_2\mathrel{-}=\tau\mathcal Q$. By \eqref{eq:alpha_p}, $\alpha_k$ is linear in
+$\tau\mathcal Q$, $\alpha_k=\alpha^0_k(p)+\chi_k(\gamma_k-1)\tau\mathcal Q/\big(\gamma_k(p+\pi_k)\big)$, with $\alpha^0_k$ the volumes of the $p$ closure, and the
 temperatures $T_k=(\alpha_k/m_k-b_k)(p+\pi_k)/\big((\gamma_k-1)c_{vk}\big)$ change by
 \[
-T_k=T^0_k(p)+\chi_k\frac{\Delta Q}{C_{pk}},\qquad C_{pk}=\gamma_kc_{vk}m_k ,
+T_k=T^0_k(p)+\chi_k\frac{\tau\mathcal Q}{C_{pk}},\qquad C_{pk}=\gamma_kc_{vk}m_k ,
 \]
 the heat at constant pressure being the enthalpy increase. Hence, in closed form,
 \begin{equation}
-\Delta Q(p)=\frac{\tau\theta\,\big(T^0_2(p)-T^0_1(p)\big)}{1+\tau\theta\,(C_{p1}^{-1}+C_{p2}^{-1})},
+\tau\mathcal Q(p)=\frac{\tau\theta\,\big(T^0_2(p)-T^0_1(p)\big)}{1+\tau\theta\,(C_{p1}^{-1}+C_{p2}^{-1})},
 \label{eq:dQ}
 \end{equation}
 and $\Phi(p)=\sum_k\alpha_k(p)-1$; $\theta=0$ gives the $p$ closure.
@@ -486,8 +489,8 @@ T(p,Y)=\frac{(\rho e)^C/\rho-(1-Y)q_1-Yq_2}{(1-Y)c_{v1}\phi_1+Yc_{v2}\phi_2},\qu
 \mathcal R(Y)=\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0 .
 \label{eq:nuclosure}
 \end{equation}
-At fixed energy $T$ decreases with $Y$ ($e_2(p,T)>e_1(p,T)$) and $\partial_T(g_2-g_1)=-(s_2-s_1)<0$, so
-$\mathcal R'(Y)=\rho+\tau\nu(s_2-s_1)|\partial_YT|>0$ and $Y$ is unique on its admissible interval
+At fixed energy $T$ decreases with $Y$ ($e_2(p,T)>e_1(p,T)$) and $\partial_T(g_2-g_1)=-(\mathcal S_2-\mathcal S_1)<0$, so
+$\mathcal R'(Y)=\rho+\tau\nu(\mathcal S_2-\mathcal S_1)|\partial_YT|>0$ and $Y$ is unique on its admissible interval
 $[Y_{\min},\min(1-Y_{\min},(e-q_1)/(q_2-q_1))]$, the upper bound keeping $T>0$. If $\mathcal R(Y)$ does not change sign on the interval, $Y$ takes
 the end value: complete condensation or evaporation. Then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. A state-dependent rate (Sec.~\ref{sec:res_bartak})
 is evaluated in each cell from its $pT$-equilibrium state at the beginning of the step and frozen over the stages.
@@ -523,12 +526,13 @@ The system is solved by Newton's method with a finite-difference Jacobian and a 
 requires every local closure to be admissible. The unknown is the pressure perturbation $P-P_{\rm ref}$, with $P_{\rm ref}$ the
 minimum of the initial mixture pressure. The residual of cell $(i,j)$ is scaled by $N_{i,j}=|P_{i,j}|+K_{i,j}+P_{E,i,j}+1$, where
 $K$ is the Wood bulk modulus $\rho c_p^2$ of $X^*$ and $P_{E}=\sum_k\big(|\varepsilon^*_k|+|m^*_kq_k|\big)/\sum_k\partial\varepsilon_k/\partial p|_{\alpha_k,m_k}$ the
-pressure scale of the energy round-off; the natural scale of $P$ is $\sigma_{i,j}=N_{i,j}/D_{i,j}$ with
+pressure scale of the energy round-off; the natural scale of $P$ is $\hat P_{i,j}=N_{i,j}/D_{i,j}$ with
 $D_{i,j}=1+(K_{i,j}+P_{E,i,j})\sum_f(\tau/h_f)\Theta_f$, the scale of $\partial G_{i,j}/\partial P_{i,j}$ ($\Theta_f$ the pressure coefficient of $u_f$, Sec.~\ref{sec:fully}),
-and the finite-difference increments are $10^{-7}\sigma$. The linear systems are solved by the Thomas algorithm for
+and the finite-difference increments are $10^{-7}\hat P$. The linear systems are solved by the Thomas algorithm for
 non-periodic one-dimensional problems and otherwise by BiCGStab with a Jacobi plus constant-coarse-space
-preconditioner (relative tolerance $10^{-13}$), which makes the iteration independent of the Mach number. The
-iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step satisfies $\max|\delta P_{i,j}|/(|P_{i,j}-P_{\rm ref}|+\sigma_{i,j})<10^{-13}$;
+preconditioner (relative tolerance $10^{-13}$); the number of Newton iterations is observed to be independent of the
+Mach number (Sec.~\ref{sec:results}). The
+iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step satisfies $\max|\delta P_{i,j}|/(|P_{i,j}-P_{\rm ref}|+\hat P_{i,j})<10^{-13}$;
 if the line search cannot reduce the residual, the solution is accepted when every $|G_{i,j}|$ lies within $10^{-13}N_{i,j}$ plus the
 round-off floor of the closure, at most 60 iterations being allowed.
 
@@ -565,7 +569,7 @@ and $\zeta$, and its Jacobian with respect to $P$ is non-singular at $\zeta=0$; 
 \eqref{eq:global} then gives a discrete solution that differs from the equilibrium one by $O(\zeta)$, with a constant that depends on
 $\Delta x$ and $\tau$. No uniformity with respect to the mesh is claimed. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
-the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
+the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\tau\mathcal Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
 The limit schemes are consistent discretisations of the relaxed models. For the $p$ closure, linearising
 \eqref{eq:pclosure} with $\delta=0$, each phase is isentropic at the common pressure, $\mathrm dp=-K_k\,\mathrm d\alpha_k/\alpha_k$, and $\sum_k\mathrm d\alpha_k=s$ gives

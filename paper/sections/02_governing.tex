@@ -50,7 +50,7 @@ redundant for smooth solutions, but it is the conservative one and fixes the mix
 transferred mass are taken, for definiteness, as the mixture values, $\rho_I=\rho$ and $e_I=(\varepsilon_1+\varepsilon_2)/\rho$. We follow the
 ordering of time scales of Pelanti \cite{Pelanti2022}: $\mu=\infty$ if $\theta>0$ or $\nu>0$, and $\theta=\infty$ if $\nu>0$. Mass transfer
 therefore takes place at $p_1=p_2=p$ and $T_1=T_2=T$. There, by the Gibbs relation
-$m_kT_k\,\mathrm Ds_k=\mathrm D\varepsilon_k+p_k\,\mathrm D\alpha_k-h_k\,\mathrm Dm_k$ of each phase, the contributions of $\rho_I$ and $e_I$ to the entropy
+$m_kT_k\,\mathrm D\mathcal S_k=\mathrm D\varepsilon_k+p_k\,\mathrm D\alpha_k-h_k\,\mathrm Dm_k$ of each phase, the contributions of $\rho_I$ and $e_I$ to the entropy
 production of the two phases cancel, and the mixture entropy production of the transfer is
 $\mathcal M(g_2-g_1)/T=\nu(g_2-g_1)^2/T\ge0$ for any $\rho_I$, $e_I$; for the same reason $\rho_I$ and $e_I$ do not enter the closures of
 Sec.~\ref{sec:relaxation}.
@@ -234,7 +234,9 @@ coupled, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda
 \end{equation}
 The remaining part of the sound speed, $\sum_kY_k\kappa_k$, comes from the compression of the phases by the mass fluxes of the
 advective sub-system; the two parts add up to the frozen sound speed, $c_{\rm w}^2+\sum_kY_k\kappa_k=c_f^2$. The
-speed $c_{\rm w}$ of the pressure work is real for non-negative phase pressures, and small in a liquid at moderate pressure.
+speed $c_{\rm w}$ of the pressure work is small in a liquid at moderate pressure, and $c_{\rm w}^2$ is negative for negative phase
+pressures, as in cavitation; the sub-system is never solved on its own but together with the incremental advective fluxes
+described below, so that the implicit step carries the whole frozen sound speed $c_f$.
 \end{enumerate}
 In the low Mach number regime the acoustic coupling of the two sub-systems is fast compared with the transport, which
 introduces severe stiffness associated with the pressure terms, in addition to the stiffness of the relaxation rates.
