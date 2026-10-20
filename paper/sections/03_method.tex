@@ -673,9 +673,9 @@ limiter factors of the reconstruction of $U^e$ and the pressures of the previous
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
 so that the face velocity and face pressure \eqref{eq:faces} are affine in the two adjacent cell pressures,
 \[
-u_f=\bar u^*_f-\Theta_f\,(P_R-P_L),\qquad p_f=w_fP_L+(1-w_f)P_R-\varpi_f ,
+u_f=\bar u^*_f-\Theta_f\,(P_R-P_L),\qquad p_f=W_fP_L+(1-W_f)P_R-\varpi_f ,
 \]
-with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $w_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$.
+with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$.
 \item \emph{Incremental fluxes and conservative updates.} For given cell pressures, the incremental fluxes
 \eqref{eq:increment} are split into their donor parts $I_f=I^L_f+I^R_f$; the incremental mass fluxes are
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then
