@@ -51,12 +51,12 @@
 
 % ----------------------------------------------------------------- one stage
 \node[hdr, below=11mm of split.south |- advbox.south, text width=12.8cm, align=flush center] (alh)
-  {Algorithm: one stage of LSDIRK2, implicit step $\tau=a_{ii}\Delta t$};
+  {Algorithm: one time step};
 \node[step, below=2mm of alh] (s0)
   {\textbf{0. Start of the time step} (thermal / chemical relaxation only)\\
    activation of the closures on $U^n$, projection onto the $pT$ / $pTg$ manifold;\\ closure type frozen over the stages};
 \node[step, below=5mm of s0] (s1)
-  {\textbf{1. Explicit advective update} on $U_{E,i}$, from $\tilde U_{I,i}$\\
+  {\textbf{1. Explicit advective update} \ (stages $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$) on $U_{E,i}$, from $\tilde U_{I,i}$\\
    $X^*=X^s-r\,\delta_x\big[F^e[X]\big]$, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
 \node[step, below=5mm of s1] (s2)
   {\textbf{2. Frozen coefficients} on $X^*$\\
