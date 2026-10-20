@@ -91,45 +91,50 @@ the present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zh
 single-velocity two-pressure model and a semi-implicit scheme in which the pressure sub-system is solved by Picard
 iterations and the phase internal energies are corrected to conserve total energy; their scheme is restricted to
 one space dimension and instantaneous pressure relaxation, and the dissipation of its explicit step is a multiple of
-the material speed with a coefficient chosen for each test. To our knowledge, no IMEX scheme exists for the
-six-equation model with mechanical, thermal and chemical relaxation, which is the model used in practice for
-cavitating and evaporating flows.
+the material speed with a coefficient chosen for each test. To our knowledge, no IMEX scheme exists for the six-equation model with mechanical, thermal and chemical relaxation,
+which is the model used in practice for cavitating and evaporating flows. In this model two kinds of stiffness meet:
+the acoustic waves, fast compared with the flow at low Mach numbers, and the relaxation processes, whose rates range
+from zero to infinity and may differ by orders of magnitude between the three processes. Existing methods treat them
+separately: explicit schemes \cite{PelantiShyue2014,Pelanti2022} integrate the relaxation in a step of its own after a
+hyperbolic step restricted by the acoustic CFL condition, and the semi-implicit two-phase schemes either consider only
+instantaneous pressure relaxation \cite{Schropff2026} or solve the relaxation sources in a separate step
+\cite{BattistiBoscheri2025}.
 
-In this work we construct a second-order IMEX finite volume scheme for the six-equation model with total energy
-and the three relaxations, for stiffened-gas, Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in
-one and two space dimensions. The time step is set by a CFL condition on the material speed only, whatever the Mach
-number and the relaxation rates. The fluxes are split following Zha and Bilgen \cite{ZhaBilgen1993}: the explicit
-part transports all quantities with the old velocity by the path-conservative Rusanov scheme
-\cite{Pares2006,Castro2006}, whose dissipation speed is the material speed, and the implicit part carries the pressure,
-its work on each phase and an incremental flux of the conservative transported quantities. The volume fraction, whose
-equation is a non-conservative advection, is updated entirely in the explicit step by the path-conservative
-fluctuations, and changes in the implicit step only through the relaxation terms. The implicit pressure work and the
-three relaxation processes enter a single local closure, which for each set of rates, finite or infinite, reduces to
-one scalar equation for the cell pressure. The stage then reduces to a nonlinear system for the cell pressures, mildly
-nonlinear in the sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D)
-Jacobian, solved by a Newton method whose iteration count is observed to be independent of the Mach number.
+In this work we treat both stiffnesses in a single implicit step. The pressure work and the three relaxation processes,
+at any combination of finite and infinite rates, enter one local closure per cell, which reduces to a scalar equation
+for the cell pressure; the implicit step is then a nonlinear system for the cell pressures, mildly nonlinear in the
+sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D) Jacobian, solved by a Newton
+method whose iteration count is observed to be independent of the Mach number. The resulting scheme is asymptotic
+preserving with respect to both stiffnesses: it converges to the corresponding equilibrium scheme as each relaxation
+rate tends to infinity, reduces to the scheme without that relaxation as the rate vanishes, and is formally asymptotic
+preserving in the low Mach number limit, with a time step set by a CFL condition on the material speed only, whatever
+the Mach number and the relaxation rates.
 
-The difference between the conservative and the non-conservative mixture internal energy, which at a shock is the
-dissipation of the scheme, is distributed between the phases according to the shock relations of the model
-\cite{SaurelGavrilyukRenaud2003}: the physical part with the constant share for which the shock profile of the relaxed
-model ends on the Hugoniot of each phase, computed by shooting and reducing to a unique local share for weak shocks,
-the discretisation error in the unique linear proportion that keeps both phases admissible, so that no calibrated heat
-exchange is needed. The central implicit operator is supplemented by implicit Laplace dissipation of the pressure and
-the velocity with acoustic coefficients, the upwind terms of the acoustic Riemann solution, weighted by the deficit of
-the implicit viscosity with respect to the upwind viscosity, so that it vanishes in the low Mach number regime, and
-limited so that the scheme is second order in smooth regions and local-extremum-diminishing. Second order in time is
-obtained with the stiffly accurate, L-stable LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016}, and the start-up steps use
-one backward-Euler stage.
+The second ingredient is the treatment of shocks. The difference between the conservative and the non-conservative
+mixture internal energy, which at a shock is the dissipation of the scheme, is distributed between the phases
+according to the shock relations of the model \cite{SaurelGavrilyukRenaud2003}, instead of by a calibrated correction.
+We show that for weak shocks the share consistent with these relations is unique, compute for every shock strength the
+constant share for which the shock profile of the relaxed model ends on the Hugoniot of each phase, and distribute the
+remaining discretisation error in the unique linear proportion that keeps both phases admissible.
 
-We prove that, under non-degeneracy assumptions, the scheme converges to the corresponding equilibrium scheme as each
-relaxation rate tends to infinity and reduces to the scheme without that relaxation as the rate vanishes; that it
-preserves moving contacts (with equal phase temperatures when thermal relaxation is active) and the temperature of each
-phase under transport. We show formally
-that the scheme is asymptotic preserving in the low Mach number limit of the mixture. The scheme is validated on
-twenty-two problems in one and two space dimensions (counting the single- and two-phase Taylor--Green vortices
-separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems at low and
-high Mach numbers and a low-Mach interface advection from \cite{Schropff2026}, and the interface, shock,
-cavitation, evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
+The discretisation follows a splitting in the manner of Zha and Bilgen \cite{ZhaBilgen1993}: all quantities are
+transported with the old velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006}, whose dissipation
+speed is the material speed, the volume fraction being advected entirely in this explicit step with a fluctuation that
+keeps the volume, mass and energy of a trace phase consistent, and the implicit step carries the pressure, its work on
+each phase and an incremental flux of the conservative transported quantities. The central implicit operator is
+supplemented by implicit Laplace dissipation of the pressure and the velocity with acoustic coefficients, the upwind
+terms of the acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind
+viscosity, so that it vanishes in the low Mach number regime, and limited so that the scheme is second order in
+smooth regions and local-extremum-diminishing. Second order in time is obtained with the stiffly accurate, L-stable
+LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016}. The scheme applies to stiffened-gas, Noble--Abel stiffened-gas and
+Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+
+Besides the relaxation limits and the low Mach number limit, we prove that the scheme preserves moving contacts (with
+equal phase temperatures when thermal relaxation is active) and the temperature of each phase under transport. The
+scheme is validated on twenty-two problems in one and two space dimensions (counting the single- and two-phase
+Taylor--Green vortices separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase
+Riemann problems at low and high Mach numbers and a low-Mach interface advection from \cite{Schropff2026}, and the
+interface, shock, cavitation, evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
 
 The rest of the paper is organised as follows. Section~\ref{sec:governing} presents the mathematical model, the
 equations of state and the relaxed limit models. Section~\ref{sec:method} describes the numerical scheme and proves

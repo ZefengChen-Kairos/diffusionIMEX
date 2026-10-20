@@ -17,21 +17,23 @@
 \begin{abstract}
 We present a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation two-phase model
 with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas, Noble--Abel stiffened-gas and
-Mie--Gr\"uneisen equations of state. Following Zha and Bilgen, the fluxes are split into an advective part,
-in which all quantities are transported explicitly by the path-conservative Rusanov scheme with the material speed as
-dissipation speed, the volume fraction being advected entirely in this part, and a pressure part, which carries the
-pressure, its work on each phase and an incremental flux of the conservative transported quantities and is treated
-implicitly together with the relaxation terms. The time step is restricted by the flow velocity only, independently of the Mach
-number and of the relaxation rates. The implicit pressure work and the three relaxation processes, at finite or infinite
-rates, enter a single local closure that reduces to one scalar equation for the cell pressure, so that each stage
-requires the solution of a mildly nonlinear system for the cell pressures, solved by Newton's method. The defect between
-the conservative and the non-conservative mixture internal energy is distributed between the phases according to the
-shock relations of the model, without calibrated heat exchange, and the acoustic dissipation missing from the central
-implicit operator is supplied at the faces from the acoustic Riemann solution. Second order in time is obtained with a
-stiffly accurate, L-stable IMEX Runge--Kutta scheme. We prove that the scheme preserves moving contacts and that it converges to the
-corresponding equilibrium schemes as the relaxation rates tend to infinity; formally, it is asymptotic preserving in the
-low Mach number limit. Numerical results in one and two space dimensions, from the incompressible limit to strong
-shocks, cavitation and phase transition, confirm the accuracy and robustness of the method.
+Mie--Gr\"uneisen equations of state. The two stiffnesses of the model, the acoustic waves at low Mach numbers and the
+relaxation processes at arbitrary rates, are treated in a single implicit step: the pressure work and the three
+relaxation processes, at any combination of finite and infinite rates, enter one local closure per cell that reduces
+to a scalar equation for the cell pressure, so that each stage requires the solution of a mildly nonlinear system for
+the cell pressures, solved by Newton's method. The time step is restricted by the flow velocity only, independently of
+the Mach number and of the relaxation rates, and the scheme converges to the corresponding equilibrium schemes as the
+relaxation rates tend to infinity and is formally asymptotic preserving in the low Mach number limit. At shocks, the
+defect between the conservative and the non-conservative mixture internal energy is distributed between the phases
+according to the shock relations of the model, with a share that is unique for weak shocks and computed by shooting
+for strong ones, without calibrated heat exchange. The fluxes are split in the manner of Zha and Bilgen: all
+quantities, including the volume fraction, are transported explicitly by the path-conservative Rusanov scheme with the
+material speed as dissipation speed, and the implicit step carries the pressure, its work on each phase and an
+incremental flux of the conservative transported quantities, with implicit Laplace dissipation of the pressure and the
+velocity that vanishes in the low Mach number regime. Second order in time is obtained with a stiffly accurate,
+L-stable IMEX Runge--Kutta scheme. We prove that the scheme preserves moving contacts. Numerical results in one and two
+space dimensions, from the incompressible limit to strong shocks, cavitation and phase transition, confirm the accuracy
+and robustness of the method.
 \end{abstract}
 \begin{keyword}
 two-phase flow \sep six-equation model \sep relaxation \sep phase transition \sep IMEX \sep semi-implicit \sep
