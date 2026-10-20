@@ -72,7 +72,15 @@ through the relaxation terms. The volume strain is assigned with the cell's own 
 mass and energy that the conservative fluxes of the cell compress, so that the volume, the mass and the energy of a
 trace phase stay consistent where the velocity jumps across an interface. With uniform velocity $\delta_x[\bar u]=0$, and
 $\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by the same linear Rusanov operator, so that a state with uniform velocity and pressure is
-transported without changing the phase densities and energies (Sec.~\ref{sec:wb}).
+transported without changing the phase densities and energies (Sec.~\ref{sec:wb}). In one dimension and with first-order face values the update
+\eqref{eq:alpha_explicit} reads
+\[
+\alpha^*_{1,i}=\alpha^n_{1,i}+\tfrac{\Delta t}{2\Delta x}\Big[\big(a_{i+1/2}-u_{i+1}\big)\big(\alpha^n_{1,i+1}-\alpha^n_{1,i}\big)+\big(a_{i-1/2}+u_{i-1}\big)\big(\alpha^n_{1,i-1}-\alpha^n_{1,i}\big)\Big],
+\]
+a convex combination of $\alpha^n_{1,i-1}$, $\alpha^n_{1,i}$, $\alpha^n_{1,i+1}$ by \eqref{eq:rusanov_speed} when $C\le\tfrac12$ in \eqref{eq:cfl}, so that
+$\alpha^*_1\in(0,1)$. With the reconstructed face values of second order this is not guaranteed: a non-positive volume
+fraction then leaves the local closure without an admissible root, and the step is repeated with half the time step
+(Sec.~\ref{sec:time}).
 
 The face values are MUSCL reconstructions \cite{vanLeer1979} with minmod. The volume-transported quantities
 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
@@ -181,8 +189,8 @@ The implicit terms are discretised by central differences on the faces. The cent
 odd--even velocity mode, and the material-speed dissipation of \eqref{eq:rusanov} does not act on pressure jumps, so that,
 as in \cite{DumbserCasulli2016,BoscheriPareschi2021}, numerical dissipation is added to the implicit step by means of the Laplace operator
 \begin{equation}
-\mathbb L(\kappa,q)_{i,j}=\frac1{\Delta x^2}\Big(\kappa_{i+1/2,j}(q_{i+1,j}-q_{i,j})-\kappa_{i-1/2,j}(q_{i,j}-q_{i-1,j})\Big)
-+\frac1{\Delta y^2}\Big(\kappa_{i,j+1/2}(q_{i,j+1}-q_{i,j})-\kappa_{i,j-1/2}(q_{i,j}-q_{i,j-1})\Big),
+\mathbb L(\eta,q)_{i,j}=\frac1{\Delta x^2}\Big(\eta_{i+1/2,j}(q_{i+1,j}-q_{i,j})-\eta_{i-1/2,j}(q_{i,j}-q_{i-1,j})\Big)
++\frac1{\Delta y^2}\Big(\eta_{i,j+1/2}(q_{i,j+1}-q_{i,j})-\eta_{i,j-1/2}(q_{i,j}-q_{i,j-1})\Big),
 \label{eq:laplace}
 \end{equation}
 applied to the pressure and to the velocity only, the acoustic characteristic variables: the volumes, partial densities and
@@ -196,17 +204,17 @@ adjacent half cells, the face pressure is the density-weighted average that cons
 diffusive flux of the other acoustic variable:
 \begin{equation}
 \begin{aligned}
-u_f&=\bar u^*_f-\frac{\tau(P_{i+1,j}-P_{i,j})}{\bar\rho_f\Delta x}-\frac{\kappa^P_f}{\Delta x}\big(P_{i+1,j}-P_{i,j}\big),\\
-p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1,j}}-\frac{\kappa^u_f}{\Delta x}\,D^*_f,
+u_f&=\bar u^*_f-\frac{\tau(P_{i+1,j}-P_{i,j})}{\bar\rho_f\Delta x}-\frac{\eta^P_f}{\Delta x}\big(P_{i+1,j}-P_{i,j}\big),\\
+p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1,j}}-\frac{\eta^u_f}{\Delta x}\,D^*_f,
 \end{aligned}\qquad
-\kappa^P_f=\frac{\varphi_f\psi^P_f\,\Delta x}{Z_{i,j}+Z_{i+1,j}},\qquad \kappa^u_f=\frac{\varphi_f\psi^u_f\,Z_{i,j}Z_{i+1,j}\,\Delta x}{Z_{i,j}+Z_{i+1,j}},
+\eta^P_f=\frac{\varphi_f\psi^P_f\,\Delta x}{Z_{i,j}+Z_{i+1,j}},\qquad \eta^u_f=\frac{\varphi_f\psi^u_f\,Z_{i,j}Z_{i+1,j}\,\Delta x}{Z_{i,j}+Z_{i+1,j}},
 \label{eq:faces}
 \end{equation}
 with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$, $\bar\rho_f=\tfrac12(\rho^*_{i,j}+\rho^*_{i+1,j})$ and, in one dimension, $D^*_f=u^*_{i+1}-u^*_i$. Without the
 factors $\varphi_f\psi_f$ the two diffusive terms are the upwind terms of the acoustic Riemann solution. In the momentum update the
-face pressure contributes $\tau\,\mathbb L(\kappa^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
+face pressure contributes $\tau\,\mathbb L(\eta^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
 divergence of the face velocity enters the strain, the transport and the energy flux, and in the pressure equation
-\eqref{eq:wave} it contributes $\tau K\,\mathbb L(\kappa^P,P)$, with $K\kappa^P=\tfrac12c\Delta x$ for equal impedances. Both coefficients are the acoustic
+\eqref{eq:wave} it contributes $\tau K\,\mathbb L(\eta^P,P)$, with $K\eta^P=\tfrac12c\Delta x$ for equal impedances. Both coefficients are the acoustic
 eigenvalue times $\Delta x$, and both terms are implicit, so that they do not restrict the time step \eqref{eq:cfl}. In two dimensions the
 normal velocity difference is replaced by $\Delta x$ times the mean of the two vertex divergences of the face,
 \begin{equation}
@@ -338,14 +346,14 @@ computed directly. The end volume of the mixture, $v_{\rm end}=\sum_kY_kv_{kH}$,
 Hugoniot \eqref{eq:II5}, does not depend on the share, so that $j^2=(p_1-p_0)/(v_0-v_{\rm end})$ and the profile is integrated over
 the fixed interval $[v_0,v_{\rm end}]$. With $\lambda_1=c$, $\lambda_2=1-c$, \eqref{eq:profile} and $\sum_kY_kv_k=v$ give
 \begin{equation}
-\frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/b_k-1}{\sum_kY_ka_k/b_k},\qquad
-\frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-a_1\,\mathrm dp/\mathrm dv}{b_1},\qquad
+\frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/e_{v,k}-1}{\sum_kY_ke_{p,k}/e_{v,k}},\qquad
+\frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-e_{p,1}\,\mathrm dp/\mathrm dv}{e_{v,1}},\qquad
 \frac{\mathrm dq}{\mathrm dv}=p-P(v),
 \label{eq:profile_ode}
 \end{equation}
-with $a_k=\partial e_k/\partial p|_{v}$, $b_k=\partial e_k/\partial v|_{p}+p$ and $r_k=(\lambda_k/Y_k)(p-P)$; for SG and NASG phases
-$a_k=(v_k-b_k)/(\gamma_k-1)$, $b_k=\gamma_k(p+\pi_k)/(\gamma_k-1)$, and for Mie--Gr\"uneisen phases $a_k=v_k/\Gamma_k$,
-$b_k=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $c$ is the root of $v_1(v_{\rm end};c)=v_{1H}$, which is increasing in $c$; it is
+with $e_{p,k}=\partial e_k/\partial p|_{v}$, $e_{v,k}=\partial e_k/\partial v|_{p}+p$ and $r_k=(\lambda_k/Y_k)(p-P)$; for SG and NASG phases
+$e_{p,k}=(v_k-b_k)/(\gamma_k-1)$, $e_{v,k}=\gamma_k(p+\pi_k)/(\gamma_k-1)$, and for Mie--Gr\"uneisen phases $e_{p,k}=v_k/\Gamma_k$,
+$e_{v,k}=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $c$ is the root of $v_1(v_{\rm end};c)=v_{1H}$, which is increasing in $c$; it is
 found by the Illinois method in ${\rm logit}(c)$, and \eqref{eq:profile_ode} is integrated by an adaptive Runge--Kutta--Fehlberg method
 (Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $q=\int(p-P)\,\mathrm dv$ per
 unit mass, and the physical part of the dissipation of phase $k$ per unit volume is
@@ -362,47 +370,51 @@ $p_0=p_{\rm lo}<p_1=p_{\rm hi}$ are the extrema of the mixture-equilibrium press
 volumes $v_{k0}=\alpha_k/m_k$ are those of its lowest-pressure cell, $Y_k$ and $\rho$ are those of the cell itself, and $Q_k$ is
 computed once per stage and frozen. A positive defect is distributed with the share $\lambda_k=Q_k/Q$ up to $Q$, while the part
 of the defect of a stage above $Q$, which exceeds the dissipation of the whole shock, and a negative defect are
-discretisation errors. Since for $\mathcal G_k>0$ every shock satisfying the entropy condition is compressive (Bethe--Weyl
+discretisation errors. The amount deposited is not set by $Q$ but is the defect produced by the scheme, which the
+conservation of the mixture total energy fixes over the profile; the budget only selects its share. Each cell evaluates
+the share on the pressure range of its own stencil, the whole jump when the profile spans at most three cells and a part
+of it otherwise, and since the share varies slowly with the shock strength and tends to $w_k$ for weak shocks, the cells of
+a smeared profile use nearly the same share. Since for $\mathcal G_k>0$ every shock satisfying the entropy condition is compressive (Bethe--Weyl
 \cite{MenikoffPlohr1989}), which holds for SG and NASG phases, $\mathcal G_k=(\gamma_k+1)/2$, and for the Mie--Gr\"uneisen phases
 of Sec.~\ref{sec:results} over the range of states of the tests, $Q_k\ne0$ only in cells where the central difference of $u^*$
 (and $v^*$) has negative sum.
 
 \paragraph{Partition of the discretisation error}
-Let $E_k$ be the internal energy of phase $k$ above its admissibility
+Let $\mathcal E_k$ be the internal energy of phase $k$ above its admissibility
 bound, for SG and NASG phases
 \begin{equation}
-E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr},
+\mathcal E_k=\varepsilon^{\rm tr}_k-m^{\rm tr}_kq_k-(\alpha^{\rm tr}_k-m^{\rm tr}_kb_k)\pi_k=\frac{(p_k+\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}\Big|_{\rm tr},
 \label{eq:Ek}
 \end{equation}
 and for Mie--Gr\"uneisen phases the thermal energy above the cold curve, $\varepsilon_k-m_k\varepsilon_r$.
 
-\begin{theorem}[Partition of the error]\label{thm:lambdaE}
-Let both phases be admissible, $E_k>0$, and let the error be distributed at fixed phase volumes linearly,
-$\Lambda_k=\lambda_k\delta$ with $\sum_k\lambda_k=1$. Both phases remain admissible, $E_k+\lambda_k\delta>0$, for every $\delta\in(-\sum_jE_j,0)$ if and only if
+\begin{proposition}[Partition of the error]\label{prop:lambdaE}
+Let both phases be admissible, $\mathcal E_k>0$, and let the error be distributed at fixed phase volumes linearly,
+$\Lambda_k=\lambda_k\delta$ with $\sum_k\lambda_k=1$. Both phases remain admissible, $\mathcal E_k+\lambda_k\delta>0$, for every $\delta\in(-\sum_j\mathcal E_j,0)$ if and only if
 \begin{equation}
-\lambda_k=\lambda^E_k=\frac{E_k}{\sum_jE_j} ,
+\lambda_k=\lambda^{\mathcal E}_k=\frac{\mathcal E_k}{\sum_j\mathcal E_j} ,
 \label{eq:lambdaE}
 \end{equation}
-and then both phases remain admissible for every $\delta>-\sum_jE_j$.
-\end{theorem}
+and then both phases remain admissible for every $\delta>-\sum_j\mathcal E_j$.
+\end{proposition}
 \begin{proof}
-Let $S=\sum_jE_j$. If $E_k+\lambda_k\delta>0$ for all $\delta\in(-S,0)$, letting $\delta\to-S$ gives $\lambda_k\le E_k/S$ for $k=1,2$. Summing,
-$1=\sum_k\lambda_k\le\sum_kE_k/S=1$, so every inequality is an equality. Conversely, $E_k+\lambda^E_k\delta=E_k(1+\delta/S)>0$ for every $\delta>-S$.
-For $\delta\le-S$ no admissible partition exists, since $\sum_k(E_k+\Lambda_k)=S+\delta\le0$.
+Let $S=\sum_j\mathcal E_j$. If $\mathcal E_k+\lambda_k\delta>0$ for all $\delta\in(-S,0)$, letting $\delta\to-S$ gives $\lambda_k\le \mathcal E_k/S$ for $k=1,2$. Summing,
+$1=\sum_k\lambda_k\le\sum_k\mathcal E_k/S=1$, so every inequality is an equality. Conversely, $\mathcal E_k+\lambda^{\mathcal E}_k\delta=\mathcal E_k(1+\delta/S)>0$ for every $\delta>-S$.
+For $\delta\le-S$ no admissible partition exists, since $\sum_k(\mathcal E_k+\Lambda_k)=S+\delta\le0$.
 \end{proof}
 
-The share $\lambda^E_k$ changes the energy of both phases above their bounds by the same relative amount: for SG and NASG phases at
-fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_jE_j$.
-With the pressure work the admissible margin becomes $E_k+\lambda_k(\delta-s(p+\pi_k))$; the theorem holds exactly for $s=0$, and the
-scheme uses $E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
-phases are at their bounds ($\sum_jE_j=0$) the error is distributed by mass. Altogether
+The share $\lambda^{\mathcal E}_k$ changes the energy of both phases above their bounds by the same relative amount: for SG and NASG phases at
+fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_j\mathcal E_j$.
+With the pressure work the admissible margin becomes $\mathcal E_k+\lambda_k(\delta-s(p+\pi_k))$; the proposition holds exactly for $s=0$, and the
+scheme uses $\mathcal E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
+phases are at their bounds ($\sum_j\mathcal E_j=0$) the error is distributed by mass. Altogether
 \begin{equation}
-\Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^E_k,&\delta\ge0,\\[4pt]
-\delta\,\lambda^E_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
+\Lambda_k(\delta)=\begin{cases}\min(\delta,Q)\,\dfrac{Q_k}{Q}+\big(\delta-\min(\delta,Q)\big)\lambda^{\mathcal E}_k,&\delta\ge0,\\[4pt]
+\delta\,\lambda^{\mathcal E}_k,&\delta<0,\end{cases}\qquad Q=\sum_kQ_k ,
 \label{eq:Lambda}
 \end{equation}
 a continuous, piecewise affine function of $\delta$ with break points $\delta=0$ and $\delta=Q$. On the active piece
-$\Lambda_k=\lambda_k\delta+\xi_k$, with $\xi_k=Q_k-Q\lambda^E_k$ on the third piece and $\xi_k=0$ otherwise. With a common pressure
+$\Lambda_k=\lambda_k\delta+\xi_k$, with $\xi_k=Q_k-Q\lambda^{\mathcal E}_k$ on the third piece and $\xi_k=0$ otherwise. With a common pressure
 $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$. The NASG $p$ closure selects the active piece at every trial pressure of its
 root solve, so that $\sum_k\varepsilon_k=(\rho e)^C$ holds exactly at every $p$; the other closures that use $\Lambda_k$ (finite $\mu$
 and $\theta$, Mie--Gr\"uneisen phases) select it at the current Newton iterate of the cell pressure. The residual of the
@@ -431,7 +443,7 @@ and $\Phi(p)=\sum_k\alpha_k(p)-1$. Here
 \[
 \alpha_k'(p)=-\frac{(\gamma_k-1)N_k}{\gamma_k(p+\pi_k)^2},\qquad N_k=A_k-(B_k-m_kb_k)\pi_k .
 \]
-If the transported state of phase $k$ is admissible, $\varepsilon^{\rm tr}_k-m_kq_k-(\alpha^{\rm tr}_k-m_kb_k)\pi_k=E_k>0$, and $N_k=E_k+\lambda_k(D_0-s\pi_k)+\xi_k$. As
+If the transported state of phase $k$ is admissible, $\varepsilon^{\rm tr}_k-m_kq_k-(\alpha^{\rm tr}_k-m_kb_k)\pi_k=\mathcal E_k>0$, and $N_k=\mathcal E_k+\lambda_k(D_0-s\pi_k)+\xi_k$. As
 $p\downarrow\max_k(-\pi_k)$, $\Phi\to+\infty$; as $p\to\infty$, $\Phi\to\sum_k\big((\gamma_k-1)B_k+m_kb_k\big)/\gamma_k-1<\sum_kB_k-1=0$, since $m_kb_k<B_k$ and $\sum_kB_k=1-s+s=1$. A
 root therefore exists; it is unique when $N_k>0$ for both phases, in which case $\Phi$ is decreasing. In general the root is
 bracketed on $(\max_k(-\pi_k),\infty)$ and found by a safeguarded Newton iteration, and admissibility is checked at the
@@ -444,7 +456,7 @@ f_k'(\alpha)=\frac{\rho_kc_k^2}{\Gamma_k}>0 ,
 by a bracketed Newton iteration, without a global monotonicity result.
 
 \paragraph{Finite mechanical relaxation ($\mu<\infty$, $\theta=\nu=0$)}
-Let $a_k=\alpha^{\rm tr}_k+\omega_ks$, so that $\alpha_1=a_1+R$, $\alpha_2=a_2-R$, and $p_I=w_1p_1+w_2p_2$ with $w_1=Z_2/(Z_1+Z_2)$, the acoustic impedances
+Since $\alpha^{\rm tr}_k+\omega_ks=\alpha^*_k$, $\alpha_1=\alpha^*_1+R$, $\alpha_2=\alpha^*_2-R$, and $p_I=w_1p_1+w_2p_2$ with $w_1=Z_2/(Z_1+Z_2)$, the acoustic impedances
 $Z_k=\rho_kc_k$ being frozen on $X^*$. For given $R$, \eqref{eq:gibbs} with \eqref{eq:eps_nasg} is the $2\times2$ linear system
 \begin{equation}
 \Big(\frac{\alpha_k-m_kb_k}{\gamma_k-1}+\omega_ks\Big)p_k+\chi_kR\,(w_1p_1+w_2p_2)-\lambda_ks\,(\omega_1p_1+\omega_2p_2)
@@ -530,7 +542,7 @@ requires every local closure to be admissible. The unknown is the pressure pertu
 minimum of the initial mixture pressure. The residual of cell $(i,j)$ is scaled by $N_{i,j}=|P_{i,j}|+K_{i,j}+P_{E,i,j}+1$, where
 $K$ is the Wood bulk modulus $\rho c_p^2$ of $X^*$ and $P_{E}=\sum_k\big(|\varepsilon^*_k|+|m^*_kq_k|\big)/\sum_k\partial\varepsilon_k/\partial p|_{\alpha_k,m_k}$ the
 pressure scale of the energy round-off; the natural scale of $P$ is $\sigma_{i,j}=N_{i,j}/D_{i,j}$ with
-$D_{i,j}=1+(K_{i,j}+P_{E,i,j})\sum_f(\tau/h_f)\beta_f$, the scale of $\partial G_{i,j}/\partial P_{i,j}$ ($\beta_f$ the pressure coefficient of $u_f$, Sec.~\ref{sec:fully}),
+$D_{i,j}=1+(K_{i,j}+P_{E,i,j})\sum_f(\tau/h_f)\Theta_f$, the scale of $\partial G_{i,j}/\partial P_{i,j}$ ($\Theta_f$ the pressure coefficient of $u_f$, Sec.~\ref{sec:fully}),
 and the finite-difference increments are $10^{-7}\sigma$. The linear systems are solved by the Thomas algorithm for
 non-periodic one-dimensional problems and otherwise by BiCGStab with a Jacobi plus constant-coarse-space
 preconditioner (relative tolerance $10^{-13}$), which makes the iteration independent of the Mach number. The
@@ -565,10 +577,10 @@ equilibrium closure with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\
 the frozen two-pressure scheme, $\theta=0$ the $p$ closure and $\nu=0$ the $pT$ closure.
 \end{theorem}
 \begin{proof}
-(i) For $\mu$, with $\kappa=1/(\tau\mu)$ the closure reads $p_1-p_2=\kappa R$; at $\kappa=0$ it is the $p$ closure, and the
-implicit function theorem gives an $O(\kappa)$ difference for each cell. The residual of \eqref{eq:global} is a smooth function of $P$
-and $\kappa$, and its Jacobian with respect to $P$ is non-singular at $\kappa=0$; the implicit function theorem applied to
-\eqref{eq:global} then gives a discrete solution that differs from the equilibrium one by $O(\kappa)$, with a constant that depends on
+(i) For $\mu$, with $\zeta=1/(\tau\mu)$ the closure reads $p_1-p_2=\zeta R$; at $\zeta=0$ it is the $p$ closure, and the
+implicit function theorem gives an $O(\zeta)$ difference for each cell. The residual of \eqref{eq:global} is a smooth function of $P$
+and $\zeta$, and its Jacobian with respect to $P$ is non-singular at $\zeta=0$; the implicit function theorem applied to
+\eqref{eq:global} then gives a discrete solution that differs from the equilibrium one by $O(\zeta)$, with a constant that depends on
 $\Delta x$ and $\tau$. No uniformity with respect to the mesh is claimed. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
 the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
@@ -678,9 +690,9 @@ limiter factors of the reconstruction of $U^e$ and the pressures of the previous
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
 so that the face velocity and face pressure \eqref{eq:faces} are affine in the two adjacent cell pressures,
 \[
-u_f=\bar u^*_f-\beta_f\,(P_R-P_L),\qquad p_f=w_fP_L+(1-w_f)P_R-\varpi_f ,
+u_f=\bar u^*_f-\Theta_f\,(P_R-P_L),\qquad p_f=w_fP_L+(1-w_f)P_R-\varpi_f ,
 \]
-with $\beta_f=\tau/(\bar\rho_f h)+\kappa^P_f/h$, $w_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\kappa^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$.
+with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $w_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$.
 \item \emph{Incremental fluxes and conservative updates.} For given cell pressures, the incremental fluxes
 \eqref{eq:increment} are split into their donor parts $I_f=I^L_f+I^R_f$; the incremental mass fluxes are
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then

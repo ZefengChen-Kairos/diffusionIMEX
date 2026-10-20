@@ -227,14 +227,14 @@ with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive va
 with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. The fourth row is $\partial_x\bar p/\rho$, $\bar p=\alpha_1p_1+\alpha_2p_2$; each phase keeps its
 density and is heated by its pressure work, $\partial_tp_k=-\Gamma_kp_k\,\partial_xu$, and the internal energy $E-\tfrac12\rho u^2$ receives $-\bar p\,\partial_xu$, the flux $\partial_x(\bar pu)$ of the total energy
 minus the work $u\,\partial_x\bar p$ on the kinetic energy, at fixed volumes and phase densities. Only the velocity and the phase pressures are
-coupled, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda^2-a^2)$ and the eigenvalues are
+coupled, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda^2-c_{\rm w}^2)$ and the eigenvalues are
 \begin{equation}
-\lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm a,\qquad a^2=\frac1\rho\sum_k\Gamma_k\alpha_kp_k=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
+\lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm c_{\rm w},\qquad c_{\rm w}^2=\frac1\rho\sum_k\Gamma_k\alpha_kp_k=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
 \label{eq:eig_p}
 \end{equation}
 The remaining part of the sound speed, $\sum_kY_k\kappa_k$, comes from the compression of the phases by the mass fluxes of the
-advective sub-system; the two parts add up to the frozen sound speed, $a^2+\sum_kY_k\kappa_k=c_f^2$. The
-speed $a$ is real for non-negative phase pressures, and small in a liquid at moderate pressure; the sub-system is
+advective sub-system; the two parts add up to the frozen sound speed, $c_{\rm w}^2+\sum_kY_k\kappa_k=c_f^2$. The
+speed $c_{\rm w}$ of the pressure work is real for non-negative phase pressures, and small in a liquid at moderate pressure; the sub-system is
 therefore never solved on its own, but together with the incremental advective fluxes described below, so that the
 implicit step carries the whole frozen sound speed $c_f$.
 \end{enumerate}
@@ -243,8 +243,8 @@ introduces severe stiffness associated with the pressure terms, in addition to t
 The advective sub-system is therefore treated explicitly, with a numerical dissipation proportional to the flow velocity,
 and the pressure--relaxation sub-system implicitly. So that the implicit step contains the whole acoustic coupling,
 the conservative advective fluxes are evaluated with the velocity of the new time level, written as the velocity of the
-explicit state $u^e$ plus an increment, $Xu^{n+1}=Xu^e+X(u^{n+1}-u^e)$ for $X\in\{m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E\}$: the first part is
-the explicit advective flux, and the incremental flux $X(u^{n+1}-u^e)$, which depends on the unknown velocity, is solved together
+old velocity $u^n$ plus an increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E\}$: the first part is
+the explicit advective flux, and the incremental flux $X(u^{n+1}-u^n)$, which depends on the unknown velocity, is solved together
 with the pressure--relaxation sub-system (Sec.~\ref{sec:implicit}). The volume fraction has no flux and no increment: its advection
 is completed in the explicit step. Since only the advective eigenvalues enter the explicit stability condition, the time
 step depends on the flow velocity alone, independently of the sound speed and of the relaxation rates.
