@@ -21,69 +21,61 @@ $\delta_y[G]_{i,j}=G_{i,j+1/2}-G_{i,j-1/2}$. Where the $y$-direction is analogou
 
 \subsection{Advective sub-system}
 \label{sec:advective}
-The advective sub-system transports every quantity with the flow velocity. Since the volume fraction is advected by the
-non-conservative product $u\,\partial_x\alpha_1$, the transport of all quantities by the flow forms a non-conservative hyperbolic
-system
+The advective sub-system \eqref{eq:advective} transports every quantity with the flow velocity. Since the volume fraction
+is advected by the non-conservative product $u\,\partial_x\alpha_1$, it is a non-conservative hyperbolic system
+$\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0$, with $\mathbf A^c$ given in \eqref{eq:Ac}. The coefficient matrix is the Jacobian of the transport flux
+$Xu$ in every row except the first, $u\,\partial_x\alpha_1$, which is not the derivative of any flux. The sub-system is discretised by
+the path-conservative Rusanov scheme \cite{DalMaso1995,Pares2006,Castro2006},
 \begin{equation}
-\partial_t\mathbf Q+\mathbf A(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,
-\label{eq:transport_nc}
-\end{equation}
-with
-\begin{equation}
-\mathbf Q=\begin{bmatrix}\alpha_1\\ m_1\\ m_2\\ \rho u\\ \varepsilon_1\\ \varepsilon_2\\ E\end{bmatrix},\qquad
-\mathbf A(\mathbf Q)=\begin{bmatrix}
-u&0&0&0&0&0&0\\
-0&u(1-Y_1)&-uY_1&Y_1&0&0&0\\
-0&-uY_2&u(1-Y_2)&Y_2&0&0&0\\
-0&-u^2&-u^2&2u&0&0&0\\
-0&-u\varepsilon_1/\rho&-u\varepsilon_1/\rho&\varepsilon_1/\rho&u&0&0\\
-0&-u\varepsilon_2/\rho&-u\varepsilon_2/\rho&\varepsilon_2/\rho&0&u&0\\
-0&-uE/\rho&-uE/\rho&E/\rho&0&0&u
-\end{bmatrix},
-\label{eq:A_transport}
-\end{equation}
-$Y_k=m_k/\rho$. The coefficient matrix $\mathbf A$ is the Jacobian of the transport flux $Xu$ in every row except the first,
-$u\,\partial_x\alpha_1$, which is not the derivative of any flux. It is discretised by the path-conservative Rusanov scheme \cite{DalMaso1995,Pares2006,Castro2006},
-\begin{equation}
-\mathbf Q^*_i=\mathbf Q^n_i-\frac{\Delta t}{\Delta x}\Big(\mathbf D^-_{i+1/2}+\mathbf D^+_{i-1/2}+\mathbf D_i\Big),\qquad
-\mathbf D^\pm_{i+1/2}=\tfrac12\int_0^1\mathbf A(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds\pm\tfrac12a_{i+1/2}\,\Delta\mathbf Q_{i+1/2},
+\mathbf Q^*_i=\mathbf Q^n_i-\frac{\Delta t}{\Delta x}\Big(\mathbf D^-_{i+1/2}+\mathbf D^+_{i-1/2}\Big),\qquad
+\mathbf D^-_{i+1/2}+\mathbf D^+_{i+1/2}=\int_0^1\mathbf A^c(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds ,
 \label{eq:pc_update}
 \end{equation}
-where $\boldsymbol\Psi(s)$, $s\in[0,1]$, is the path joining the reconstructed face states $\mathbf Q^L$ and $\mathbf Q^R$, $\Delta(\cdot)=(\cdot)^R-(\cdot)^L$,
-$a_{i+1/2}=\max(|u^L|,|u^R|)$ (or its maximum over all faces of the same direction), and
-$\mathbf D_i=\int_0^1\mathbf A(\boldsymbol\Psi)\,\partial_s\boldsymbol\Psi\,\mathrm ds$ along the path between the two face states of cell $i$ accounts for the
-reconstruction inside the cell. The path is linear in the variables $\mathbf V=(\alpha_1,m_1,m_2,u,\varepsilon_1,\varepsilon_2)$ that are
-reconstructed (below), the velocity rather than the momentum.
-
-For the rows of $m_k$, $\rho u$, $\varepsilon_k$ and $E$ the row of $\mathbf A$ is the gradient of the flux $Xu$, the path integral equals the jump of the flux whatever the path, and \eqref{eq:pc_update} is the conservative update with
-the Rusanov flux \cite{Rusanov1961}. For the row of $\alpha_1$, both $\alpha_1$ and $u$ are linear along the path, so that
-$\int_0^1u\,\partial_s\alpha_1\,\mathrm ds=\bar u\,\Delta\alpha_1=\Delta(\alpha_1u)-\bar\alpha_1\Delta u$ with $\bar{(\cdot)}$ the mean of the two states, and its
-fluctuations split into a conservative volume flux and the volume strain,
+where $\boldsymbol\Psi(s)$, $s\in[0,1]$, is the path joining the two states of the face, and the Rusanov dissipation
+$\pm\tfrac12a_{i+1/2}\Delta\mathbf Q_{i+1/2}$ enters $\mathbf D^\mp_{i+1/2}$ with $\Delta(\cdot)=(\cdot)^R-(\cdot)^L$ and
 \begin{equation}
-D^-_{i+1/2}[\alpha_1]+D^+_{i-1/2}[\alpha_1]+D_i[\alpha_1]=\delta_x\big[F^e[\alpha_1]\big]_i
--\Big[\tfrac12\big(\bar\alpha_1\Delta u\big)_{i+1/2}+\big(\bar\alpha_1\Delta u\big)_i+\tfrac12\big(\bar\alpha_1\Delta u\big)_{i-1/2}\Big].
-\label{eq:pc_rusanov}
+a_{i+1/2}=\max\big(|u^L_{i+1/2}|,|u^R_{i+1/2}|\big)
+\label{eq:rusanov_speed}
 \end{equation}
-The bracket is the discrete form of $\int\alpha_1\partial_xu\,\mathrm dx$ over the cell. This is the splitting of
-Sec.~\ref{sec:split}: the conservative part is the $\alpha_1$ row of the advective flux $\mathbf F^c$ and is kept in the explicit step,
-and the volume strain is the $\alpha_1$ row of $\mathbf B^p\partial_xu$, which belongs to the pressure sub-system \eqref{eq:pressure_sub} and is
-evaluated with $u^{n+1}$ together with the pressure work (Sec.~\ref{sec:implicit}). Evaluating the strain with the same velocity
-as the incremental volume flux keeps $\sum_k\alpha_k=1$ exactly (Sec.~\ref{sec:implicit}). The explicit step is therefore the same conservative
-update for all transported quantities,
+(or its maximum over all faces of the same direction), the eigenvalue $u$ of the advective sub-system on the two face
+states, so that the dissipation is proportional to the flow velocity.
+
+For the rows of $m_k$, $\rho u$, $\varepsilon_k$ and $E$ the row of $\mathbf A^c$ is the gradient of the flux $Xu$, the path integral equals
+the jump of the flux whatever the path, and \eqref{eq:pc_update} is the conservative update with the Rusanov flux
+\cite{Rusanov1961},
 \begin{equation}
 X^*_{i,j}=X^n_{i,j}-\frac{\Delta t}{\Delta x}\,\delta_x\big[F^e[X]\big]_{i,j}-\frac{\Delta t}{\Delta y}\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
-X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
+X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
 \label{eq:explicit}
 \end{equation}
 with
 \begin{equation}
-F^e_{i+1/2,j}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_{i+1/2,j}\big(X^R-X^L\big),
+F^e_{i+1/2,j}[X]=\tfrac12\big(X^Lu^L+X^Ru^R\big)-\tfrac12a_{i+1/2,j}\big(X^R-X^L\big).
 \label{eq:rusanov}
 \end{equation}
-and $\alpha_2$ transported with the face values $1-\alpha_1^{L,R}$. The dissipation uses only the eigenvalue $u$ of the advective
-sub-system, so that it is proportional to the flow velocity. Since $\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by the same linear
-operator, a state with uniform velocity and pressure is transported without changing the phase densities and energies
-(Sec.~\ref{sec:wb}).
+For the row of $\alpha_1$ the path integral is taken along the linear path with the face velocity frozen at the mean
+$\bar u_{i+1/2}=\tfrac12(u^L+u^R)$, $\int_0^1u\,\partial_s\alpha_1\,\mathrm ds=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i})$, and the fluctuation is split
+between the two cells as in Saurel and Abgrall \cite{SaurelAbgrall1999a}, with the Rusanov flux $F^e[\alpha_1]$ of the volume
+$\alpha_1u$,
+\begin{equation}
+D^-_{i+1/2}[\alpha_1]=F^e_{i+1/2}[\alpha_1]-\alpha_{1,i}\,\bar u_{i+1/2},\qquad
+D^+_{i+1/2}[\alpha_1]=\alpha_{1,i+1}\,\bar u_{i+1/2}-F^e_{i+1/2}[\alpha_1].
+\label{eq:pc_rusanov}
+\end{equation}
+Their sum is the path integral, and the update of the cell reads
+\begin{equation}
+\alpha^*_{1,i,j}=\alpha^n_{1,i,j}-\frac{\Delta t}{\Delta x}\Big(\delta_x\big[F^e[\alpha_1]\big]_{i,j}-\alpha^n_{1,i,j}\,\delta_x[\bar u]_{i,j}\Big)
+-\frac{\Delta t}{\Delta y}\Big(\delta_y\big[G^e[\alpha_1]\big]_{i,j}-\alpha^n_{1,i,j}\,\delta_y[\bar v]_{i,j}\Big),\qquad
+\alpha^*_2=1-\alpha^*_1 :
+\label{eq:alpha_explicit}
+\end{equation}
+the Rusanov difference of the volume flux minus the cell's own volume fraction times the divergence of the face
+velocities. The advection of the volume fraction is completed in this step; the implicit step changes $\alpha_k$ only
+through the relaxation terms. The volume strain is assigned with the cell's own $\alpha_{1,i}$, which is the volume fraction of the
+mass and energy that the conservative fluxes of the cell compress, so that the volume, the mass and the energy of a
+trace phase stay consistent where the velocity jumps across an interface. With uniform velocity $\delta_x[\bar u]=0$, and
+$\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by the same linear Rusanov operator, so that a state with uniform velocity and pressure is
+transported without changing the phase densities and energies (Sec.~\ref{sec:wb}).
 
 The face values are MUSCL reconstructions \cite{vanLeer1979} with minmod. The volume-transported quantities
 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
@@ -114,7 +106,7 @@ contributions are treated implicitly. They are solved together, within a single 
 repeated at every iteration of the pressure solver:
 \begin{enumerate}
 \item for given cell pressures, the face velocities give the incremental fluxes, the transported phase states, the
-volume strain and the conservative updates of momentum and total energy;
+strain of the pressure work and the conservative updates of momentum and total energy;
 \item a local closure in every cell, containing the pressure work and the three relaxation processes, returns the cell
 pressure and the phase states consistent with them;
 \item the pressure system, which requires the closure pressure to equal the cell pressure, is solved by Newton's method.
@@ -124,26 +116,23 @@ Sec.~\ref{sec:fully}.
 
 \paragraph{Semi-discrete implicit step}
 The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly. Following the splitting of
-Sec.~\ref{sec:split}, the flux of every transported quantity at the new time level is written as
+Sec.~\ref{sec:split}, the flux of every conservative transported quantity at the new time level is written as
 $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is the explicit flux of Sec.~\ref{sec:advective}, the second, the incremental
-flux, is implicit. The volumes, partial densities and phase energies carry the same incremental flux, so that
-transport does not change the phase densities and specific energies; the momentum and kinetic-energy increments follow
-from the incremental mass flux. The non-conservative transport of the volume
-fraction is discretised by the path-conservative Rusanov scheme \eqref{eq:pc_rusanov}, $u\,\partial_x\alpha_k=\partial_x(\alpha_ku)-\alpha_k\partial_xu$:
-the conservative volume flux carries the same incremental flux as $m_k$ and $\varepsilon_k$, and the volume
-strain $-\alpha_k\partial_xu$ is treated implicitly together with the pressure work. The total strain $\sum_k$ is
-$-\Delta t\,\partial_xu^{n+1}$; its share between the phases is fixed by the local closure (Sec.~\ref{sec:closure}). In semi-discrete form,
+flux, is implicit. The partial densities and phase energies carry the same incremental flux; the momentum and
+kinetic-energy increments follow from the incremental mass flux. The volume fraction has no incremental flux: its
+advection is completed by the path-conservative update \eqref{eq:alpha_explicit}, and in the implicit step it changes only
+through the relaxation terms, $\alpha^{\rm tr}_k=\alpha^*_k$. In semi-discrete form,
 \begin{equation}
 \begin{aligned}
-X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
+X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{m_k,\varepsilon_k\},\\
 (\rho u)^{n+1}&=(\rho u)^*-\Delta t\,\partial_x\bar p^{\,n+1}-\Delta t\,\partial_x\big(u^{n+1}\hat M\big),\\
 E^{n+1}&=E^*-\Delta t\,\partial_x\Big(\textstyle\sum_k\varepsilon^{\rm face}_k(u^{n+1}-u^n)+\tfrac12(u^{n+1})^2\hat M+\bar p^{\,n+1}u^{n+1}\Big),
 \end{aligned}
 \label{eq:semidiscrete}
 \end{equation}
 where $\hat M=\sum_km^{\rm face}_k(u^{n+1}-u^n)$ is the incremental mass flux and the face values are taken from the explicit
-state. The phase states at $t^{n+1}$ follow from the transported states, the volume
-strain $s=\Delta t\,\partial_xu^{n+1}=1-\sum_k\alpha^{\rm tr}_k$ and the conservative mixture internal energy
+state. The phase states at $t^{n+1}$ follow from the transported states, the strain $s=\Delta t\,\partial_xu^{n+1}$ of the
+pressure work and the conservative mixture internal energy
 $(\rho e)^C=E^{n+1}-\tfrac12(\rho u)^{n+1\,2}/\rho^{n+1}$ through a local closure (Sec.~\ref{sec:closure}). The momentum and energy updates depend on $\bar p^{\,n+1}$, and the closure returns $\bar p^{\,n+1}$ as a function of
 $s$ and $(\rho e)^C$, so the implicit step reduces to one equation per cell for the pressure,
 \begin{equation}
@@ -154,7 +143,7 @@ a nonlinear and relaxing generalisation of the pressure wave equation $p^{n+1}=p
 
 \paragraph{Derivation of the pressure wave equation}
 The structure of \eqref{eq:global_semi} is seen by linearising it. To first order in $\Delta t$ the closure gives the cell
-pressure as the pressure $P^*$ of the explicit state minus the response of the mixture to the volume strain,
+pressure as the pressure $P^*$ of the explicit state minus the response of the mixture to the compression,
 \begin{equation}
 \bar p^{\,n+1}=P^*-K^W s,\qquad s=\Delta t\,\partial_xu^{n+1},\qquad K^W=\rho c_p^2 ,
 \label{eq:p_linear}
@@ -183,8 +172,9 @@ by the phase equations of state; no linearisation of the kinetic energy is invol
 
 \subsubsection{Local closure}
 \label{sec:closure}
-Backward Euler of the implicit part of \eqref{eq:model}, with the strain shared between the phases by the frozen
-fractions $\omega_k=\alpha^{\rm tr}_k/\sum_j\alpha^{\rm tr}_j$ in both the volume change and the pressure work, gives
+Backward Euler of the implicit part of \eqref{eq:model}, in which the volume fractions change only by relaxation and
+phase $k$ does the pressure work $\alpha^*_kp_k\,s$, is written with the closure input $\alpha^{\rm tr}_k:=\alpha^*_k(1-s)$ and the fractions
+$\omega_k=\alpha^{\rm tr}_k/\sum_j\alpha^{\rm tr}_j=\alpha^*_k$, so that $\alpha^{\rm tr}_k+\omega_ks=\alpha^*_k$ and $\omega_kp_ks$ is the pressure work. It gives
 ($\chi_1=+1$, $\chi_2=-1$, $\tau$ the implicit step)
 \begin{equation}
 \begin{aligned}
@@ -333,7 +323,7 @@ their bounds by the same relative amount: for SG and NASG phases at fixed volume
 \begin{proof}
 The objective is strictly convex; the Lagrange condition $2\Lambda_k/E_k=\ell$ gives $\Lambda_k\propto E_k$, and the constraint fixes the factor.
 \end{proof}
-With a volume strain the admissible margin becomes $E_k+\lambda_k(\delta-s(p+\pi_k))$; the theorem holds exactly for $s=0$, and the
+With the pressure work the admissible margin becomes $E_k+\lambda_k(\delta-s(p+\pi_k))$; the theorem holds exactly for $s=0$, and the
 scheme uses $E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
 phases are at their bounds ($\sum_jE_j=0$) the error is distributed by mass. Altogether
 \begin{equation}
@@ -497,7 +487,7 @@ step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f
 supplies the difference from the upwind side of $u_f$, with the reconstructed face values of \eqref{eq:rusanov} as
 donors,
 \begin{equation}
-I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{\alpha_k,m_k,\varepsilon_k\}.
+I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{m_k,\varepsilon_k\}.
 \label{eq:increment}
 \end{equation}
 
@@ -590,9 +580,9 @@ admissible.
 \begin{proposition}[Positivity]\label{prop:positivity}
 Let the phases be stiffened or Noble--Abel stiffened gases, and consider a stage with $Q^e=Q^s$ (a backward-Euler step
 or the first stage of \eqref{eq:lsdirk}), with admissible cell states and the limiter \eqref{eq:shared_limiter}, \eqref{eq:phi_cap}. If $r(a_f+|u_f|)\le\tfrac12$ on every
-face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported state $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ of every phase is a
-non-negative combination of reconstructed face values and hence admissible, independently of the content ratio of
-the phases.
+face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported partial density and phase energy $(m_k,\varepsilon_k)^{\rm tr}$ of every
+phase are non-negative combinations of reconstructed face values, with the same coefficients for both, and the volume
+fractions $\alpha^*_k$ of \eqref{eq:alpha_explicit} are positive if $ra_f\le\tfrac14$.
 \end{proposition}
 \begin{proof}
 Write $a=a_f$, $r=\tau/\Delta x$ and $(\cdot)^\pm=\max/\min(\cdot,0)$. For $Q^e=Q^s$ the cell value is the mean of its two face values,
@@ -610,9 +600,15 @@ From $a\ge\max|u^{L,R}|$, $\tfrac12(a+u^L)\ge(\bar u^e)^+$ and $\tfrac12(a-u^R)\
 $\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$: in $X^{\rm tr}_i=X_i-r\,\delta_i[F+I]$ the coefficients of the neighbour face values are non-negative.
 The coefficients of the own face values are $\tfrac12-r\big[\tfrac12(a+u^L)+w^L\big]_{i+1/2}$ and $\tfrac12-r\big[\tfrac12(a-u^R)-w^R\big]_{i-1/2}$, whose
 brackets do not exceed $a+|u_f|$, so they are non-negative under the stated condition. In 2D the same holds per direction with $\tfrac14$.
-Thus $(\alpha_k,m_k,\varepsilon_k)^{\rm tr}$ is a non-negative combination of admissible face states with coefficients that do not depend on $k$.
-The admissible set of SG and NASG phases is a convex cone.
+Thus $(m_k,\varepsilon_k)^{\rm tr}$ is a non-negative combination of face values with coefficients that do not depend on the quantity.
+For the volume fraction, \eqref{eq:alpha_explicit} with $\alpha_i=\tfrac12(\alpha^L_{i+1/2}+\alpha^R_{i-1/2})$ gives neighbour coefficients
+$\tfrac r2(a-u^R)_{i+1/2}$ and $\tfrac r2(a+u^L)_{i-1/2}$, and, bounding $|\bar u_{i\pm1/2}|\le a_{i\pm1/2}$ in the own-cell term $r\alpha_i\delta_x[\bar u]_i$,
+own coefficients not smaller than $\tfrac12-r\big(a_{i+1/2}+\tfrac12(a_{i+1/2}+a_{i-1/2})\big)$, non-negative for $ra\le\tfrac14$; the same holds for
+$\alpha_2^*=1-\alpha_1^*$, which satisfies the same update.
 \end{proof}
+Since $\alpha^*_k$ is not advanced by the same coefficients as $(m_k,\varepsilon_k)^{\rm tr}$, the admissibility of the full phase state
+$(\alpha_k,m_k,\varepsilon_k)$ is not implied for every content ratio; it is checked by the local closure, and a stage without an
+admissible solution is repeated with half the time step (Sec.~\ref{sec:time}).
 The condition involves the implicit face velocity and is not implied by \eqref{eq:cfl}; with $C=0.2$ the explicit part
 satisfies $a_{ii}ra\approx0.06$, and the condition fails only where $u_f$ departs strongly from the material velocity.
 
@@ -625,8 +621,8 @@ relaxation; with thermal or chemical relaxation active, this holds if in additio
 \end{proposition}
 \begin{proof}
 (i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces,
-and since the path-conservative discretisation \eqref{eq:pc_rusanov} transports $\alpha_k$ with the same linear Rusanov operator
-\eqref{eq:rusanov} as $m_k$ and $\varepsilon_k$, it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
+and since with uniform velocity $\delta_x[\bar u]=0$, the path-conservative update \eqref{eq:alpha_explicit} transports $\alpha_k$ with the same
+linear Rusanov operator \eqref{eq:rusanov} as $m_k$ and $\varepsilon_k$, it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
 vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$, so $P\equiv p$ solves
 \eqref{eq:global} (with $T_1=T_2$ the projection onto the $pT$ manifold leaves the state unchanged). (ii) $m_k$ and $\varepsilon_k$ are proportional to $\alpha_k$ and all three are transported by the same
 linear operator.
@@ -738,9 +734,10 @@ Sec.~\ref{sec:relaxation}.
 transported quantity is advanced with the Rusanov fluxes \eqref{eq:rusanov},
 \[
 X^*_{i,j}=X^s_{i,j}-r_x\,\delta_x\big[F^e[X]\big]_{i,j}-r_y\,\delta_y\big[G^e[X]\big]_{i,j},\qquad
-X\in\{\alpha_1,\alpha_2,m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
+X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
 \]
-with $G^e$ the $y$-flux of \eqref{eq:rusanov} with $v$ in place of $u$.
+with $G^e$ the $y$-flux of \eqref{eq:rusanov} with $v$ in place of $u$, and the volume fraction by the path-conservative update
+\eqref{eq:alpha_explicit} from $X^s$, $\alpha^*_2=1-\alpha^*_1$.
 \item \emph{Face coefficients.} On every face the quantities of Sec.~\ref{sec:dissipation} are computed from $X^*$, the
 limiter factors of the reconstruction of $Q^e$ and the pressures of the previous stage (the Newton initial guess): the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
@@ -756,8 +753,8 @@ boundaries are treated as in Sec.~\ref{sec:dissipation}.
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then
 \[
 \begin{aligned}
-&X^{\rm tr}_{i,j}=X^*_{i,j}-r_x\,\delta_x\big[I[X]\big]_{i,j}-r_y\,\delta_y\big[I[X]\big]_{i,j},\qquad X\in\{\alpha_k,m_k,\varepsilon_k\},\\
-&s_{i,j}=1-\textstyle\sum_k\alpha^{\rm tr}_{k,i,j}=r_x\,\delta_x[u_f]_{i,j}+r_y\,\delta_y[v_f]_{i,j},\qquad \rho^{n+1}_{i,j}=\textstyle\sum_km^{\rm tr}_{k,i,j},
+&X^{\rm tr}_{i,j}=X^*_{i,j}-r_x\,\delta_x\big[I[X]\big]_{i,j}-r_y\,\delta_y\big[I[X]\big]_{i,j},\qquad X\in\{m_k,\varepsilon_k\},\\
+&s_{i,j}=r_x\,\delta_x[u_f]_{i,j}+r_y\,\delta_y[v_f]_{i,j},\qquad \alpha^{\rm tr}_{k,i,j}=\alpha^*_{k,i,j}(1-s_{i,j}),\qquad \rho^{n+1}_{i,j}=\textstyle\sum_km^{\rm tr}_{k,i,j},
 \end{aligned}
 \]
 the momentum is advanced with the face pressure and the incremental momentum flux, normal and tangential,

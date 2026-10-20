@@ -17,11 +17,11 @@
 \begin{abstract}
 We present a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation two-phase model
 with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas, Noble--Abel stiffened-gas and
-Mie--Gr\"uneisen equations of state. Following Toro and V\'azquez-Cend\'on, the fluxes are split into an advective part,
-in which all phase quantities are transported explicitly with a Rusanov flux whose dissipation speed is the material
-speed and the volume fraction is discretised by the path-conservative Rusanov scheme, and a pressure part, which carries
-the pressure, its work on each phase and an incremental flux of the transported quantities and is treated implicitly
-together with the relaxation terms. The time step is restricted by the flow velocity only, independently of the Mach
+Mie--Gr\"uneisen equations of state. Following Zha and Bilgen, the fluxes are split into an advective part,
+in which all quantities are transported explicitly by the path-conservative Rusanov scheme with the material speed as
+dissipation speed, the volume fraction being advected entirely in this part, and a pressure part, which carries the
+pressure, its work on each phase and an incremental flux of the conservative transported quantities and is treated
+implicitly together with the relaxation terms. The time step is restricted by the flow velocity only, independently of the Mach
 number and of the relaxation rates. The implicit pressure work and the three relaxation processes, at finite or infinite
 rates, enter a single local closure that reduces to one scalar equation for the cell pressure, so that each stage
 requires the solution of a mildly nonlinear system for the cell pressures, solved by Newton's method. The defect between

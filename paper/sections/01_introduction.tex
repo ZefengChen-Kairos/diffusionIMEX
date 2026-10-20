@@ -98,11 +98,14 @@ cavitating and evaporating flows.
 In this work we construct a second-order IMEX finite volume scheme for the six-equation model with total energy
 and the three relaxations, for stiffened-gas, Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in
 one and two space dimensions. The time step is set by a CFL condition on the material speed only, whatever the Mach
-number and the relaxation rates. The fluxes are split following Toro and V\'azquez-Cend\'on \cite{ToroVazquez2012}:
-the explicit part transports all phase quantities with the old velocity and a Rusanov flux whose dissipation speed is
-the material speed, and the implicit part carries the pressure, its work on each phase and an incremental flux of the
-transported quantities. The volume-fraction equation is written in volume-transport form, so that its
-non-conservative product becomes a conservative volume flux plus the volume strain. The implicit pressure work and the
+number and the relaxation rates. The fluxes are split following Zha and Bilgen \cite{ZhaBilgen1993}: the explicit
+part transports all quantities with the old velocity by the path-conservative Rusanov scheme
+\cite{Pares2006,Castro2006}, whose dissipation speed is the material speed, and the implicit part carries the pressure,
+its work on each phase and an incremental flux of the conservative transported quantities. The volume fraction, whose
+equation is a non-conservative advection, is updated entirely in the explicit step by the path-conservative
+fluctuations, and changes in the implicit step only through the relaxation terms. Because every quantity of a phase is
+transported by the same operator, each phase remains a non-negative combination of admissible face states, whatever its
+content in the cell. The implicit pressure work and the
 three relaxation processes enter a single local closure, which for each set of rates, finite or infinite, reduces to
 one scalar equation for the cell pressure. The stage then reduces to a nonlinear system for the cell pressures, mildly
 nonlinear in the sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D)
