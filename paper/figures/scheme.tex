@@ -108,13 +108,4 @@
 \draw[dashedarrow] (cl.east) -- node[above=1pt, note] {$\mu,\theta,\nu$} (rl.west);
 \draw[dashedarrow] (rl.east) -- ++(9mm,0) |- node[pos=0.25, right, note, fill=white, inner sep=1pt] {$\bar p^{\rm cl}$,\\phase states} (s3.east);
 
-% ----------------------------------------------------------------- time step control
-\node[hdr, below=9mm of rl.south -| algbox.south, anchor=north, text width=12.8cm, align=flush center] (ctlh) {Time step control};
-\node[step=12.8cm, below=2mm of ctlh, fill=black!5] (ctl)
-  {$\Delta t=C\,\big(\max|u|/\Delta x+\max|v|/\Delta y\big)^{-1}$\\
-   start-up from the acoustic CFL 0.4, growth $\le1.2$, ramped steps with one backward-Euler stage\\
-   inadmissible state or Newton failure $\Rightarrow$ step repeated with $\Delta t/2$ (LSDIRK2 kept)};
-\begin{scope}[on background layer]
-  \node[outer, fit=(ctlh)(ctl)] (ctlbox) {};
-\end{scope}
 \end{tikzpicture}
