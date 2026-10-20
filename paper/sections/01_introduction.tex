@@ -88,7 +88,8 @@ separately: the relaxation is either restricted to instantaneous pressure equili
 after the pressure update.
 
 In this work we treat both stiffnesses in a single implicit step. The pressure work and the three relaxation processes,
-at any combination of finite and infinite rates, enter one local closure per cell, which reduces to a scalar equation
+with finite or infinite rates under the time-scale ordering of Pelanti
+\cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation
 for the cell pressure; the implicit step is then a nonlinear system for the cell pressures, mildly nonlinear in the
 sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D) Jacobian, solved by a Newton
 method whose iteration count is observed to be independent of the Mach number. The resulting scheme is asymptotic

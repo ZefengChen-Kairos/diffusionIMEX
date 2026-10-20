@@ -8,9 +8,9 @@ We have presented a second-order semi-implicit IMEX finite volume scheme for the
 two-phase model with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas,
 Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
 
-The two stiffnesses of the model, the acoustic waves at low Mach numbers and the relaxation processes at arbitrary
-rates, are treated in a single implicit step. The implicit pressure work and the three relaxation processes, at any
-combination of finite and infinite rates, enter one local closure per cell, which reduces to a scalar equation for the
+The two stiffnesses of the model, the acoustic waves at low Mach numbers and the relaxation processes up to infinite
+rates, are treated in a single implicit step. The implicit pressure work and the three relaxation processes, with finite
+or infinite rates under the time-scale ordering of Pelanti \cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation for the
 cell pressure; each stage then reduces to a mildly nonlinear system for the cell pressures with a three-point
 (five-point in 2D) Jacobian, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
 the Mach number and the relaxation rates. We have proved that, under non-degeneracy assumptions, the scheme converges
