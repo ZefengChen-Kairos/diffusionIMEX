@@ -465,7 +465,7 @@ iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step sa
 if the line search cannot reduce the residual, the solution is accepted when every $|G_{i,j}|$ lies within $10^{-13}N_{i,j}$ plus the
 round-off floor of the closure, at most 60 iterations being allowed.
 
-\subsection{Face velocity, face pressure and acoustic dissipation}
+\subsection{Implicit face states and acoustic dissipation}
 \label{sec:dissipation}
 The implicit terms are discretised by central differences on the faces, supplemented by the acoustic dissipation
 that the central operator lacks. On the face $(i+\tfrac12,j)$, with $\rho^*_{i,j}=\sum_km^*_{k,i,j}$, $u^*_{i,j}=(\rho u)^*_{i,j}/\rho^*_{i,j}$ and
@@ -479,7 +479,7 @@ p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1
 \end{aligned}\qquad \bar\rho_f=\tfrac12(\rho^*_{i,j}+\rho^*_{i+1,j}),
 \label{eq:faces}
 \end{equation}
-with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$ and the velocity jump $D^*_f$ given below. The face sweeps $u_f\tau$ during the
+with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$ and the velocity jump $D^*_f$. The face sweeps $u_f\tau$ during the
 step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f=\tfrac12(u^L+u^R)$; the incremental flux
 supplies the difference from the upwind side of $u_f$, with the reconstructed face values of \eqref{eq:rusanov} as
 donors,
@@ -501,7 +501,15 @@ more, gives
 \end{equation}
 for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, for $c\tau\ge\Delta x$ the complement vanishes. The frozen sound speed is used since
 $\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, so that the dissipation is never smaller than that of
-the relaxed waves. Where $X^*$ is not admissible, $c_f=\infty$ and the face carries no acoustic terms.
+the relaxed waves. Where $X^*$ is not admissible, $c_f=\infty$ and the face carries no acoustic terms. In one dimension the
+velocity jump is $D^*_f=u^*_{i+1}-u^*_i$; in two dimensions it is replaced by the mean of the two vertex divergences of the face,
+\begin{equation}
+D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+1/2,j-1/2}\big),\quad
+\mathrm{div}_{i+1/2,j+1/2}=\frac{u_{i+1,j}+u_{i+1,j+1}-u_{i,j}-u_{i,j+1}}{2\Delta x}+\frac{v_{i,j+1}+v_{i+1,j+1}-v_{i,j}-v_{i+1,j}}{2\Delta y},
+\label{eq:vertex_div}
+\end{equation}
+so that the term acts as a bulk viscosity on the divergence and leaves divergence-free motion, such as vortices,
+untouched.
 
 \paragraph{Second-order factors}
 The factors $\psi\in[0,1]$ evaluate the complement on the reconstructed face states, $\psi D=X^R-X^L$ for a face jump $D$.
@@ -519,23 +527,6 @@ the factors are frozen during the solution of the stage; with unlimited central 
 clipped to $\psi\in[0,1]$. Both terms are first order at a local
 extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution is
 smooth (the LED criterion of Jameson \cite{Jameson1995}).
-
-\paragraph{Velocity jump}
-In one dimension $D^*_f=u^*_{i+1}-u^*_i$. In two dimensions the normal jump is replaced by the vertex divergence,
-\begin{equation}
-D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+1/2,j-1/2}\big),\quad
-\mathrm{div}_{i+1/2,j+1/2}=\frac{u_{i+1,j}+u_{i+1,j+1}-u_{i,j}-u_{i,j+1}}{2\Delta x}+\frac{v_{i,j+1}+v_{i+1,j+1}-v_{i,j}-v_{i+1,j}}{2\Delta y},
-\label{eq:vertex_div}
-\end{equation}
-so that the term acts as a bulk viscosity on the divergence and leaves divergence-free motion untouched; for
-$y$-independent data it reduces to the one-dimensional jump.
-
-\paragraph{Boundaries}
-Ghost cells are filled by copying (transmissive), reflecting (walls) or wrapping (periodic) the interior cells, and the
-pressure of a ghost cell equals that of the adjacent interior cell. On a wall face the face velocity is the wall velocity
-($u_f=0$ for a fixed wall, with no incremental flux; the piston of Sec.~\ref{sec:res_bubble} moves the wall face). At a
-prescribed-pressure boundary the ghost cells keep the volume fractions, partial densities and velocity of the adjacent
-cell with both phase pressures equal to the prescribed value, which enters the pressure system as a given value.
 
 \subsection{Well-balanced property}
 \label{sec:wb}
@@ -671,8 +662,7 @@ so that the face velocity and face pressure \eqref{eq:faces} are affine in the t
 u_f=\bar u^*_f-\kappa_f\,(P_R-P_L),\qquad p_f=w_fP_L+(1-w_f)P_R-\varpi_f ,
 \]
 with $\kappa_f=\tau/(\bar\rho_f h)+\varphi_f\psi^P_f/(Z_L+Z_R)$, $w_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and
-$\varpi_f=\varphi_f\psi^u_fZ_LZ_RD^*_f/(Z_L+Z_R)$, $h=\Delta x$ or $\Delta y$; wall faces and prescribed-pressure
-boundaries are treated as in Sec.~\ref{sec:dissipation}.
+$\varpi_f=\varphi_f\psi^u_fZ_LZ_RD^*_f/(Z_L+Z_R)$, $h=\Delta x$ or $\Delta y$.
 \item \emph{Incremental fluxes and conservative updates.} For given cell pressures, the incremental fluxes
 \eqref{eq:increment} are split into their donor parts $I_f=I^L_f+I^R_f$; the incremental mass fluxes are
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then
