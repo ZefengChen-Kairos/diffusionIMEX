@@ -145,64 +145,80 @@ is $c^2>0$. Mie--Gr\"uneisen phases are used with instantaneous mechanical relax
 
 \subsection{Split form of the model}
 \label{sec:split}
-To handle the different time scales of the model we resort to a flux splitting in the manner of Toro and
-V\'azquez-Cend\'on \cite{ToroVazquez2012}, which allows a different time discretisation for each sub-system according to
-its stiffness. The volume fraction is advected by the non-conservative product $u\,\partial_x\alpha_1$, which is not the
-divergence of a flux. With the identity $u\,\partial_x\alpha_1=\partial_x(\alpha_1u)-\alpha_1\partial_xu$ it is split into a conservative volume
-flux, transported like the other quantities, and the volume strain $-\alpha_1\partial_xu$, which, like the pressure work, is driven by
-the velocity divergence; Sec.~\ref{sec:advective} shows that this is the splitting of the path-conservative Rusanov fluctuation
-of $u\,\partial_x\alpha_1$. The fluxes and non-conservative products of
-\eqref{eq:general} are then separated into two contributions: (i) advective fluxes $\mathbf F^c$, associated with the transport
-of every quantity by the flow velocity; and (ii) pressure fluxes $\mathbf F^p$ and the products $\mathbf B^p\partial_xu$, associated with the
-mixture pressure, the volume strain and the pressure work of each phase. Explicitly,
+To handle the different time scales of the model we split the fluxes in the manner of Zha and Bilgen
+\cite{ZhaBilgen1993}, which allows a different time discretisation for each sub-system according to its stiffness: every
+quantity is transported by the flow velocity in one sub-system, and the pressure, its work and the relaxation terms form
+the other. The terms of \eqref{eq:general} are separated into (i) the advective part, the transport of every component of
+$\mathbf Q$ by the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction; and (ii) the
+pressure--relaxation part, the pressure flux $\mathbf F^p$, the pressure work of each phase $\mathbf B^p\partial_xu$ and the relaxation terms.
+Explicitly,
 \begin{equation}
-\mathbf F^c(\mathbf Q)=\begin{bmatrix}\alpha_1u\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\qquad
-\mathbf F^p(\mathbf Q)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\qquad
-\mathbf B^p(\mathbf Q)\,\partial_xu=\begin{bmatrix}-\alpha_1\\0\\0\\0\\ \alpha_1p_1\\ \alpha_2p_2\\0\end{bmatrix}\partial_xu .
+\mathbf F^c(\mathbf Q)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\quad
+\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q=\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\0\\0\\0\end{bmatrix},\quad
+\mathbf F^p(\mathbf Q)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\quad
+\mathbf B^p(\mathbf Q)\,\partial_xu=\begin{bmatrix}0\\0\\0\\0\\ \alpha_1p_1\\ \alpha_2p_2\\0\end{bmatrix}\partial_xu ,
 \label{eq:split_fluxes}
 \end{equation}
-The advective flux transports the volume, the mass and the internal energy of each phase, the momentum and the total
-energy; the pressure flux carries the pressure force and its work on the mixture, and the non-conservative products the
-volume strain and the pressure work of each phase. Accordingly, the one-dimensional system in split form reads
+and the one-dimensional system in split form reads
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)+\partial_x\mathbf F^p(\mathbf Q)+\mathbf B^p(\mathbf Q)\,\partial_xu=\mathbf S(\mathbf Q).
+\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)+\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q+\partial_x\mathbf F^p(\mathbf Q)+\mathbf B^p(\mathbf Q)\,\partial_xu=\mathbf S(\mathbf Q).
 \label{eq:split}
 \end{equation}
 \begin{enumerate}
 \item The advective sub-system is
 \begin{equation}
-\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)=\mathbf 0,
+\partial_t\mathbf Q+\partial_x\mathbf F^c(\mathbf Q)+\mathbf B^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0
+\quad\Longleftrightarrow\quad
+\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,
 \label{eq:advective}
 \end{equation}
-whose Jacobian $u\,\mathbf I+\mathbf Q\otimes\partial u/\partial\mathbf Q$ admits the eigenvalues
+with $\mathbf A^c=\partial\mathbf F^c/\partial\mathbf Q+\mathbf B^c$, which in the variables $\mathbf Q=(\alpha_1,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ reads
+\begin{equation}
+\mathbf A^c(\mathbf Q)=\begin{bmatrix}
+u&0&0&0&0&0&0\\
+0&u(1-Y_1)&-uY_1&Y_1&0&0&0\\
+0&-uY_2&u(1-Y_2)&Y_2&0&0&0\\
+0&-u^2&-u^2&2u&0&0&0\\
+0&-u\varepsilon_1/\rho&-u\varepsilon_1/\rho&\varepsilon_1/\rho&u&0&0\\
+0&-u\varepsilon_2/\rho&-u\varepsilon_2/\rho&\varepsilon_2/\rho&0&u&0\\
+0&-uE/\rho&-uE/\rho&E/\rho&0&0&u
+\end{bmatrix}.
+\label{eq:Ac}
+\end{equation}
+It admits the eigenvalues
 \begin{equation}
 \lambda^c_{1,\dots,7}=u .
 \label{eq:eig_adv}
 \end{equation}
-Since $\mathbf Q\cdot\partial u/\partial\mathbf Q=0$, the perturbation $\mathbf Q\otimes\partial u/\partial\mathbf Q$ is nilpotent of rank one and one eigenvector is missing:
-the sub-system is weakly hyperbolic, as the pressureless gas dynamics it contains. The characteristic speed is the
-flow velocity alone.
+The $\alpha_1$ row is a non-conservative product; the other rows are conservative, and $\mathbf A^c-u\,\mathbf I$ is nilpotent of
+rank one, so one eigenvector is missing and the sub-system is weakly hyperbolic, as the pressureless gas dynamics it
+contains. The characteristic speed is the flow velocity alone. The volume fraction is transported only by this
+sub-system; in the pressure--relaxation sub-system it changes only through the relaxation terms.
 \item The pressure--relaxation sub-system is
 \begin{equation}
 \partial_t\mathbf Q+\partial_x\mathbf F^p(\mathbf Q)+\mathbf B^p(\mathbf Q)\,\partial_xu=\mathbf S(\mathbf Q),
 \label{eq:pressure_sub}
 \end{equation}
-with the relaxation terms $\mathbf S$ of \eqref{eq:general}. Without sources the partial densities are constant, each phase is
-compressed isentropically, $\partial_tp_k=-\rho_kc_k^2\,\partial_xu$, and its Jacobian admits the eigenvalues
+with the relaxation terms $\mathbf S$ of \eqref{eq:general}. Without sources the volume fractions and the partial densities are
+constant, so each phase keeps its density and is heated by its pressure work,
+$\partial_tp_k=-\Gamma_kp_k\,\partial_xu$ with the Gr\"uneisen coefficient $\Gamma_k=\rho_k^{-1}\partial p_k/\partial e_k|_{\rho_k}$, and its Jacobian admits the eigenvalues
 \begin{equation}
-\lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm a,\qquad a^2=\sum_kY_k\Big(c_k^2-\frac{p_k}{\rho_k}\Big)=c_f^2-\frac{\bar p}{\rho} .
+\lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm a,\qquad a^2=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
 \label{eq:eig_p}
 \end{equation}
-The coefficient matrix has rank two, so the eigenvalue $0$ has five eigenvectors and the sub-system is hyperbolic,
-though not strictly. For stiffened-gas and Noble--Abel stiffened-gas phases $c_k^2-p_k/\rho_k\ge\big((\gamma_k-1)p_k+\gamma_k\pi_k\big)/\rho_k>0$
-in every admissible state, so $a$ is real; in a liquid $p_k\ll\pi_k$ and $a\approx c_f$.
+The remaining part of the sound speed, $\sum_kY_k\,\partial p_k/\partial\rho_k|_{e_k}$, comes from the compression of the phases by the mass
+fluxes of the advective sub-system; the two parts add up to the frozen sound speed, $a^2+\sum_kY_k\,\partial p_k/\partial\rho_k|_{e_k}=c_f^2$. The
+speed $a$ is real for non-negative phase pressures, and small in a liquid at moderate pressure; the sub-system is
+therefore never solved on its own, but together with the incremental advective fluxes described below, so that the
+implicit step carries the whole frozen sound speed $c_f$.
 \end{enumerate}
-By inspecting the eigenvalues of the two sub-systems, it becomes evident that in the low Mach number regime the speed $a$
-of the pressure--relaxation sub-system dominates the flow velocity $u$, which introduces severe stiffness associated
-with the pressure terms, in addition to the stiffness of the relaxation rates. The advective sub-system is therefore
-treated explicitly, with an upwind numerical dissipation proportional to the flow velocity, and the
-pressure--relaxation sub-system implicitly. In the time discretisation the advective fluxes are nevertheless
-evaluated with the velocity of the new time level, written as the velocity of the explicit state $u^e$ plus an increment,
-$Xu^{n+1}=Xu^e+X(u^{n+1}-u^e)$: the first part is the explicit advective flux, and the incremental flux $X(u^{n+1}-u^e)$, which
-depends on the unknown velocity, is solved together with the pressure--relaxation sub-system (Sec.~\ref{sec:implicit}). Since only the advective eigenvalues enter the explicit stability condition, the
-time step depends on the flow velocity alone, independently of the sound speed and of the relaxation rates.
+In the low Mach number regime the acoustic coupling of the two sub-systems is fast compared with the transport, which
+introduces severe stiffness associated with the pressure terms, in addition to the stiffness of the relaxation rates.
+The advective sub-system is therefore treated explicitly, with a numerical dissipation proportional to the flow velocity,
+and the pressure--relaxation sub-system implicitly. So that the implicit step contains the whole acoustic coupling,
+the conservative advective fluxes are evaluated with the velocity of the new time level, written as the velocity of the
+explicit state $u^e$ plus an increment, $Xu^{n+1}=Xu^e+X(u^{n+1}-u^e)$ for $X\in\{m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E\}$: the first part is
+the explicit advective flux, and the incremental flux $X(u^{n+1}-u^e)$, which depends on the unknown velocity, is solved together
+with the pressure--relaxation sub-system (Sec.~\ref{sec:implicit}). The volume fraction has no flux and no increment: its advection
+is completed in the explicit step. Since only the advective eigenvalues enter the explicit stability condition, the time
+step depends on the flow velocity alone, independently of the sound speed and of the relaxation rates.
