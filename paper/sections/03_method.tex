@@ -89,7 +89,7 @@ X^L_{i+1/2}=X_i+\tfrac12\sigma_i,\quad X^R_{i+1/2}=X_{i+1}-\tfrac12\sigma_{i+1},
 \phi_i=\min_{X\in\mathcal X_V}\frac{\mathrm{minmod}(X_i-X_{i-1},X_{i+1}-X_i)}{\tfrac12(X_{i+1}-X_{i-1})}\in[0,1],
 \label{eq:shared_limiter}
 \end{equation}
-so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+\big(q_k-b_kc_k(p)\big)m_k$, $c_k(p)=(p+\gamma_k\pi_k)/(\gamma_k-1)$, at
+so that linear relations between them, in particular $\varepsilon_k=\mathcal C_k(p)\alpha_k+\big(q_k-b_k\mathcal C_k(p)\big)m_k$, $\mathcal C_k(p)=(p+\gamma_k\pi_k)/(\gamma_k-1)$, at
 uniform pressure, hold on the faces; quantities that are constant on the stencil to round-off are excluded from the minimum.
 For stiffened and Noble--Abel stiffened gases the admissible states of a phase form the cone $\alpha_k>0$, $m_k>0$, $L_k>0$ for the
 two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. Since all components share $\phi_i$, such a
@@ -297,16 +297,16 @@ e_k-e_{k0}+\bar p\,(v_k-v_{k0})=0,\qquad \bar p=\tfrac12(p_0+p_1),\qquad k=1,2,
 \end{equation}
 the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. Consider a stationary shock profile of the
 relaxed model with mass flux $j$, total normal stress $P=p-\sigma$ ($\sigma$ the viscous stress), the Rayleigh line
-$P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm dq_k$,
+$P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm d\mathcal H_k$,
 \begin{equation}
-\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k,\qquad Y_k\,\mathrm dq_k=\lambda_k\,\mathrm dq,\qquad \mathrm dq=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
+\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal H_k,\qquad Y_k\,\mathrm d\mathcal H_k=\lambda_k\,\mathrm d\mathcal H,\qquad \mathrm d\mathcal H=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
 \label{eq:profile}
 \end{equation}
 with $\lambda_k=\partial\Lambda_k/\partial\delta$ the local share. Summing over $k$ recovers $\mathrm de=-P\,\mathrm dv$: whatever the share, the
 mixture ends on its Hugoniot, and the share only decides the end volumes of the phases. Integrating
-$\mathrm de_k=-p\,\mathrm dv_k+\mathrm dq_k$ over the profile and comparing with \eqref{eq:II5}, the end state satisfies \eqref{eq:II5} if and only if
+$\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal H_k$ over the profile and comparing with \eqref{eq:II5}, the end state satisfies \eqref{eq:II5} if and only if
 \begin{equation}
-Y_kq_k=\int_{\rm profile}(p-\bar p)\,\mathrm dv_k ,\qquad k=1,2,
+Y_k\mathcal H_k=\int_{\rm profile}(p-\bar p)\,\mathrm dv_k ,\qquad k=1,2,
 \label{eq:heat}
 \end{equation}
 the heat received by phase $k$ is its compression work minus its Hugoniot work.
@@ -315,7 +315,7 @@ the heat received by phase $k$ is its compression work minus its Hugoniot work.
 Let $\Delta p=p_1-p_0\to0$, $K_k=\rho_kc_k^2$ and $\mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big)$ the fundamental derivative of phase $k$. Under
 \eqref{eq:II5} the heat received by phase $k$ per unit mixture volume is
 \begin{equation}
-Y_k\rho\,q_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
+Y_k\rho\,\mathcal H_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
 \label{eq:weak_heat}
 \end{equation}
 the entropy production $T_k\Delta s_k$ of a single-phase shock of the same strength in phase $k$. Hence a share $\lambda_k$ that is
@@ -330,7 +330,7 @@ v_k(p)=v_{k0}\Big[1-\frac{x}{K_k}+\mathcal G_k\frac{x^2}{K_k^2}+O(x^3)\Big],\qqu
 \]
 Inserting this in \eqref{eq:heat} with $p-\bar p=x-\tfrac12\Delta p$,
 \[
-Y_kq_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
+Y_k\mathcal H_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
 =v_{k0}Y_k\,\frac{2\mathcal G_k}{K_k^2}\,\frac{\Delta p^3}{12}+O(\Delta p^4),
 \]
 since the first term integrates to zero; with $\rho v_{k0}Y_k=\alpha_k$ this is \eqref{eq:weak_heat}. It equals $T_k\Delta s_k$ of the single-phase
@@ -344,25 +344,25 @@ reproduces it. Since the scheme distributes $\delta$ with a share that is consta
 share it needs is the constant share for which the profile \eqref{eq:profile} ends at the state \eqref{eq:II5}. This share is
 computed directly. The end volume of the mixture, $v_{\rm end}=\sum_kY_kv_{kH}$, with $v_{kH}$ the end volume of phase $k$ on its
 Hugoniot \eqref{eq:II5}, does not depend on the share, so that $j^2=(p_1-p_0)/(v_0-v_{\rm end})$ and the profile is integrated over
-the fixed interval $[v_0,v_{\rm end}]$. With $\lambda_1=c$, $\lambda_2=1-c$, \eqref{eq:profile} and $\sum_kY_kv_k=v$ give
+the fixed interval $[v_0,v_{\rm end}]$. With $\lambda_2=1-\lambda_1$, \eqref{eq:profile} and $\sum_kY_kv_k=v$ give
 \begin{equation}
 \frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/e_{v,k}-1}{\sum_kY_ke_{p,k}/e_{v,k}},\qquad
 \frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-e_{p,1}\,\mathrm dp/\mathrm dv}{e_{v,1}},\qquad
-\frac{\mathrm dq}{\mathrm dv}=p-P(v),
+\frac{\mathrm d\mathcal H}{\mathrm dv}=p-P(v),
 \label{eq:profile_ode}
 \end{equation}
 with $e_{p,k}=\partial e_k/\partial p|_{v}$, $e_{v,k}=\partial e_k/\partial v|_{p}+p$ and $r_k=(\lambda_k/Y_k)(p-P)$; for SG and NASG phases
 $e_{p,k}=(v_k-b_k)/(\gamma_k-1)$, $e_{v,k}=\gamma_k(p+\pi_k)/(\gamma_k-1)$, and for Mie--Gr\"uneisen phases $e_{p,k}=v_k/\Gamma_k$,
-$e_{v,k}=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $c$ is the root of $v_1(v_{\rm end};c)=v_{1H}$, which is increasing in $c$; it is
-found by the Illinois method in ${\rm logit}(c)$, and \eqref{eq:profile_ode} is integrated by an adaptive Runge--Kutta--Fehlberg method
-(Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $q=\int(p-P)\,\mathrm dv$ per
+$e_{v,k}=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $\lambda_1$ is the root of $v_1(v_{\rm end};\lambda_1)=v_{1H}$, which is increasing in $\lambda_1$; it is
+found by the Illinois method in ${\rm logit}(\lambda_1)$, and \eqref{eq:profile_ode} is integrated by an adaptive Runge--Kutta--Fehlberg method
+(Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $\mathcal H=\int(p-P)\,\mathrm dv$ per
 unit mass, and the physical part of the dissipation of phase $k$ per unit volume is
 \begin{equation}
-Q_k=\lambda_k\,\rho\,q,\qquad Q=\sum_kQ_k=\rho\,q .
+Q_k=\lambda_k\,\rho\,\mathcal H,\qquad Q=\sum_kQ_k=\rho\,\mathcal H .
 \label{eq:Qk}
 \end{equation}
 For weak shocks, $p_1-p_0<10^{-2}\min_kK_k$, the residual of the shooting is $O(\Delta p^3)$ and the limit of
-Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $q=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
+Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $\mathcal H=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
 makes the profile \eqref{eq:profile} end on \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks.
 
 The pre- and post-shock states are taken on the compact stencil of the cell ($\pm1$, the five-point cross in 2D):
@@ -558,7 +558,7 @@ relaxation; with thermal or chemical relaxation active, this holds if in additio
 (ii) If each phase has uniform $p$ and $T_k$, transport does not change $\rho_k$, $e_k$, $T_k$.
 \end{proposition}
 \begin{proof}
-(i) By \eqref{eq:eps_nasg} $\varepsilon_k=c_k(p)\alpha_k+(q_k-b_kc_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces,
+(i) By \eqref{eq:eps_nasg} $\varepsilon_k=\mathcal C_k(p)\alpha_k+(q_k-b_k\mathcal C_k(p))m_k$ in every cell; the shared limiter keeps this relation on the faces,
 and since with uniform velocity $\delta_x[\bar u]=0$, the path-conservative update \eqref{eq:alpha_explicit} transports $\alpha_k$ with the same
 linear Rusanov operator \eqref{eq:rusanov} as $m_k$ and $\varepsilon_k$, it holds for $X^*$. With $P\equiv p$ all terms of \eqref{eq:faces} beyond the averages
 vanish, $u_f=u$, $p_f=p$, the increments vanish, $s=\delta=0$, and $\alpha_k=\alpha^*_k$ solves the closure at $p$, so $P\equiv p$ solves
