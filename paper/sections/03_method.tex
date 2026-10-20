@@ -355,17 +355,14 @@ Q_k=\lambda_k\,\rho\,q,\qquad Q=\sum_kQ_k=\rho\,q .
 \end{equation}
 For weak shocks, $p_1-p_0<10^{-2}\min_kK_k$, the residual of the shooting is $O(\Delta p^3)$ and the limit of
 Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $q=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
-makes the profile \eqref{eq:profile} end on \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks. In the scheme,
-the numerical dissipation of the phase energies in the explicit fluxes also heats each phase directly, without passing
-through $\delta$; the limit phase states behind a shock therefore deviate slightly from \eqref{eq:II5}, by a few tenths of a percent
-in the phase densities for the strongest mixture shock of Sec.~\ref{sec:results}, a deviation that does not vanish under mesh
-refinement.
+makes the profile \eqref{eq:profile} end on \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks.
 
 The pre- and post-shock states are not local. The scheme takes them on its compact stencil ($\pm1$, the five-point
 cross in 2D): $p_0=p_{\rm lo}<p_1=p_{\rm hi}$ are the extrema of the mixture-equilibrium pressure of $X^*$ on the stencil, the
 pre-shock phase volumes $v_{k0}=\alpha_k/m_k$ are taken from the lowest-pressure cell of the stencil, and $Y_k$ and $\rho$ are those of
-the cell itself. $Q_k$ is computed once per stage on $X^*$ and frozen. Since a shock passing through a cell deposits in
-total the mixture dissipation $Q$, the part of $\delta$ above $Q$ is an error. The
+the cell itself. $Q_k$ is computed once per stage on $X^*$ and frozen. Its role is to give the share
+$\lambda_k=Q_k/Q$ of a positive defect; the part of the defect of a stage that exceeds $Q$ is larger than the dissipation of
+the whole shock and is treated as an error. The
 physical part is restricted to compressing cells: for $\mathcal G_k>0$ every shock satisfying the entropy condition is
 compressive (Bethe--Weyl \cite{MenikoffPlohr1989}), which holds for SG and NASG phases, $\mathcal G_k=(\gamma_k+1)/2$, and for the
 Mie--Gr\"uneisen phases of Sec.~\ref{sec:results} over the range of states of the tests. Accordingly $Q_k\ne0$ only in cells where
