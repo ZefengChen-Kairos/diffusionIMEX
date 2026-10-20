@@ -667,7 +667,10 @@ X^*_{i,j}=X^s_{i,j}-r_x\,\delta_x\big[F^e[X]\big]_{i,j}-r_y\,\delta_y\big[G^e[X]
 X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2,\rho u,\rho v,E\},
 \]
 with $G^e$ the $y$-flux of \eqref{eq:rusanov} with $v$ in place of $u$, and the volume fraction by the path-conservative update
-\eqref{eq:alpha_explicit} from $X^s$, $\alpha^*_2=1-\alpha^*_1$.
+\eqref{eq:alpha_explicit} with base $\alpha^s_1$ and the cell's own volume fraction $\alpha^e_1$ of $U^e$ in the strain term,
+\[
+\alpha^*_{1,i,j}=\alpha^s_{1,i,j}-r_x\Big(\delta_x\big[F^e[\alpha_1]\big]_{i,j}-\alpha^e_{1,i,j}\,\delta_x[\bar u^e]_{i,j}\Big)-r_y\Big(\delta_y\big[G^e[\alpha_1]\big]_{i,j}-\alpha^e_{1,i,j}\,\delta_y[\bar v^e]_{i,j}\Big),\qquad \alpha^*_2=1-\alpha^*_1 .
+\]
 \item \emph{Face coefficients.} On every face the quantities of Sec.~\ref{sec:dissipation} are computed from $X^*$, the
 limiter factors of the reconstruction of $U^e$ and the pressures of the previous stage (the Newton initial guess): the averages $\bar u^*_f$, $\bar\rho_f$, the impedances $Z$, the weight \eqref{eq:weight},
 the factors \eqref{eq:psi} and the velocity jump \eqref{eq:vertex_div}. They are frozen during the solution of the stage,
