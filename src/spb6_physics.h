@@ -726,17 +726,21 @@ static int closure_type_of(double a1, double m1, double m2, double e1, double e2
 }
 
 // ==================================================================================================== 单元原始变量
-struct Prim { double a1, r1, r2, u, v, p1, p2, rho, cf; };
-// 守恒量 Q -> 原始变量（不可容许时返回 false）
+// 原始变量（论文 2.3，eq:primitive）：Q = (alpha1, rho1, rho2, u, v, p1, p2, p)，p 为总能量的混合压力
+// sum_k eps_k(alpha_k, m_k, p) = E - 1/2 rho |u|^2 (A2.3)；派生量：rho、冻结声速 cf
+struct Prim { double a1, r1, r2, u, v, p1, p2, p, rho, cf; };
+// 守恒量 U -> 原始变量（不可容许时返回 false）
 static bool prim_of(const double* Q, Prim& w) {
 	const double a1 = Q[IA1], a2 = 1 - a1, m1 = Q[IM1], m2 = Q[IM2];
 	if (!(a1 > 0 && a2 > 0 && m1 > 0 && m2 > 0)) return false;
 	w.a1 = a1; w.rho = m1 + m2; w.r1 = m1 / a1; w.r2 = m2 / a2; w.u = Q[IMU] / w.rho; w.v = Q[IMV] / w.rho;
+	w.p = p_mix(a1, m1, m2, Q[IEN] - 0.5 * w.rho * (w.u * w.u + w.v * w.v));
 	w.p1 = p_ame(0, a1, m1, Q[IE1]); w.p2 = p_ame(1, a2, m2, Q[IE2]);
 	if (!(p_admissible(0, a1, m1, w.p1) && p_admissible(1, a2, m2, w.p2))) return false;
 	w.cf = std::sqrt((m1 * c2_rp(0, w.r1, w.p1) + m2 * c2_rp(1, w.r2, w.p2)) / w.rho);
 	return true;
 }
+// 原始变量 -> 守恒量 U：相能量由 (alpha_k, m_k, p_k)，E = sum_k eps_k + 1/2 rho |u|^2，于是 p = p_mix 与 E 一致
 static void prim2cell(const Prim& w, double* Q) {
 	const double a2 = 1 - w.a1, m1 = w.a1 * w.r1, m2 = a2 * w.r2, rho = m1 + m2;
 	Q[IA1] = w.a1; Q[IM1] = m1; Q[IM2] = m2; Q[IMU] = rho * w.u; Q[IMV] = rho * w.v;
