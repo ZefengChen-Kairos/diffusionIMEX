@@ -19,6 +19,12 @@ flows, is added as a seventh equation to restore the conservative mixture energy
 Shyue \cite{PelantiShyue2014} made the approach mixture-energy-consistent and added heat and mass transfer
 \cite{SaurelPetitpasAbgrall2008,Zein2010}, and Pelanti \cite{Pelanti2022} extended the relaxation procedures to arbitrary
 rates and to the Noble--Abel stiffened-gas \cite{LeMetayerSaurel2016} and Mie--Gr\"uneisen equations of state.
+Two features make these flows difficult. First, the Mach number varies by orders of magnitude within one flow: a
+liquid moving at a few metres per second is in the incompressible regime, while the gas, a vapour pocket or a
+detonation product in the same domain may be transonic or carry strong shocks. Second, the phases exchange
+momentum, heat and mass on time scales that range from much slower to much faster than the flow itself, so that
+the same computation contains frozen, finite-rate and equilibrium regions, and phase transition through
+metastable states.
 
 To our knowledge, no IMEX scheme exists for the six-equation model with mechanical, thermal and chemical relaxation.
 In this model two kinds of stiffness meet: the acoustic waves, fast compared with the flow at low Mach numbers, and the
@@ -30,9 +36,11 @@ sound speed of a mixture to nearly the liquid value, a flow at a few metres per 
 step of a wave moving at more than a kilometre per second, and the upwind dissipation, which scales with the sound
 speed, destroys the low-Mach asymptotics of the pressure \cite{GuillardViozat1999,Dellacherie2010}. The semi-implicit
 two-phase schemes either consider only instantaneous pressure relaxation \cite{Schropff2026} or solve the relaxation
-sources in a separate step \cite{BattistiBoscheri2025}. A further difficulty concerns shocks in mixtures: the model is
-non-conservative, and the energy deposited in the numerical shock layer is shared between the phases in a way that
-depends on the scheme; Saurel et al.\ \cite{SPB2009} corrected the post-shock state with an artificial heat exchange
+sources in a separate step \cite{BattistiBoscheri2025}. A further difficulty concerns shocks in mixtures: the
+six-equation model is non-conservative, its shock relations \cite{SaurelGavrilyukRenaud2003} are not those of the
+scheme's numerical shock layer, and the energy deposited in the layer is shared between the phases in a way that
+depends on the scheme. Saurel et al.\ \cite{SPB2009} showed that the computed post-shock state then deviates from
+the five-equation solution for strong shocks, and corrected it with an artificial heat exchange in the shock layer
 whose coefficient must be calibrated for each mixture \cite{Petitpas2007}.
 
 Semi-implicit methods treat implicitly only the terms responsible for the stiffness and keep the nonlinear transport
@@ -40,13 +48,25 @@ explicit. Pressure-based methods go back to \cite{HarlowWelch1965,HarlowAmsden19
 conservative, shock-capturing versions split the flux into a convective part, whose eigenvalues are given by the flow
 velocity, and a pressure part carrying the acoustic waves \cite{ZhaBilgen1993,LiouSteffen1993,ToroVazquez2012}, and
 with a general equation of state the implicit pressure system is only mildly nonlinear \cite{DumbserCasulli2016,CasulliZanolli2012}.
-High-order, all-Mach and asymptotic preserving extensions with IMEX Runge--Kutta time integration
-\cite{Ascher1997,PareschiRusso2005,BoscarinoFilbetRusso2016,Jin1999,DegondTang2011,Dimarco2018,Boscheri2020,BoscheriPareschi2021}
-are available for single-phase flows and magnetohydrodynamics \cite{Dumbser2019,Fambri2021,Chen2026}. For two-phase
+Higher-order and all-Mach extensions followed in finite volume and discontinuous Galerkin frameworks
+\cite{TavelliDumbser2017,Boscheri2020,BoscheriPareschi2021}, and in magnetohydrodynamics
+\cite{Dumbser2019,Fambri2021,Chen2026}. Time integration of second and higher order is provided by implicit--explicit
+(IMEX) Runge--Kutta schemes \cite{Ascher1997,PareschiRusso2005}, whose stiffly accurate, L-stable members preserve
+relaxation limits \cite{PareschiRusso2005,BoscarinoRusso2009,BoscarinoPareschiRusso2017}, and by their semi-implicit
+variants \cite{BoscarinoFilbetRusso2016}. A scheme that reduces, as the Mach number tends to zero, to a consistent
+discretisation of the incompressible limit with a time step independent of the Mach number is asymptotic preserving
+\cite{Jin1999,KlainermanMajda1981}; such all-speed schemes have been analysed for the Euler equations in
+\cite{DegondTang2011,HaackJinLiu2012,Dimarco2018,Boscheri2020}. For two-phase
 flows, pressure-based and IMEX schemes have been developed for Baer--Nunziato and Kapila type models
-\cite{ReAbgrall2022,TokarevaToro2016,tenEikelder2017,Lukacova2024,MalusaAlaia2024,BattistiBoscheri2025} and, closest to the
-present work, for the single-velocity two-pressure model \cite{Schropff2026}, in one space dimension and with
-instantaneous pressure relaxation.
+\cite{ReAbgrall2022,TokarevaToro2016,tenEikelder2017,Lukacova2024,MalusaAlaia2024}. Battisti and Boscheri
+\cite{BattistiBoscheri2025} designed a linearly implicit, asymptotic preserving and well-balanced scheme for the
+seven-equation model, with explicit Rusanov fluxes for the convective terms, central implicit discretisation of the
+pressure terms and the stiff relaxation sources solved in a separate step. Closest to the present work, Schropff,
+Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen type splitting of the single-velocity two-pressure model
+and a semi-implicit scheme in which the pressure sub-system is solved by Picard iterations and the phase internal
+energies are corrected to conserve total energy; their scheme is restricted to one space dimension and instantaneous
+pressure relaxation, and the dissipation of its explicit step is a multiple of the material speed with a coefficient
+chosen for each test.
 
 In this work we treat both stiffnesses in a single implicit step. The pressure work and the three relaxation processes,
 at any combination of finite and infinite rates, enter one local closure per cell, which reduces to a scalar equation
