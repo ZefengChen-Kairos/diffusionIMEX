@@ -9,7 +9,7 @@ We now describe the semi-implicit scheme. After introducing the notation, we pre
 advective sub-system (Sec.~\ref{sec:advective}), the implicit update of the pressure--relaxation sub-system with its
 local closure and relaxation closures (Sec.~\ref{sec:implicit}), and the face velocity and face pressure that carry the
 acoustic dissipation (Sec.~\ref{sec:dissipation}). The properties of the scheme are proved in
-Secs.~\ref{sec:positivity}--\ref{sec:ap}; second order in time is obtained in Sec.~\ref{sec:time}, and
+Secs.~\ref{sec:wb}--\ref{sec:ap}; second order in time is obtained in Sec.~\ref{sec:time}, and
 Sec.~\ref{sec:fully} collects the fully discrete scheme in two space dimensions.
 
 The computational domain $\Omega=[x_{\min},x_{\max}]\times[y_{\min},y_{\max}]$ is covered by a uniform Cartesian grid of
@@ -86,8 +86,16 @@ X^L_{i+1/2}=X_i+\tfrac12\sigma_i,\quad X^R_{i+1/2}=X_{i+1}-\tfrac12\sigma_{i+1},
 \end{equation}
 so that linear relations between them, in particular $\varepsilon_k=c_k(p)\alpha_k+\big(q_k-b_kc_k(p)\big)m_k$, $c_k(p)=(p+\gamma_k\pi_k)/(\gamma_k-1)$, at
 uniform pressure, hold on the faces; quantities that are constant on the stencil to round-off are excluded from the minimum.
-For stiffened and Noble--Abel stiffened gases $\phi_i$ is further limited by \eqref{eq:phi_cap} (Sec.~\ref{sec:positivity}) so that the
-face states remain admissible. The velocity is reconstructed component-wise with its own minmod slope, and the face
+For stiffened and Noble--Abel stiffened gases the admissible states of a phase form the cone $\alpha_k>0$, $m_k>0$, $L_k>0$ for the
+two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. Since all components share $\phi_i$, such a
+functional of a face state is $L(X^{L,R})=L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$, which is not a convex combination of the cell values and is not
+bounded by the minmod factors of the individual components, e.g.\ at a strong pressure jump coinciding with a jump of
+the phase content. The shared factor is therefore limited further, for every phase and both functionals,
+\begin{equation}
+\phi_i\le\frac{2L_i}{|L_{i+1}-L_{i-1}|},\qquad L\in\{L^{(1)}_k,L^{(2)}_k\},\ k=1,2 ,
+\label{eq:phi_cap}
+\end{equation}
+which keeps $L$ on both faces above $\tfrac12L_i$, the bound that minmod gives for a single non-negative monotone component. The velocity is reconstructed component-wise with its own minmod slope, and the face
 momentum and energy are assembled from the face values.
 
 The time step is given by the CFL condition of the advective sub-system,
@@ -529,48 +537,6 @@ pressure of a ghost cell equals that of the adjacent interior cell. On a wall fa
 prescribed-pressure boundary the ghost cells keep the volume fractions, partial densities and velocity of the adjacent
 cell with both phase pressures equal to the prescribed value, which enters the pressure system as a given value.
 
-\subsection{Admissible face states}
-\label{sec:positivity}
-The admissible set of a stiffened-gas or Noble--Abel stiffened-gas phase is the cone of states with $\alpha_k>0$, $m_k>0$
-and $L_k(X)>0$ for the two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. The fluxes of
-Sec.~\ref{sec:advective} are evaluated on the reconstructed face states, which should belong to this cone.
-
-\begin{lemma}[Face states]\label{lem:faces}
-Let the cell states on the stencil $\{i-1,i,i+1\}$ be admissible. Then the face values \eqref{eq:shared_limiter} of $\alpha_k$ and
-$m_k$ are positive, and for $L\in\{L^{(1)}_k,L^{(2)}_k\}$
-\begin{equation}
-L\big(X^L_{i+1/2}\big)\ge L_i-\tfrac{\phi_i}4L_{i-1},\qquad L\big(X^R_{i-1/2}\big)\ge L_i-\tfrac{\phi_i}4L_{i+1},
-\label{eq:face_bound}
-\end{equation}
-with $L_j=L(X_j)$. The face states of cell $i$ are therefore admissible if $\phi_i\le4L_i/\max(L_{i-1},L_{i+1})$ for both functionals.
-This holds in particular when $L$ is proportional on the stencil to one of the volume-transported quantities, e.g.\ for a
-stiffened gas at locally uniform pressure, where $L^{(2)}_k=\alpha_k(p+\pi_k)/(\gamma_k-1)$, which covers interfaces and trace phases.
-\end{lemma}
-\begin{proof}
-For each $X\in\mathcal X_V$ the slope $\sigma_i$ has the sign of both one-sided differences and $|\sigma_i|\le\min(|X_{i+1}-X_i|,|X_i-X_{i-1}|)$, so
-$X^L_{i+1/2}=X_i+\tfrac12\sigma_i$ lies between $X_i$ and $\tfrac12(X_i+X_{i+1})$, and $X^R_{i-1/2}$ between $X_i$ and $\tfrac12(X_i+X_{i-1})$; hence the
-face values of $\alpha_k$ and $m_k$ are positive. All quantities share $\phi_i$, so $X^L_{i+1/2}=X_i+\tfrac{\phi_i}4(X_{i+1}-X_{i-1})$ for every
-component and, $L$ being linear, $L(X^L_{i+1/2})=L_i+\tfrac{\phi_i}4(L_{i+1}-L_{i-1})\ge L_i-\tfrac{\phi_i}4L_{i-1}$ since $L_{i+1}>0$; likewise for
-$X^R_{i-1/2}$. If $L=\kappa X$ on the stencil for some $X\in\mathcal X_V$ and $\kappa>0$, then $L(X^{L,R})=\kappa X^{L,R}$, which has the sign of the face
-values of $X$, positive by the first part.
-\end{proof}
-The bound \eqref{eq:face_bound} is sharp for a linear reconstruction with a common slope factor: a linear functional of
-the face state is not a convex combination of the cell values, and the minmod factors of the individual components do
-not bound it, e.g.\ at a strong pressure jump coinciding with a jump of the phase content. The shared factor is therefore
-limited further, for every SG or NASG phase and both functionals,
-\begin{equation}
-\phi_i\le\frac{2L_i}{|L_{i+1}-L_{i-1}|},\qquad L\in\{L^{(1)}_k,L^{(2)}_k\},\ k=1,2 ,
-\label{eq:phi_cap}
-\end{equation}
-which by $L(X^{L,R})=L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$ keeps $L$ on both faces above $\tfrac12L_i$, the bound that minmod gives for a
-single non-negative monotone component. With \eqref{eq:phi_cap} the face states of every cell with an admissible stencil are
-admissible.
-
-The transported states themselves are not proved admissible: the local closure checks the admissibility of the phase
-states it returns, and a stage without an admissible solution is repeated with half the time step (Sec.~\ref{sec:time}).
-The condition involves the implicit face velocity and is not implied by \eqref{eq:cfl}; with $C=0.2$ the explicit part
-satisfies $a_{ii}ra\approx0.06$, and the condition fails only where $u_f$ departs strongly from the material velocity.
-
 \subsection{Well-balanced property}
 \label{sec:wb}
 \begin{proposition}[Contacts and temperature consistency]\label{prop:wb}
@@ -677,7 +643,7 @@ value $U_i$ and $K_i=(U_i-\tilde U_{I,i})/\tau$. Since $\mathbf b$ is the last r
 acoustic Courant number $0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one;
 the steps limited by this rule before the time step first reaches \eqref{eq:cfl} use one backward-Euler stage. If in some stage
 the explicit predictor has a non-positive density or volume in a cell, a local closure has no root with both phases
-admissible (the cone of Sec.~\ref{sec:positivity} for stiffened and Noble--Abel stiffened gases, $c_k^2>0$ for Mie--Gr\"uneisen
+admissible (the cone of Sec.~\ref{sec:advective} for stiffened and Noble--Abel stiffened gases, $c_k^2>0$ for Mie--Gr\"uneisen
 phases), or the Newton iteration for \eqref{eq:global} does not converge, the step is repeated with half the time step,
 with the same scheme. With a prescribed fixed time step the start-up rule is not applied.
 
