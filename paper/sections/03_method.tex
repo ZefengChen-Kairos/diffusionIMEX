@@ -291,16 +291,16 @@ e_k-e_{k0}+\bar p\,(v_k-v_{k0})=0,\qquad \bar p=\tfrac12(p_0+p_1),\qquad k=1,2,
 \end{equation}
 the shock relations also used for the exact solutions of Sec.~\ref{sec:results}. Consider a stationary shock profile of the
 relaxed model with mass flux $j$, total normal stress $P=p-\sigma$ ($\sigma$ the viscous stress), the Rayleigh line
-$P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm d\mathcal H_k$,
+$P(v)=p_0+j^2(v_0-v)$ and the mixture energy balance $\mathrm de=-P\,\mathrm dv$. Each phase receives the heat $\mathrm d\mathcal D_k$,
 \begin{equation}
-\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal H_k,\qquad Y_k\,\mathrm d\mathcal H_k=\lambda_k\,\mathrm d\mathcal H,\qquad \mathrm d\mathcal H=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
+\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal D_k,\qquad Y_k\,\mathrm d\mathcal D_k=\lambda_k\,\mathrm d\mathcal D,\qquad \mathrm d\mathcal D=(p-P)\,\mathrm dv\ge0,\qquad \textstyle\sum_k\lambda_k=1,
 \label{eq:profile}
 \end{equation}
 with $\lambda_k=\partial\Lambda_k/\partial\delta$ the local share. Summing over $k$ recovers $\mathrm de=-P\,\mathrm dv$: whatever the share, the
 mixture ends on its Hugoniot, and the share only decides the end volumes of the phases. Integrating
-$\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal H_k$ over the profile and comparing with \eqref{eq:II5}, the end state satisfies \eqref{eq:II5} if and only if
+$\mathrm de_k=-p\,\mathrm dv_k+\mathrm d\mathcal D_k$ over the profile and comparing with \eqref{eq:II5}, the end state satisfies \eqref{eq:II5} if and only if
 \begin{equation}
-Y_k\mathcal H_k=\int_{\rm profile}(p-\bar p)\,\mathrm dv_k ,\qquad k=1,2,
+Y_k\mathcal D_k=\int_{\rm profile}(p-\bar p)\,\mathrm dv_k ,\qquad k=1,2,
 \label{eq:heat}
 \end{equation}
 the heat received by phase $k$ is its compression work minus its Hugoniot work.
@@ -309,7 +309,7 @@ the heat received by phase $k$ is its compression work minus its Hugoniot work.
 Let $\Delta p=p_1-p_0\to0$, $K_k=\rho_kc_k^2$ and $\mathcal G_k=\tfrac12\big(1+\partial K_k/\partial p|_s\big)$ the fundamental derivative of phase $k$. Under
 \eqref{eq:II5} the heat received by phase $k$ per unit mixture volume is
 \begin{equation}
-Y_k\rho\,\mathcal H_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
+Y_k\rho\,\mathcal D_k=\frac{\alpha_k\mathcal G_k}{6K_k^2}\,\Delta p^3+O(\Delta p^4),
 \label{eq:weak_heat}
 \end{equation}
 the entropy production $T_k\Delta s_k$ of a single-phase shock of the same strength in phase $k$. Hence a share $\lambda_k$ that is
@@ -324,7 +324,7 @@ v_k(p)=v_{k0}\Big[1-\frac{x}{K_k}+\mathcal G_k\frac{x^2}{K_k^2}+O(x^3)\Big],\qqu
 \]
 Inserting this in \eqref{eq:heat} with $p-\bar p=x-\tfrac12\Delta p$,
 \[
-Y_k\mathcal H_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
+Y_k\mathcal D_k=v_{k0}Y_k\int_0^{\Delta p}\Big(x-\frac{\Delta p}2\Big)\Big[-\frac1{K_k}+2\mathcal G_k\frac{x}{K_k^2}\Big]\mathrm dx+O(\Delta p^4)
 =v_{k0}Y_k\,\frac{2\mathcal G_k}{K_k^2}\,\frac{\Delta p^3}{12}+O(\Delta p^4),
 \]
 since the first term integrates to zero; with $\rho v_{k0}Y_k=\alpha_k$ this is \eqref{eq:weak_heat}. It equals $T_k\Delta s_k$ of the single-phase
@@ -342,21 +342,21 @@ the fixed interval $[v_0,v_{\rm end}]$. With $\lambda_2=1-\lambda_1$, \eqref{eq:
 \begin{equation}
 \frac{\mathrm dp}{\mathrm dv}=\frac{\sum_kY_kr_k/e_{v,k}-1}{\sum_kY_ke_{p,k}/e_{v,k}},\qquad
 \frac{\mathrm dv_1}{\mathrm dv}=\frac{r_1-e_{p,1}\,\mathrm dp/\mathrm dv}{e_{v,1}},\qquad
-\frac{\mathrm d\mathcal H}{\mathrm dv}=p-P(v),
+\frac{\mathrm d\mathcal D}{\mathrm dv}=p-P(v),
 \label{eq:profile_ode}
 \end{equation}
 with $e_{p,k}=\partial e_k/\partial p|_{v}$, $e_{v,k}=\partial e_k/\partial v|_{p}+p$ and $r_k=(\lambda_k/Y_k)(p-P)$; for SG and NASG phases
 $e_{p,k}=(v_k-b_k)/(\gamma_k-1)$, $e_{v,k}=\gamma_k(p+\pi_k)/(\gamma_k-1)$, and for Mie--Gr\"uneisen phases $e_{p,k}=v_k/\Gamma_k$,
 $e_{v,k}=(p-p_r)(1+1/\Gamma_k)+\rho_kp_r'/\Gamma_k$. The share $\lambda_1$ is the root of $v_1(v_{\rm end};\lambda_1)=v_{1H}$, which is increasing in $\lambda_1$; it is
 found by the Illinois method in ${\rm logit}(\lambda_1)$, and \eqref{eq:profile_ode} is integrated by an adaptive Runge--Kutta--Fehlberg method
-(Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $\mathcal H=\int(p-P)\,\mathrm dv$ per
+(Cash--Karp coefficients, relative tolerance $10^{-8}$). The same integration gives the mixture dissipation $\mathcal D=\int(p-P)\,\mathrm dv$ per
 unit mass, and the physical part of the dissipation of phase $k$ per unit volume is
 \begin{equation}
-Q_k=\lambda_k\,\rho\,\mathcal H,\qquad Q=\sum_kQ_k=\rho\,\mathcal H .
+Q_k=\lambda_k\,\rho\,\mathcal D,\qquad Q=\sum_kQ_k=\rho\,\mathcal D .
 \label{eq:Qk}
 \end{equation}
 For weak shocks, $p_1-p_0<10^{-2}\min_kK_k$, the residual of the shooting is $O(\Delta p^3)$ and the limit of
-Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $\mathcal H=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
+Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $\mathcal D=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
 makes the profile \eqref{eq:profile} end on \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks.
 
 The pre- and post-shock states are taken on the compact stencil of the cell ($\pm1$, the five-point cross in 2D):
