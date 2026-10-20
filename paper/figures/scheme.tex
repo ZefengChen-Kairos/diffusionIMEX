@@ -21,7 +21,7 @@
   \node[outer, fit=(full)(fullh)] (fullbox) {};
 \end{scope}
 
-\node[hdr, below=5mm of fullbox] (split) {Zha--Bilgen split (Sec.~\ref{sec:split})};
+\node[hdr, below=5mm of fullbox] (split) {Zha--Bilgen split};
 \draw[->] (fullbox.south) -- (split.north);
 
 % ----------------------------------------------------------------- the two sub-systems
@@ -51,7 +51,7 @@
 
 % ----------------------------------------------------------------- one stage
 \node[hdr, below=11mm of split.south |- advbox.south, text width=12.8cm, align=flush center] (alh)
-  {Algorithm: one stage of LSDIRK2 (Sec.~\ref{sec:time}), implicit step $\tau=a_{ii}\Delta t$};
+  {Algorithm: one stage of LSDIRK2, implicit step $\tau=a_{ii}\Delta t$};
 \node[step, below=2mm of alh] (s0)
   {\textbf{0. Start of the time step} (thermal / chemical relaxation only)\\
    activation of the closures on $U^n$, projection onto the $pT$ / $pTg$ manifold;\\ closure type frozen over the stages};
