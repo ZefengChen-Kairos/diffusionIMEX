@@ -6,33 +6,38 @@
 
 We have presented a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation
 two-phase model with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas,
-Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions. The flux is split
-following Zha and Bilgen: all quantities are transported explicitly with the old velocity by the
+Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+
+The two stiffnesses of the model, the acoustic waves at low Mach numbers and the relaxation processes at arbitrary
+rates, are treated in a single implicit step. The implicit pressure work and the three relaxation processes, at any
+combination of finite and infinite rates, enter one local closure per cell, which reduces to a scalar equation for the
+cell pressure; each stage then reduces to a mildly nonlinear system for the cell pressures with a three-point
+(five-point in 2D) Jacobian, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
+the Mach number and the relaxation rates. We have proved that, under non-degeneracy assumptions, the scheme converges
+to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme without that
+relaxation as the rate vanishes; formally, it is asymptotic preserving in the low Mach number limit of the mixture.
+
+At shocks, the difference between the conservative and the non-conservative mixture internal energy is distributed
+between the phases according to the shock relations of the model: the physical part with the constant share for which
+the shock profile of the relaxed model ends on the Hugoniot of each phase, computed by shooting, which for weak shocks
+reduces to the unique consistent local share, and the discretisation error with the unique share that keeps both phases
+admissible for every defect. No calibrated heat exchange is needed.
+
+The flux is split following Zha and Bilgen: all quantities are transported explicitly with the old velocity by the
 path-conservative Rusanov scheme, whose dissipation speed is the material speed, the volume fraction being advected
-entirely in this step, while the pressure, its work on each phase, an incremental flux of the conservative transported
-quantities and the three relaxation processes are treated implicitly. The time step is therefore
-restricted by the flow velocity only, whatever the Mach number and the relaxation rates.
-
-The implicit pressure work and the relaxation terms enter a single local closure, which for every set of rates, finite
-or infinite, reduces to one scalar equation for the cell pressure; the stage reduces to a mildly nonlinear system for
-the cell pressures with a three-point (five-point in 2D) Jacobian, solved by Newton's method. The difference between
-the conservative and the non-conservative mixture internal energy is distributed between the phases according to the
-shock relations of the model: the physical part with the constant share for which the shock profile of the relaxed
-model ends on the Hugoniot of each phase, computed by shooting, which for weak shocks reduces to the unique consistent
-local share, and the discretisation error with the unique share that keeps both phases admissible for every defect. No
-calibrated heat exchange is needed. The central implicit operator is supplemented by implicit Laplace dissipation of the
+entirely in this step, while the pressure, its work on each phase and an incremental flux of the conservative transported
+quantities are treated implicitly. The central implicit operator is supplemented by implicit Laplace dissipation of the
 pressure and the velocity with acoustic coefficients, weighted by the deficit of the implicit viscosity with respect to
-the upwind one, so that it vanishes in the low Mach number regime, and limited to second order in smooth regions. Second order in time is obtained with the stiffly accurate,
-L-stable LSDIRK2 scheme.
+the upwind one, so that it vanishes in the low Mach number regime, and limited to second order in smooth regions. Second
+order in time is obtained with the stiffly accurate, L-stable LSDIRK2 scheme. We have also proved that the scheme
+preserves moving contacts and the phase temperatures under transport.
 
-We have proved that the scheme preserves moving contacts and the phase temperatures under transport, and that, under non-degeneracy assumptions, it converges to the corresponding equilibrium scheme as each relaxation rate tends
-to infinity and reduces to the scheme without that relaxation as the rate vanishes; formally, the scheme is asymptotic
-preserving in the low Mach number limit of the mixture. The numerical results confirm these properties: second-order
-convergence on a smooth two-phase vortex, a Newton iteration count and a time step independent of the Mach number, face
-velocities that are discretely divergence-free to $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex, and
-agreement with exact solutions and reference results for interfaces, single-phase and two-phase shock tubes, cavitation,
-evaporation and depressurisation problems, and two-dimensional shock--bubble, Richtmyer--Meshkov, bubble-collapse and
-underwater-explosion problems, at instantaneous and finite relaxation rates.
+The numerical results confirm these properties: second-order convergence on a smooth two-phase vortex, a Newton
+iteration count and a time step independent of the Mach number, face velocities that are discretely divergence-free to
+$O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex, and agreement with exact solutions and reference results
+for interfaces, single-phase and two-phase shock tubes, cavitation, evaporation and depressurisation problems, and
+two-dimensional shock--bubble, Richtmyer--Meshkov, bubble-collapse and underwater-explosion problems, at instantaneous
+and finite relaxation rates.
 
 Future work will address an extension to higher order in space and time, unstructured meshes, and a velocity
 disequilibrium model, in which the drag relaxation would enter the same local closure.
