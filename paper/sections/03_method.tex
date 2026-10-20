@@ -67,12 +67,9 @@ Their sum is the path integral, and the update of the cell reads
 \label{eq:alpha_explicit}
 \end{equation}
 the Rusanov difference of the volume flux minus the cell's own volume fraction times the divergence of the face
-velocities. The advection of the volume fraction is completed in this step; the implicit step changes $\alpha_k$ only
-through the relaxation terms. The volume strain is assigned with the cell's own $\alpha_{1,i}$, which is the volume fraction of the
+velocities. The volume strain is assigned with the cell's own $\alpha_{1,i}$, which is the volume fraction of the
 mass and energy that the conservative fluxes of the cell compress, so that the volume, the mass and the energy of a
-trace phase stay consistent where the velocity jumps across an interface. With uniform velocity $\delta_x[\bar u]=0$, and
-$\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by the same linear Rusanov operator, so that a state with uniform velocity and pressure is
-transported without changing the phase densities and energies (Sec.~\ref{sec:wb}). With first-order face values \eqref{eq:alpha_explicit} is a convex combination of
+trace phase stay consistent where the velocity jumps across an interface. With first-order face values \eqref{eq:alpha_explicit} is a convex combination of
 the neighbouring volume fractions when $C\le\tfrac12$, so that $\alpha^*_1\in(0,1)$; otherwise admissibility is ensured by the
 step rejection of Sec.~\ref{sec:time}.
 
@@ -102,7 +99,7 @@ The time step is given by the CFL condition of the advective sub-system,
 \Delta t=C\left(\frac{\max_\Omega|u|}{\Delta x}+\frac{\max_\Omega|v|}{\Delta y}\right)^{-1},
 \label{eq:cfl}
 \end{equation}
-which depends on the flow velocity only; $C=0.2$ unless stated otherwise, and the first steps are limited by the
+with $C=0.2$ unless stated otherwise, and the first steps are limited by the
 start-up rule of Sec.~\ref{sec:time}. A proof of stability under \eqref{eq:cfl} is not available, as for the
 other semi-implicit schemes of this class; all computations of Sec.~\ref{sec:results} are advanced with it.
 
@@ -122,13 +119,9 @@ This section derives the implicit step in semi-discrete form; the fully discrete
 Sec.~\ref{sec:fully}.
 
 \paragraph{Semi-discrete implicit step}
-The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly. Following the splitting of
-Sec.~\ref{sec:split}, the flux of every conservative transported quantity at the new time level is written as
-$Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$: the first part is the explicit flux of Sec.~\ref{sec:advective}, the second, the incremental
-flux, is implicit. The partial densities and phase energies carry the same incremental flux; the momentum and
-kinetic-energy increments follow from the incremental mass flux. The volume fraction has no incremental flux: its
-advection is completed by the path-conservative update \eqref{eq:alpha_explicit}, and in the implicit step it changes only
-through the relaxation terms, $\alpha^{\rm tr}_k=\alpha^*_k$. In semi-discrete form,
+The pressure--relaxation sub-system \eqref{eq:pressure_sub} is discretised implicitly together with the incremental fluxes
+of Sec.~\ref{sec:split}. The partial densities and phase energies carry the same incremental flux; the momentum and
+kinetic-energy increments follow from the incremental mass flux. In semi-discrete form,
 \begin{equation}
 \begin{aligned}
 X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{m_k,\varepsilon_k\},\\
@@ -172,10 +165,6 @@ use the linearisation: the closure evaluates the pressure response exactly for t
 relaxation rates, and also contains the incremental fluxes and the distribution of the energy defect, so that the
 discrete system \eqref{eq:global_semi} keeps the structure of \eqref{eq:wave}, a nonlinearity local to each cell together
 with a linear coupling through the face velocities, without its linearisation errors.
-
-The closure distributes the difference between the non-conservative and the conservative mixture internal energy to
-the phases (Sec.~\ref{sec:closure}), so that $\sum_k\varepsilon_k^{n+1}=E^{n+1}-\tfrac12\rho^{n+1}(u^{n+1})^2$ holds exactly and the pressure is given
-by the phase equations of state; no linearisation of the kinetic energy is involved.
 
 \subsubsection{Implicit dissipation}
 \label{sec:dissipation}
@@ -417,8 +406,7 @@ pressure system is therefore continuous and piecewise smooth in $P$.
 \subsubsection{Relaxation closures}
 \label{sec:relaxation}
 The relaxation terms are not split from the transport: they enter the closure \eqref{eq:gibbs}, which for each set of
-rates reduces to one scalar equation in the cell pressure, $\Phi(p)=0$. We follow the ordering of time scales of Pelanti
-\cite{Pelanti2022}: $\mu=\infty$ if $\theta>0$ or $\nu>0$, and $\theta=\infty$ if $\nu>0$. The closure returns the phase states and the
+rates reduces to one scalar equation in the cell pressure, $\Phi(p)=0$. The closure returns the phase states and the
 mixture pressure $\bar p^{\rm cl}=\sum_k\alpha_kp_k$.
 
 \paragraph{Instantaneous mechanical relaxation: $p$ closure ($\mu=\infty$, $\theta=\nu=0$)}
@@ -510,7 +498,7 @@ then from the energy, which coincides with the end-value branch of the finite-ra
 $p\ge p_c$ the cell is single-phase, the phase being chosen by comparing $1/\rho$ with $v_1(p_c,T_{\rm sat}(p_c))$.
 
 \paragraph{Activation and projection}
-The interfacial quantities $\rho_I$, $e_I$ do not appear in any closure. Thermal and chemical relaxation are active in interface cells,
+Thermal and chemical relaxation are active in interface cells,
 $\epsilon_I\le\alpha_1\le1-\epsilon_I$ with $\epsilon_I=10^{-4}$. Mass transfer is activated where the temperature of the $pT$-equilibrium
 state exceeds $T_{\rm sat}(p)$, or, when thermal and chemical relaxation act together, where a phase temperature of the
 mechanical-equilibrium state exceeds $T_{\rm sat}(p)$ (the levels of Sec.~\ref{sec:results}). Activation is decided once per
@@ -620,9 +608,6 @@ $c\tau/\Delta x=a_{ii}C\,c/\max|u|=O(1/M)$, so $\varphi=(1-c\tau/\Delta x)^+=0$ 
 speed and the closures return states on the equilibrium manifold, both independently of $M$. The limit scheme is therefore
 explicit convection followed by a projection of the face velocities, with a time step set by \eqref{eq:cfl}.
 \end{proof}
-The result is formal: the expansion and the assumption $P-P^*=O(M^2)$ are not proved for the discrete solution. They are verified
-a posteriori on the Taylor--Green vortex of Sec.~\ref{sec:results}, where the discrete divergence of the face velocities is
-$O(M^2)$ down to $M\approx10^{-6}$.
 
 \subsection{Second-order time discretisation}
 \label{sec:time}
@@ -722,10 +707,3 @@ step 3 and the volume fractions, partial densities and phase energies of the clo
 The operator $\mathcal H$ in \eqref{eq:stages} is the one-stage update given by steps 1--6: step 1 is the explicit part,
 evaluated on $U_{E,i}$, and steps 2--6 the implicit part over $\tau=a_{ii}\Delta t$. The construction is the same in one
 and two space dimensions.
-
-In summary, the scheme is stabilised by three sources of numerical dissipation. The first is the Rusanov
-dissipation of the explicit advective fluxes, which scales with the flow velocity. The second and third are the two
-implicit Laplace terms in \eqref{eq:faces}: a pressure Laplacian through the face velocity and a velocity Laplacian
-(bulk viscosity) through the face pressure, which act on the acoustic waves with the weight \eqref{eq:weight} and vanish as $c\tau/\Delta x$
-grows, i.e.\ in the low Mach number limit. Since all three are either explicit with the material speed or implicit,
-none of them requires a time step smaller than \eqref{eq:cfl}.
