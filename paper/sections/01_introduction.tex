@@ -114,8 +114,9 @@ dissipation of the scheme, is distributed between the phases according to the sh
 \cite{SaurelGavrilyukRenaud2003}: the physical part with the constant share for which the shock profile of the relaxed
 model ends on the Hugoniot of each phase, computed by shooting and reducing to a unique local share for weak shocks,
 the discretisation error in the unique linear proportion that keeps both phases admissible, so that no calibrated heat
-exchange is needed. The acoustic dissipation that the central implicit operator lacks is supplied at the faces by the
-acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind viscosity, and
+exchange is needed. The central implicit operator is supplemented by implicit Laplace dissipation of the pressure and
+the velocity with acoustic coefficients, the upwind terms of the acoustic Riemann solution, weighted by the deficit of
+the implicit viscosity with respect to the upwind viscosity, so that it vanishes in the low Mach number regime, and
 limited so that the scheme is second order in smooth regions and local-extremum-diminishing. Second order in time is
 obtained with the stiffly accurate, L-stable LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016}, and the start-up steps use
 one backward-Euler stage.
@@ -123,8 +124,7 @@ one backward-Euler stage.
 We prove that, under non-degeneracy assumptions, the scheme converges to the corresponding equilibrium scheme as each
 relaxation rate tends to infinity and reduces to the scheme without that relaxation as the rate vanishes; that it
 preserves moving contacts (with equal phase temperatures when thermal relaxation is active) and the temperature of each
-phase under transport; and that, for stiffened and Noble--Abel stiffened gases, the transported phase states of a
-backward-Euler stage remain admissible under a face condition independent of the phase contents. We show formally
+phase under transport. We show formally
 that the scheme is asymptotic preserving in the low Mach number limit of the mixture. The scheme is validated on
 twenty-two problems in one and two space dimensions (counting the single- and two-phase Taylor--Green vortices
 separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems at low and
