@@ -7,8 +7,7 @@
 
 We now describe the semi-implicit scheme. After introducing the notation, we present the explicit update of the
 advective sub-system (Sec.~\ref{sec:advective}), the implicit update of the pressure--relaxation sub-system with its
-local closure and relaxation closures (Sec.~\ref{sec:implicit}), and the face velocity and face pressure that carry the
-acoustic dissipation (Sec.~\ref{sec:dissipation}). The properties of the scheme are proved in
+implicit dissipation, local closure and relaxation closures (Sec.~\ref{sec:implicit}). The properties of the scheme are proved in
 Secs.~\ref{sec:wb}--\ref{sec:ap}; second order in time is obtained in Sec.~\ref{sec:time}, and
 Sec.~\ref{sec:fully} collects the fully discrete scheme in two space dimensions.
 
@@ -177,6 +176,86 @@ with a linear coupling through the face velocities, without its linearisation er
 The closure distributes the difference between the non-conservative and the conservative mixture internal energy to
 the phases (Sec.~\ref{sec:closure}), so that $\sum_k\varepsilon_k^{n+1}=E^{n+1}-\tfrac12\rho^{n+1}(u^{n+1})^2$ holds exactly and the pressure is given
 by the phase equations of state; no linearisation of the kinetic energy is involved.
+
+\subsubsection{Implicit dissipation}
+\label{sec:dissipation}
+The implicit terms are discretised by central differences on the faces. The central operator does not damp the
+odd--even velocity mode, and the material-speed dissipation of \eqref{eq:rusanov} does not act on pressure jumps, so that,
+as in \cite{DumbserCasulli2016,BoscheriPareschi2021}, numerical dissipation is added to the implicit step by means of the Laplace operator
+\begin{equation}
+\mathbb L(\kappa,q)_{i,j}=\frac1{\Delta x^2}\Big(\kappa_{i+1/2,j}(q_{i+1,j}-q_{i,j})-\kappa_{i-1/2,j}(q_{i,j}-q_{i-1,j})\Big)
++\frac1{\Delta y^2}\Big(\kappa_{i,j+1/2}(q_{i,j+1}-q_{i,j})-\kappa_{i,j-1/2}(q_{i,j}-q_{i,j-1})\Big),
+\label{eq:laplace}
+\end{equation}
+applied to the pressure and to the velocity only, the acoustic characteristic variables: the volumes, partial densities and
+phase energies already carry the material-speed dissipation of the explicit step, and a dissipation proportional to the
+sound speed on them would smear contacts by a factor $1/M$ more than the material dissipation.
+
+\paragraph{Face velocity and face pressure}
+On the face $(i+\tfrac12,j)$, with $\rho^*_{i,j}=\sum_km^*_{k,i,j}$, $u^*_{i,j}=(\rho u)^*_{i,j}/\rho^*_{i,j}$ and $Z_{i,j}=\rho^*_{i,j}c_{f,i,j}$ (frozen
+sound speed on $X^*$), the face velocity is the average of the cell velocities plus the pressure acceleration of the two
+adjacent half cells, the face pressure is the density-weighted average that conserves momentum, and each carries the
+diffusive flux of the other acoustic variable:
+\begin{equation}
+\begin{aligned}
+u_f&=\bar u^*_f-\frac{\tau(P_{i+1,j}-P_{i,j})}{\bar\rho_f\Delta x}-\frac{\kappa^P_f}{\Delta x}\big(P_{i+1,j}-P_{i,j}\big),\\
+p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1,j}}-\frac{\kappa^u_f}{\Delta x}\,D^*_f,
+\end{aligned}\qquad
+\kappa^P_f=\frac{\varphi_f\psi^P_f\,\Delta x}{Z_{i,j}+Z_{i+1,j}},\qquad \kappa^u_f=\frac{\varphi_f\psi^u_f\,Z_{i,j}Z_{i+1,j}\,\Delta x}{Z_{i,j}+Z_{i+1,j}},
+\label{eq:faces}
+\end{equation}
+with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$, $\bar\rho_f=\tfrac12(\rho^*_{i,j}+\rho^*_{i+1,j})$ and, in one dimension, $D^*_f=u^*_{i+1}-u^*_i$. Without the
+factors $\varphi_f\psi_f$ the two diffusive terms are the upwind terms of the acoustic Riemann solution. In the momentum update the
+face pressure contributes $\tau\,\mathbb L(\kappa^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
+divergence of the face velocity enters the strain, the transport and the energy flux, and in the pressure equation
+\eqref{eq:wave} it contributes $\tau K\,\mathbb L(\kappa^P,P)$, with $K\kappa^P=\tfrac12c\Delta x$ for equal impedances. Both coefficients are the acoustic
+eigenvalue times $\Delta x$, and both terms are implicit, so that they do not restrict the time step \eqref{eq:cfl}. In two dimensions the
+normal velocity difference is replaced by $\Delta x$ times the mean of the two vertex divergences of the face,
+\begin{equation}
+D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+1/2,j-1/2}\big),\quad
+\mathrm{div}_{i+1/2,j+1/2}=\frac{u_{i+1,j}+u_{i+1,j+1}-u_{i,j}-u_{i,j+1}}{2\Delta x}+\frac{v_{i,j+1}+v_{i+1,j+1}-v_{i,j}-v_{i+1,j}}{2\Delta y},
+\label{eq:vertex_div}
+\end{equation}
+so that the velocity term acts on the divergence only and leaves divergence-free motion, such as vortices, untouched;
+for $y$-independent data it reduces to the one-dimensional difference.
+
+The face sweeps $u_f\tau$ during the step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f=\tfrac12(u^L+u^R)$; the
+incremental flux supplies the difference from the upwind side of $u_f$, with the reconstructed face values of
+\eqref{eq:rusanov} as donors,
+\begin{equation}
+I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{m_k,\varepsilon_k\}.
+\label{eq:increment}
+\end{equation}
+
+\paragraph{Acoustic weight}
+Backward Euler already damps acoustic waves: for linear acoustics, one step with \eqref{eq:faces} has, at low wave
+numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(\nu+\varphi)$, $\nu=c\tau/\Delta x$. Requiring that each step carries at least
+the upwind viscosity $\tfrac12c\Delta x$ on resolved acoustic waves, and no more, gives
+\begin{equation}
+\varphi_f=\Big(1-\frac{\tau\min(c_{f,i,j},c_{f,i+1,j})}{\Delta x}\Big)^+ :
+\label{eq:weight}
+\end{equation}
+for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, and for $c\tau\ge\Delta x$, in particular in the low Mach number
+regime, the Laplace terms vanish, so that they add no dissipation that does not vanish with the mesh at fixed Mach
+number. The frozen sound speed is used since $\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, so that the dissipation is
+never smaller than that of the relaxed waves. Where $X^*$ is not admissible, $c_f=\infty$ and the face carries no Laplace terms.
+
+\paragraph{Second-order factors}
+The factors $\psi\in[0,1]$ evaluate the Laplace terms on the reconstructed face states, $\psi D=X^R-X^L$ for a face jump $D$.
+The pressure is a function of the volume-transported quantities and the velocity, whose reconstruction is scaled by
+$\phi_s=\min(\hat\phi_{i,j},\hat\phi_{i+1,j})$, with $\hat\phi$ the minimum of the shared factor \eqref{eq:shared_limiter} and of the smoothness ratios
+(minmod over central slope) of the velocity components; with the minmod slope of $P$ this gives
+\begin{equation}
+\psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad \psi^u_f=\psi^{\rm mm}_f[u],\qquad
+\psi^{\rm mm}_f[X]=1-\frac{\sigma^{\rm mm}_{i,j}[X]+\sigma^{\rm mm}_{i+1,j}[X]}{2D},
+\label{eq:psi}
+\end{equation}
+the velocity-jump term acting on the separately reconstructed velocity. The slopes of $P$ are those of the pressure field
+of the previous Newton initial guess (the pressure of the previous stage), and those of $u$ are taken on $u^*$, so that
+the factors are frozen during the solution of the stage; with unlimited central slopes $\sigma$ are the central slopes,
+clipped to $\psi\in[0,1]$. Both terms are first order at a local
+extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution is
+smooth (the LED criterion of Jameson \cite{Jameson1995}).
 
 \subsubsection{Local closure}
 \label{sec:closure}
@@ -465,86 +544,6 @@ iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step sa
 if the line search cannot reduce the residual, the solution is accepted when every $|G_{i,j}|$ lies within $10^{-13}N_{i,j}$ plus the
 round-off floor of the closure, at most 60 iterations being allowed.
 
-\subsection{Implicit dissipation}
-\label{sec:dissipation}
-The implicit terms are discretised by central differences on the faces. The central operator does not damp the
-odd--even velocity mode, and the material-speed dissipation of \eqref{eq:rusanov} does not act on pressure jumps, so that,
-as in \cite{DumbserCasulli2016,BoscheriPareschi2021}, numerical dissipation is added to the implicit step by means of the Laplace operator
-\begin{equation}
-\mathbb L(\kappa,q)_{i,j}=\frac1{\Delta x^2}\Big(\kappa_{i+1/2,j}(q_{i+1,j}-q_{i,j})-\kappa_{i-1/2,j}(q_{i,j}-q_{i-1,j})\Big)
-+\frac1{\Delta y^2}\Big(\kappa_{i,j+1/2}(q_{i,j+1}-q_{i,j})-\kappa_{i,j-1/2}(q_{i,j}-q_{i,j-1})\Big),
-\label{eq:laplace}
-\end{equation}
-applied to the pressure and to the velocity only, the acoustic characteristic variables: the volumes, partial densities and
-phase energies already carry the material-speed dissipation of the explicit step, and a dissipation proportional to the
-sound speed on them would smear contacts by a factor $1/M$ more than the material dissipation.
-
-\paragraph{Face velocity and face pressure}
-On the face $(i+\tfrac12,j)$, with $\rho^*_{i,j}=\sum_km^*_{k,i,j}$, $u^*_{i,j}=(\rho u)^*_{i,j}/\rho^*_{i,j}$ and $Z_{i,j}=\rho^*_{i,j}c_{f,i,j}$ (frozen
-sound speed on $X^*$), the face velocity is the average of the cell velocities plus the pressure acceleration of the two
-adjacent half cells, the face pressure is the density-weighted average that conserves momentum, and each carries the
-diffusive flux of the other acoustic variable:
-\begin{equation}
-\begin{aligned}
-u_f&=\bar u^*_f-\frac{\tau(P_{i+1,j}-P_{i,j})}{\bar\rho_f\Delta x}-\frac{\kappa^P_f}{\Delta x}\big(P_{i+1,j}-P_{i,j}\big),\\
-p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1,j}}-\frac{\kappa^u_f}{\Delta x}\,D^*_f,
-\end{aligned}\qquad
-\kappa^P_f=\frac{\varphi_f\psi^P_f\,\Delta x}{Z_{i,j}+Z_{i+1,j}},\qquad \kappa^u_f=\frac{\varphi_f\psi^u_f\,Z_{i,j}Z_{i+1,j}\,\Delta x}{Z_{i,j}+Z_{i+1,j}},
-\label{eq:faces}
-\end{equation}
-with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$, $\bar\rho_f=\tfrac12(\rho^*_{i,j}+\rho^*_{i+1,j})$ and, in one dimension, $D^*_f=u^*_{i+1}-u^*_i$. Without the
-factors $\varphi_f\psi_f$ the two diffusive terms are the upwind terms of the acoustic Riemann solution. In the momentum update the
-face pressure contributes $\tau\,\mathbb L(\kappa^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
-divergence of the face velocity enters the strain, the transport and the energy flux, and in the pressure equation
-\eqref{eq:wave} it contributes $\tau K\,\mathbb L(\kappa^P,P)$, with $K\kappa^P=\tfrac12c\Delta x$ for equal impedances. Both coefficients are the acoustic
-eigenvalue times $\Delta x$, and both terms are implicit, so that they do not restrict the time step \eqref{eq:cfl}. In two dimensions the
-normal velocity difference is replaced by $\Delta x$ times the mean of the two vertex divergences of the face,
-\begin{equation}
-D^*_{i+1/2,j}=\Delta x\,\tfrac12\big(\mathrm{div}_{i+1/2,j+1/2}+\mathrm{div}_{i+1/2,j-1/2}\big),\quad
-\mathrm{div}_{i+1/2,j+1/2}=\frac{u_{i+1,j}+u_{i+1,j+1}-u_{i,j}-u_{i,j+1}}{2\Delta x}+\frac{v_{i,j+1}+v_{i+1,j+1}-v_{i,j}-v_{i+1,j}}{2\Delta y},
-\label{eq:vertex_div}
-\end{equation}
-so that the velocity term acts on the divergence only and leaves divergence-free motion, such as vortices, untouched;
-for $y$-independent data it reduces to the one-dimensional difference.
-
-The face sweeps $u_f\tau$ during the step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f=\tfrac12(u^L+u^R)$; the
-incremental flux supplies the difference from the upwind side of $u_f$, with the reconstructed face values of
-\eqref{eq:rusanov} as donors,
-\begin{equation}
-I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\big],\qquad X\in\{m_k,\varepsilon_k\}.
-\label{eq:increment}
-\end{equation}
-
-\paragraph{Acoustic weight}
-Backward Euler already damps acoustic waves: for linear acoustics, one step with \eqref{eq:faces} has, at low wave
-numbers, the effective viscosity $\tfrac12c^2\tau+\varphi\,\tfrac12c\Delta x=\tfrac12c\Delta x(\nu+\varphi)$, $\nu=c\tau/\Delta x$. Requiring that each step carries at least
-the upwind viscosity $\tfrac12c\Delta x$ on resolved acoustic waves, and no more, gives
-\begin{equation}
-\varphi_f=\Big(1-\frac{\tau\min(c_{f,i,j},c_{f,i+1,j})}{\Delta x}\Big)^+ :
-\label{eq:weight}
-\end{equation}
-for $\tau\to0$ \eqref{eq:faces} gives the acoustic Godunov face states, and for $c\tau\ge\Delta x$, in particular in the low Mach number
-regime, the Laplace terms vanish, so that they add no dissipation that does not vanish with the mesh at fixed Mach
-number. The frozen sound speed is used since $\rho c_f\ge\rho c_{\rm eq}$ for every relaxed closure \cite{FlattenLund2011}, so that the dissipation is
-never smaller than that of the relaxed waves. Where $X^*$ is not admissible, $c_f=\infty$ and the face carries no Laplace terms.
-
-\paragraph{Second-order factors}
-The factors $\psi\in[0,1]$ evaluate the Laplace terms on the reconstructed face states, $\psi D=X^R-X^L$ for a face jump $D$.
-The pressure is a function of the volume-transported quantities and the velocity, whose reconstruction is scaled by
-$\phi_s=\min(\hat\phi_{i,j},\hat\phi_{i+1,j})$, with $\hat\phi$ the minimum of the shared factor \eqref{eq:shared_limiter} and of the smoothness ratios
-(minmod over central slope) of the velocity components; with the minmod slope of $P$ this gives
-\begin{equation}
-\psi^P_f=1-\phi_s\big(1-\psi^{\rm mm}_f[P]\big),\qquad \psi^u_f=\psi^{\rm mm}_f[u],\qquad
-\psi^{\rm mm}_f[X]=1-\frac{\sigma^{\rm mm}_{i,j}[X]+\sigma^{\rm mm}_{i+1,j}[X]}{2D},
-\label{eq:psi}
-\end{equation}
-the velocity-jump term acting on the separately reconstructed velocity. The slopes of $P$ are those of the pressure field
-of the previous Newton initial guess (the pressure of the previous stage), and those of $u$ are taken on $u^*$, so that
-the factors are frozen during the solution of the stage; with unlimited central slopes $\sigma$ are the central slopes,
-clipped to $\psi\in[0,1]$. Both terms are first order at a local
-extremum of any quantity whose flux they modify, in particular at contacts, and second order where the solution is
-smooth (the LED criterion of Jameson \cite{Jameson1995}).
-
 \subsection{Well-balanced property}
 \label{sec:wb}
 \begin{proposition}[Contacts and temperature consistency]\label{prop:wb}
@@ -621,7 +620,7 @@ explicit convection followed by a projection of the face velocities, with a time
 
 \subsection{Second-order time discretisation}
 \label{sec:time}
-The scheme of Secs.~\ref{sec:advective}--\ref{sec:dissipation} is first order in time. Second order is obtained with
+The scheme of Secs.~\ref{sec:advective} and \ref{sec:implicit} is first order in time. Second order is obtained with
 the semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and Russo \cite{BoscarinoFilbetRusso2016}, for which the
 time linearisation introduced by the splitting, explicit velocity in the advective fluxes and implicit velocity
 increment, gives the semi-implicit structure directly. The semi-discrete system is written in autonomous form as
