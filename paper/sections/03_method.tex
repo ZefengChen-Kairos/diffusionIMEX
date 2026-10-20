@@ -72,15 +72,9 @@ through the relaxation terms. The volume strain is assigned with the cell's own 
 mass and energy that the conservative fluxes of the cell compress, so that the volume, the mass and the energy of a
 trace phase stay consistent where the velocity jumps across an interface. With uniform velocity $\delta_x[\bar u]=0$, and
 $\alpha_k$, $m_k$ and $\varepsilon_k$ are advanced by the same linear Rusanov operator, so that a state with uniform velocity and pressure is
-transported without changing the phase densities and energies (Sec.~\ref{sec:wb}). In one dimension and with first-order face values the update
-\eqref{eq:alpha_explicit} reads
-\[
-\alpha^*_{1,i}=\alpha^n_{1,i}+\tfrac{\Delta t}{2\Delta x}\Big[\big(a_{i+1/2}-u_{i+1}\big)\big(\alpha^n_{1,i+1}-\alpha^n_{1,i}\big)+\big(a_{i-1/2}+u_{i-1}\big)\big(\alpha^n_{1,i-1}-\alpha^n_{1,i}\big)\Big],
-\]
-a convex combination of $\alpha^n_{1,i-1}$, $\alpha^n_{1,i}$, $\alpha^n_{1,i+1}$ by \eqref{eq:rusanov_speed} when $C\le\tfrac12$ in \eqref{eq:cfl}, so that
-$\alpha^*_1\in(0,1)$. With the reconstructed face values of second order this is not guaranteed: a non-positive volume
-fraction then leaves the local closure without an admissible root, and the step is repeated with half the time step
-(Sec.~\ref{sec:time}).
+transported without changing the phase densities and energies (Sec.~\ref{sec:wb}). With first-order face values \eqref{eq:alpha_explicit} is a convex combination of
+the neighbouring volume fractions when $C\le\tfrac12$, so that $\alpha^*_1\in(0,1)$; otherwise admissibility is ensured by the
+step rejection of Sec.~\ref{sec:time}.
 
 The face values are MUSCL reconstructions \cite{vanLeer1979} with minmod. The volume-transported quantities
 $\mathcal X_V=(\alpha_1,m_1,m_2,\varepsilon_1,\varepsilon_2)$ share one limiter,
