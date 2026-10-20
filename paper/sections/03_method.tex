@@ -270,27 +270,21 @@ Q_k=\lambda_k\,\rho\,q,\qquad Q=\sum_kQ_k=\rho\,q .
 \end{equation}
 For weak shocks, $p_1-p_0<10^{-2}\min_kK_k$, the residual of the shooting is $O(\Delta p^3)$ and the limit of
 Theorem~\ref{thm:weak} is used instead, $\lambda_k=w_k$, $q=\sum_kY_kv_k\mathcal G_k\Delta p^3/(6K_k^2)$. By construction the share
-satisfies \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks.
+makes the profile \eqref{eq:profile} end on \eqref{eq:II5} for every shock strength and reduces to $w_k$ for weak shocks. In the scheme,
+the numerical dissipation of the phase energies in the explicit fluxes also heats each phase directly, without passing
+through $\delta$; the limit phase states behind a shock therefore deviate slightly from \eqref{eq:II5}, by a few tenths of a percent
+in the phase densities for the strongest mixture shock of Sec.~\ref{sec:results}, a deviation that does not vanish under mesh
+refinement.
 
 The pre- and post-shock states are not local. The scheme takes them on its compact stencil ($\pm1$, the five-point
 cross in 2D): $p_0=p_{\rm lo}<p_1=p_{\rm hi}$ are the extrema of the mixture-equilibrium pressure of $X^*$ on the stencil, the
 pre-shock phase volumes $v_{k0}=\alpha_k/m_k$ are taken from the lowest-pressure cell of the stencil, and $Y_k$ and $\rho$ are those of
 the cell itself. $Q_k$ is computed once per stage on $X^*$ and frozen. Since a shock passing through a cell deposits in
 total the mixture dissipation $Q$, the part of $\delta$ above $Q$ is an error. The
-physical part is restricted to compressing cells by the following criterion.
-
-\begin{proposition}[Compression criterion]\label{prop:compression}
-If $\mathcal G_k>0$, every admissible shock (Lax entropy condition) is compressive: $v$ decreases across it and
-$\nabla\cdot\mathbf u<0$ in its profile.
-\end{proposition}
-\begin{proof}
-For $\mathcal G>0$ the isentropes $p(v)$ are convex; the Hugoniot has second-order contact with the isentrope at the
-pre-shock state and the entropy increases monotonically along it with $p$ (Bethe--Weyl \cite{MenikoffPlohr1989}), so the entropy condition
-requires $p_1>p_0$ and $v_1<v_0$.
-\end{proof}
-For SG and NASG phases $\mathcal G_k=(\gamma_k+1)/2>0$; for the Mie--Gr\"uneisen phases of Sec.~\ref{sec:results} $\mathcal G_k>0$ holds over the
-range of states of the tests. Accordingly $Q_k\ne0$ only in cells where the central difference of $u^*$ (and $v^*$) has negative
-sum.
+physical part is restricted to compressing cells: for $\mathcal G_k>0$ every shock satisfying the entropy condition is
+compressive (Bethe--Weyl \cite{MenikoffPlohr1989}), which holds for SG and NASG phases, $\mathcal G_k=(\gamma_k+1)/2$, and for the
+Mie--Gr\"uneisen phases of Sec.~\ref{sec:results} over the range of states of the tests. Accordingly $Q_k\ne0$ only in cells where
+the central difference of $u^*$ (and $v^*$) has negative sum.
 
 \paragraph{Partition of the discretisation error}
 The remainder of $\delta$ is a discretisation error. Let $E_k$ be the internal energy of phase $k$ above its admissibility
@@ -316,13 +310,8 @@ $1=\sum_k\lambda_k\le\sum_kE_k/S=1$, so every inequality is an equality. Convers
 For $\delta\le-S$ no admissible partition exists, since $\sum_k(E_k+\Lambda_k)=S+\delta\le0$.
 \end{proof}
 
-\begin{proposition}[Variational characterisation]\label{prop:variational}
-$\Lambda_k=\lambda^E_k\delta$ is the unique minimiser of $\sum_k\Lambda_k^2/E_k$ subject to $\sum_k\Lambda_k=\delta$. It changes the energy of all phases above
-their bounds by the same relative amount: for SG and NASG phases at fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_jE_j$.
-\end{proposition}
-\begin{proof}
-The objective is strictly convex; the Lagrange condition $2\Lambda_k/E_k=\ell$ gives $\Lambda_k\propto E_k$, and the constraint fixes the factor.
-\end{proof}
+The share $\lambda^E_k$ changes the energy of both phases above their bounds by the same relative amount: for SG and NASG phases at
+fixed volumes, $p_k+\pi_k$ is multiplied by $1+\delta/\sum_jE_j$.
 With the pressure work the admissible margin becomes $E_k+\lambda_k(\delta-s(p+\pi_k))$; the theorem holds exactly for $s=0$, and the
 scheme uses $E_k$ of the transported state, which differs from the margin after the compression work by $O(s)$. When both
 phases are at their bounds ($\sum_jE_j=0$) the error is distributed by mass. Altogether
