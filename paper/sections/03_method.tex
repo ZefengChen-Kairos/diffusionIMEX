@@ -562,16 +562,18 @@ linear operator.
 \label{sec:ap}
 \paragraph{Relaxation limits}
 \begin{theorem}[Relaxation limits]\label{thm:limits}
-Assume that the local closures have non-singular Jacobians at their solutions and that the Jacobian of
-\eqref{eq:global} is non-singular. (i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding
+Let $\Delta x$ and $\tau$ be fixed. Assume that the local closures have non-singular Jacobians at their solutions and that the
+Jacobian of \eqref{eq:global} is non-singular at the solution of the equilibrium closure. (i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding
 equilibrium closure with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\tau\nu))$ (for $\nu$, where $Y$ is not clamped).
 (ii) For a vanishing rate the closure reduces exactly to the scheme with that relaxation switched off: $\mu=0$ gives
 the frozen two-pressure scheme, $\theta=0$ the $p$ closure and $\nu=0$ the $pT$ closure.
 \end{theorem}
 \begin{proof}
 (i) For $\mu$, with $\kappa=1/(\tau\mu)$ the closure reads $p_1-p_2=\kappa R$; at $\kappa=0$ it is the $p$ closure, and the
-implicit function theorem gives an $O(\kappa)$ difference for each cell; the non-singular global Jacobian carries it to the
-discrete solution. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
+implicit function theorem gives an $O(\kappa)$ difference for each cell. The residual of \eqref{eq:global} is a smooth function of $P$
+and $\kappa$, and its Jacobian with respect to $P$ is non-singular at $\kappa=0$; the implicit function theorem applied to
+\eqref{eq:global} then gives a discrete solution that differs from the equilibrium one by $O(\kappa)$, with a constant that depends on
+$\Delta x$ and $\tau$. No uniformity with respect to the mesh is claimed. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
 $|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
 the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\Delta Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
@@ -595,7 +597,8 @@ $\bar p_{(0)}$ would exceed the inertia by $M^{-2}$, hence $\partial_x\bar p_{(0
 mixture, $\partial_t\bar p+u\,\partial_x\bar p+\rho c_p^2\,\partial_xu=0$, over the domain then gives $\bar p_{(0)}={\rm const}$ and
 $\partial_xu_{(0)}=0$: the incompressible limit of the mixture.
 \begin{proposition}[Formal low-Mach limit]\label{prop:lowmach}
-For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+M^2P_2$, formally as $M\to0$: the face velocities are
+For fixed $\Delta t$, $\Delta x$ and well-prepared data $P=P_0+M^2P_2$, assume that the pressure of the transported state differs
+from the solution by $O(M^2)$, $P-P^*=O(M^2)$. Then, formally as $M\to0$: the face velocities are
 discretely divergence-free to $O(M^2)$, $P_2$ solves the discrete Poisson equation
 $\delta\cdot\big(\bar u^*_f-\tau\,\delta P_2/(\bar\rho_f\Delta x)\big)=O(M^2)$, the Laplace terms of \eqref{eq:faces} vanish ($\varphi=0$ once
 $M<a_{ii}C$), and the limit scheme is explicit convection plus a projection, with a time step independent of $M$.
@@ -607,7 +610,7 @@ factor $M^{-2}$ relative to the inertia. Linearising the closure about $X^*$, th
 P_i-P^*_i=-K^W_i\,s_i+\dots,\qquad s_i=\frac\tau{\Delta x}\,\delta[u_f]_i,\qquad u_f=\bar u^*_f-\frac{\tau}{M^2\bar\rho_f}\frac{\delta P}{\Delta x}+\dots,
 \]
 with $P^*$ the mixture pressure of $X^*$ and $K^W=\rho c_p^2=O(1)$ the Wood bulk modulus. Insert $P=P_0+M^2P_2$ with $P_0$ constant. The term
-$K^W_is_i$ must be $O(M^2)$ because $P_i-P^*_i=O(M^2)$ for well-prepared data, so $\delta[u_f]_i=O(M^2)$: the face velocities are discretely
+$K^W_is_i$ must be $O(M^2)$ because $P_i-P^*_i=O(M^2)$ by assumption, so $\delta[u_f]_i=O(M^2)$: the face velocities are discretely
 divergence-free. The pressure gradient in $u_f$ is $\delta P/(M^2\Delta x)=\delta P_2/\Delta x$, and the order-one balance gives the compact Poisson
 equation of the statement, i.e.\ a projection of the explicit face velocities. In the momentum update $p_f$ is a weighted average of
 $P$, $P_0$ cancels in $\delta p_f$, and the cell velocity is corrected by $\tau\,\delta\overline{P_2}/\Delta x$. The acoustic Courant number is
@@ -615,6 +618,9 @@ $c\tau/\Delta x=a_{ii}C\,c/\max|u|=O(1/M)$, so $\varphi=(1-c\tau/\Delta x)^+=0$ 
 speed and the closures return states on the equilibrium manifold, both independently of $M$. The limit scheme is therefore
 explicit convection followed by a projection of the face velocities, with a time step set by \eqref{eq:cfl}.
 \end{proof}
+The result is formal: the expansion and the assumption $P-P^*=O(M^2)$ are not proved for the discrete solution. They are verified
+a posteriori on the Taylor--Green vortex of Sec.~\ref{sec:results}, where the discrete divergence of the face velocities is
+$O(M^2)$ down to $M\approx10^{-6}$.
 
 \subsection{Second-order time discretisation}
 \label{sec:time}
