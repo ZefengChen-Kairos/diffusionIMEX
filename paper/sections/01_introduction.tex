@@ -73,15 +73,11 @@ preserving \cite{Jin1999,KlainermanMajda1981}; such all-speed schemes have been 
 \cite{DegondTang2011,HaackJinLiu2012,Cordier2012,Noelle2014,Dimarco2018,Boscheri2020}. These developments
 concern mainly single-phase flows.
 
-For diffuse-interface two-phase models, all-Mach and IMEX methods are still few. Re and Abgrall \cite{ReAbgrall2022}
-proposed a pressure-based formulation of a Baer--Nunziato type model for weakly compressible flows with general
-equations of state, and Rana and Singh \cite{RanaSingh2024} a pressure-based solver that switches between compressible
-and incompressible behaviour; Varsakelis and Papalexandris \cite{VarsakelisPapalexandris2014} prescribe the
-compressibility of each phase a priori. Demou et al.\ \cite{Demou2022} developed a pressure-based diffuse-interface
-method for low-Mach flows with mass transfer. Flux splittings separating convection and acoustics have been derived for
-the Baer--Nunziato \cite{TokarevaToro2016} and Kapila \cite{tenEikelder2017} models, and IMEX schemes have been
-constructed for a two-fluid single-temperature model \cite{Lukacova2024} and for the full Baer--Nunziato model
-\cite{MalusaAlaia2024}. Battisti and Boscheri \cite{BattistiBoscheri2025} designed a linearly implicit, asymptotic
+For diffuse-interface two-phase models, all-Mach and IMEX methods are still few: pressure-based and implicit--explicit
+schemes have been developed for weakly compressible flows under a Baer--Nunziato type model \cite{ReAbgrall2022}, for
+low-Mach flows with mass transfer \cite{Demou2022}, for a two-phase model with phasic pressures \cite{MalusaAlaia2024}
+and for a two-fluid single-temperature model \cite{Lukacova2024}, and splittings of convection and acoustics have been
+derived for the Baer--Nunziato \cite{TokarevaToro2017} and Kapila \cite{tenEikelder2017} models. Battisti and Boscheri \cite{BattistiBoscheri2025} designed a linearly implicit, asymptotic
 preserving and well-balanced scheme for the seven-equation model, with explicit Rusanov fluxes for the convective terms,
 central implicit discretisation of the pressure terms and the stiff relaxation sources solved in a separate step.
 Closest to the present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen type splitting of
