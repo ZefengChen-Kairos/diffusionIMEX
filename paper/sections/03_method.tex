@@ -465,7 +465,7 @@ iteration stops when $\max|G_{i,j}|/N_{i,j}<10^{-13}$ or when the Newton step sa
 if the line search cannot reduce the residual, the solution is accepted when every $|G_{i,j}|$ lies within $10^{-13}N_{i,j}$ plus the
 round-off floor of the closure, at most 60 iterations being allowed.
 
-\subsection{Implicit face states and acoustic dissipation}
+\subsection{Implicit dissipation}
 \label{sec:dissipation}
 The implicit terms are discretised by central differences on the faces, supplemented by the acoustic dissipation
 that the central operator lacks. On the face $(i+\tfrac12,j)$, with $\rho^*_{i,j}=\sum_km^*_{k,i,j}$, $u^*_{i,j}=(\rho u)^*_{i,j}/\rho^*_{i,j}$ and
