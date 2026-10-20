@@ -1,0 +1,114 @@
+% Flowchart of the semi-implicit scheme (Sec. 3). Needs: tikz with the libraries positioning, arrows.meta, calc, fit, backgrounds.
+\begin{tikzpicture}[
+  font=\fontsize{8pt}{9.6pt}\selectfont, >={Stealth[length=2mm]}, node distance=4mm,
+  hdr/.style={fill=hdrblue, text=white, font=\fontsize{8pt}{9.6pt}\selectfont\bfseries, inner sep=2.5pt, rounded corners=1pt},
+  eq/.style={draw=black!40, fill=white, inner sep=3pt, align=flush center},
+  outer/.style={draw=hdrblue!80, fill=hdrblue!8, rounded corners=4pt, inner sep=5pt},
+  step/.style={draw=black!45, fill=black!5, align=flush center, inner sep=3pt, text width=#1},
+  step/.default=12.8cm,
+  note/.style={align=flush center, font=\fontsize{7pt}{8.4pt}\selectfont},
+  dashedarrow/.style={->, dashed, black!70},
+]
+\definecolor{hdrblue}{RGB}{31,73,125}
+\definecolor{clgreen}{RGB}{214,232,220}
+\definecolor{rlpurple}{RGB}{226,222,240}
+
+% ----------------------------------------------------------------- full system
+\node[eq, text width=10.5cm] (full) {$\displaystyle \partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U
+  +\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U)$};
+\node[hdr, above=0pt of full.north] (fullh) {Full system: six-equation model with total energy and relaxation};
+\begin{scope}[on background layer]
+  \node[outer, fit=(full)(fullh)] (fullbox) {};
+\end{scope}
+
+\node[hdr, below=5mm of fullbox] (split) {Zha--Bilgen split (Sec.~\ref{sec:split})};
+\draw (fullbox.south) -- (split.north);
+
+% ----------------------------------------------------------------- the two sub-systems
+\node[eq, below left=8mm and 6mm of split.south, anchor=north east, text width=6.2cm] (adv)
+  {$\partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\mathbf 0$\\[2pt]
+   \fontsize{7pt}{8.4pt}\selectfont eigenvalues $u$ only\\[2pt]
+   \fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov\\
+   \fontsize{7pt}{8.4pt}\selectfont dissipation speed $a_{i+1/2}=\max(|u^L|,|u^R|)$\\
+   \fontsize{7pt}{8.4pt}\selectfont $\alpha_1$ advected entirely in this step};
+\node[hdr, above=0pt of adv.north] (advh) {Advective sub-system (explicit)};
+\node[eq, below right=8mm and 6mm of split.south, anchor=north west, text width=6.2cm] (prs)
+  {$\partial_t\mathbf U+\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U)$\\[2pt]
+   \fontsize{7pt}{8.4pt}\selectfont $+$ incremental fluxes $X(u^{n+1}-u^n)$\\
+   \fontsize{7pt}{8.4pt}\selectfont (the whole frozen sound speed $c_f$ is implicit)\\[2pt]
+   \fontsize{7pt}{8.4pt}\selectfont pressure work and three relaxations\\
+   \fontsize{7pt}{8.4pt}\selectfont in one local closure per cell};
+\node[hdr, above=0pt of prs.north] (prsh) {Pressure--relaxation sub-system (implicit)};
+\begin{scope}[on background layer]
+  \node[outer, fit=(adv)(advh)] (advbox) {};
+  \node[outer, fit=(prs)(prsh)] (prsbox) {};
+\end{scope}
+\draw (split.south) -- ++(0,-2mm) -| (advbox.north);
+\draw (split.south) -- ++(0,-2mm) -| (prsbox.north);
+\draw[->] (advbox.east |- prsbox.west) -- node[above, note] {$X^*$, $\alpha^*$} (prsbox.west);
+
+% ----------------------------------------------------------------- one stage
+\node[hdr, below=11mm of split.south |- advbox.south, text width=12.8cm, align=flush center] (alh)
+  {Algorithm: one stage of LSDIRK2 (Sec.~\ref{sec:time}), implicit step $\tau=a_{ii}\Delta t$};
+\node[step, below=2mm of alh] (s0)
+  {\textbf{0. Start of the time step} (thermal / chemical relaxation only)\\
+   activation of the closures on $U^n$, projection onto the $pT$ / $pTg$ manifold;\\ closure type frozen over the stages};
+\node[step, below=2mm of s0] (s1)
+  {\textbf{1. Explicit advective update} on $U_{E,i}$, from $\tilde U_{I,i}$\\
+   $X^*=X^s-r\,\delta_x\big[F^e[X]\big]$, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
+\node[step, below=2mm of s1] (s2)
+  {\textbf{2. Frozen coefficients} on $X^*$\\
+   faces: $\bar u^*_f$, $\bar\rho_f$, $Z$, weight $\varphi_f=(1-\tau c_f/\Delta x)^+$, factors $\psi_f$, velocity jump $D^*_f$\\
+   cells: shock budget $Q_k=\lambda_k\rho\mathcal D$ from the shock relations (shooting)};
+\node[step, below=2mm of s2] (s3)
+  {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
+   (a) $u_f=\bar u^*_f-\Theta_f(P_R-P_L)$, \ $p_f=W_fP_L+(1-W_f)P_R-\varpi_f$ \ (with implicit Laplace dissipation)\\
+   (b) incremental fluxes $\Rightarrow$ $X^{\rm tr}$, strain $s$, $(\rho\mathbf u)^{\rm new}$, $E^{\rm new}$, $(\rho e)^C$\\
+   (c) local closure in every cell $\Rightarrow$ $\bar p^{\rm cl}$ \\
+   (d) $G(P)=\bar p^{\rm cl}-P=0$: Newton step (BiCGStab / Thomas, line search), repeat (a)--(c)};
+\node[step, below=2mm of s3] (s4)
+  {\textbf{4. Stage value}: $\rho\mathbf u$, $E$ from 3(b); $\alpha_k$, $m_k$, $\varepsilon_k$ from the closure; \ $U^{n+1}=U_2$};
+\begin{scope}[on background layer]
+  \node[outer, fit=(alh)(s0)(s1)(s2)(s3)(s4)] (algbox) {};
+\end{scope}
+\draw[->] (advbox.south) -- (advbox.south |- algbox.north);
+\draw[->] (prsbox.south) -- (prsbox.south |- algbox.north);
+\draw[->] (s0) -- (s1); \draw[->] (s1) -- (s2); \draw[->] (s2) -- (s3); \draw[->] (s3) -- (s4);
+
+% ----------------------------------------------------------------- local closure with energy partition
+\node[step=6.2cm, fill=clgreen, draw=black!45, below left=12mm and 2mm of algbox.south, anchor=north east] (cl)
+  {\textbf{Local closure} (every residual evaluation)\\[2pt]
+   $\alpha^{\rm tr}_k=\alpha^*_k(1-s)$, \ pressure work $\omega_kp_k\,s$\\[2pt]
+   \textbf{energy defect}\\
+   $\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k$\\[2pt]
+   \textbf{partition} $\Lambda_k(\delta)$, $\sum_k\Lambda_k=\delta$:\\
+   $0\le\delta\le Q$: shock share $Q_k/Q$\\
+   excess over $Q$ and $\delta<0$: $\lambda^{\mathcal E}_k=\mathcal E_k/\sum_j\mathcal E_j$\\[2pt]
+   $\Rightarrow\ \sum_k\varepsilon_k=(\rho e)^C$ exactly\\[2pt]
+   relaxation closure $\Rightarrow$ $\Phi(p)=0$\\ $\bar p^{\rm cl}=\sum_k\alpha_kp_k$};
+
+% ----------------------------------------------------------------- relaxation closures by rates
+\node[step=6.2cm, fill=rlpurple, draw=black!45, below right=12mm and 2mm of algbox.south, anchor=north west] (rl)
+  {\textbf{Relaxation closure by rates}\\
+   ordering: $\mu=\infty$ if $\theta>0$ or $\nu>0$\\ \phantom{ordering:} $\theta=\infty$ if $\nu>0$\\[3pt]
+   \begin{tabular}{@{}l@{\ \ }l@{}}
+   $\nu>0$:      & $\nu=\infty$: $pTg$, $T=T_{\rm sat}(p)$\\
+                 & $\nu<\infty$: $Y$ from $\mathcal R(Y)=0$\\[2pt]
+   $\theta>0$:   & $\theta=\infty$: $pT$, $T(p)$ explicit\\
+                 & $\theta<\infty$: $p$ closure $+$ heat $\tau\mathcal Q(p)$\\[2pt]
+   otherwise:    & $\mu=\infty$: $p$ closure, $\alpha_k(p)$\\
+                 & $0<\mu<\infty$: $R$ from $\mathcal F(R)=0$\\
+                 & $\mu=0$: frozen, $\alpha_k=\alpha^{\rm tr}_k/(1-s)$
+   \end{tabular}\\[3pt]
+   each case: one scalar equation\\ $\Phi(p)=0$ per cell};
+
+\draw[dashedarrow] (s3.west) -- ++(-6mm,0) |- node[pos=0.25, left, note] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.west);
+\draw[dashedarrow] (cl.east) -- node[above, note] {$\mu,\theta,\nu$} (rl.west);
+\draw[dashedarrow] (rl.east) -- ++(6mm,0) |- node[pos=0.25, right, note] {$\bar p^{\rm cl}$,\\phase states} (s3.east);
+
+% ----------------------------------------------------------------- time step control
+\node[step=12.8cm, below=4mm of rl.south -| algbox.south, anchor=north, fill=black!3] (ctl)
+  {\textbf{Time step} $\Delta t=C\,\big(\max|u|/\Delta x+\max|v|/\Delta y\big)^{-1}$\\
+   start-up from the acoustic CFL 0.4, growth $\le1.2$, ramped steps with one backward-Euler stage\\
+   inadmissible state or Newton failure $\Rightarrow$ step repeated with $\Delta t/2$ (LSDIRK2 kept)};
+\end{tikzpicture}

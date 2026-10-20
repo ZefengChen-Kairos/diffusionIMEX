@@ -10,3 +10,12 @@ src/bin_*
 # headers are sources, not binaries
 !src/*.h
 run/vortex_ref/
+
+# LaTeX build files
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.spl
+paper/main.pdf

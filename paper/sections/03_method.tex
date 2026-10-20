@@ -10,6 +10,19 @@ advective sub-system (Sec.~\ref{sec:advective}), the implicit update of the pres
 implicit dissipation, local closure and relaxation closures (Sec.~\ref{sec:implicit}). The properties of the scheme are proved in
 Secs.~\ref{sec:wb}--\ref{sec:ap}; second order in time is obtained in Sec.~\ref{sec:time}, and
 Sec.~\ref{sec:fully} collects the fully discrete scheme in two space dimensions.
+Fig.~\ref{fig:scheme} summarises the split and one stage of the scheme.
+
+\begin{figure}[p]
+\centering
+\resizebox*{!}{0.84\textheight}{\input{figures/scheme}}
+\caption{Schematic of the semi-implicit scheme. The model is split in the manner of Zha and Bilgen into an advective
+sub-system, advanced explicitly by the path-conservative Rusanov scheme with the material speed, and a pressure--relaxation
+sub-system, solved implicitly together with the incremental fluxes. In every stage the cell pressures are found by Newton's
+method; each residual evaluation calls the local closure of every cell, which distributes the energy defect $\delta$ between
+the phases (shock share up to the budget $Q$, error share $\lambda^{\mathcal E}_k$ otherwise) and applies the relaxation
+closure selected by the rates.}
+\label{fig:scheme}
+\end{figure}
 
 The computational domain $\Omega=[x_{\min},x_{\max}]\times[y_{\min},y_{\max}]$ is covered by a uniform Cartesian grid of
 $N_x\times N_y$ control volumes with spacings $\Delta x=(x_{\max}-x_{\min})/N_x$ and $\Delta y=(y_{\max}-y_{\min})/N_y$. The cell $(i,j)$ has
