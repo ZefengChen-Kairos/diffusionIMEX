@@ -47,9 +47,9 @@ wave moving at more than a kilometre per second, and the upwind dissipation, whi
 destroys the low-Mach asymptotics of the pressure \cite{GuillardViozat1999,GuillardMurrone2004,Dellacherie2010}.
 Preconditioning restores the correct scaling of the dissipation \cite{Turkel1987,Pelanti2017} and, combined with
 implicit time integration, removes the time step restriction \cite{LeMartelot2013}, but at the price of large nonlinear
-systems coupling all variables, whose solution is costly and whose convergence is difficult to control. Treating
-implicitly only the terms responsible for the stiffness, while keeping the nonlinear transport explicit, avoids both
-difficulties.
+systems coupling all variables, whose solution is costly and whose convergence is difficult to control.
+Implicit--explicit (IMEX) schemes, which treat implicitly only the terms responsible for the stiffness and keep the
+nonlinear transport explicit, avoid both difficulties.
 
 Pressure-based semi-implicit methods go back to Harlow and Welch \cite{HarlowWelch1965} and Harlow and Amsden
 \cite{HarlowAmsden1971}, with fundamental contributions by Casulli and Greenspan \cite{CasulliGreenspan1984}, Klein
@@ -64,7 +64,7 @@ frameworks \cite{TavelliDumbser2017,Boscheri2020,BoscheriPareschi2021,BoscheriTa
 in ideal magnetohydrodynamics the Alfv\'en and magnetosonic waves have been removed successively from the explicit step
 \cite{Dumbser2019,Fambri2021,BoscheriThomann2024,Dematte2024}, with a pressure-based formulation for a general equation
 of state and pressure positivity enforced inside the implicit solve in \cite{Chen2026}. Time integration of second and
-higher order is provided by implicit--explicit (IMEX) Runge--Kutta schemes \cite{Ascher1997,PareschiRusso2005}, whose
+higher order is provided by IMEX Runge--Kutta schemes \cite{Ascher1997,PareschiRusso2005}, whose
 stiffly accurate, L-stable members preserve relaxation limits
 \cite{PareschiRusso2005,BoscarinoRusso2009,BoscarinoPareschiRusso2017}, and by their semi-implicit and linearly implicit
 variants \cite{BoscarinoFilbetRusso2016,Avgerinos2019}. A scheme that reduces, as the Mach number tends to zero, to a
