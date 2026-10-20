@@ -540,11 +540,11 @@ pressure of a ghost cell equals that of the adjacent interior cell. On a wall fa
 prescribed-pressure boundary the ghost cells keep the volume fractions, partial densities and velocity of the adjacent
 cell with both phase pressures equal to the prescribed value, which enters the pressure system as a given value.
 
-\subsection{Positivity}
+\subsection{Admissible face states}
 \label{sec:positivity}
 The admissible set of a stiffened-gas or Noble--Abel stiffened-gas phase is the cone of states with $\alpha_k>0$, $m_k>0$
-and $L_k(X)>0$ for the two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. Positivity
-of the transported states requires first that the reconstructed face states belong to this cone.
+and $L_k(X)>0$ for the two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. The fluxes of
+Sec.~\ref{sec:advective} are evaluated on the reconstructed face states, which should belong to this cone.
 
 \begin{lemma}[Face states]\label{lem:faces}
 Let the cell states on the stencil $\{i-1,i,i+1\}$ be admissible. Then the face values \eqref{eq:shared_limiter} of $\alpha_k$ and
@@ -577,38 +577,8 @@ which by $L(X^{L,R})=L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$ keeps $L$ on both f
 single non-negative monotone component. With \eqref{eq:phi_cap} the face states of every cell with an admissible stencil are
 admissible.
 
-\begin{proposition}[Positivity]\label{prop:positivity}
-Let the phases be stiffened or Noble--Abel stiffened gases, and consider a stage with $Q^e=Q^s$ (a backward-Euler step
-or the first stage of \eqref{eq:lsdirk}), with admissible cell states and the limiter \eqref{eq:shared_limiter}, \eqref{eq:phi_cap}. If $r(a_f+|u_f|)\le\tfrac12$ on every
-face, $r=\tau/\Delta x$ ($\tfrac14$ per direction in 2D), the transported partial density and phase energy $(m_k,\varepsilon_k)^{\rm tr}$ of every
-phase are non-negative combinations of reconstructed face values, with the same coefficients for both, and the volume
-fractions $\alpha^*_k$ of \eqref{eq:alpha_explicit} are positive if $ra_f\le\tfrac14$.
-\end{proposition}
-\begin{proof}
-Write $a=a_f$, $r=\tau/\Delta x$ and $(\cdot)^\pm=\max/\min(\cdot,0)$. For $Q^e=Q^s$ the cell value is the mean of its two face values,
-$X_i=\tfrac12(X^R_{i-1/2}+X^L_{i+1/2})$, and the explicit update \eqref{eq:explicit} reads
-\[
-X^*_i=X^L_{i+1/2}\Big[\tfrac12-\tfrac r2(a+u^L)_{i+1/2}\Big]+X^R_{i-1/2}\Big[\tfrac12-\tfrac r2(a-u^R)_{i-1/2}\Big]
-+\tfrac r2(a-u^R)_{i+1/2}X^R_{i+1/2}+\tfrac r2(a+u^L)_{i-1/2}X^L_{i-1/2},
-\]
-with non-negative neighbour coefficients since $a\ge\max(|u^L|,|u^R|)$. The increment \eqref{eq:increment} is $I_f=X^L_fw^L+X^R_fw^R$ with
-$w^L=(u_f)^+-(\bar u^e_f)^+$, $w^R=(u_f)^--(\bar u^e_f)^-$, on the same face values, so the explicit flux plus the increment is
-\[
-F_f+I_f=X^L_f\Big[\tfrac12(u^L+a)+w^L\Big]+X^R_f\Big[\tfrac12(u^R-a)+w^R\Big].
-\]
-From $a\ge\max|u^{L,R}|$, $\tfrac12(a+u^L)\ge(\bar u^e)^+$ and $\tfrac12(a-u^R)\ge-(\bar u^e)^-$, hence $\tfrac12(a+u^L)+w^L\ge(u_f)^+\ge0$ and
-$\tfrac12(a-u^R)-w^R\ge-(u_f)^-\ge0$: in $X^{\rm tr}_i=X_i-r\,\delta_i[F+I]$ the coefficients of the neighbour face values are non-negative.
-The coefficients of the own face values are $\tfrac12-r\big[\tfrac12(a+u^L)+w^L\big]_{i+1/2}$ and $\tfrac12-r\big[\tfrac12(a-u^R)-w^R\big]_{i-1/2}$, whose
-brackets do not exceed $a+|u_f|$, so they are non-negative under the stated condition. In 2D the same holds per direction with $\tfrac14$.
-Thus $(m_k,\varepsilon_k)^{\rm tr}$ is a non-negative combination of face values with coefficients that do not depend on the quantity.
-For the volume fraction, \eqref{eq:alpha_explicit} with $\alpha_i=\tfrac12(\alpha^L_{i+1/2}+\alpha^R_{i-1/2})$ gives neighbour coefficients
-$\tfrac r2(a-u^R)_{i+1/2}$ and $\tfrac r2(a+u^L)_{i-1/2}$, and, bounding $|\bar u_{i\pm1/2}|\le a_{i\pm1/2}$ in the own-cell term $r\alpha_i\delta_x[\bar u]_i$,
-own coefficients not smaller than $\tfrac12-r\big(a_{i+1/2}+\tfrac12(a_{i+1/2}+a_{i-1/2})\big)$, non-negative for $ra\le\tfrac14$; the same holds for
-$\alpha_2^*=1-\alpha_1^*$, which satisfies the same update.
-\end{proof}
-Since $\alpha^*_k$ is not advanced by the same coefficients as $(m_k,\varepsilon_k)^{\rm tr}$, the admissibility of the full phase state
-$(\alpha_k,m_k,\varepsilon_k)$ is not implied for every content ratio; it is checked by the local closure, and a stage without an
-admissible solution is repeated with half the time step (Sec.~\ref{sec:time}).
+The transported states themselves are not proved admissible: the local closure checks the admissibility of the phase
+states it returns, and a stage without an admissible solution is repeated with half the time step (Sec.~\ref{sec:time}).
 The condition involves the implicit face velocity and is not implied by \eqref{eq:cfl}; with $C=0.2$ the explicit part
 satisfies $a_{ii}ra\approx0.06$, and the condition fails only where $u_f$ departs strongly from the material velocity.
 
