@@ -101,9 +101,7 @@ without linearisation, and each finite-rate relaxation is a backward-Euler step 
 the equilibrium closure as its infinite-rate case, so that one formula covers every rate; the arbitrary-rate procedures
 of Pelanti \cite{Pelanti2022} and of Sirianni and Re \cite{SirianniRe2026} integrate the relaxation equations with
 coefficients frozen over the step, and in the infinite-rate limit reach the equilibrium only approximately or emulate it
-with large finite rates, respectively. To our knowledge, this is the first semi-implicit scheme for a diffuse-interface
-two-phase model in which mechanical, thermal and chemical relaxation, each at any rate from zero to infinity, are solved
-implicitly within the pressure step. The resulting scheme is asymptotic preserving with respect to both stiffnesses:
+with large finite rates, respectively. The resulting scheme is asymptotic preserving with respect to both stiffnesses:
 under non-degeneracy assumptions it converges to the corresponding equilibrium scheme as each relaxation
 rate tends to infinity, reduces to the scheme without that relaxation as the rate vanishes, and is formally asymptotic
 preserving in the low Mach number limit, with a time step set by a CFL condition on the material speed only, whatever
