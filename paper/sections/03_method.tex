@@ -17,8 +17,7 @@ Fig.~\ref{fig:scheme} summarises the split and one time step of the scheme.
 \resizebox*{!}{0.84\textheight}{\input{figures/scheme}}
 \caption{Schematic of the semi-implicit scheme. The flux vector splitting of Zha and Bilgen separates the advective
 sub-system, advanced explicitly by the path-conservative Rusanov scheme with the material speed, from the
-pressure--relaxation sub-system, solved implicitly together with the incremental fluxes. Steps 1--3 are carried out in each
-stage of the LSDIRK2 scheme. Every residual evaluation of the pressure system calls the local closure of each cell, which
+pressure--relaxation sub-system, solved implicitly together with the incremental fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
 distributes the energy defect $\delta$ between the phases, and the relaxation closure selected by the rates.}
 \label{fig:scheme}
 \end{figure}

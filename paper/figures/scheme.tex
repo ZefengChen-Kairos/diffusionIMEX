@@ -47,8 +47,7 @@
   {\textbf{0. Start of the time step}\\ activation of the closures; projection of $U^n$ (instantaneous $pT$, $pTg$)};
 \node[step, below=5mm of s0] (s1)
   {\textbf{1. Explicit advective update}\\
-   {\fontsize{7pt}{8.4pt}\selectfont each stage $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$}\\[1pt]
-   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
+   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^n_1-\tfrac{\Delta t}{\Delta x}\big(\delta_x[F^e[\alpha_1]]-\alpha^n_1\,\delta_x[\bar u]\big)$};
 \node[step, below=5mm of s1] (s2)
   {\textbf{2. Frozen coefficients} on $X^*$\\ face coefficients ($\varphi$, $\psi$), shock budget $Q_k$};
 \node[step, below=5mm of s2] (s3)
