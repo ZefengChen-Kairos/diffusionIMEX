@@ -25,19 +25,15 @@
 \draw[->] (fullbox.south) -- (split.north);
 
 % ----------------------------------------------------------------- the two sub-systems
-\node[eq, below left=15mm and 6mm of split.south, anchor=north east, text width=6.2cm, minimum height=2.2cm] (adv)
+\node[eq, below left=15mm and 6mm of split.south, anchor=north east, text width=6.2cm, minimum height=1.5cm] (adv)
   {$\partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\mathbf 0$\\[2pt]
-   \fontsize{7pt}{8.4pt}\selectfont eigenvalues $u$ only\\[2pt]
-   \fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov\\
-   \fontsize{7pt}{8.4pt}\selectfont dissipation speed $a_{i+1/2}=\max(|u^L|,|u^R|)$\\
-   \fontsize{7pt}{8.4pt}\selectfont $\alpha_1$ advected entirely in this step};
+   \fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov, material speed\\
+   \fontsize{7pt}{8.4pt}\selectfont $\alpha_1$ advected entirely};
 \node[hdr, above=0pt of adv.north, text width=6.2cm, align=flush center, font=\fontsize{7.5pt}{9pt}\selectfont\bfseries] (advh) {Advective sub-system, explicit};
-\node[eq, below right=15mm and 6mm of split.south, anchor=north west, text width=6.2cm, minimum height=2.2cm] (prs)
+\node[eq, below right=15mm and 6mm of split.south, anchor=north west, text width=6.2cm, minimum height=1.5cm] (prs)
   {$\partial_t\mathbf U+\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U)$\\[2pt]
    \fontsize{7pt}{8.4pt}\selectfont $+$ incremental fluxes $X(u^{n+1}-u^n)$\\
-   \fontsize{7pt}{8.4pt}\selectfont (the whole frozen sound speed $c_f$ is implicit)\\[2pt]
-   \fontsize{7pt}{8.4pt}\selectfont pressure work and three relaxations\\
-   \fontsize{7pt}{8.4pt}\selectfont in one local closure per cell};
+   \fontsize{7pt}{8.4pt}\selectfont pressure work $+$ relaxations in one local closure};
 \node[hdr, above=0pt of prs.north, text width=6.2cm, align=flush center, font=\fontsize{7.5pt}{9pt}\selectfont\bfseries] (prsh) {Pressure--relaxation sub-system, implicit};
 \begin{scope}[on background layer]
   \node[outer, fit=(adv)(advh)] (advbox) {};
@@ -53,23 +49,20 @@
 \node[hdr, below=11mm of split.south |- advbox.south, text width=12.8cm, align=flush center] (alh)
   {Algorithm: one time step};
 \node[step, below=2mm of alh] (s0)
-  {\textbf{0. Start of the time step} (thermal / chemical relaxation only)\\
-   activation of the closures on $U^n$, projection onto the $pT$ / $pTg$ manifold;\\ closure type frozen over the stages};
+  {\textbf{0. Start of the time step}: activation / projection of the relaxation closures on $U^n$};
 \node[step, below=5mm of s0] (s1)
-  {\textbf{1. Explicit advective update} \ (stages $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$) on $U_{E,i}$, from $\tilde U_{I,i}$\\
-   $X^*=X^s-r\,\delta_x\big[F^e[X]\big]$, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
+  {\textbf{1. Explicit advective update} \ (each stage $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$)\\
+   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
 \node[step, below=5mm of s1] (s2)
-  {\textbf{2. Frozen coefficients} on $X^*$\\
-   faces: $\bar u^*_f$, $\bar\rho_f$, $Z$, weight $\varphi_f=(1-\tau c_f/\Delta x)^+$, factors $\psi_f$, velocity jump $D^*_f$\\
-   cells: shock budget $Q_k=\lambda_k\rho\mathcal D$ from the shock relations (shooting)};
+  {\textbf{2. Frozen coefficients} on $X^*$: face coefficients ($\varphi$, $\psi$) and shock budget $Q_k$};
 \node[step, below=5mm of s2] (s3)
   {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
-   (a) $u_f=\bar u^*_f-\Theta_f(P_R-P_L)$, \ $p_f=W_fP_L+(1-W_f)P_R-\varpi_f$ \ (with implicit Laplace dissipation)\\
-   (b) incremental fluxes $\Rightarrow$ $X^{\rm tr}$, strain $s$, $(\rho\mathbf u)^{\rm new}$, $E^{\rm new}$, $(\rho e)^C$\\
-   (c) local closure in every cell $\Rightarrow$ $\bar p^{\rm cl}$ \\
-   (d) $G(P)=\bar p^{\rm cl}-P=0$: Newton step (BiCGStab / Thomas, line search), repeat (a)--(c)};
+   (a) face velocity and pressure with implicit Laplace dissipation\\
+   (b) incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $(\rho e)^C$\\
+   (c) local closure $\Rightarrow$ $\bar p^{\rm cl}$\\
+   (d) Newton update of $G(P)=\bar p^{\rm cl}-P$};
 \node[step, below=5mm of s3] (s4)
-  {\textbf{4. Stage value}: $\rho\mathbf u$, $E$ from 3(b); $\alpha_k$, $m_k$, $\varepsilon_k$ from the closure; \ $U^{n+1}=U_2$};
+  {\textbf{4. Stage value}; \ $U^{n+1}=U_2$};
 \begin{scope}[on background layer]
   \node[outer, fit=(alh)(s0)(s1)(s2)(s3)(s4)] (algbox) {};
 \end{scope}
@@ -78,19 +71,17 @@
 \draw[->, semithick] (s0) -- (s1); \draw[->, semithick] (s1) -- (s2); \draw[->, semithick] (s2) -- (s3); \draw[->, semithick] (s3) -- (s4);
 
 % ----------------------------------------------------------------- local closure with energy partition
-\node[step=5.8cm, fill=clgreen, draw=black!45, below left=12mm and 9mm of algbox.south, anchor=north east, minimum height=4.6cm] (cl)
+\node[step=5.8cm, fill=clgreen, draw=black!45, below left=12mm and 9mm of algbox.south, anchor=north east, minimum height=4.05cm] (cl)
   {\textbf{Local closure} (every residual evaluation)\\[2pt]
-   $\alpha^{\rm tr}_k=\alpha^*_k(1-s)$, \ pressure work $\omega_kp_k\,s$\\[2pt]
    \textbf{energy defect}\\
    $\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k$\\[2pt]
    \textbf{partition} $\Lambda_k(\delta)$, $\sum_k\Lambda_k=\delta$:\\
    $0\le\delta\le Q$: shock share $Q_k/Q$\\
    excess over $Q$ and $\delta<0$: $\lambda^{\mathcal E}_k=\mathcal E_k/\sum_j\mathcal E_j$\\[2pt]
-   $\Rightarrow\ \sum_k\varepsilon_k=(\rho e)^C$ exactly\\[2pt]
-   relaxation closure $\Rightarrow$ $\Phi(p)=0$\\ $\bar p^{\rm cl}=\sum_k\alpha_kp_k$};
+   $\Rightarrow\ \sum_k\varepsilon_k=(\rho e)^C$ exactly};
 
 % ----------------------------------------------------------------- relaxation closures by rates
-\node[step=5.8cm, fill=rlpurple, draw=black!45, below right=12mm and 9mm of algbox.south, anchor=north west, minimum height=4.6cm] (rl)
+\node[step=5.8cm, fill=rlpurple, draw=black!45, below right=12mm and 9mm of algbox.south, anchor=north west, minimum height=4.05cm] (rl)
   {\textbf{Relaxation closure by rates}\\
    ordering: $\mu=\infty$ if $\theta>0$ or $\nu>0$\\ \phantom{ordering:} $\theta=\infty$ if $\nu>0$\\[3pt]
    \begin{tabular}{@{}l@{\ \ }l@{}}
@@ -102,7 +93,7 @@
                  & $0<\mu<\infty$: $R$ from $\mathcal F(R)=0$\\
                  & $\mu=0$: frozen, $\alpha_k=\alpha^{\rm tr}_k/(1-s)$
    \end{tabular}\\[3pt]
-   each case: one scalar equation\\ $\Phi(p)=0$ per cell};
+   $\Rightarrow$ one equation $\Phi(p)=0$ per cell};
 
 \draw[dashedarrow] (s3.west) -- ++(-11mm,0) |- node[pos=0.25, left, note, fill=white, inner sep=1pt] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.west);
 \draw[dashedarrow] (cl.east) -- node[above=1pt, note] {$\mu,\theta,\nu$} (rl.west);
