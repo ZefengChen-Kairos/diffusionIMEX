@@ -44,20 +44,20 @@
 % ----------------------------------------------------------------- one time step
 \node[hdr, below=11mm of split.south |- advbox.south, text width=9.6cm] (alh) {Algorithm: one time step};
 \node[step, below=4mm of alh] (s0)
-  {\textbf{0. Start of the time step}\\
-   activation of the closures; projection of $U^n$ (instantaneous $pT$, $pTg$)};
+  {\textbf{0. Start of the time step}\\ activation of the closures; projection of $U^n$ (instantaneous $pT$, $pTg$)};
 \node[step, below=5mm of s0] (s1)
-  {\textbf{1. Advective update (explicit)} \ {\fontsize{7pt}{8.4pt}\selectfont each stage of LSDIRK2, $\tau=a_{ii}\Delta t$}\\[1pt]
-   $X^*=X^s-r\,\delta_x\big[F^e[X]\big]$, \quad $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
+  {\textbf{1. Explicit advective update}\\
+   {\fontsize{7pt}{8.4pt}\selectfont each stage $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$}\\[1pt]
+   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^s_1-r\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
 \node[step, below=5mm of s1] (s2)
-  {\textbf{2. Frozen coefficients} on $X^*$\\
-   face weights $\varphi_f$, $\psi_f$; \ shock budget $Q_k$};
+  {\textbf{2. Frozen coefficients} on $X^*$\\ face coefficients ($\varphi$, $\psi$), shock budget $Q_k$};
 \node[step, below=5mm of s2] (s3)
-  {\textbf{3. Pressure system} (Newton on $P$, every iterate repeats (a)--(c))\\[2pt]
-   (a) $u_f(P)$, $p_f(P)$ with implicit Laplace dissipation\\[1pt]
-   (b) upwind incremental fluxes: \ $X^{\rm tr}=X^*-r\,\delta_x[I[X]]$, \ $s$\\ \phantom{(b)} $(\rho\mathbf u)^{n+1}$, \ $E^{n+1}$, \ $(\rho e)^C$\\[1pt]
-   (c) local closure: \ $\alpha_k^{n+1}$, $m_k^{n+1}$, $\varepsilon_k^{n+1}$, \ $\bar p^{\rm cl}$\\[1pt]
-   (d) $G(P)=\bar p^{\rm cl}-P\to0$};
+  {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
+   (a) face velocity and pressure with implicit Laplace dissipation\\
+   (b) upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
+   (c) local closure $\Rightarrow$ $\bar p^{\rm cl}$\\
+   (d) Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]
+   {\fontsize{7pt}{8.4pt}\selectfont converged: $\rho\mathbf u$, $E$ from (b); $\alpha_k$, $m_k$, $\varepsilon_k$ from (c)}};
 \begin{scope}[on background layer]
   \node[outer, fit=(alh)(s0)(s1)(s2)(s3)] (algbox) {};
 \end{scope}
