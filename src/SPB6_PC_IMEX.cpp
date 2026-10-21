@@ -1127,7 +1127,7 @@ int main(int argc, char *argv[]){
 		else if (k == "verbose") VERBOSE = (int)d;
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
-		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d;
+		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d; else if (k == "share") SHARE_MODE = (int)d; else if (k == "acdt") caltimestep = (int)d ? Fullydt : IMEXdt;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }

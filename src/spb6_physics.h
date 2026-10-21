@@ -411,13 +411,17 @@ static double E_above(const ClIn& in, int k) {
 	if (is_mg(k)) { if (!(in.atr[k] > 0 && in.mtr[k] > 0)) return 0.0; double pr, dpr, er; mg_ref(k, in.mtr[k] / in.atr[k], pr, dpr, er); return std::max(0.0, in.etr[k] - in.mtr[k] * er); }
 	return std::max(0.0, in.etr[k] - in.mtr[k] * PH[k].q - (in.atr[k] - in.mtr[k] * PH[k].b) * PH[k].pi);
 }
+// 亏损分配的消融开关（只用于论文的对比图，默认 0）：0 = 按激波关系（物理份额 + 误差份额 lambda^E）；
+// 1 = 没有物理份额（全部按 lambda^E）；2 = 全部按质量分数 Y_k
+static int SHARE_MODE = 0;
 // Lambda_k(delta) 在 delta 所在分段上的仿射系数：Lambda_k = lam_k delta + extra_k
 static void defect_split(const ClIn& in, double delta, double lam[2], double extra[2]) {
+	if (SHARE_MODE == 2) { const double sm = in.mtr[0] + in.mtr[1]; for (int k = 0; k < 2; k++) { lam[k] = sm > 0 ? in.mtr[k] / sm : 0.5; extra[k] = 0.0; } return; }
 	double E[2], sE = 0.0; for (int k = 0; k < 2; k++) { E[k] = E_above(in, k); sE += E[k]; }
 	double lE[2];
 	if (sE > 0) for (int k = 0; k < 2; k++) lE[k] = E[k] / sE;
 	else { const double sm = in.mtr[0] + in.mtr[1]; for (int k = 0; k < 2; k++) lE[k] = sm > 0 ? in.mtr[k] / sm : 0.5; }   // 两相都在可容许界上（退化）：按质量
-	const double Q = in.Qph[0] + in.Qph[1];
+	const double Q = SHARE_MODE == 1 ? 0.0 : in.Qph[0] + in.Qph[1];
 	extra[0] = extra[1] = 0.0;
 	if (!(delta > 0.0) || !(Q > 0.0)) { lam[0] = lE[0]; lam[1] = lE[1]; return; }
 	if (delta < Q) { lam[0] = in.Qph[0] / Q; lam[1] = in.Qph[1] / Q; return; }
