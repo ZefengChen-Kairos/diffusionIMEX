@@ -44,7 +44,7 @@
 % ----------------------------------------------------------------- one time step
 \node[hdr, below=11mm of split.south |- advbox.south, text width=9.6cm] (alh) {Algorithm: one time step};
 \node[step, below=2mm of alh] (s0)
-  {\textbf{0. Start of the time step}\\ activation / projection of the relaxation closures on $U^n$};
+  {\textbf{0. Start of the time step}\\ activation of the closures; projection of $U^n$ (instantaneous $pT$, $pTg$)};
 \node[step, below=5mm of s0] (s1)
   {\textbf{1. Explicit advective update}\\
    {\fontsize{7pt}{8.4pt}\selectfont each stage $i=1,2$ of LSDIRK2, $\tau=a_{ii}\Delta t$}\\[1pt]
@@ -54,9 +54,10 @@
 \node[step, below=5mm of s2] (s3)
   {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
    (a) face velocity and pressure with implicit Laplace dissipation\\
-   (b) incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $(\rho e)^C$\\
+   (b) upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
    (c) local closure $\Rightarrow$ $\bar p^{\rm cl}$\\
-   (d) Newton update of $G(P)=\bar p^{\rm cl}-P$};
+   (d) Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]
+   {\fontsize{7pt}{8.4pt}\selectfont converged: $\rho\mathbf u$, $E$ from (b); $\alpha_k$, $m_k$, $\varepsilon_k$ from (c)}};
 \begin{scope}[on background layer]
   \node[outer, fit=(alh)(s0)(s1)(s2)(s3)] (algbox) {};
 \end{scope}
