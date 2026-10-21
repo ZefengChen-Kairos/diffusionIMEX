@@ -10,130 +10,123 @@ flashing and evaporation fronts and the rapid depressurisation of pressurised wa
 underwater explosions, and the shock loading of condensed materials and mixtures
 \cite{SaurelPetitpasAbgrall2008,Bartak1990,PelantiShyue2019,Chiapolino2017,DeLorenzo2018,DeLorenzo2019,Schmidmayer2020,SaurelPantano2018}.
 Two features make these flows difficult. First, the Mach number varies by orders of magnitude within one flow: a
-liquid moving at a few metres per second is in the incompressible regime, while the gas, a vapour pocket or a
-detonation product in the same domain may be transonic or carry strong shocks. Second, the phases exchange
-momentum, heat and mass on time scales that range from much slower to much faster than the flow itself, so that
-the same computation contains frozen, finite-rate and equilibrium regions, and phase transition through
-metastable states.
+liquid at a few metres per second is in the incompressible regime, while gas, vapour pockets or detonation products
+in the same domain may be transonic or carry strong shocks. Second, the phases exchange momentum, heat and mass on
+time scales from much slower to much faster than the flow, so that one computation contains frozen, finite-rate and
+equilibrium regions, and phase transition through metastable states.
 
-Diffuse-interface models describe such flows with one set of equations in the whole domain, pure fluids, interfaces
-and mixtures alike \cite{SaurelAbgrall1999a,AbgrallKarni2001,SaurelPantano2018}. They derive from the seven-equation
-model of Baer and Nunziato \cite{BaerNunziato1986}, in which each phase has its own velocity and pressure. Relaxing the
-velocities gives the single-velocity six-equation model with two pressures; relaxing also the pressures gives the
-five-equation model of Kapila et al.\ \cite{Kapila2001,MurroneGuillard2005,AllaireClercKokh2002}, and further thermal and
-chemical relaxation give the four-equation $pT$ model and the homogeneous equilibrium model
-\cite{FlattenLund2011,Lund2012,Pelanti2022}. Saurel, Petitpas and Berry \cite{SPB2009} proposed to compute
-interfaces and mixtures with the six-equation model and stiff pressure relaxation: its frozen sound speed is monotone in
-the volume fraction, its volume-fraction equation contains only the pressure work, and the mixture total energy,
-redundant for smooth flows, is added as a seventh equation (``6+1'') to recover the conservative mixture energy at
-shocks. Pelanti and
-Shyue \cite{PelantiShyue2014} made the approach mixture-energy-consistent and added heat and mass transfer
-\cite{SaurelPetitpasAbgrall2008,Zein2010}, and Pelanti \cite{Pelanti2022} extended the relaxation procedures to arbitrary
-rates and to the Noble--Abel stiffened-gas \cite{LeMetayerSaurel2016} and Mie--Gr\"uneisen equations of state.
+Diffuse-interface models describe such flows with one set of equations throughout the domain, pure fluids, interfaces
+and mixtures alike \cite{SaurelAbgrall1999a,AbgrallKarni2001,SaurelPantano2018}. They derive from the Baer--Nunziato seven-equation model
+\cite{BaerNunziato1986}, where each phase has its own velocity and pressure. Velocity relaxation gives the two-pressure
+six-equation model, additional pressure relaxation the five-equation model of Kapila et al.\
+\cite{Kapila2001,MurroneGuillard2005,AllaireClercKokh2002}, and further thermal and chemical relaxation the
+four-equation $pT$ model and the homogeneous equilibrium model \cite{FlattenLund2011,Lund2012,Pelanti2022}. Saurel, Petitpas and
+Berry \cite{SPB2009} proposed computing interfaces and mixtures with the six-equation model and stiff pressure
+relaxation: its frozen sound speed is monotone in the volume fraction, its volume-fraction equation contains only the
+pressure work, and the mixture total energy, redundant for smooth flows, is added as a seventh equation (``6+1'') to
+recover the conservative mixture energy at shocks. Pelanti and Shyue \cite{PelantiShyue2014} made the approach
+mixture-energy-consistent and added heat and mass transfer \cite{SaurelPetitpasAbgrall2008,Zein2010}, and Pelanti
+\cite{Pelanti2022} extended the relaxation procedures to arbitrary rates and to the Noble--Abel stiffened-gas
+\cite{LeMetayerSaurel2016} and Mie--Gr\"uneisen equations of state.
 
-A known difficulty of the six-equation model is the behaviour at shocks in mixtures: the model is non-conservative,
-its shock relations \cite{SaurelGavrilyukRenaud2003} are not those of the scheme's numerical shock layer, and the energy
-deposited in the layer is shared between the phases in a way that depends on the scheme. Saurel et al.\ \cite{SPB2009}
-showed that the computed post-shock state then deviates from the five-equation solution for strong shocks, and
-corrected it with an artificial heat exchange in the shock layer whose coefficient must be calibrated for each mixture
-\cite{Petitpas2007}. A second difficulty is the stiffness of the model with mechanical, thermal and chemical relaxation,
-of two kinds: the acoustic waves, fast compared with the flow at low Mach numbers, and the relaxation processes, whose
-rates range from zero to infinity and may differ by orders of magnitude between the three processes. The numerical
-methods above \cite{SPB2009,PelantiShyue2014,Pelanti2022,DeLorenzo2018}, and the seven-equation solver of \cite{SirianniRe2026}, are explicit Godunov-type
-schemes with HLLC, Roe or wave-propagation solvers, which integrate the relaxation in a step of its own after a
-hyperbolic step restricted by the acoustic CFL condition. Since a small amount of liquid raises the frozen sound speed
-of a mixture to nearly the liquid value, a flow at a few metres per second is then advanced with the time step of a
-wave moving at more than a kilometre per second, and the upwind dissipation, which scales with the sound speed,
-destroys the low-Mach asymptotics of the pressure \cite{GuillardViozat1999,GuillardMurrone2004,Dellacherie2010}.
-Preconditioning restores the correct scaling of the dissipation \cite{Turkel1987,Pelanti2017} and, combined with
-implicit time integration, removes the time step restriction \cite{LeMartelot2013}, but at the price of large nonlinear
-systems coupling all variables, whose solution is costly and whose convergence is difficult to control. Both
-difficulties are avoided by treating implicitly only the terms responsible for the stiffness and keeping the nonlinear
-transport explicit, which is the idea of semi-implicit methods.
+A known difficulty of the six-equation model is its behaviour at shocks in mixtures: the model is non-conservative,
+its shock relations \cite{SaurelGavrilyukRenaud2003} are not those of the numerical shock layer, and the energy
+deposited in the layer is shared between the phases in a scheme-dependent way. Saurel et al.\ \cite{SPB2009} showed
+that the computed post-shock state then deviates from the five-equation solution for strong shocks, and corrected it
+with an artificial heat exchange in the shock layer whose coefficient must be calibrated for each mixture
+\cite{Petitpas2007}. A second difficulty is stiffness of two kinds: the acoustic waves, fast compared with the flow at
+low Mach numbers, and the mechanical, thermal and chemical relaxation, whose rates range from zero to infinity and may
+differ by orders of magnitude between the three processes. The methods above
+\cite{SPB2009,PelantiShyue2014,Pelanti2022,DeLorenzo2018} and the seven-equation solver of Sirianni and Re
+\cite{SirianniRe2026} are explicit Godunov-type schemes with HLLC, Roe or wave-propagation solvers, which integrate the
+relaxation separately after a hyperbolic step restricted by the acoustic CFL condition. Since a small amount of liquid
+raises the frozen sound speed of a mixture to nearly the liquid value, a flow at a few metres per second is then advanced
+with the time step of a wave at more than a kilometre per second, and the upwind dissipation, which scales with the
+sound speed, destroys the low-Mach asymptotics of the pressure
+\cite{GuillardViozat1999,GuillardMurrone2004,Dellacherie2010}. Preconditioning restores the correct scaling of the
+dissipation \cite{Turkel1987,Pelanti2017} and, with implicit time integration, removes the time step restriction
+\cite{LeMartelot2013}, but at the price of large nonlinear systems coupling all variables, whose solution is costly and
+whose convergence is difficult to control. Semi-implicit methods avoid both difficulties by treating only the stiff terms
+implicitly and the nonlinear transport explicitly.
 
 Pressure-based semi-implicit methods go back to Harlow and Welch \cite{HarlowWelch1965} and Harlow and Amsden
 \cite{HarlowAmsden1971}, with fundamental contributions by Casulli and Greenspan \cite{CasulliGreenspan1984}, Klein
 \cite{Klein1995}, Munz et al.\ \cite{Munz2003} and Park and Munz \cite{ParkMunz2005}. Conservative, shock-capturing
-versions are obtained by splitting the flux into a convective part with eigenvalues given by the flow velocity and a
-pressure part carrying the acoustic waves \cite{ZhaBilgen1993,LiouSteffen1993,ToroVazquez2012}. Dumbser and Casulli
-\cite{DumbserCasulli2016} combined the Toro--V\'azquez-Cend\'on splitting with an implicit pressure sub-system for
-general equations of state; the resulting system is only mildly nonlinear, the nonlinearity being confined to the
-diagonal through the equation of state, and is solved by the nested Newton method of Casulli and Zanolli
-\cite{CasulliZanolli2012}. Higher-order and all-Mach extensions followed in finite volume and discontinuous Galerkin
-frameworks \cite{TavelliDumbser2017,Boscheri2020,BoscheriPareschi2021,BoscheriTavelli2022,Boscarino2022,Orlando2022}, and
-in ideal magnetohydrodynamics the Alfv\'en and magnetosonic waves have been removed successively from the explicit step
+versions split the flux into a convective part with eigenvalues given by the flow velocity and a pressure part carrying
+the acoustic waves \cite{ZhaBilgen1993,LiouSteffen1993,ToroVazquez2012}. Dumbser and Casulli \cite{DumbserCasulli2016}
+combined the Toro--V\'azquez-Cend\'on splitting with an implicit pressure sub-system for general equations of state,
+which is only mildly nonlinear (the equation of state confines the nonlinearity to the diagonal) and is solved by the
+nested Newton method of Casulli and Zanolli \cite{CasulliZanolli2012}. Higher-order and all-Mach finite volume and
+discontinuous Galerkin extensions followed
+\cite{TavelliDumbser2017,Boscheri2020,BoscheriPareschi2021,BoscheriTavelli2022,Boscarino2022,Orlando2022}, and in ideal
+magnetohydrodynamics the Alfv\'en and magnetosonic waves were successively removed from the explicit step
 \cite{Dumbser2019,Fambri2021,BoscheriThomann2024,Dematte2024}, with a pressure-based formulation for a general equation
-of state and pressure positivity enforced inside the implicit solve in \cite{Chen2026}. Time integration of second and
-higher order is provided by implicit--explicit (IMEX) Runge--Kutta schemes \cite{Ascher1997,PareschiRusso2005}, whose
+of state and pressure positivity enforced inside the implicit solve in \cite{Chen2026}. Implicit--explicit (IMEX)
+Runge--Kutta schemes \cite{Ascher1997,PareschiRusso2005} provide second- and higher-order time integration; their
 stiffly accurate, L-stable members preserve relaxation limits
-\cite{PareschiRusso2005,BoscarinoRusso2009,BoscarinoPareschiRusso2017}. A scheme that reduces, as the Mach number tends to zero, to a
-consistent discretisation of the incompressible limit with a time step independent of the Mach number is asymptotic
-preserving \cite{Jin1999,KlainermanMajda1981}; such all-speed schemes have been analysed for the Euler equations in
-\cite{DegondTang2011,HaackJinLiu2012,Cordier2012,Noelle2014,Dimarco2018,Boscheri2020}. These developments
-concern mainly single-phase flows.
+\cite{PareschiRusso2005,BoscarinoRusso2009,BoscarinoPareschiRusso2017}. A scheme that reduces, as the Mach number tends
+to zero, to a consistent discretisation of the incompressible limit with a Mach-independent time step is asymptotic
+preserving \cite{Jin1999,KlainermanMajda1981}; such all-speed schemes have been analysed for the Euler equations
+\cite{DegondTang2011,HaackJinLiu2012,Cordier2012,Noelle2014,Dimarco2018,Boscheri2020}. These developments concern mainly
+single-phase flows.
 
-For diffuse-interface two-phase models, all-Mach and IMEX methods are still few: pressure-based and implicit--explicit
-schemes have been developed for weakly compressible flows under a Baer--Nunziato type model \cite{ReAbgrall2022}, for
-low-Mach flows with mass transfer \cite{Demou2022}, for a two-phase model with phasic pressures \cite{MalusaAlaia2024}
-and for a two-fluid single-temperature model \cite{Lukacova2024}, and splittings of convection and acoustics have been
-derived for the Baer--Nunziato \cite{TokarevaToro2017} and Kapila \cite{tenEikelder2017} models. Battisti and Boscheri \cite{BattistiBoscheri2025} designed a linearly implicit, asymptotic
-preserving and well-balanced scheme for the seven-equation model, with explicit Rusanov fluxes for the convective terms,
-central implicit discretisation of the pressure terms and the stiff relaxation sources solved in a separate step.
-Closest to the present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen type splitting of
-the single-velocity two-pressure model and a semi-implicit scheme in which the pressure sub-system is solved by Picard
-iterations and the phase internal energies are corrected to conserve total energy; their scheme is restricted to one
-space dimension and instantaneous pressure relaxation, and the dissipation of its explicit step is a multiple of the
-material speed with a coefficient chosen for each test. In these schemes the two stiffnesses are thus handled
-separately: the relaxation is either restricted to instantaneous pressure equilibrium or solved in a step of its own
-after the pressure update. Outside diffuse-interface models, interphase transfer is part of the implicit pressure step
-in semi-implicit two-fluid system codes such as RELAP5 \cite{RELAP5}, where the interphase heat and mass transfer terms
-are linearised in time and eliminated, with the junction velocities, to leave one pressure equation per volume, and in
-the all-Mach volume-of-fluid solver of Saade, Lohse and Fuster \cite{Saade2023}, where the pressure and the temperature, with heat
-conduction, are solved as one coupled system.
+For diffuse-interface two-phase models, all-Mach and IMEX methods are still few: pressure-based and IMEX schemes exist
+for weakly compressible flows under a Baer--Nunziato type model \cite{ReAbgrall2022}, low-Mach flows with mass transfer
+\cite{Demou2022}, a two-phase model with phasic pressures \cite{MalusaAlaia2024} and a two-fluid single-temperature
+model \cite{Lukacova2024}, and convection--acoustics splittings have been derived for the Baer--Nunziato
+\cite{TokarevaToro2017} and Kapila \cite{tenEikelder2017} models. Battisti and Boscheri \cite{BattistiBoscheri2025}
+designed a linearly implicit, asymptotic preserving and well-balanced scheme for the seven-equation model, with explicit
+Rusanov convective fluxes, centrally discretised implicit pressure terms and the stiff relaxation sources solved in a
+separate step. Closest to the present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen
+type splitting of the single-velocity two-pressure model and a semi-implicit scheme that solves the pressure sub-system
+by Picard iterations and corrects the phase internal energies to conserve total energy; it is restricted to one space
+dimension and instantaneous pressure relaxation, and its explicit-step dissipation is a multiple of the material speed
+with a coefficient chosen for each test. These schemes thus handle the two stiffnesses separately: the relaxation is
+either restricted to instantaneous pressure equilibrium or solved in its own step after the pressure update. Outside
+diffuse-interface models, interphase heat and mass transfer terms enter the implicit pressure step of semi-implicit
+two-fluid system codes such as RELAP5 \cite{RELAP5}, where they are linearised in time and eliminated, with the
+junction velocities, to leave one pressure equation per volume. Similarly, the all-Mach volume-of-fluid solver of Saade, Lohse and Fuster
+\cite{Saade2023} solves the pressure and the temperature, with heat conduction, as one coupled system.
 
 In this work we treat both stiffnesses in a single implicit step. The pressure work and the three relaxation processes,
-with finite or infinite rates under the time-scale ordering of Pelanti
-\cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation
-for the cell pressure; the implicit step is then a nonlinear system for the cell pressures, mildly nonlinear in the
-sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D) Jacobian, solved by a Newton
-method whose iteration count is observed to be independent of the Mach number. The closure uses the equations of state
-without linearisation, and each finite-rate relaxation is a backward-Euler step over the implicit step that contains
-the equilibrium closure as its infinite-rate case, so that one formula covers every rate; the arbitrary-rate procedures
-of Pelanti \cite{Pelanti2022} and of Sirianni and Re \cite{SirianniRe2026} integrate the relaxation equations with
-coefficients frozen over the step, and in the infinite-rate limit reach the equilibrium only approximately or emulate it
-with large finite rates, respectively. The resulting scheme is asymptotic preserving with respect to both stiffnesses:
-under non-degeneracy assumptions it converges to the corresponding equilibrium scheme as each relaxation
-rate tends to infinity, reduces to the scheme without that relaxation as the rate vanishes, and is formally asymptotic
-preserving in the low Mach number limit, with a time step set by a CFL condition on the material speed only, whatever
-the Mach number and the relaxation rates.
+with finite or infinite rates under the time-scale ordering of Pelanti \cite{Pelanti2022}, enter one local closure per
+cell, which reduces to a scalar equation for the cell pressure; the implicit step is a system for the cell pressures,
+mildly nonlinear in the sense of \cite{DumbserCasulli2016,CasulliZanolli2012}, with a three-point (five-point in 2D)
+Jacobian, solved by Newton's method. The closure uses the equations of state without linearisation, and each
+finite-rate relaxation is one backward-Euler step over the implicit step, with exactly the equilibrium closure as its
+infinite-rate case, so that one formula covers every rate. The arbitrary-rate procedures of Pelanti \cite{Pelanti2022}
+and of Sirianni and Re \cite{SirianniRe2026} integrate the relaxation equations with coefficients frozen over each step
+or sub-step and, in the infinite-rate limit, reach equilibrium only approximately or emulate it with large finite rates,
+respectively. Our scheme is asymptotic preserving with respect to both stiffnesses: under non-degeneracy assumptions it
+converges to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme
+without that relaxation as the rate vanishes. It is formally asymptotic preserving in the low Mach number limit,
+with a time step set by a CFL condition on the material speed only, whatever the Mach number and the relaxation rates.
 
-The second ingredient is the treatment of shocks. The difference between the conservative and the non-conservative
-mixture internal energy, which at a shock is the dissipation of the scheme, is distributed between the phases
-according to the shock relations of the model \cite{SaurelGavrilyukRenaud2003}, instead of by a calibrated correction.
-We show that for weak shocks the share consistent with these relations is unique, compute for every shock strength the
-constant share for which the shock profile of the relaxed model ends on the Hugoniot of each phase, and distribute the
-remaining discretisation error in the unique linear proportion that keeps both phases admissible.
+The second ingredient concerns shocks: the difference between the conservative and non-conservative mixture internal
+energies, which at a shock is the scheme's dissipation, is distributed between the phases according to the shock
+relations of the model \cite{SaurelGavrilyukRenaud2003}, without a calibrated correction. We show that for weak shocks
+the share consistent with these relations is unique, compute for every shock strength the constant share for which the
+shock profile of the relaxed model ends on the Hugoniot of each phase, and distribute the remaining discretisation error
+in the unique linear proportion that keeps both phases admissible.
 
-The discretisation follows a splitting in the manner of Zha and Bilgen \cite{ZhaBilgen1993}: all quantities are
-transported with the old velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006}, whose dissipation
-speed is the material speed, the volume fraction being advected entirely in this explicit step with a fluctuation that
-keeps the volume, mass and energy of a trace phase consistent, and the implicit step carries the pressure, its work on
-each phase and an incremental flux of the conservative transported quantities. The central implicit operator is
-supplemented by implicit Laplace dissipation of the pressure and the velocity with acoustic coefficients, the upwind
-terms of the acoustic Riemann solution, weighted by the deficit of the implicit viscosity with respect to the upwind
-viscosity, so that it vanishes in the low Mach number regime, and limited so that the scheme is second order in
-smooth regions and local-extremum-diminishing. Second order in time is obtained with the stiffly accurate, L-stable
-LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016}. The scheme applies
-to stiffened-gas, Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+The discretisation follows a Zha--Bilgen splitting \cite{ZhaBilgen1993}: the explicit step transports all quantities
+with the old velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006}, whose dissipation speed is
+the material speed, and advects the volume fraction entirely, with a fluctuation that keeps the volume, mass and energy
+of a trace phase consistent; the implicit step carries the pressure, its work on each phase and an incremental flux of
+the conservative transported quantities. The central implicit operator is supplemented by implicit Laplace dissipation
+of the pressure and velocity with acoustic coefficients (the upwind terms of the acoustic Riemann solution), weighted
+by the deficit of the implicit viscosity relative to the upwind one, so that it vanishes at low Mach numbers, and
+limited to keep the scheme second order in smooth regions and local-extremum-diminishing. The stiffly accurate LSDIRK2
+scheme \cite{BoscarinoFilbetRusso2016} gives second order in time. The scheme applies to stiffened-gas, Noble--Abel
+stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
 
-Besides the relaxation limits and the low Mach number limit, we prove that the scheme preserves moving contacts (with
-equal phase temperatures when thermal relaxation is active) and the temperature of each phase under transport. The
-scheme is validated on twenty-two problems in one and two space dimensions (counting the single- and two-phase
-Taylor--Green vortices separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase
-Riemann problems at low and high Mach numbers and a low-Mach interface advection from \cite{Schropff2026}, and the
-interface, shock, cavitation, evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
+Besides the relaxation and low Mach number limits, we prove that the scheme preserves moving contacts (with equal phase
+temperatures when thermal relaxation is active) and the phase temperatures under transport. It is validated on
+twenty-two problems in one and two space dimensions (counting the single- and two-phase Taylor--Green vortices
+separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems at low and
+high Mach numbers and a low-Mach interface advection from \cite{Schropff2026}, and the interface, shock, cavitation,
+evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
 
-The rest of the paper is organised as follows. Section~\ref{sec:governing} presents the mathematical model, the
-equations of state and the relaxed limit models. Section~\ref{sec:method} describes the numerical scheme and proves
-its properties. Section~\ref{sec:results} presents the numerical results in one and two space dimensions, and
-conclusions are drawn in Section~\ref{sec:conclusions}.
+Section~\ref{sec:governing} presents the mathematical model, the equations of state and the relaxed limit models,
+Section~\ref{sec:method} the numerical scheme and the proofs of its properties, Section~\ref{sec:results} the numerical
+results and Section~\ref{sec:conclusions} the conclusions.
