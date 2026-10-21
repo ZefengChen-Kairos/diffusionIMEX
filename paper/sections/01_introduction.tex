@@ -70,23 +70,23 @@ preserving \cite{Jin1999,KlainermanMajda1981}; such all-speed schemes have been 
 \cite{DegondTang2011,HaackJinLiu2012,Cordier2012,Noelle2014,Dimarco2018,Boscheri2020}. These developments concern mainly
 single-phase flows.
 
-For diffuse-interface two-phase models, all-Mach and IMEX methods are still few: pressure-based and IMEX schemes exist
-for weakly compressible flows under a Baer--Nunziato type model \cite{ReAbgrall2022}, low-Mach flows with mass transfer
-\cite{Demou2022}, a two-phase model with phasic pressures \cite{MalusaAlaia2024} and a two-fluid single-temperature
-model \cite{Lukacova2024}, and convection--acoustics splittings have been derived for the Baer--Nunziato
-\cite{TokarevaToro2017} and Kapila \cite{tenEikelder2017} models. Battisti and Boscheri \cite{BattistiBoscheri2025}
-designed a linearly implicit, asymptotic preserving and well-balanced scheme for the seven-equation model, with explicit
-Rusanov convective fluxes, centrally discretised implicit pressure terms and the stiff relaxation sources solved in a
-separate step. Closest to the present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen
-type splitting of the single-velocity two-pressure model and a semi-implicit scheme that solves the pressure sub-system
-by Picard iterations and corrects the phase internal energies to conserve total energy; it is restricted to one space
-dimension and instantaneous pressure relaxation, and its explicit-step dissipation is a multiple of the material speed
-with a coefficient chosen for each test. These schemes thus handle the two stiffnesses separately: the relaxation is
-either restricted to instantaneous pressure equilibrium or solved in its own step after the pressure update. Outside
-diffuse-interface models, interphase heat and mass transfer terms enter the implicit pressure step of semi-implicit
-two-fluid system codes such as RELAP5 \cite{RELAP5}, where they are linearised in time and eliminated, with the
-junction velocities, to leave one pressure equation per volume. Similarly, the all-Mach volume-of-fluid solver of Saade, Lohse and Fuster
-\cite{Saade2023} solves the pressure and the temperature, with heat conduction, as one coupled system.
+For diffuse-interface two-phase models, pressure-based, all-Mach and IMEX schemes are still few: they exist for weakly
+compressible flows under a Baer--Nunziato type model \cite{ReAbgrall2022}, low-Mach flows with mass transfer
+\cite{Demou2022}, a two-phase model with phasic pressures \cite{MalusaAlaia2024} and a two-fluid single-temperature model
+\cite{Lukacova2024}, and convection--acoustics splittings have been derived for the Baer--Nunziato \cite{TokarevaToro2017}
+and Kapila \cite{tenEikelder2017} models. Battisti and Boscheri \cite{BattistiBoscheri2025} designed a linearly
+implicit, asymptotic preserving and well-balanced scheme for the seven-equation model, with explicit Rusanov convective
+fluxes, centrally discretised implicit pressure terms and the stiff relaxation sources solved separately. Closest to the
+present work, Schropff, Petitpas and Daniel \cite{Schropff2026} derived a Zha--Bilgen type splitting of the
+single-velocity two-pressure model and a semi-implicit scheme that solves the pressure sub-system by Picard iterations
+and corrects the phase internal energies to conserve total energy; it is limited to one space dimension and
+instantaneous pressure relaxation, and its explicit Rusanov speed is the material speed times a per-test factor. These
+schemes thus handle the two stiffnesses separately: the relaxation is either restricted to instantaneous pressure
+equilibrium or solved in its own step after the pressure update. Outside diffuse-interface models, interphase heat and mass transfer
+enter the implicit pressure step of semi-implicit two-fluid system codes such as RELAP5 \cite{RELAP5}, where they are
+linearised in time and eliminated, with the junction velocities, to leave one pressure equation per volume. Similarly,
+the all-Mach volume-of-fluid solver of Saade, Lohse and Fuster \cite{Saade2023} solves pressure and temperature, with
+heat conduction, as one coupled system.
 
 In this work we treat both stiffnesses in a single implicit step. The pressure work and the three relaxation processes,
 with finite or infinite rates under the time-scale ordering of Pelanti \cite{Pelanti2022}, enter one local closure per
