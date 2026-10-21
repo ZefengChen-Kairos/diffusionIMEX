@@ -1337,6 +1337,7 @@ int main(int argc, char *argv[]){
 	printf("case %d mode 1 order %d rk %d N %d CFL %g | steps %ld (rk1 %ld) rejects %ld floor %ld | stages %ld newton it %ld (%.2f/stage) maxres %.2e Tmax %.4g %.4g | closure fails %ld | dM1/M %.2e dM2/M %.2e dE/E %.2e | wall %.2f s\n",
 		(int)test, SpaceOrder, RKs, nxCells, CFL, st_steps, st_rk1, st_reject, st_floor, st_stage, st_newton_it, st_stage ? (double)st_newton_it / st_stage : 0.0, st_maxres, st_Tmax[0], st_Tmax[1], st_cl_fail,
 		(M1[0] - M0[0]) / M0[0], (M1[1] - M0[1]) / M0[1], (M1[2] - M0[2]) / M0[2], wall);
+	if (UNIFY == 2) printf("unify2 | calls / rate-inf closure failed / max difference: p %ld %ld %.2e | pT %ld %ld %.2e | pTg %ld %ld %.2e\n", st_un_n[0], st_un_fail[0], st_un_dmax[0], st_un_n[1], st_un_fail[1], st_un_dmax[1], st_un_n[2], st_un_fail[2], st_un_dmax[2]);
 	if (FACEDIAG) printf("facediag | stage Qe=Qs: faces %ld violations %ld (admissible stencil %ld) | later stages: faces %ld violations %ld (admissible stencil %ld)\n", FD_TOT[0][0], FD_TOT[0][1], FD_TOT[0][2], FD_TOT[1][0], FD_TOT[1][1], FD_TOT[1][2]);
 	return 0;
 }
