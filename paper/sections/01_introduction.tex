@@ -110,15 +110,15 @@ shock profile of the relaxed model ends on the Hugoniot of each phase, and distr
 in the unique linear proportion that keeps both phases admissible.
 
 The discretisation follows a Zha--Bilgen splitting \cite{ZhaBilgen1993}: the explicit step transports all quantities
-with the old velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006}, whose dissipation speed is
-the material speed, and advects the volume fraction entirely, with a fluctuation that keeps the volume, mass and energy
-of a trace phase consistent; the implicit step carries the pressure, its work on each phase and an incremental flux of
-the conservative transported quantities. The central implicit operator is supplemented by implicit Laplace dissipation
-of the pressure and velocity with acoustic coefficients, the upwind terms of the acoustic Riemann solution, weighted
-by the deficit of the implicit viscosity relative to the upwind one, so that it vanishes at low Mach numbers, and
-limited to keep the scheme second order in smooth regions and local-extremum-diminishing. The stiffly accurate LSDIRK2
-scheme \cite{BoscarinoFilbetRusso2016} gives second order in time. The scheme applies to stiffened-gas, Noble--Abel
-stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+with the velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006} with material-speed
+dissipation, and advects the volume fraction entirely, with a fluctuation that keeps the volume, mass and energy of a
+trace phase consistent; the implicit step carries the pressure, its work on each phase and an incremental flux of
+the conservative transported quantities. The central implicit operator is supplemented by Laplace dissipation of the
+pressure and velocity with acoustic coefficients, the upwind terms of the acoustic Riemann solution, weighted by the
+deficit of the implicit relative to the upwind viscosity, so that it vanishes at low Mach numbers, and limited to first
+order at local extrema and second order in smooth regions \cite{Jameson1995}. The stiffly accurate LSDIRK2 scheme
+\cite{BoscarinoFilbetRusso2016} gives second order in time. The scheme applies to stiffened-gas, Noble--Abel
+stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two dimensions.
 
 Besides the relaxation and low Mach number limits, we prove that the scheme preserves the phase temperatures under
 transport and moving contacts, the latter with equal phase temperatures when thermal relaxation is active. It is
