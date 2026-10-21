@@ -36,6 +36,11 @@ double mu_rate = INF, theta_rate = -1.0, nu_rate = -1.0;
 int NU_LAW = 0; double NU_CR = 1.0, NU_PC = 22.064e6;   // 力学 / 热 / 化学 速率（INF = 瞬时；-1 = 未给定，按松弛档位取默认）
 int RELAX_LEVEL = 0;        // 0: p;  1: p-pT;  2: p-pT-pTg;  3: p-pTg（P-S 的第四档）
 double EPS_I = 1e-4;        // 热/化学松弛只在 eps_I <= alpha1 <= 1 - eps_I 的格子打开（P-S 2014、Pelanti 2022 8.2.2；所有算例相同）
+// 有限速率闭合的形式（命令行 relaxform）：0 = 级步长 tau 上的后向 Euler；1 = 冻结系数的指数解（Pelanti 2022 的半精确型），速率 -> inf 时是同一公式的解析极限
+int RELAX_FORM = 0;
+// 瞬时热/化学闭合（命令行 unify=1）：pT 用有限 theta 的闭合取 theta = inf，pTg 用有限 nu 的闭合取 nu = inf（类型判断与激活不变）；
+// unifyproj=0：步开始与输出前不把 U^n 投影到 pT/pTg 流形（激活与类型冻结不变），用来度量投影的作用
+int UNIFY = 0, UNIFY_PROJ = 1;
 int VERBOSE = 0;
 long st_cl_fail = 0;
 
@@ -227,7 +232,8 @@ struct ClIn {
 	bool nodelta;                    // 不含能量亏损（只在 p-pTg 激活判据的预测里用）
 	double pguess;
 	double Qph[2] = {0.0, 0.0};      // 本格局部激波的物理耗散预算 Q_k（每单位体积，shock_budget）；0 = 没有物理部分（defect_split）
-	double nu = -1.0;                // 本格的传质速率（>= 0 时代替 nu_rate；nulaw=1 时按步开始的状态给出）
+	double nu = -1.0;                // 本格的传质速率（>= 0 时代替 nu_rate；nulaw=1 时按步开始的状态给出；unify=1 的 pTg 为 inf）
+	double theta = -1.0;             // 本格的传热速率（>= 0 时代替 theta_rate；unify=1 的 pT 为 inf）
 };
 struct ClOut { double a[2], m[2], e[2], p[2], T[2], pbar; };
 static const double YMIN = 1e-10;
@@ -617,15 +623,21 @@ static bool closure_pT(const ClIn& in, ClOut& o) {
 }
 
 // B6.4  有限 theta（mu = inf, nu = 0）：Delta Q(p) 闭式 (B6.5)
+// 固定 p 时 SG/NASG 的 T_k 对交换热线性（斜率 chi_k / Cp_k），T2 - T1 精确满足 d(T2 - T1)/dt = -theta S (T2 - T1)，S = 1/Cp1 + 1/Cp2：
+//   relaxform=0（后向 Euler）：dQ = tt (T0_2 - T0_1) / (1 + tt S)；relaxform=1（指数）：dQ = (T0_2 - T0_1)(1 - exp(-tt S)) / S。
+// tt = tau theta = inf（theta = inf，与 tau 无关，投影时 tau = 0）两者都取极限 dQ = (T0_2 - T0_1) / S，即 T1 = T2：与 pT 闭合同一个解
 static bool closure_theta(const ClIn& in, ClOut& o) {
 	PCoef c; if (!p_coef(in, c)) return false;
 	for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;
 	const double Cp[2] = {PH[0].g * PH[0].cv * in.mtr[0], PH[1].g * PH[1].cv * in.mtr[1]};
-	const double tt = in.tau * theta_rate;
+	const double th = in.theta >= 0 ? in.theta : theta_rate, tt = std::isinf(th) ? INF : in.tau * th;
+	const double S = 1.0 / Cp[0] + 1.0 / Cp[1];
 	auto eval = [&](double p, double a[2], double& dQ) {
 		double a0[2], T0[2];
 		for (int k = 0; k < 2; k++) { a0[k] = alpha_p(c, in, k, p); T0[k] = T_amp(k, a0[k], in.mtr[k], p); }
-		dQ = tt * (T0[1] - T0[0]) / (1.0 + tt * (1.0 / Cp[0] + 1.0 / Cp[1]));
+		if (RELAX_FORM == 1) dQ = (T0[1] - T0[0]) * (-std::expm1(-tt * S)) / S;   // 1 - exp(-x) = -expm1(-x)；x = inf 时为 1
+		else if (std::isinf(tt)) dQ = (T0[1] - T0[0]) / S;                        // 后向 Euler 的 tt -> inf 极限（避免 inf/inf）
+		else dQ = tt * (T0[1] - T0[0]) / (1.0 + tt * (1.0 / Cp[0] + 1.0 / Cp[1]));
 		a[0] = a0[0] + (PH[0].g - 1.0) * dQ / (PH[0].g * (p + PH[0].pi));
 		a[1] = a0[1] - (PH[1].g - 1.0) * dQ / (PH[1].g * (p + PH[1].pi));
 	};
@@ -646,10 +658,21 @@ inline double T_from_energy(double p, double Y, double eC) {
 }
 
 // B6.5  有限 nu（mu = theta = inf）：内层 R(Y) = rho Y - m2tr + tau nu (g2 - g1)(p, T(p, Y)) = 0，外层 rho sum Y_k v_k = 1
+// 记 G(Y) = (g2 - g1)(p, T(p, Y))（固定 p，T 由混合能量定；在可容许区间上单调增），固定 p 的传质方程 rho dY/dt = -nu G(Y)。
+// relaxform=0：后向 Euler，即上面的 R(Y) = 0；tn = tau nu = inf 时 R/tn -> G，Y = Y_eq。
+// relaxform=1：指数解。Y_eq(p) = G 在可容许区间上的根（无根时取 G 不变号所指的端点，即 pTg 的出界钳住）；G 取过 (Y_eq, 0) 与输运态
+//   Y0 = m2tr/rho 的割线 D = G(Y0)/(Y0 - Y_eq) >= 0（单调性），Y(p) = Y_eq + (Y0 - Y_eq) exp(-tn D / rho)：初始斜率 -nu G(Y0)/rho 与
+//   tn -> inf 的极限 Y_eq 都精确。结果仍钳在可容许区间里；Y0 出界时割线在钳住的 Y0 处取。
+// nu = inf（unify=1）与 pTg_state 在 p < pcrit 时是同一个解（G = 0 <=> T = Tsat(p)，出界都钳住）；p >= pcrit 时 G 不变号，这里按 G 的
+//   符号取端点（本算例的水都是 Y = YMIN），pTg_state 按 v 与 vcrit 取单相，二者不同。
 static bool closure_nu(const ClIn& in, ClOut& o) {
-	const double rho = in.mtr[0] + in.mtr[1], eC = in.rhoeC / rho, tn = in.tau * (in.nu >= 0 ? in.nu : nu_rate);
+	const double rho = in.mtr[0] + in.mtr[1], eC = in.rhoeC / rho, nr = in.nu >= 0 ? in.nu : nu_rate, tn = std::isinf(nr) ? INF : in.tau * nr;
+	const double Y0 = in.mtr[1] / rho;
 	auto Yof = [&](double p, double& Y, double& T) -> bool {
-		auto R = [&](double y) { const double TT = T_from_energy(p, y, eC); if (!(TT > 0)) return (double)NAN; return rho * y - in.mtr[1] + tn * (g_pT(1, p, TT) - g_pT(0, p, TT)); };
+		auto G = [&](double y) { const double TT = T_from_energy(p, y, eC); if (!(TT > 0)) return (double)NAN; return g_pT(1, p, TT) - g_pT(0, p, TT); };
+		auto R = [&](double y) {
+			if (RELAX_FORM == 1 || std::isinf(tn)) return G(y);   // 指数形式先求 Y_eq；后向 Euler 的 tn = inf 极限
+			const double TT = T_from_energy(p, y, eC); if (!(TT > 0)) return (double)NAN; return rho * y - in.mtr[1] + tn * (g_pT(1, p, TT) - g_pT(0, p, TT)); };
 		// 可容许区间：T(p, y) > 0 <=> eC - q1 - y (q2 - q1) > 0（分母为正）。q2 > q1 时 y 有上界、q2 < q1 时有下界。
 		// T -> 0+ 时 g_k -> q_k + b_k p，R 在该端的符号由 q2 - q1 决定，与单调性（B6.5）一致，所以区间取可容许部分即可。
 		double ya = YMIN, yb = 1.0 - YMIN;
@@ -659,6 +682,13 @@ static bool closure_nu(const ClIn& in, ClOut& o) {
 		const double Ra = R(ya), Rb = R(yb);
 		if (!std::isfinite(Ra) || !std::isfinite(Rb)) return false;
 		if (Ra >= 0) Y = ya; else if (Rb <= 0) Y = yb; else if (!brent(R, ya, yb, Ra, Rb, 1e-16, Y)) return false;
+		if (RELAX_FORM == 1 && !std::isinf(tn)) {   // 此时 Y = Y_eq(p)
+			const double Yeq = Y, Ys = std::min(std::max(Y0, ya), yb);
+			const double D = Ys != Yeq ? G(Ys) / (Ys - Yeq) : 0.0;
+			// D > 0 时按指数解；否则 Ys = Y_eq 或二者只差舍入（G(Ys) 的符号不可信），Y0 已在平衡处：tn > 0 取 Y_eq，tn = 0 不传质取 Y0
+			if (D > 0 && std::isfinite(D)) Y = std::min(std::max(Yeq + (Y0 - Yeq) * std::exp(-(tn * D) / rho), ya), yb);   // exp(-x) 在 x > 745 时下溢为 0，Y = Y_eq
+			else Y = tn > 0 ? Yeq : std::min(std::max(Y0, ya), yb);
+		}
 		T = T_from_energy(p, Y, eC); return T > 0;
 	};
 	auto Phi = [&](double p) { double Y, T; if (!Yof(p, Y, T)) return (double)NAN; return rho * ((1 - Y) * v_pT(0, p, T) + Y * v_pT(1, p, T)) - 1.0; };
@@ -701,10 +731,10 @@ static bool closure(const ClIn& in, ClOut& o) {
 	switch (in.type) {
 		case CL_P: ok = closure_p(in, o); break;
 		case CL_MU: ok = closure_mu(in, o); break;
-		case CL_PT: ok = closure_pT(in, o); break;
+		case CL_PT: if (UNIFY) { ClIn j = in; j.theta = INF; ok = closure_theta(j, o); } else ok = closure_pT(in, o); break;   // unify=1：theta = inf 的有限速率闭合
 		case CL_THETA: ok = closure_theta(in, o); break;
 		case CL_NU: ok = closure_nu(in, o); break;
-		case CL_PTG: ok = closure_pTg(in, o); break;
+		case CL_PTG: if (UNIFY) { ClIn j = in; j.nu = INF; ok = closure_nu(j, o); } else ok = closure_pTg(in, o); break;      // unify=1：nu = inf 的有限速率闭合
 	}
 	return ok && std::isfinite(o.pbar);
 }

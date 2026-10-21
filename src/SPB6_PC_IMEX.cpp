@@ -20,7 +20,7 @@
 //
 //  编译: g++ -O2 -std=c++17 -fopenmp -I/usr/include/eigen3 SPB6_TV_IMEX.cpp -o spb6_imex
 //  运行: ./spb6_imex key=value ...   键：case N ny cfl rus order limiter tend out relax epsI mu theta nu rk cflac ramp tol dt init nulaw nucr
-//        snap probe prec p0 wellprep vtk verbose（含义见 E 页 E0）
+//        snap probe prec p0 wellprep vtk verbose share acdt relaxform unify unifyproj（含义见 E 页 E0）
 // =====================================================================================================================
 #include <iostream>
 #include <vector>
@@ -522,6 +522,7 @@ static int cell_type_U(const Grid& U, int i, int j) {
 }
 static bool project_cell(Grid& U, int i, int j, int type) {
 	if (!(type == CL_PT || type == CL_PTG)) return true;
+	if (!UNIFY_PROJ) return true;   // unifyproj=0：类型照常冻结，U^n 不投影
 	const double rho = U(i, j, IM1) + U(i, j, IM2);
 	ClIn in{}; in.atr[0] = U(i, j, IA1); in.atr[1] = 1.0 - U(i, j, IA1); in.mtr[0] = U(i, j, IM1); in.mtr[1] = U(i, j, IM2);
 	in.etr[0] = U(i, j, IE1); in.etr[1] = U(i, j, IE2); in.s = 0.0;
@@ -1128,6 +1129,7 @@ int main(int argc, char *argv[]){
 		else if (k == "rk") RKs = (int)d; else if (k == "cflac") CFL_ac = d; else if (k == "ramp") RAMP = (int)d; else if (k == "tol") NewtonTol = d; else if (k == "dt") DTFIX = d;
 		else if (k == "vtk") vtk_dir = val; else if (k == "limiter") LIMITER = (int)d; else if (k == "rus") { RUS_LOCAL = (int)d; gotRus = true; }
 		else if (k == "p0") VORTEX_P0 = d; else if (k == "wellprep") WELLPREP = (int)d; else if (k == "init") INIT_ONLY = (int)d; else if (k == "nulaw") NU_LAW = (int)d; else if (k == "nucr") NU_CR = d; else if (k == "facediag") FACEDIAG = (int)d; else if (k == "share") SHARE_MODE = (int)d; else if (k == "acdt") caltimestep = (int)d ? Fullydt : IMEXdt;
+		else if (k == "relaxform") RELAX_FORM = (int)d; else if (k == "unify") UNIFY = (int)d; else if (k == "unifyproj") UNIFY_PROJ = (int)d;
 		else if (k == "snap") parse_list(val, SNAP); else if (k == "prec") OUTPREC = (int)d;
 		else if (k == "probe") { std::vector<double> v; parse_list(val, v); if (v.size() == 2) { HAS_PROBE = true; PROBE_X = v[0]; PROBE_Y = v[1]; } }
 		else { fprintf(stderr, "unknown key %s\n", key); return 1; }
