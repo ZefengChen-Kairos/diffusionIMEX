@@ -421,7 +421,9 @@ pressure system is therefore continuous and piecewise smooth in $P$.
 \label{sec:relaxation}
 The relaxation terms are not split from the transport: they enter the closure \eqref{eq:gibbs}, which for each set of
 rates reduces to one scalar equation in the cell pressure, $\Phi(p)=0$. The closure returns the phase states and the
-mixture pressure $\bar p^{\rm cl}=\sum_k\alpha_kp_k$.
+mixture pressure $\bar p^{\rm cl}=\sum_k\alpha_kp_k$. Each finite-rate closure is written with $\zeta=1/(\tau\mu)$, $1/(\tau\theta)$
+or $1/(\tau\nu)$ in $[0,\infty]$; $\zeta=\infty$ switches the process off and $\zeta=0$ gives exactly the corresponding equilibrium
+closure, so that one formula covers every rate. For infinite rates the equilibrium closures are used directly.
 
 \paragraph{Instantaneous mechanical relaxation: $p$ closure ($\mu=\infty$, $\theta=\nu=0$)}
 With $p_1=p_2=p_I=p$ and $\omega_ks+\chi_kR=\alpha_k-\alpha^{\rm tr}_k$, \eqref{eq:gibbs} becomes the discrete Gibbs relation
@@ -461,12 +463,12 @@ $Z_k=\rho_kc_k$ being frozen on $X^*$. For given $R$, \eqref{eq:gibbs} with \eqr
 \end{equation}
 for $(p_1,p_2)$, $k=1,2$, with $\delta=D_0+s\sum_k\omega_kp_k$. $R$ solves the scalar equation
 \[
-\mathcal F(R)=R-\tau\mu\big(p_1(R)-p_2(R)\big)=0 .
+\mathcal F(R)=\zeta R-\big(p_1(R)-p_2(R)\big)=0,\qquad \zeta=\frac1{\tau\mu} .
 \]
 Increasing $R$ increases $\alpha_1$, decreases $p_1$ and increases $p_2$, so $\mathcal F$ is increasing on its admissible interval and
-the root is unique. Relaxation reduces $|p_1-p_2|$, so the root lies between $0$ and $R_1=\tau\mu(p_1-p_2)|_{R=0}$; if $R_1$ is not
+the root is unique. Relaxation reduces $|p_1-p_2|$, so the root lies between $0$ and $R_1=(p_1-p_2)|_{R=0}/\zeta$; if $R_1$ is not
 admissible, $\mathcal F$ tends to infinity with the correct sign at the singularity of \eqref{eq:twopressure}, and bisection towards
-$0$ gives an admissible bracket. For $\mu=0$, $R=0$: each phase does the Gibbs work at its own pressure,
+$0$ gives an admissible bracket. For $\zeta=0$, $p_1=p_2=p_I$ and \eqref{eq:twopressure} is the $p$ closure \eqref{eq:pclosure}. For $\mu=0$, $R=0$: each phase does the Gibbs work at its own pressure,
 $\varepsilon_k-\varepsilon^{\rm tr}_k=-p_k(\alpha_k-\alpha^{\rm tr}_k)+\Lambda_k$, and the volumes change by $\alpha_k=\alpha^{\rm tr}_k/(1-s)$.
 
 \paragraph{Instantaneous thermal relaxation: $pT$ closure ($\mu=\theta=\infty$, $\nu=0$)}
@@ -488,23 +490,26 @@ T_k=T^0_k(p)+\chi_k\frac{\tau\mathcal Q}{C_{pk}},\qquad C_{pk}=\gamma_kc_{vk}m_k
 \]
 the heat at constant pressure being the enthalpy increase. Hence, in closed form,
 \begin{equation}
-\tau\mathcal Q(p)=\frac{\tau\theta\,\big(T^0_2(p)-T^0_1(p)\big)}{1+\tau\theta\,(C_{p1}^{-1}+C_{p2}^{-1})},
+\tau\mathcal Q(p)=\frac{T^0_2(p)-T^0_1(p)}{C_{p1}^{-1}+C_{p2}^{-1}+\zeta},\qquad \zeta=\frac1{\tau\theta},
 \label{eq:dQ}
 \end{equation}
-and $\Phi(p)=\sum_k\alpha_k(p)-1$; $\theta=0$ gives the $p$ closure.
+and $\Phi(p)=\sum_k\alpha_k(p)-1$; $\theta=0$ gives the $p$ closure. For $\zeta=0$, $T_1=T_2$ at every $p$, the temperature then
+follows from the mixture energy as in \eqref{eq:pTclosure}, and $\Phi$ is that of the $pT$ closure.
 
 \paragraph{Finite chemical relaxation ($\mu=\theta=\infty$, $\nu<\infty$)}
 The density $\rho=\sum_km^{\rm tr}_k$ is fixed. For given $p$ and vapour mass fraction $Y=Y_2$,
 \begin{equation}
 T(p,Y)=\frac{(\rho e)^C/\rho-(1-Y)q_1-Yq_2}{(1-Y)c_{v1}\phi_1+Yc_{v2}\phi_2},\quad \phi_k=\frac{p+\gamma_k\pi_k}{p+\pi_k},\qquad
-\mathcal R(Y)=\rho Y-m^{\rm tr}_2+\tau\nu\,(g_2-g_1)\big(p,T(p,Y)\big)=0 .
+\mathcal R(Y)=\zeta\,(\rho Y-m^{\rm tr}_2)+(g_2-g_1)\big(p,T(p,Y)\big)=0,\qquad \zeta=\frac1{\tau\nu} .
 \label{eq:nuclosure}
 \end{equation}
 At fixed energy $T$ decreases with $Y$ ($e_2(p,T)>e_1(p,T)$) and $\partial_T(g_2-g_1)=-(\mathcal S_2-\mathcal S_1)<0$, so
-$\mathcal R'(Y)=\rho+\tau\nu(\mathcal S_2-\mathcal S_1)|\partial_YT|>0$ and $Y$ is unique on its admissible interval
+$\mathcal R'(Y)=\zeta\rho+(\mathcal S_2-\mathcal S_1)|\partial_YT|>0$ and $Y$ is unique on its admissible interval
 $[Y_{\min},\min(1-Y_{\min},(e-q_1)/(q_2-q_1))]$, the upper bound keeping $T>0$. If $\mathcal R(Y)$ does not change sign on the interval, $Y$ takes
-the end value: complete condensation or evaporation. Then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. A state-dependent rate (Sec.~\ref{sec:res_bartak})
-is evaluated in each cell from its $pT$-equilibrium state at the beginning of the step and frozen over the stages.
+the end value: complete condensation or evaporation. Then $\Phi(p)=\rho\sum_kY_kv_k(p,T)-1$. For $\zeta=0$, $g_1=g_2$, that is
+$T=T_{\rm sat}(p)$: the $pTg$ closure below, for $p<p_c$. A state-dependent rate (Sec.~\ref{sec:res_bartak})
+is evaluated in each cell from its $pT$-equilibrium state at the beginning of the step and frozen over the stages, which makes that
+computation formally first order in time.
 
 \paragraph{Instantaneous chemical relaxation: $pTg$ closure ($\mu=\theta=\nu=\infty$)}
 $T=T_{\rm sat}(p)$, $Y$ follows from the energy and $\Phi(p)=\rho\sum_kY_kv_k-1$; $Y$ is clamped to $[Y_{\min},1-Y_{\min}]$, $Y_{\min}=10^{-10}$, with $T$
@@ -568,18 +573,17 @@ linear operator.
 \paragraph{Relaxation limits}
 \begin{theorem}[Relaxation limits]\label{thm:limits}
 Let $\Delta x$ and $\tau$ be fixed. Assume that the local closures have non-singular Jacobians at their solutions and that the
-Jacobian of \eqref{eq:global} is non-singular at the solution of the equilibrium closure. (i) As $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding
+Jacobian of \eqref{eq:global} is non-singular at the solution of the equilibrium closure. (i) For given cell types, as $\mu$, $\theta$ or $\nu\to\infty$ the stage solution converges to that of the corresponding
 equilibrium closure with an error $O(1/(\tau\mu))$, $O(1/(\tau\theta))$, $O(1/(\tau\nu))$ (for $\nu$, where $Y$ is not clamped).
 (ii) For a vanishing rate the closure reduces exactly to the scheme with that relaxation switched off: $\mu=0$ gives
 the frozen two-pressure scheme, $\theta=0$ the $p$ closure and $\nu=0$ the $pT$ closure.
 \end{theorem}
 \begin{proof}
-(i) For $\mu$, with $\zeta=1/(\tau\mu)$ the closure reads $p_1-p_2=\zeta R$; at $\zeta=0$ it is the $p$ closure, and the
-implicit function theorem gives an $O(\zeta)$ difference for each cell. The residual of \eqref{eq:global} is a smooth function of $P$
+(i) Each finite-rate closure of Sec.~\ref{sec:relaxation} depends smoothly on $\zeta$ and coincides with the equilibrium
+closure at $\zeta=0$, so the implicit function theorem gives an $O(\zeta)$ difference for each cell. The residual of \eqref{eq:global} is a smooth function of $P$
 and $\zeta$, and its Jacobian with respect to $P$ is non-singular at $\zeta=0$; the implicit function theorem applied to
 \eqref{eq:global} then gives a discrete solution that differs from the equilibrium one by $O(\zeta)$, with a constant that depends on
-$\Delta x$ and $\tau$. No uniformity with respect to the mesh is claimed. The $\theta$ and $\nu$ limits follow in the same way from $T_1-T_2=O(1/(\tau\theta))$ and
-$|g_2-g_1|=O(1/(\tau\nu))$. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
+$\Delta x$ and $\tau$. No uniformity with respect to the mesh is claimed. The tableau of Sec.~\ref{sec:time} is stiffly accurate and L-stable, so every stage lies on
 the equilibrium manifold. (ii) $\mu=0$, $\theta=0$, $\nu=0$ give $R=0$, $\tau\mathcal Q=0$, $Y=Y^{\rm tr}$.
 \end{proof}
 The limit schemes are consistent discretisations of the relaxed models. For the $p$ closure, linearising

@@ -8,7 +8,7 @@ The single-velocity six-equation two-phase model with relaxation \cite{SPB2009,P
 used for compressible liquid--gas and liquid--vapour flows: cavitation in hydraulic machinery and fuel injectors,
 flashing and evaporation fronts and the rapid depressurisation of pressurised water in nuclear reactor safety,
 underwater explosions, and the shock loading of condensed materials and mixtures
-\cite{SaurelPetitpasAbgrall2008,Bartak1990,PelantiShyue2019,Chiapolino2017,DeLorenzo2018,DeLorenzo2019,Schmidmayer2020,SaurelPantano2018,SirianniRe2026}.
+\cite{SaurelPetitpasAbgrall2008,Bartak1990,PelantiShyue2019,Chiapolino2017,DeLorenzo2018,DeLorenzo2019,Schmidmayer2020,SaurelPantano2018}.
 Two features make these flows difficult. First, the Mach number varies by orders of magnitude within one flow: a
 liquid moving at a few metres per second is in the incompressible regime, while the gas, a vapour pocket or a
 detonation product in the same domain may be transonic or carry strong shocks. Second, the phases exchange
@@ -39,7 +39,7 @@ corrected it with an artificial heat exchange in the shock layer whose coefficie
 \cite{Petitpas2007}. A second difficulty is the stiffness of the model with mechanical, thermal and chemical relaxation,
 of two kinds: the acoustic waves, fast compared with the flow at low Mach numbers, and the relaxation processes, whose
 rates range from zero to infinity and may differ by orders of magnitude between the three processes. The numerical
-methods above \cite{SPB2009,PelantiShyue2014,Pelanti2022,DeLorenzo2018,SirianniRe2026} are explicit Godunov-type
+methods above \cite{SPB2009,PelantiShyue2014,Pelanti2022,DeLorenzo2018}, and the seven-equation solver of \cite{SirianniRe2026}, are explicit Godunov-type
 schemes with HLLC, Roe or wave-propagation solvers, which integrate the relaxation in a step of its own after a
 hyperbolic step restricted by the acoustic CFL condition. Since a small amount of liquid raises the frozen sound speed
 of a mixture to nearly the liquid value, a flow at a few metres per second is then advanced with the time step of a

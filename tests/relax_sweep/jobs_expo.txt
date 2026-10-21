@@ -1,0 +1,54 @@
+E1_pTf_f0|case=30 N=5000 relax=1 theta=2000 relaxform=0
+E1_pTgf_f0|case=30 N=5000 relax=2 nu=1e-4 relaxform=0
+E1_pTf_f1|case=30 N=5000 relax=1 theta=2000 relaxform=1
+E1_pTgf_f1|case=30 N=5000 relax=2 nu=1e-4 relaxform=1
+E2_pT_f0_up1|case=30 N=5000 relax=1 relaxform=0 unify=1 unifyproj=1
+E2_pTg_f0_up1|case=30 N=5000 relax=2 relaxform=0 unify=1 unifyproj=1
+E2_pT_f0_up0|case=30 N=5000 relax=1 relaxform=0 unify=1 unifyproj=0
+E2_pTg_f0_up0|case=30 N=5000 relax=2 relaxform=0 unify=1 unifyproj=0
+E2_pT_f1_up1|case=30 N=5000 relax=1 relaxform=1 unify=1 unifyproj=1
+E2_pTg_f1_up1|case=30 N=5000 relax=2 relaxform=1 unify=1 unifyproj=1
+E2_pT_f1_up0|case=30 N=5000 relax=1 relaxform=1 unify=1 unifyproj=0
+E2_pTg_f1_up0|case=30 N=5000 relax=2 relaxform=1 unify=1 unifyproj=0
+E2_ps1_r2_up1|case=1 N=5000 relax=2 relaxform=1 unify=1 unifyproj=1
+E2_ps1_r2_up0|case=1 N=5000 relax=2 relaxform=1 unify=1 unifyproj=0
+E2_ps1_r3_up1|case=1 N=5000 relax=3 relaxform=1 unify=1 unifyproj=1
+E2_ps1_r3_up0|case=1 N=5000 relax=3 relaxform=1 unify=1 unifyproj=0
+E2_ps2_r2_up1|case=2 N=5000 relax=2 relaxform=1 unify=1 unifyproj=1
+E2_ps2_r2_up0|case=2 N=5000 relax=2 relaxform=1 unify=1 unifyproj=0
+E2_ps2_r3_up1|case=2 N=5000 relax=3 relaxform=1 unify=1 unifyproj=1
+E2_ps2_r3_up0|case=2 N=5000 relax=3 relaxform=1 unify=1 unifyproj=0
+E3_th0_f0|case=30 N=5000 relax=1 theta=0 relaxform=0
+E3_th0_f1|case=30 N=5000 relax=1 theta=0 relaxform=1
+E3_th20_f0|case=30 N=5000 relax=1 theta=20 relaxform=0
+E3_th20_f1|case=30 N=5000 relax=1 theta=20 relaxform=1
+E3_th200_f0|case=30 N=5000 relax=1 theta=200 relaxform=0
+E3_th200_f1|case=30 N=5000 relax=1 theta=200 relaxform=1
+E3_th2e4_f0|case=30 N=5000 relax=1 theta=2e4 relaxform=0
+E3_th2e4_f1|case=30 N=5000 relax=1 theta=2e4 relaxform=1
+E3_th2e5_f0|case=30 N=5000 relax=1 theta=2e5 relaxform=0
+E3_th2e5_f1|case=30 N=5000 relax=1 theta=2e5 relaxform=1
+E3_th2e6_f0|case=30 N=5000 relax=1 theta=2e6 relaxform=0
+E3_th2e6_f1|case=30 N=5000 relax=1 theta=2e6 relaxform=1
+E3_th1e8_f0|case=30 N=5000 relax=1 theta=1e8 relaxform=0
+E3_th1e8_f1|case=30 N=5000 relax=1 theta=1e8 relaxform=1
+E3_nu1e-7_f0|case=30 N=5000 relax=2 nu=1e-7 relaxform=0
+E3_nu1e-7_f1|case=30 N=5000 relax=2 nu=1e-7 relaxform=1
+E3_nu1e-6_f0|case=30 N=5000 relax=2 nu=1e-6 relaxform=0
+E3_nu1e-6_f1|case=30 N=5000 relax=2 nu=1e-6 relaxform=1
+E3_nu1e-5_f0|case=30 N=5000 relax=2 nu=1e-5 relaxform=0
+E3_nu1e-5_f1|case=30 N=5000 relax=2 nu=1e-5 relaxform=1
+E3_nu1e-3_f0|case=30 N=5000 relax=2 nu=1e-3 relaxform=0
+E3_nu1e-3_f1|case=30 N=5000 relax=2 nu=1e-3 relaxform=1
+E3_nu1e-2_f0|case=30 N=5000 relax=2 nu=1e-2 relaxform=0
+E3_nu1e-2_f1|case=30 N=5000 relax=2 nu=1e-2 relaxform=1
+E3_nu1_f0|case=30 N=5000 relax=2 nu=1 relaxform=0
+E3_nu1_f1|case=30 N=5000 relax=2 nu=1 relaxform=1
+E4_pTf_c0.1_f0|case=30 N=5000 relax=1 theta=2000 relaxform=0 cfl=0.1
+E4_pTgf_c0.1_f0|case=30 N=5000 relax=2 nu=1e-4 relaxform=0 cfl=0.1
+E4_pTf_c0.1_f1|case=30 N=5000 relax=1 theta=2000 relaxform=1 cfl=0.1
+E4_pTgf_c0.1_f1|case=30 N=5000 relax=2 nu=1e-4 relaxform=1 cfl=0.1
+E4_pTf_c0.05_f0|case=30 N=5000 relax=1 theta=2000 relaxform=0 cfl=0.05
+E4_pTgf_c0.05_f0|case=30 N=5000 relax=2 nu=1e-4 relaxform=0 cfl=0.05
+E4_pTf_c0.05_f1|case=30 N=5000 relax=1 theta=2000 relaxform=1 cfl=0.05
+E4_pTgf_c0.05_f1|case=30 N=5000 relax=2 nu=1e-4 relaxform=1 cfl=0.05

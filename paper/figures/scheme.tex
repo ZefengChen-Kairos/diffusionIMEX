@@ -77,15 +77,13 @@
 \node[step=6.3cm, fill=rlpurple, draw=black!45, below right=14mm and 6mm of algbox.south, anchor=north west, minimum height=4.3cm] (rl)
   {\textbf{Relaxation closure by rates}\\
    ordering: $\mu=\infty$ if $\theta>0$ or $\nu>0$\\ \phantom{ordering:} $\theta=\infty$ if $\nu>0$\\[3pt]
+   one formula per process, $\zeta=1/(\tau\,{\rm rate})\in[0,\infty]$:\\[2pt]
    \begin{tabular}{@{}l@{\ \ }l@{}}
-   $\nu>0$:      & $\nu=\infty$: $pTg$, $T=T_{\rm sat}(p)$\\
-                 & $\nu<\infty$: $Y$ from $\mathcal R(Y)=0$\\[2pt]
-   $\theta>0$:   & $\theta=\infty$: $pT$, $T(p)$ explicit\\
-                 & $\theta<\infty$: $p$ closure $+$ heat $\Delta t\,\mathcal Q(p)$\\[2pt]
-   otherwise:    & $\mu=\infty$: $p$ closure, $\alpha_k(p)$\\
-                 & $0<\mu<\infty$: $R$ from $\mathcal F(R)=0$\\
-                 & $\mu=0$: frozen, $\alpha_k=\alpha^{\rm tr}_k/(1-s)$
+   $\nu>0$:      & $\zeta\,(\rho Y-m^{\rm tr}_2)+g_2-g_1=0$\\[2pt]
+   $\theta>0$:   & $p$ closure $+$ heat $\tau\mathcal Q=\dfrac{T^0_2-T^0_1}{\sum_kC_{pk}^{-1}+\zeta}$\\[6pt]
+   otherwise:    & $\zeta R=p_1-p_2$
    \end{tabular}\\[3pt]
+   $\zeta=0$: $pTg$, $pT$, $p$ closure;\ \ $\zeta=\infty$: off\\[2pt]
    $\Rightarrow$ one equation $\Phi(p)=0$ per cell};
 
 \draw[dashedarrow] (s3.south -| cl.north) -- node[pos=0.55, left, note] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.north);

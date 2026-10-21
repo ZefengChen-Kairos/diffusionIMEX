@@ -593,25 +593,35 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 		// 压缩相的功按终态 p_I 计（后向 Euler），2x2 方程组在体积到 0 之前就奇异（SG 时 R = a2/gamma2），F 在端点不定号。
 		// 若 R1 不可容许，奇点处 F -> 被压缩相一侧的无穷大（符号正确），向 0 二分即可得到可容许的区间。
 		// R_eq（eq）：区间从声学线化 dp(0) / sum_k rho_k c_k^2 / a_k 起扩张，且不得跨过 det = 0 的奇点（dp 在奇点处变号）
-		double det0 = 0.0;
+		double det0 = 0.0, r0 = 0.0;   // r0：区间起点。eq 时若输运态（R = 0）的体积已低于余容，移到可容许区间 a_k > m_k b_k 内
+		if (eq) {
+			const double Rlo = in.mtr[0] * PH[0].b - ak[0], Rhi = ak[1] - in.mtr[1] * PH[1].b;
+			if (!(Rlo < Rhi)) return false;
+			if (!(Rlo < 0.0 && 0.0 < Rhi)) r0 = Rlo >= 0.0 ? Rlo + 1e-9 * (Rhi - Rlo) : Rhi - 1e-9 * (Rhi - Rlo);
+		}
 		auto Fa = [&](double r, double& f) -> bool {
 			double q1, q2; if (!solve(r, q1, q2)) return false;
 			const double a1 = ak[0] + r, a2 = ak[1] - r;
-			if (!(a1 > in.mtr[0] * PH[0].b && a2 > in.mtr[1] * PH[1].b && q1 + PH[0].pi > 0 && q2 + PH[1].pi > 0)) return false;
-			if (eq && r != 0.0 && !(det * det0 > 0)) return false;
+			if (!(a1 > in.mtr[0] * PH[0].b && a2 > in.mtr[1] * PH[1].b)) return false;
+			if (eq) { if (r != r0 && !(det * det0 > 0)) return false; }   // R_eq：只用 dp 的符号，各相压力的可容许性在终态检查（输运态 R = 0 的微量相压力可以为负）
+			else if (!(q1 + PH[0].pi > 0 && q2 + PH[1].pi > 0)) return false;
 			f = eq ? q2 - q1 : r - tm * (q1 - q2); return std::isfinite(f); };
-		double f0; if (!Fa(0.0, f0)) return false;
+		double f0; if (!Fa(r0, f0)) return false;
 		det0 = det;
 		// eq：dp(0) 在 p_k 的舍入量级以内时已在平衡，R_eq = 0（其符号不可信）
 		if (eq && std::fabs(f0) <= 1e-13 * (std::fabs(in.pguess) + PH[0].g * std::fabs(PH[0].pi) + PH[1].g * std::fabs(PH[1].pi))) f0 = 0.0;
+		R = r0;
 		if (f0 != 0.0) {
 			double hi = -f0;
-			if (eq) { double q[2], k = 0.0; solve(0.0, q[0], q[1]);
-				for (int j = 0; j < 2; j++) { const double r = in.mtr[j] / ak[j]; k += r * c2_rp(j, r, q[j]) / ak[j]; }
-				hi = -f0 / k; if (!(std::isfinite(hi) && hi != 0.0)) return false; }
-			double lo = 0.0, flo = f0, fhi = NAN; bool ok = false, exact = false;   // exact：线化初值恰为根（eq）
+			if (eq) {   // 线化初值；输运态不可容许（c^2 <= 0）时取被压缩相可压缩体积的一半
+				double q[2], k = 0.0; solve(r0, q[0], q[1]);
+				for (int j = 0; j < 2; j++) { const double a = ak[j] + (j == 0 ? r0 : -r0), r = in.mtr[j] / a; k += r * c2_rp(j, r, q[j]) / a; }
+				hi = -f0 / k;
+				if (!(std::isfinite(hi) && hi * -f0 > 0)) hi = f0 < 0 ? 0.5 * (ak[1] - r0 - in.mtr[1] * PH[1].b) : -0.5 * (ak[0] + r0 - in.mtr[0] * PH[0].b);
+				hi += r0; }
+			double lo = r0, flo = f0, fhi = NAN; bool ok = false, exact = false;   // exact：线化初值恰为根（eq）
 			for (int it = 0; it < 200; it++) {
-				if (Fa(hi, fhi)) { if (eq && fhi == 0.0) { ok = exact = true; break; } if (fhi * flo < 0) { ok = true; break; } lo = hi; flo = fhi; hi = lo + (lo - 0.0 == 0 ? -f0 : (lo)); }   // 同号：根在更远处（不应出现，防御）
+				if (Fa(hi, fhi)) { if (eq && fhi == 0.0) { ok = exact = true; break; } if (fhi * flo < 0) { ok = true; break; } lo = hi; flo = fhi; hi = lo + (lo - r0 == 0 ? -f0 : (lo - r0)); }   // 同号：根在更远处（不应出现，防御）
 				else hi = 0.5 * (lo + hi);   // 不可容许：向 lo 收缩
 			}
 			if (!ok) return false;
@@ -619,8 +629,8 @@ static bool closure_mu(const ClIn& in, ClOut& o) {
 			if (exact) R = hi;
 			else if (!brent(F, std::min(lo, hi), std::max(lo, hi), lo < hi ? flo : fhi, lo < hi ? fhi : flo, 1e-16 * (std::fabs(lo) + std::fabs(hi)) + 1e-300, R)) return false;
 		}
-		if (RELAX_FORM == 1 && !std::isinf(tm)) {   // 此时 R = R_eq；割线 D = dp(0)/R_eq，R = R_eq (1 - exp(-tm D))
-			const double D = R != 0.0 ? -f0 / R : 0.0;
+		if (RELAX_FORM == 1 && !std::isinf(tm)) {   // 此时 R = R_eq；割线 D = dp(0)/R_eq，R = R_eq (1 - exp(-tm D))（r0 != 0 时 dp(0) 无定义，取 R_eq）
+			const double D = R != 0.0 && r0 == 0.0 ? -f0 / R : 0.0;
 			if (D > 0 && std::isfinite(D)) R = -R * std::expm1(-tm * D);   // D 不可信（R_eq = 0 或只差舍入）时取 R_eq
 		}
 	}
@@ -653,9 +663,9 @@ static bool closure_pT(const ClIn& in, ClOut& o) {
 // tt = tau theta = inf（theta = inf，与 tau 无关，投影时 tau = 0）两者都取极限 dQ = (T0_2 - T0_1) / S，即 T1 = T2：与 pT 闭合同一个解
 static bool closure_theta(const ClIn& in, ClOut& o) {
 	PCoef c; if (!p_coef(in, c)) return false;
-	for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;
-	const double Cp[2] = {PH[0].g * PH[0].cv * in.mtr[0], PH[1].g * PH[1].cv * in.mtr[1]};
 	const double th = in.theta >= 0 ? in.theta : theta_rate, tt = std::isinf(th) ? INF : in.tau * th;
+	if (!std::isinf(tt)) for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;   // theta = inf 时 dQ 吸收 Lambda_k，结果即 pT 闭合，不需要单相单调
+	const double Cp[2] = {PH[0].g * PH[0].cv * in.mtr[0], PH[1].g * PH[1].cv * in.mtr[1]};
 	const double S = 1.0 / Cp[0] + 1.0 / Cp[1];
 	auto eval = [&](double p, double a[2], double& dQ) {
 		double a0[2], T0[2];
@@ -704,15 +714,21 @@ static bool closure_nu(const ClIn& in, ClOut& o) {
 		const double dq = PH[1].q - PH[0].q, yT = dq != 0.0 ? (eC - PH[0].q) / dq : INF;
 		if (dq > 0) yb = std::min(yb, yT * (1.0 - 1e-12)); else if (dq < 0) ya = std::max(ya, yT * (1.0 + 1e-12));
 		if (!(ya < yb)) return false;
+		if (RELAX_FORM == 1 && tn == 0.0) { Y = std::min(std::max(Y0, ya), yb); T = T_from_energy(p, Y, eC); return T > 0; }   // 不传质
 		const double Ra = R(ya), Rb = R(yb);
 		if (!std::isfinite(Ra) || !std::isfinite(Rb)) return false;
 		if (Ra >= 0) Y = ya; else if (Rb <= 0) Y = yb; else if (!brent(R, ya, yb, Ra, Rb, 1e-16, Y)) return false;
 		if (RELAX_FORM == 1 && !std::isinf(tn)) {   // 此时 Y = Y_eq(p)
 			const double Yeq = Y, Ys = std::min(std::max(Y0, ya), yb);
 			const double D = Ys != Yeq ? G(Ys) / (Ys - Yeq) : 0.0;
-			// D > 0 时按指数解；否则 Ys = Y_eq 或二者只差舍入（G(Ys) 的符号不可信），Y0 已在平衡处：tn > 0 取 Y_eq，tn = 0 不传质取 Y0
+			// D > 0 时按指数解；Ys 与 Y_eq 只差舍入时已在平衡处，取 Y_eq；其余（G 不单调，B6.5 的假设之外）取后向 Euler 的根
 			if (D > 0 && std::isfinite(D)) Y = std::min(std::max(Yeq + (Y0 - Yeq) * std::exp(-(tn * D) / rho), ya), yb);   // exp(-x) 在 x > 745 时下溢为 0，Y = Y_eq
-			else Y = tn > 0 ? Yeq : std::min(std::max(Y0, ya), yb);
+			else if (std::fabs(Ys - Yeq) <= 1e-14) Y = Yeq;
+			else {
+				auto Rbe = [&](double y) { const double g = G(y); return std::isfinite(g) ? rho * y - in.mtr[1] + tn * g : (double)NAN; };
+				const double ra = Rbe(ya), rb = Rbe(yb); if (!std::isfinite(ra) || !std::isfinite(rb)) return false;
+				if (ra >= 0) Y = ya; else if (rb <= 0) Y = yb; else if (!brent(Rbe, ya, yb, ra, rb, 1e-16, Y)) return false;
+			}
 		}
 		T = T_from_energy(p, Y, eC); return T > 0;
 	};

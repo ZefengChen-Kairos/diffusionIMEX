@@ -522,14 +522,14 @@ static int cell_type_U(const Grid& U, int i, int j) {
 }
 static bool project_cell(Grid& U, int i, int j, int type) {
 	if (!(type == CL_PT || type == CL_PTG)) return true;
-	if (!UNIFY_PROJ) return true;   // unifyproj=0：类型照常冻结，U^n 不投影
 	const double rho = U(i, j, IM1) + U(i, j, IM2);
 	ClIn in{}; in.atr[0] = U(i, j, IA1); in.atr[1] = 1.0 - U(i, j, IA1); in.mtr[0] = U(i, j, IM1); in.mtr[1] = U(i, j, IM2);
 	in.etr[0] = U(i, j, IE1); in.etr[1] = U(i, j, IE2); in.s = 0.0;
 	in.rhoeC = U(i, j, IEN) - 0.5 * (U(i, j, IMU) * U(i, j, IMU) + U(i, j, IMV) * U(i, j, IMV)) / rho;
 	in.tau = 0.0; in.type = type; in.Z[0] = in.Z[1] = 1.0; in.nodelta = false;
 	in.pguess = std::max(p_mix(in.atr[0], in.mtr[0], in.mtr[1], in.rhoeC), 1.0);
-	ClOut o; if (!closure(in, o)) return false;
+	ClOut o; if (!closure(in, o)) return false;   // 也是可行性判据：无解的格退回力学类型
+	if (!UNIFY_PROJ) return true;                 // unifyproj=0：类型照常判断与冻结，U^n 不投影
 	U(i, j, IA1) = o.a[0]; U(i, j, IM1) = o.m[0]; U(i, j, IM2) = o.m[1]; U(i, j, IE1) = o.e[0]; U(i, j, IE2) = o.e[1];
 	return true;
 }
