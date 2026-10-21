@@ -54,9 +54,9 @@ Pressure-based semi-implicit methods go back to Harlow and Welch \cite{HarlowWel
 \cite{Klein1995}, Munz et al.\ \cite{Munz2003} and Park and Munz \cite{ParkMunz2005}. Conservative, shock-capturing
 versions split the flux into a convective part with eigenvalues given by the flow velocity and a pressure part carrying
 the acoustic waves \cite{ZhaBilgen1993,LiouSteffen1993,ToroVazquez2012}. Dumbser and Casulli \cite{DumbserCasulli2016}
-combined the Toro--V\'azquez-Cend\'on splitting with an implicit pressure sub-system for general equations of state,
-which is only mildly nonlinear (the equation of state confines the nonlinearity to the diagonal) and is solved by the
-nested Newton method of Casulli and Zanolli \cite{CasulliZanolli2012}. Higher-order and all-Mach finite volume and
+combined the Toro--V\'azquez-Cend\'on splitting with an implicit pressure sub-system for general equations of state;
+this system is only mildly nonlinear, the nonlinearity being confined to the diagonal through the equation of state,
+and is solved by the nested Newton method of Casulli and Zanolli \cite{CasulliZanolli2012}. Higher-order and all-Mach finite volume and
 discontinuous Galerkin extensions followed
 \cite{TavelliDumbser2017,Boscheri2020,BoscheriPareschi2021,BoscheriTavelli2022,Boscarino2022,Orlando2022}, and in ideal
 magnetohydrodynamics the Alfv\'en and magnetosonic waves were successively removed from the explicit step
@@ -114,16 +114,16 @@ with the old velocity by the path-conservative Rusanov scheme \cite{Pares2006,Ca
 the material speed, and advects the volume fraction entirely, with a fluctuation that keeps the volume, mass and energy
 of a trace phase consistent; the implicit step carries the pressure, its work on each phase and an incremental flux of
 the conservative transported quantities. The central implicit operator is supplemented by implicit Laplace dissipation
-of the pressure and velocity with acoustic coefficients (the upwind terms of the acoustic Riemann solution), weighted
+of the pressure and velocity with acoustic coefficients, the upwind terms of the acoustic Riemann solution, weighted
 by the deficit of the implicit viscosity relative to the upwind one, so that it vanishes at low Mach numbers, and
 limited to keep the scheme second order in smooth regions and local-extremum-diminishing. The stiffly accurate LSDIRK2
 scheme \cite{BoscarinoFilbetRusso2016} gives second order in time. The scheme applies to stiffened-gas, Noble--Abel
 stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
 
-Besides the relaxation and low Mach number limits, we prove that the scheme preserves moving contacts (with equal phase
-temperatures when thermal relaxation is active) and the phase temperatures under transport. It is validated on
-twenty-two problems in one and two space dimensions (counting the single- and two-phase Taylor--Green vortices
-separately): the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems at low and
+Besides the relaxation and low Mach number limits, we prove that the scheme preserves the phase temperatures under
+transport and moving contacts, the latter with equal phase temperatures when thermal relaxation is active. It is
+validated on twenty-two problems in one and two space dimensions, counting the single- and two-phase Taylor--Green
+vortices separately: the convergence and low-Mach tests of \cite{BattistiBoscheri2025}, single-phase Riemann problems at low and
 high Mach numbers and a low-Mach interface advection from \cite{Schropff2026}, and the interface, shock, cavitation,
 evaporation and depressurisation problems of \cite{SPB2009,PelantiShyue2014,Pelanti2022}.
 
