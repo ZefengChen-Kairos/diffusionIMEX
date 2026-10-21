@@ -1,0 +1,1 @@
+case 85 mode 1 order 2 rk 2 N 5000 CFL 0.4 | steps 3050 (rk1 0) rejects 0 floor 0 | stages 6100 newton it 6724 (1.10/stage) maxres 1.00e-13 Tmax 176.8 176.8 | closure fails 0 | dM1/M 4.17e-14 dM2/M -1.80e-15 dE/E 8.05e-15 | wall 321.22 s

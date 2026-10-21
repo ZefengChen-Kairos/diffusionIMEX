@@ -45,3 +45,22 @@ Program `src/SPB6_PC_IMEX.cpp` (final scheme: ZB split, path-conservative Rusano
 | `c88_200.dat` | 24 | 11 | 0 | 3.05 | 0.17 |
 
 The 8 rejects of case 83 all occur in the first 23 steps (t < 2e-8 s, pressure ratio 1e11), on both meshes.
+
+## Pure-acoustic problems with the acoustic CFL condition (`acoustic_cfl/`)
+
+In cases 81 (low-Mach water shock tube) and 85 (liquid-liquid shock tube) |u| is so small that the material CFL step exceeds
+t_end, so every step is a start-up first-order step and the error hardly decreases with the grid. The same cases with the
+acoustic CFL number 0.4 (`acdt=1 cfl=0.4`); figures `docs/figures/sch81_cfl.png`, `sch85_cfl.png`
+(`python3 tests/plot_acoustic_cfl.py run/pc/sch data/Schropff2026_Riemann_problems/acoustic_cfl docs/figures`).
+Density error of Eq. (51) (steps, first-order steps):
+
+| case | cells | material CFL 0.2 | acoustic CFL 0.4 |
+|---|---|---|---|
+| 81 | 200 | 3.738e-4 (17, 17) | 1.083e-4 (89, 0) |
+| 81 | 1000 | 2.686e-4 (25, 23) | 3.509e-5 (442, 0) |
+| 81 | 5000 | - | 1.101e-5 (2210, 0) |
+| 85 | 200 | 1.995e-5 (18, 18) | 4.723e-6 (122, 0) |
+| 85 | 1000 | 1.903e-5 (27, 27) | 1.646e-6 (610, 0) |
+| 85 | 5000 | - | 5.681e-7 (3050, 0) |
+
+Orders with the acoustic CFL: case 81 0.70, 0.72; case 85 0.65, 0.66 (shock tubes, first-order-limited at the discontinuities).

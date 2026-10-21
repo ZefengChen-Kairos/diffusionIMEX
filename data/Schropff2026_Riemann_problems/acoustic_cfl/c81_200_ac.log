@@ -1,0 +1,1 @@
+case 81 mode 1 order 2 rk 2 N 200 CFL 0.4 | steps 89 (rk1 0) rejects 0 floor 0 | stages 178 newton it 356 (2.00/stage) maxres 4.22e-15 Tmax 205.9 205.9 | closure fails 0 | dM1/M -1.50e-03 dM2/M -1.50e-03 dE/E -1.68e-03 | wall 1.26 s

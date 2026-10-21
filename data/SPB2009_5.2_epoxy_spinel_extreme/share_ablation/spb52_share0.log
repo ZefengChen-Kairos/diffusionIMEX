@@ -1,0 +1,1 @@
+case 13 mode 1 order 2 rk 2 N 500 CFL 0.2 | steps 356 (rk1 5) rejects 0 floor 0 | stages 707 newton it 2124 (3.00/stage) maxres 5.09e-14 Tmax 1.212e+05 1.518e+05 | closure fails 0 | dM1/M 1.72e-08 dM2/M 1.72e-08 dE/E 3.45e-08 | wall 10.12 s

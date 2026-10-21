@@ -47,3 +47,16 @@
 | T1, T2 | phase temperatures | K |
 | p1, p2 | phase pressures | Pa |
 | g1-g2 | Gibbs free energy difference (SG/NASG only; NaN otherwise) | J/kg |
+
+## Ablation of the energy-defect partition (`share_ablation/`)
+
+Same run with the partition of the energy defect changed (command-line `share`, default 0), figure `docs/figures/spb20_share.png`
+(`python3 tests/plot_share_ablation.py data/SPB2009_5.2_epoxy_spinel_extreme/share_ablation docs/figures/spb20_share.png`).
+
+| file | partition | post-shock mixture density (plateau) | steps / rejects |
+|---|---|---|---|
+| `spb52_share0.dat` | shock relations: physical share Q_k/Q up to Q, error share lambda^E (the scheme; bitwise equal to the main run) | 3770.0 | 356 / 0 |
+| `spb52_share1.dat` | no physical share: lambda^E for the whole defect | 4078.2 | 368 / 0 |
+| `spb52_share2.dat` | mass fractions Y_k | 3960.0 | 364 / 0 |
+
+Exact (5-equation, SPB (II.5)): 3766.7.
