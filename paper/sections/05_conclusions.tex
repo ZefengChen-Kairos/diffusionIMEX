@@ -5,39 +5,43 @@
 \label{sec:conclusions}
 
 We have presented a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation
-two-phase model with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas,
-Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+two-phase model with total energy, for stiffened-gas and Noble--Abel stiffened-gas phases with mechanical, thermal and
+chemical relaxation and for Mie--Gr\"uneisen phases with instantaneous mechanical relaxation, in one and two
+dimensions.
 
-The two stiffnesses of the model, the acoustic waves at low Mach numbers and the relaxation processes up to infinite
-rates, are treated in a single implicit step. The implicit pressure work and the three relaxation processes, each at a
-finite or infinite rate, a slower process being active only when the faster ones are instantaneous \cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation for the
-cell pressure; each stage then reduces to a mildly nonlinear system for the cell pressures with a three-point
-(five-point in 2D) Jacobian, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
-the Mach number and the relaxation rates. We have proved that, under non-degeneracy assumptions, the scheme converges
-to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme without that
-relaxation as the rate vanishes; formally, it is asymptotic preserving in the low Mach number limit of the mixture.
+The acoustic waves at low Mach numbers and the relaxation processes up to infinite rates are treated in a single
+implicit step. The pressure work and the three relaxation processes, under the time-scale ordering of Pelanti
+\cite{Pelanti2022}, enter one local closure per cell, which reduces to one scalar equation, in the cell pressure or,
+for finite mechanical relaxation, in the volume increment; one unified formula covers every rate. Each stage then
+requires a Newton solve of a nonlinear system for the cell pressures with a sparse three-point Jacobian, five-point in
+2D, and the time step is restricted by the flow velocity only, whatever the Mach number and the relaxation rates. We
+have proved that, at fixed mesh and under non-degeneracy assumptions, the scheme converges, for data on the
+equilibrium manifold, to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to
+the scheme without that relaxation as the rate vanishes; formally, it is asymptotic preserving in the low Mach number
+limit.
 
 At shocks, the difference between the conservative and the non-conservative mixture internal energy is distributed
 between the phases according to the shock relations of the model: the physical part with the constant share for which
 the shock profile of the relaxed model ends on the Hugoniot of each phase, computed by shooting, which for weak shocks
-reduces to the unique consistent local share, and the discretisation error with the unique share that keeps both phases
-admissible for every defect. No calibrated heat exchange is needed.
+reduces to the unique consistent local share, and the discretisation error with the unique linear share that keeps
+both phases admissible whenever possible. No calibrated heat exchange is needed.
 
-The flux is split following Zha and Bilgen: all quantities are transported explicitly with the old velocity by the
-path-conservative Rusanov scheme, whose dissipation speed is the material speed, the volume fraction being advected
-entirely in this step, while the pressure, its work on each phase and an incremental flux of the conservative transported
-quantities are treated implicitly. The central implicit operator is supplemented by implicit Laplace dissipation of the
-pressure and the velocity with acoustic coefficients, weighted by the deficit of the implicit viscosity with respect to
-the upwind one, so that it vanishes in the low Mach number regime, and limited to second order in smooth regions. Second
-order in time is obtained with the stiffly accurate, L-stable LSDIRK2 scheme. We have also proved that the scheme
-preserves moving contacts and the phase temperatures under transport.
+The flux is split following Zha and Bilgen: all quantities, including the volume fraction, are transported explicitly
+with the velocity of the explicit state by the path-conservative Rusanov scheme with material-speed dissipation, while
+the pressure, its work on each phase and an incremental flux are treated implicitly. The central implicit operator is
+supplemented by Laplace dissipation of the pressure and the velocity with acoustic coefficients, weighted by the
+deficit of the backward-Euler viscosity with respect to the upwind one, so that it vanishes in the low Mach number
+regime; it is first order at local extrema and second order in smooth regions. The stiffly accurate, L-stable LSDIRK2
+scheme gives second order in time. We have also proved that the scheme preserves moving contacts between stiffened-gas
+or Noble--Abel stiffened-gas phases, at uniform temperature when thermal or chemical relaxation is active.
 
-The numerical results confirm these properties: second-order convergence on a smooth two-phase vortex, a Newton
-iteration count and a time step independent of the Mach number, face velocities that are discretely divergence-free to
-$O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex, and agreement with exact solutions and reference results
-for interfaces, single-phase and two-phase shock tubes, cavitation, evaporation and depressurisation problems, and
-two-dimensional shock--bubble, Richtmyer--Meshkov, bubble-collapse and underwater-explosion problems, at instantaneous
-and finite relaxation rates.
+The numerical results confirm these properties: second-order convergence of the velocity and the volume fraction on a
+smooth two-phase vortex at Mach numbers from $2.4$ to $0.024$, and of the pressure for well-prepared data, face
+velocities that are discretely divergence-free to $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex with
+a time step independent of the Mach number, and agreement with exact solutions and reference results for interfaces,
+single-phase and two-phase shock tubes, cavitation, evaporation and depressurisation problems, and two-dimensional
+shock--bubble, Richtmyer--Meshkov, vapour-bubble compression and underwater-explosion problems, at instantaneous and
+finite relaxation rates.
 
 Future work will address an extension to higher order in space and time, unstructured meshes, and a velocity
 disequilibrium model, in which the drag relaxation would enter the same local closure.

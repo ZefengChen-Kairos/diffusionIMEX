@@ -20,44 +20,47 @@ mixture total energy as additional equation and with the heat- and mass-transfer
 \label{eq:model}
 \end{equation}
 The first equation evolves the volume fraction of phase 1, the next two enforce the conservation of the mass of each
-phase, the fourth governs the mixture momentum (one equation per spatial direction), the next two account for the
+phase, the fourth, a vector equation, governs the mixture momentum, the next two account for the
 internal energy of each phase, with its pressure work, and the last for the conservation of the mixture total energy.
-Here, for phases $k=1,2$, $\alpha_k$ is the volume fraction ($\alpha_1+\alpha_2=1$), $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
+Here, for phases $k=1,2$, $\alpha_k$ is the volume fraction, with $\alpha_1+\alpha_2=1$, $\rho_k$ the density, $m_k=\alpha_k\rho_k$ the partial
 density, $e_k$ the specific internal energy and $\varepsilon_k=\alpha_k\rho_ke_k$ the phase internal energy per unit mixture volume;
 $p_k$, $T_k$, $c_k$ and $g_k$ are the phase pressure, temperature, sound speed and Gibbs free energy. The mixture density is
 $\rho=m_1+m_2$, $\mathbf u=[u,v]^{\mathsf T}$ is the velocity field, $\bar p=\alpha_1p_1+\alpha_2p_2$ the mixture pressure, and $E$ the total energy
 per unit volume, the sum of the phase internal energies and the kinetic energy,
 \begin{equation}
-E=\varepsilon_1+\varepsilon_2+k,\qquad k=\tfrac12\rho|\mathbf u|^2 .
+E=\varepsilon_1+\varepsilon_2+\tfrac12\rho|\mathbf u|^2 .
 \label{eq:energy}
 \end{equation}
 The right-hand sides are the mechanical, thermal and chemical relaxation terms
 \begin{equation}
-\mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\qquad
-p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\quad Z_k=\rho_kc_k .
+\begin{gathered}
+\mathcal P=\mu(p_1-p_2),\qquad \mathcal Q=\theta(T_2-T_1),\qquad \mathcal M=\nu(g_2-g_1),\\
+p_I=\frac{Z_2p_1+Z_1p_2}{Z_1+Z_2},\qquad Z_k=\rho_kc_k .
+\end{gathered}
 \label{eq:sources}
 \end{equation}
 The three terms drive the phases towards equilibrium:
 \begin{itemize}
 \item mechanical relaxation $\mathcal P$: the volume fraction changes, with the associated interfacial work, until $p_1=p_2$;
 \item thermal relaxation $\mathcal Q$: interphase heat exchange, which drives $T_1=T_2$;
-\item chemical relaxation $\mathcal M$: mass transfer by phase change (evaporation or condensation, $\mathcal M>0$
-from phase 2 to phase 1), which drives $g_1=g_2$.
+\item chemical relaxation $\mathcal M$: mass transfer by evaporation or condensation, $\mathcal M>0$ from phase 2 to
+phase 1, which drives $g_1=g_2$.
 \end{itemize}
 The rate parameters $\mu,\theta,\nu\ge0$ set the speed of the three processes and may be stiff. The total-energy equation is
-redundant for smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks (the
-``+1'' equation of \cite{SPB2009}). The interfacial density $\rho_I$ and the specific internal energy $e_I$ of the
+redundant for smooth solutions, but it is the conservative one and fixes the mixture internal energy at shocks: it is
+the ``+1'' equation of Saurel et al.\ \cite{SPB2009}. The interfacial density $\rho_I$ and the specific internal energy $e_I$ of the
 transferred mass are taken, for definiteness, as the mixture values, $\rho_I=\rho$ and $e_I=(\varepsilon_1+\varepsilon_2)/\rho$. We follow the
 ordering of time scales of Pelanti \cite{Pelanti2022}: $\mu=\infty$ if $\theta>0$ or $\nu>0$, and $\theta=\infty$ if $\nu>0$. Mass transfer
 therefore takes place at $p_1=p_2=p$ and $T_1=T_2=T$. There, by the Gibbs relation
-$m_kT_k\,\mathrm D\mathcal S_k=\mathrm D\varepsilon_k+p_k\,\mathrm D\alpha_k-h_k\,\mathrm Dm_k$ of each phase, the contributions of $\rho_I$ and $e_I$ to the entropy
+$m_kT_k\,\mathrm D\mathcal S_k=\mathrm D\varepsilon_k+p_k\,\mathrm D\alpha_k-h_k\,\mathrm Dm_k$ of each phase, with $\mathcal S_k$ the
+specific entropy and $h_k=e_k+p_k/\rho_k=g_k+T_k\mathcal S_k$ the specific enthalpy, the contributions of $\rho_I$ and $e_I$ to the entropy
 production of the two phases cancel, and the mixture entropy production of the transfer is
 $\mathcal M(g_2-g_1)/T=\nu(g_2-g_1)^2/T\ge0$ for any $\rho_I$, $e_I$; for the same reason $\rho_I$ and $e_I$ do not enter the closures of
 Sec.~\ref{sec:relaxation}.
 
 An equation of state $p_k=p_k(\rho_k,e_k)$ is required for each phase to close the system. In this work we consider two
-families: the Noble--Abel stiffened-gas law, for which the internal energy is affine in the pressure (Sec.~\ref{sec:nasg}),
-and Mie--Gr\"uneisen laws with nonlinear reference curves (Sec.~\ref{sec:mg}).
+families: the Noble--Abel stiffened-gas law of Sec.~\ref{sec:nasg}, for which the internal energy is affine in the
+pressure, and the Mie--Gr\"uneisen laws with nonlinear reference curves of Sec.~\ref{sec:mg}.
 
 Letting $\mathbf U=(\alpha_1,m_1,m_2,\rho\mathbf u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$ denote the vector of unknowns, system \eqref{eq:model} can be
 written in compact form as
@@ -87,10 +90,10 @@ c_f^2=\sum_kY_kc_k^2,\qquad Y_k=\frac{m_k}{\rho} .
 \end{equation}
 A fully explicit scheme is therefore restricted by
 \begin{equation}
-\Delta t\le\mathrm{CFL}\,\min_\Omega\frac{\Delta x}{|u|+c_f},
+\Delta t\le C\min_\Omega\frac{\Delta x}{|u|+c_f},
 \label{eq:cfl_explicit}
 \end{equation}
-which becomes prohibitive when the flow is slow compared with the sound speed, while the relaxation terms add their own
+with a Courant number $C$ of order one. This restriction becomes prohibitive when the flow is slow compared with the sound speed, and the relaxation terms add their own
 stiffness.
 
 \paragraph{Relaxed models}
@@ -104,14 +107,17 @@ c_{pTg}\le c_{pT}\le c_p\le c_f,\qquad \frac1{\rho c_p^2}=\sum_k\frac{\alpha_k}{
 
 \subsection{Noble--Abel stiffened-gas equation of state}
 \label{sec:nasg}
-The Noble--Abel stiffened-gas (NASG) law \cite{LeMetayerSaurel2016} has the parameters $(\gamma,\pi,q,q',c_v,b)$,
+The Noble--Abel stiffened-gas (NASG) law \cite{LeMetayerSaurel2016} has the parameters $\gamma$, $\pi$, $q$, $q'$, $c_v$ and $b$; with the
+specific volume $v=1/\rho$,
 \begin{equation}
-p(\rho,e)=\frac{(\gamma-1)\rho(e-q)}{1-\rho b}-\gamma\pi,\qquad
+\begin{gathered}
+p(\rho,e)=\frac{(\gamma-1)\rho(e-q)}{1-\rho b}-\gamma\pi,\\
 v(p,T)=\frac{(\gamma-1)c_vT}{p+\pi}+b,\qquad e(p,T)=c_vT\,\frac{p+\gamma\pi}{p+\pi}+q,
+\end{gathered}
 \label{eq:nasg}
 \end{equation}
 with the Gibbs free energy $g=(\gamma c_v-q')T-c_vT\ln\big(T^\gamma/(p+\pi)^{\gamma-1}\big)+bp+q$ and the sound speed
-$c^2=\gamma(p+\pi)/\big(\rho(1-\rho b)\big)$; $b=0$ gives the stiffened gas and $b=\pi=q=0$ the ideal gas. The form used by the
+$c^2=\gamma(p+\pi)/\big(\rho(1-\rho b)\big)$; $b=0$ gives the stiffened-gas (SG) law and $b=\pi=q=0$ the ideal gas. The form used by the
 scheme is the internal energy of phase $k$ in a cell, where it occupies the volume $\alpha_k$ with mass $m_k$, at pressure $p$,
 \begin{equation}
 \varepsilon_k(\alpha_k,m_k,p)=\frac{(p+\gamma_k\pi_k)(\alpha_k-m_kb_k)}{\gamma_k-1}+m_kq_k ,
@@ -124,7 +130,7 @@ above which no two-phase equilibrium exists.
 
 \subsection{Mie--Gr\"uneisen equations of state}
 \label{sec:mg}
-Detonation products and liquid nitromethane are described by Mie--Gr\"uneisen laws
+Detonation products and liquid nitromethane are described by Mie--Gr\"un\-ei\-sen laws
 \begin{equation}
 p=\Gamma\rho\big(e-\varepsilon_r(\rho)\big)+p_r(\rho),\qquad c^2=\frac{(\Gamma+1)(p-p_r)}{\rho}+p_r'(\rho),
 \label{eq:mg}
@@ -133,10 +139,10 @@ with constant $\Gamma$, whose reference curve is an isentrope, $\varepsilon_r'=p
 \cite{CochranChan1979} and the JWL law \cite{LeeHornigKury1968},
 \begin{equation}
 \begin{aligned}
-&\text{Cochran--Chan:}\quad p_r(\rho)=A_1x^{E_1}-A_2x^{E_2},\qquad
-\varepsilon_r(\rho)=\frac1\rho\Big(\frac{A_1x^{E_1}}{E_1-1}-\frac{A_2x^{E_2}}{E_2-1}\Big),\qquad x=\frac\rho{\rho_0},\\
-&\text{JWL:}\quad p_r(\rho)=Ae^{-R_1\rho_0/\rho}+Be^{-R_2\rho_0/\rho},\qquad
-\varepsilon_r(\rho)=\frac{A}{R_1\rho_0}e^{-R_1\rho_0/\rho}+\frac{B}{R_2\rho_0}e^{-R_2\rho_0/\rho}.
+&\text{Cochran--Chan:}&& p_r(\rho)=A_1x^{E_1}-A_2x^{E_2},\qquad x=\frac\rho{\rho_0},\\
+&&&\varepsilon_r(\rho)=\frac1\rho\Big(\frac{A_1x^{E_1}}{E_1-1}-\frac{A_2x^{E_2}}{E_2-1}\Big),\\
+&\text{JWL:}&& p_r(\rho)=Ae^{-R_1\rho_0/\rho}+Be^{-R_2\rho_0/\rho},\\
+&&&\varepsilon_r(\rho)=\frac{A}{R_1\rho_0}e^{-R_1\rho_0/\rho}+\frac{B}{R_2\rho_0}e^{-R_2\rho_0/\rho}.
 \end{aligned}
 \label{eq:mg_ref}
 \end{equation}
@@ -148,15 +154,17 @@ is $c^2>0$. Mie--Gr\"uneisen phases are used with instantaneous mechanical relax
 To handle the different time scales of the model we split the fluxes in the manner of Zha and Bilgen
 \cite{ZhaBilgen1993}, which allows a different time discretisation for each sub-system according to its stiffness: every
 quantity is transported by the flow velocity in one sub-system, and the pressure, its work and the relaxation terms form
-the other. The terms of \eqref{eq:general} are separated into (i) the advective part, the transport of every component of
-$\mathbf U$ by the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction; and (ii) the
-pressure--relaxation part, the pressure flux $\mathbf F^p$, the pressure work of each phase $\mathbf B^p\partial_xu$ and the relaxation terms.
+the other. The terms of \eqref{eq:general} are separated into the advective part, which transports every component of
+$\mathbf U$ with the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction, and the
+pressure--relaxation part, which contains the pressure flux $\mathbf F^p$, the pressure work of each phase $\mathbf B^p\partial_xu$ and the relaxation terms.
 Explicitly,
 \begin{equation}
+\begin{gathered}
 \mathbf F^c(\mathbf U)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\quad
-\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\0\\0\\0\end{bmatrix},\quad
+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U=\begin{bmatrix}u\,\partial_x\alpha_1\\0\\0\\0\\0\\0\\0\end{bmatrix},\\
 \mathbf F^p(\mathbf U)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\quad
 \mathbf B^p(\mathbf U)\,\partial_xu=\begin{bmatrix}0\\0\\0\\0\\ \alpha_1p_1\\ \alpha_2p_2\\0\end{bmatrix}\partial_xu ,
+\end{gathered}
 \label{eq:split_fluxes}
 \end{equation}
 and the one-dimensional system in split form reads
@@ -169,8 +177,8 @@ Since both sub-systems contain non-conservative products, their wave structure i
 \mathbf Q=(\alpha_1,\rho_1,\rho_2,u,p_1,p_2,p)^{\mathsf T},
 \label{eq:primitive}
 \end{equation}
-where $p$ is the mixture pressure of the total energy, $\sum_k\varepsilon_k(\alpha_k,m_k,p)=E-\tfrac12\rho u^2$ with the phase energies at pressure $p$
-(e.g.\ \eqref{eq:eps_nasg}). We write $\Gamma_k=\rho_k^{-1}\partial p_k/\partial e_k|_{\rho_k}$ for the Gr\"uneisen coefficient and
+where $p$ is the mixture pressure of the total energy, $\sum_k\varepsilon_k(\alpha_k,m_k,p)=E-\tfrac12\rho u^2$ with the phase energies at pressure $p$,
+as in \eqref{eq:eps_nasg}. We write $\Gamma_k=\rho_k^{-1}\partial p_k/\partial e_k|_{\rho_k}$ for the Gr\"uneisen coefficient and
 $\kappa_k=\partial p_k/\partial\rho_k|_{e_k}=c_k^2-\Gamma_kp_k/\rho_k$.
 \begin{enumerate}
 \item The advective sub-system is
@@ -180,7 +188,8 @@ $\kappa_k=\partial p_k/\partial\rho_k|_{e_k}=c_k^2-\Gamma_kp_k/\rho_k$.
 \end{equation}
 In the primitive variables it reads
 \begin{equation}
-\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\qquad
+\begin{gathered}
+\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\\
 \mathbf A^c(\mathbf Q)=\begin{bmatrix}
 u&0&0&0&0&0&0\\
 0&u&0&\rho_1&0&0&0\\
@@ -191,11 +200,12 @@ u&0&0&0&0&0&0\\
 0&0&0&K^c&0&0&u
 \end{bmatrix},\qquad
 K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k}{\sum_k\alpha_k/\Gamma_k},
+\end{gathered}
 \label{eq:Ac}
 \end{equation}
 since the volume fraction, the velocity and the specific internal energies are advected, the phases are compressed by
 the flow at constant specific internal energy, and $E-\tfrac12\rho u^2$, transported conservatively, determines $p$ at the advected
-volumes and compressed masses; for stiffened and Noble--Abel stiffened gases $K^c=\sum_k\alpha_k(p+\gamma_k\pi_k)/(\gamma_k-1)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$.
+volumes and compressed masses, with $\kappa_k$ and $\Gamma_k$ evaluated at $\rho_k$ and the pressure $p$; for stiffened and Noble--Abel stiffened gases $K^c=\sum_k\alpha_k(p+\gamma_k\pi_k)/(\gamma_k-1)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$.
 It admits the eigenvalues
 \begin{equation}
 \lambda^c_{1,\dots,7}=u .
@@ -212,7 +222,8 @@ terms.
 \end{equation}
 with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive variables it reads
 \begin{equation}
-\partial_t\mathbf Q+\mathbf A^p(\mathbf Q)\,\partial_x\mathbf Q=\tilde{\mathbf S}(\mathbf Q),\qquad
+\begin{gathered}
+\partial_t\mathbf Q+\mathbf A^p(\mathbf Q)\,\partial_x\mathbf Q=\tilde{\mathbf S}(\mathbf Q),\\
 \mathbf A^p(\mathbf Q)=\begin{bmatrix}
 0&0&0&0&0&0&0\\
 0&0&0&0&0&0&0\\
@@ -222,6 +233,7 @@ with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive va
 0&0&0&\Gamma_2p_2&0&0&0\\
 0&0&0&\bar p\big/\sum_k(\alpha_k/\Gamma_k)&0&0&0
 \end{bmatrix},
+\end{gathered}
 \label{eq:Ap}
 \end{equation}
 with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. The fourth row is $\partial_x\bar p/\rho$, $\bar p=\alpha_1p_1+\alpha_2p_2$; each phase keeps its
@@ -236,14 +248,15 @@ The remaining part of the sound speed, $\sum_kY_k\kappa_k$, comes from the compr
 advective sub-system; the two parts add up to the frozen sound speed, $c_{\rm w}^2+\sum_kY_k\kappa_k=c_f^2$. The
 speed $c_{\rm w}$ of the pressure work is small in a liquid at moderate pressure, and $c_{\rm w}^2$ is negative for negative phase
 pressures, as in cavitation; the sub-system is never solved on its own but together with the incremental advective fluxes
-described below, so that the implicit step carries the whole frozen sound speed $c_f$.
+described below, so that the implicit step carries the whole sound speed, $c_f$ or, with relaxation, that of the active closure.
 \end{enumerate}
 In the low Mach number regime the acoustic coupling of the two sub-systems is fast compared with the transport, which
 introduces severe stiffness associated with the pressure terms, in addition to the stiffness of the relaxation rates.
 The advective sub-system is therefore treated explicitly, with a numerical dissipation proportional to the flow velocity,
 and the pressure--relaxation sub-system implicitly. So that the implicit step contains the whole acoustic coupling,
-the conservative advective fluxes are evaluated with the velocity of the new time level, written as the
-old velocity $u^n$ plus an increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E\}$: the first part is
-the explicit advective flux, and the incremental flux $X(u^{n+1}-u^n)$, which depends on the unknown velocity, is solved together
-with the pressure--relaxation sub-system (Sec.~\ref{sec:implicit}). Since only the advective eigenvalues enter the explicit stability condition, the time
+the advective fluxes are evaluated with the velocity of the new time level, written as the old velocity $u^n$ plus an
+increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$, the momentum and the kinetic
+energy being carried with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$: the first part is the
+explicit advective flux, and the incremental fluxes, which depend on the unknown velocity, are solved together with the
+pressure--relaxation sub-system in Sec.~\ref{sec:implicit}. Since only the advective eigenvalues enter the explicit stability condition, the time
 step depends on the flow velocity alone, independently of the sound speed and of the relaxation rates.

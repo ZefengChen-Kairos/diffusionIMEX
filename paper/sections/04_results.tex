@@ -18,7 +18,7 @@ vortex. Finally, we consider two-dimensional problems with interfaces, shocks, c
 
 Unless otherwise stated, all computations use the scheme of Sec.~\ref{sec:method} with LSDIRK2, the material CFL condition
 \eqref{eq:cfl} with $C=0.2$, minmod reconstruction, a local Rusanov speed on each face and the Newton tolerance of
-Sec.~\ref{sec:pressure_system}; the first time step is an acoustic step with Courant number $0.4$. Thermal and chemical relaxation
+Sec.~\ref{sec:pressure_system} and the start-up rule of Sec.~\ref{sec:time}. Thermal and chemical relaxation
 are active in cells with $10^{-4}\le\alpha_1\le1-10^{-4}$. Where a phase is absent its volume fraction is set to $10^{-8}$, $10^{-7}$ or
 $10^{-6}$ as indicated; initial data in two dimensions are cell averages computed with $4\times4$ sub-cells. Units are SI
 unless stated otherwise.
@@ -163,8 +163,7 @@ finite rate
 \nu=C_r\,\alpha_v^{0.6}\Big(\frac{p_{\rm sat}(T)-p}{p_{\rm crit}-p_{\rm sat}(T)}\Big)^{1.76}\quad(p<p_{\rm sat}(T)),\qquad \nu=0\ \text{otherwise},
 \label{eq:bartak_nu}
 \end{equation}
-with $C_r=1$ and $p_{\rm crit}=22.064$\,MPa, evaluated in each cell from its $pT$-equilibrium state at the beginning of the
-step and frozen over the stages. With instantaneous mass transfer the solution at the probe is a simple wave of the
+with $C_r=1$ and $p_{\rm crit}=22.064$\,MPa, evaluated as in Sec.~\ref{sec:relaxation}. With instantaneous mass transfer the solution at the probe is a simple wave of the
 homogeneous equilibrium model, which is computed exactly.
 
 % ---------------------------------------------------------------------

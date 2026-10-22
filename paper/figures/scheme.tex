@@ -22,7 +22,7 @@
   \node[outer, fit=(full)(fullh)] (fullbox) {};
 \end{scope}
 
-\node[hdr, below=6mm of fullbox] (split) {Flux Vector Splitting};
+\node[hdr, below=6mm of fullbox] (split) {Zha--Bilgen splitting};
 \draw[thick, black!65] (fullbox.south) -- (split.north);
 
 % ----------------------------------------------------------------- the two sub-systems
@@ -41,22 +41,22 @@
 \draw[thick, black!65] (split.south west) -- (advbox.north);
 \draw[thick, black!65] (split.south east) -- (prsbox.north);
 
-% ----------------------------------------------------------------- one time step
-\node[hdr, below=11mm of split.south |- advbox.south, text width=9.6cm] (alh) {Algorithm: one time step};
+% ----------------------------------------------------------------- one stage (steps numbered as in Sec. 3.6)
+\node[hdr, below=11mm of split.south |- advbox.south, text width=9.6cm] (alh) {Algorithm: one stage};
 \node[step, below=4mm of alh] (s0)
-  {\textbf{0. Start of the time step}\\ activation of the closures; projection of $U^n$ (instantaneous $pT$, $pTg$)};
+  {\textbf{Before the first stage of a step}\\ activation of the closures; projection of $\mathbf U^n$ (instantaneous $pT$, $pTg$)};
 \node[step, below=5mm of s0] (s1)
-  {\textbf{1. Explicit advective update}\\
-   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^n_1-\tfrac{\Delta t}{\Delta x}\big(\delta_x[F^e[\alpha_1]]-\alpha^n_1\,\delta_x[\bar u]\big)$};
+  {\textbf{1. Explicit advective sub-system} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
+   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^{\rm b}_1-r_x\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
 \node[step, below=5mm of s1] (s2)
-  {\textbf{2. Frozen coefficients} on $X^*$\\ face coefficients ($\varphi$, $\psi$), shock budget $Q_k$};
+  {\textbf{2. Face coefficients} on $X^*$, frozen over the stage\\ $u_f$, $p_f$ affine in the adjacent $P$; weight $\varphi$, factors $\psi$};
 \node[step, below=5mm of s2] (s3)
-  {\textbf{3. Newton iteration for the cell pressures $P$}\\[1pt]
-   (a) face velocity and pressure with implicit Laplace dissipation\\
-   (b) upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
-   (c) local closure $\Rightarrow$ $\bar p^{\rm cl}$\\
-   (d) Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]
-   {\fontsize{7pt}{8.4pt}\selectfont converged: $\rho\mathbf u$, $E$ from (b); $\alpha_k$, $m_k$, $\varepsilon_k$ from (c)}};
+  {\textbf{Newton iteration for the cell pressures $P$}\\[1pt]
+   3. face velocity and pressure with implicit Laplace dissipation;\\
+   \phantom{3. }upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
+   4. local closure $\Rightarrow$ $\bar p^{\rm cl}$, phase states\\
+   5. Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]
+   \textbf{6. Update:} $\rho\mathbf u$, $E$ from 3; $\alpha_k$, $m_k$, $\varepsilon_k$ from 4};
 \begin{scope}[on background layer]
   \node[outer, fit=(alh)(s0)(s1)(s2)(s3)] (algbox) {};
 \end{scope}
@@ -66,11 +66,11 @@
 
 % ----------------------------------------------------------------- local closure with energy partition
 \node[step=6.3cm, fill=clgreen, draw=black!45, below left=14mm and 6mm of algbox.south, anchor=north east, minimum height=4.3cm] (cl)
-  {\textbf{Local closure} (every residual evaluation)\\[2pt]
-   \textbf{energy defect}\\ $\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\omega_kp_k$\\[2pt]
+  {\textbf{4. Local closure} at every residual evaluation\\[2pt]
+   \textbf{energy defect}\\ $\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\alpha^*_kp_k$\\[2pt]
    \textbf{partition} $\Lambda_k(\delta)$, $\sum_k\Lambda_k=\delta$:\\
-   $0\le\delta\le Q$: shock share $Q_k/Q$\\
-   excess over $Q$ and $\delta<0$: $\lambda^{\mathcal E}_k=\mathcal E_k/\sum_j\mathcal E_j$\\[2pt]
+   $0\le\delta\le H$: shock share $H_k/H$, $H_k$ on $X^*$\\
+   excess over $H$ and $\delta<0$: $\lambda^{\mathcal E}_k=\mathcal E_k/\sum_j\mathcal E_j$\\[2pt]
    $\Rightarrow\ \sum_k\varepsilon_k=(\rho e)^C$ exactly};
 
 % ----------------------------------------------------------------- relaxation closures by rates
@@ -84,7 +84,7 @@
    otherwise:    & $\zeta R=p_1-p_2$
    \end{tabular}\\[3pt]
    $\zeta=0$: $pTg$, $pT$, $p$ closure;\ \ $\zeta=\infty$: off\\[2pt]
-   $\Rightarrow$ one equation $\Phi(p)=0$ per cell};
+   $\Rightarrow$ one scalar equation per cell:\\ $\Phi(p)=0$, or $\mathcal F(R)=0$ for finite $\mu$};
 
 \draw[dashedarrow] (s3.south -| cl.north) -- node[pos=0.55, left, note] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.north);
 \draw[dashedarrow] (cl.east) -- node[above, note] {$\mu,\theta,\nu$} (rl.west);
