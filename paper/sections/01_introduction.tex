@@ -39,8 +39,8 @@ chemical relaxation, whose rates range from zero to infinity and may differ by o
 The methods above \cite{SPB2009,PelantiShyue2014,Pelanti2022,DeLorenzo2018} and the seven-equation solver of Sirianni
 and Re \cite{SirianniRe2026} are explicit Godunov-type schemes with HLLC, Roe or wave-propagation solvers. They
 integrate the relaxation after a hyperbolic step restricted by the acoustic CFL condition. Since a small amount of
-liquid raises a mixture's frozen sound speed to nearly the liquid value, a flow at a few metres per second is then
-advanced with the time step of a wave faster than a kilometre per second. The upwind dissipation, which scales with the sound
+liquid raises a mixture's frozen sound speed to nearly the liquid value, a slow flow is then advanced with the time
+step of the much faster acoustic waves. The upwind dissipation, which scales with the sound
 speed, also destroys the low-Mach asymptotics of the pressure
 \cite{GuillardViozat1999,GuillardMurrone2004,Dellacherie2010}. Preconditioning corrects the scaling of the dissipation
 \cite{Turkel1987,Pelanti2017} and, with implicit time integration, removes the time step restriction
