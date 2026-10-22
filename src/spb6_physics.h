@@ -290,9 +290,10 @@ static double hug_v(int k, double p0, double p1, double v0) {
 	return 0.5 * (lo + hi);
 }
 // 等熵体积模量 K = rho c^2 与基本导数 G = (1 + dK/dp|_s)/2（MG 沿等熵线 dv = -v dp / K 差分）
+// NASG：沿 (p + pi)(v - b)^gamma = const，K = gamma (p + pi) v/(v - b)，dK/dp|_s = (gamma v + b)/(v - b)，G = (gamma + 1) v / (2 (v - b))
 static void K_G(int k, double p, double v, double& K, double& G) {
 	K = c2_rp(k, 1.0 / v, p) / v;
-	if (!is_mg(k)) { G = 0.5 * (PH[k].g + 1.0); return; }
+	if (!is_mg(k)) { G = 0.5 * (PH[k].g + 1.0); if (PH[k].b != 0.0) G *= v / (v - PH[k].b); return; }
 	const double dp = 1e-6 * K, K2 = c2_rp(k, 1.0 / (v * (1.0 - dp / K)), p + dp) / (v * (1.0 - dp / K));
 	G = 0.5 * (1.0 + (K2 - K) / dp);
 }
@@ -664,7 +665,7 @@ static bool closure_pT(const ClIn& in, ClOut& o) {
 static bool closure_theta(const ClIn& in, ClOut& o) {
 	PCoef c; if (!p_coef(in, c)) return false;
 	const double th = in.theta >= 0 ? in.theta : theta_rate, tt = std::isinf(th) ? INF : in.tau * th;
-	if (!std::isinf(tt)) for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;   // theta = inf 时 dQ 吸收 Lambda_k，结果即 pT 闭合，不需要单相单调
+	if (tt > 0 && !std::isinf(tt)) for (int k = 0; k < 2; k++) if (!(c.N[k] > 0)) return false;   // theta = inf 时 dQ 吸收 Lambda_k，结果即 pT 闭合；theta = 0 时 dQ = 0，即 p 闭合（同样不加此条件）
 	const double Cp[2] = {PH[0].g * PH[0].cv * in.mtr[0], PH[1].g * PH[1].cv * in.mtr[1]};
 	const double S = 1.0 / Cp[0] + 1.0 / Cp[1];
 	auto eval = [&](double p, double a[2], double& dQ) {

@@ -1,7 +1,7 @@
 # Data of the IMEX results (final scheme, `src/SPB6_PC_IMEX.cpp`)
 
 One folder per test; each has the data files and `note.md` (paper, figure, cells, CFL and all settings, command, run statistics).
-Produced by `bash tests/run_all.sh run/pc`, `python3 tests/make_archive.py run/pc data` and `python3 tests/archive_extra.py run/pc data`; The 2D folders SPB2009_4.7_cavitating_Richtmyer_Meshkov, PS2014_vapour_bubble_compression and Pelanti2022_8.1.2_underwater_explosion still hold the V22 data until the 2D reruns finish. Figures by `python3 tests/plot_paper_figs.py run/pc docs/figures` and `python3 tests/plot_2d_paper.py run/pc docs/figures`.
+Produced by `bash tests/run_all.sh run/pc`, `python3 tests/make_archive.py run/pc data` and `python3 tests/archive_extra.py run/pc data`; The 2D folders SPB2009_4.7_cavitating_Richtmyer_Meshkov, PS2014_vapour_bubble_compression and Pelanti2022_8.1.2_underwater_explosion still hold the V22 data (SPB6_TV_IMEX) until the 2D reruns of SPB6_PC_IMEX on the grids of Sec. 4 finish. Figures by `python3 tests/plot_paper_figs.py run/pc docs/figures` and `python3 tests/plot_2d_paper.py run/pc docs/figures`.
 
 | test | paper | figure | cells | material CFL |
 |---|---|---|---|---|

@@ -16,7 +16,7 @@
 \begin{document}
 
 \begin{frontmatter}
-\title{A semi-implicit finite volume scheme for the six-equation two-phase model with mechanical, thermal and chemical relaxation at all Mach numbers}
+\title{An all-Mach IMEX scheme for the six-equation two-phase model with unified mechanical, thermal and chemical relaxation at arbitrary rates}
 \begin{abstract}
 We present a second-order semi-implicit IMEX finite volume scheme for the single-velocity six-equation two-phase model
 with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas, Noble--Abel stiffened-gas and
@@ -34,14 +34,14 @@ for strong ones, without calibrated heat exchange. The fluxes are split in the m
 quantities, including the volume fraction, are transported explicitly by the path-conservative Rusanov scheme with the
 material speed as dissipation speed, and the implicit step carries the pressure, its work on each phase and an
 incremental flux of the conservative transported quantities, with implicit Laplace dissipation of the pressure and the
-velocity that vanishes in the low Mach number regime. Second order in time is obtained with a stiffly accurate,
-L-stable IMEX Runge--Kutta scheme. We prove that the scheme preserves moving contacts. Numerical results in one and two
+velocity that vanishes in the low Mach number regime. Second order in time is obtained with a stiffly accurate
+IMEX Runge--Kutta scheme. We prove that the scheme preserves moving contacts. Numerical results in one and two
 space dimensions, from the incompressible limit to strong shocks, cavitation and phase transition, confirm the accuracy
 and robustness of the method.
 \end{abstract}
 \begin{keyword}
-two-phase flow \sep six-equation model \sep relaxation \sep phase transition \sep IMEX \sep semi-implicit \sep
-all Mach number \sep asymptotic preserving \sep well-balanced
+Compressible two-phase flows \sep Phase transition \sep Six-equation model \sep Relaxation processes \sep
+All-Mach IMEX scheme \sep Asymptotic preserving \sep Well-balanced
 \end{keyword}
 \end{frontmatter}
 
