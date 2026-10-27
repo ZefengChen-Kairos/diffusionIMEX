@@ -501,8 +501,19 @@ static bool alpha_mg(int k, double m, double A, double B, double p, double guess
 		df = ((P.G + 1.0) * (p - pr) + r * dpr) / P.G; return m * er + a * (p - pr) / P.G + p * a - A - B * p; };
 	double lo = guess, hi = guess, d; double flo = F(lo, d), fhi = flo;
 	if (!std::isfinite(flo)) return false;
+	// 输运态的微量相可能落在 c^2 <= 0 一侧（质量、能量随增量进入而体积没有，a < a_c）：那里 F 随 a 递减，
+	// 可容许根在 a > a_c 的分支上，先把初猜上移到 c^2 > 0
+	if (!(d > 0)) { for (int it = 0; it < 200 && !(d > 0); it++) { guess *= 2.0; flo = F(guess, d); if (!std::isfinite(flo)) return false; }
+		if (!(d > 0)) return false; lo = hi = guess; fhi = flo; }
 	if (flo < 0) { for (int it = 0; it < 200 && fhi < 0; it++) { lo = hi; flo = fhi; hi *= 2.0; fhi = F(hi, d); if (!std::isfinite(fhi)) return false; } if (fhi < 0) return false; }
-	else { for (int it = 0; it < 200 && flo > 0; it++) { hi = lo; fhi = flo; lo *= 0.5; flo = F(lo, d); if (!std::isfinite(flo) || d <= 0) return false; } if (flo > 0) return false; }
+	else { for (int it = 0; it < 200 && flo > 0; it++) { hi = lo; fhi = flo; lo *= 0.5; flo = F(lo, d); if (!std::isfinite(flo)) return false;
+			if (d <= 0) {   // 越过了 a_c：在 [lo, hi] 上二分，找可容许分支上 F <= 0 的点；找不到则无根
+				bool found = false;
+				for (int b = 0; b < 200; b++) { const double mid = std::sqrt(lo * hi); double dm; const double fm = F(mid, dm); if (!std::isfinite(fm)) return false;
+					if (!(dm > 0)) lo = mid; else if (fm > 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; found = true; break; }
+					if (hi - lo <= 1e-15 * hi) break; }
+				if (!found) return false; break; } }
+		if (flo > 0) return false; }
 	double a = (flo == 0) ? lo : (fhi == 0 ? hi : (guess > lo && guess < hi ? guess : std::sqrt(lo * hi)));
 	for (int it = 0; it < 200; it++) {
 		double df; const double fa = F(a, df);

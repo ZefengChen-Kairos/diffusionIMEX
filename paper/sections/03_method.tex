@@ -475,8 +475,10 @@ solution. For a Mie--Gr\"uneisen phase \eqref{eq:pclosure} with \eqref{eq:mg} gi
 f_k(\alpha)=m_k\varepsilon_r(m_k/\alpha)+\alpha\,\frac{p-p_r(m_k/\alpha)}{\Gamma_k}+p\,\alpha-A_k-B_kp=0,\quad
 f_k'(\alpha)=\frac{\rho_kc_k^2}{\Gamma_k} ,
 \]
-with $A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0+\xi_k$, unique where $c_k^2>0$ on the bracket and found by a Newton iteration in $\alpha$ safeguarded by
-bisection in $\ln\alpha$. A stiffened or Noble--Abel stiffened partner phase is admitted only where $N_k>0$, and the outer
+with $A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0+\xi_k$, unique where $c_k^2>0$ on the bracket. The bracket is searched on the branch
+$c_k^2>0$, on which $f_k$ is increasing: an initial volume with $c_k^2\le0$, as for a trace phase that has received mass and energy
+without volume, is first doubled until $c_k^2>0$. The root is found by a Newton iteration in $\alpha$ safeguarded by bisection
+in $\ln\alpha$. A stiffened or Noble--Abel stiffened partner phase is admitted only where $N_k>0$, and the outer
 equation is solved by the same safeguarded Newton iteration, without a global monotonicity result.
 
 \paragraph{Finite mechanical relaxation: $\mu<\infty$, $\theta=\nu=0$}
