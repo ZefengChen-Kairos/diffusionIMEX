@@ -1296,19 +1296,18 @@ explicit convection followed by a projection of the face velocities, with a time
 
 \subsection{Second-order time discretisation}
 \label{sec:time}
-The scheme of Secs.~\ref{sec:advective} and \ref{sec:implicit} is first order in time. Second order is obtained with
-the semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and Russo \cite{BoscarinoFilbetRusso2016}, for which the
-time linearisation introduced by the splitting, explicit velocity in the transport fluxes and implicit velocity
-increment, gives the semi-implicit structure directly. The semi-discrete system is written in autonomous form as
+The scheme of Secs.~\ref{sec:advective} and \ref{sec:implicit} is first order in time. Second order is obtained with the
+semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and Russo \cite{BoscarinoFilbetRusso2016}, to which the time
+linearisation of the split fluxes, explicit velocity in the transport fluxes and implicit velocity in the increments, leads
+naturally. The semi-discrete system is written in autonomous form as
 \begin{equation}
 \partial_t\mathbf U=\mathcal H\big(\mathbf U_E(t),\mathbf U_I(t)\big),
 \label{eq:autonomous}
 \end{equation}
-where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the state on which the explicit transport
-is evaluated and $\mathbf U_I$ the state of the pressure--relaxation sub-system. An IMEX Runge--Kutta scheme
-\cite{Ascher1997,PareschiRusso2005} is defined by a pair of Butcher tableaux $(\tilde A,\tilde{\mathbf b},\tilde{\mathbf c})$ and
-$(A,\mathbf b,\mathbf c)$, $\tilde A$ strictly lower triangular and $A$ lower triangular. We use the stiffly accurate, L-stable
-LSDIRK2(2,2,2) scheme \cite{BoscarinoFilbetRusso2016,Avgerinos2019},
+where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the explicitly treated state and $\mathbf U_I$ the
+implicitly treated state. An IMEX Runge--Kutta scheme \cite{Ascher1997,PareschiRusso2005} is characterised by a double Butcher
+tableau, with $\tilde A$ strictly lower triangular for the explicit part and $A$ lower triangular for the implicit part. We use the
+stiffly accurate, L-stable LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016,Avgerinos2019},
 \begin{equation}
 \begin{array}{c|cc}0&0&0\\ \hat c&\hat c&0\\\hline &1-\beta&\beta\end{array}\qquad
 \begin{array}{c|cc}\beta&\beta&0\\ 1&1-\beta&\beta\\\hline &1-\beta&\beta\end{array},\qquad \beta=1-\tfrac1{\sqrt2},\quad \hat c=\tfrac1{2\beta}.
@@ -1322,15 +1321,15 @@ With $\mathbf U^n_E=\mathbf U^n_I=\mathbf U^n$, the stages $i=1,2$ are
 \end{gathered}
 \label{eq:stages}
 \end{equation}
-Each stage is one application of the first-order scheme: the explicit fluxes \eqref{eq:explicit} are evaluated on
-$\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the step, explicit transport included, has the length $\tau=a_{ii}\Delta t$, giving the stage
-value $\mathbf U_i$ and $\mathcal K_i=(\mathbf U_i-\tilde{\mathbf U}_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $\mathbf U^{n+1}=\mathbf U_2$. The first step is the smaller
-of \eqref{eq:cfl} and the acoustic step $0.4\big(\max_\Omega(|u|+c_f)/\Delta x+\max_\Omega(|v|+c_f)/\Delta y\big)^{-1}$, as in \cite{BattistiBoscheri2025}, and no step
-may exceed $1.2$ times the previous one, so that \eqref{eq:cfl} is reached after about $\ln(0.5/M_\Omega)/\ln1.2$ steps,
-$M_\Omega=\max_\Omega|u|/\max_\Omega(|u|+c_f)$; the steps limited by this rule, up to the first step that it does not limit, use one
-backward-Euler stage. If in some stage the mixture density of $\mathbf U_{E,i}$ or $X^*$ is non-positive in a cell, a local closure has
-no admissible solution or the Newton iteration fails, the step is repeated with half the time step and the same
-tableau. With a prescribed fixed time step the start-up rule is not applied.
+Each stage is the first-order scheme with the time step $\tau=a_{ii}\Delta t$, the explicit fluxes evaluated on $\mathbf U_{E,i}$ and
+the update starting from $\tilde{\mathbf U}_{I,i}$; its implicit part is the pressure system of Sec.~\ref{sec:implicit}. Since $\mathbf b$
+is the last row of $A$, $\mathbf U^{n+1}=\mathbf U_2$.
+
+The first step is the smaller of \eqref{eq:cfl} and the acoustic step with the speeds $|u|+c_f$, $|v|+c_f$ and Courant number
+$0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one; the steps limited by this start-up
+rule use one backward-Euler stage. A step is repeated with half the time step if the mixture density of $\mathbf U_{E,i}$ or $X^*$
+is non-positive in a cell, a local closure has no admissible solution or the Newton iteration fails. With a prescribed fixed
+time step the start-up rule is not applied.
 
 
 \clearpage

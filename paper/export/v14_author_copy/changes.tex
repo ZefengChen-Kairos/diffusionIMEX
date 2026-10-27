@@ -256,23 +256,52 @@ in $\ln\alpha$. A stiffened or Noble--Abel stiffened partner phase is admitted o
 % OLD: phases are compressed at constant specific internal energy, as in the advective sub-system \eqref{eq:advective}.
 phases are compressed at constant specific internal energy, $m_k$ and $\varepsilon_k$ being transported by the same linear Rusanov operator with a shared limiter.
 
-% ===== main.tex, old lines 1266-1266, new lines 1301-1301
+% ===== main.tex, old lines 1264-1267, new lines 1299-1302
+% OLD: The scheme of Secs.~\ref{sec:advective} and \ref{sec:implicit} is first order in time. Second order is obtained with
+% OLD: the semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and Russo \cite{BoscarinoFilbetRusso2016}, for which the
 % OLD: time linearisation introduced by the splitting, explicit velocity in the advective fluxes and implicit velocity
-time linearisation introduced by the splitting, explicit velocity in the transport fluxes and implicit velocity
+% OLD: increment, gives the semi-implicit structure directly. The semi-discrete system is written in autonomous form as
+The scheme of Secs.~\ref{sec:advective} and \ref{sec:implicit} is first order in time. Second order is obtained with the
+semi-implicit IMEX Runge--Kutta schemes of Boscarino, Filbet and Russo \cite{BoscarinoFilbetRusso2016}, to which the time
+linearisation of the split fluxes, explicit velocity in the transport fluxes and implicit velocity in the increments, leads
+naturally. The semi-discrete system is written in autonomous form as
 
-% ===== main.tex, old lines 1272-1272, new lines 1307-1307
+% ===== main.tex, old lines 1272-1276, new lines 1307-1310
 % OLD: where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the state on which the advective sub-system
-where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the state on which the explicit transport
+% OLD: is evaluated and $\mathbf U_I$ the state of the pressure--relaxation sub-system. An IMEX Runge--Kutta scheme
+% OLD: \cite{Ascher1997,PareschiRusso2005} is defined by a pair of Butcher tableaux $(\tilde A,\tilde{\mathbf b},\tilde{\mathbf c})$ and
+% OLD: $(A,\mathbf b,\mathbf c)$, $\tilde A$ strictly lower triangular and $A$ lower triangular. We use the stiffly accurate, L-stable
+% OLD: LSDIRK2(2,2,2) scheme \cite{BoscarinoFilbetRusso2016,Avgerinos2019},
+where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the explicitly treated state and $\mathbf U_I$ the
+implicitly treated state. An IMEX Runge--Kutta scheme \cite{Ascher1997,PareschiRusso2005} is characterised by a double Butcher
+tableau, with $\tilde A$ strictly lower triangular for the explicit part and $A$ lower triangular for the implicit part. We use the
+stiffly accurate, L-stable LSDIRK2 scheme \cite{BoscarinoFilbetRusso2016,Avgerinos2019},
 
-% ===== main.tex, old lines 1291-1291, new lines 1326-1326
+% ===== main.tex, old lines 1290-1298, new lines 1324-1332
+% OLD: Each stage is one application of the first-order scheme: the explicit fluxes \eqref{eq:explicit} are evaluated on
 % OLD: $\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
-$\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the step, explicit transport included, has the length $\tau=a_{ii}\Delta t$, giving the stage
+% OLD: value $\mathbf U_i$ and $\mathcal K_i=(\mathbf U_i-\tilde{\mathbf U}_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $\mathbf U^{n+1}=\mathbf U_2$. The first step is the smaller
+% OLD: of \eqref{eq:cfl} and the acoustic step $0.4\big(\max_\Omega(|u|+c_f)/\Delta x+\max_\Omega(|v|+c_f)/\Delta y\big)^{-1}$, as in \cite{BattistiBoscheri2025}, and no step
+% OLD: may exceed $1.2$ times the previous one, so that \eqref{eq:cfl} is reached after about $\ln(0.5/M_\Omega)/\ln1.2$ steps,
+% OLD: $M_\Omega=\max_\Omega|u|/\max_\Omega(|u|+c_f)$; the steps limited by this rule, up to the first step that it does not limit, use one
+% OLD: backward-Euler stage. If in some stage the mixture density of $\mathbf U_{E,i}$ or $X^*$ is non-positive in a cell, a local closure has
+% OLD: no admissible solution or the Newton iteration fails, the step is repeated with half the time step and the same
+% OLD: tableau. With a prescribed fixed time step the start-up rule is not applied.
+Each stage is the first-order scheme with the time step $\tau=a_{ii}\Delta t$, the explicit fluxes evaluated on $\mathbf U_{E,i}$ and
+the update starting from $\tilde{\mathbf U}_{I,i}$; its implicit part is the pressure system of Sec.~\ref{sec:implicit}. Since $\mathbf b$
+is the last row of $A$, $\mathbf U^{n+1}=\mathbf U_2$.
 
-% ===== main.tex, old lines 1302-1302, new lines 1337-1337
+The first step is the smaller of \eqref{eq:cfl} and the acoustic step with the speeds $|u|+c_f$, $|v|+c_f$ and Courant number
+$0.4$, as in \cite{BattistiBoscheri2025}, and no step may exceed $1.2$ times the previous one; the steps limited by this start-up
+rule use one backward-Euler stage. A step is repeated with half the time step if the mixture density of $\mathbf U_{E,i}$ or $X^*$
+is non-positive in a cell, a local closure has no admissible solution or the Newton iteration fails. With a prescribed fixed
+time step the start-up rule is not applied.
+
+% ===== main.tex, old lines 1302-1302, new lines 1336-1336
 % OLD: \begin{figure}[H]
 \begin{figure}[p]
 
-% ===== main.tex, old lines 1304-1307, new lines 1339-1342
+% ===== main.tex, old lines 1304-1307, new lines 1338-1341
 % OLD: \resizebox*{!}{0.9\textheight}{\input{figs/scheme}}
 % OLD: \caption{Schematic of the semi-implicit scheme. The Zha--Bilgen splitting separates the advective
 % OLD: sub-system, advanced explicitly by the path-conservative Rusanov scheme with the material speed, from the
@@ -282,61 +311,61 @@ $\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $
 sub-system, advanced explicitly with the old-velocity part of the internal energy fluxes, from the pressure--relaxation
 sub-system, solved implicitly with the increments of the mass and internal energy fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
 
-% ===== main.tex, old lines 1322-1322, new lines 1357-1357
+% ===== main.tex, old lines 1322-1322, new lines 1356-1356
 % OLD: \item \emph{Explicit advective sub-system.} The face values are reconstructed on $\mathbf U^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
 \item \emph{Explicit transport.} The face values are reconstructed on $\mathbf U^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
 
-% ===== main.tex, old lines 1343-1343, new lines 1378-1378
+% ===== main.tex, old lines 1343-1343, new lines 1377-1377
 % OLD: with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a boundary the
 with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a non-periodic boundary the
 
-% ===== main.tex, old lines 1345-1345, new lines 1380-1380
+% ===== main.tex, old lines 1345-1345, new lines 1379-1379
 % OLD: boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$.
 boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$. At periodic boundaries the ghost cells and their pressures are those of the opposite side.
 
-% ===== main.tex, old lines 1408-1408, new lines 1443-1443
+% ===== main.tex, old lines 1408-1408, new lines 1442-1442
 % OLD: Sec.~\ref{sec:pressure_system}; the first time step is an acoustic step with Courant number $0.4$. Thermal and chemical relaxation
 Sec.~\ref{sec:pressure_system} and the start-up rule of Sec.~\ref{sec:time}. Thermal and chemical relaxation
 
-% ===== main.tex, old lines 1459-1459, new lines 1494-1494
+% ===== main.tex, old lines 1459-1459, new lines 1493-1493
 % OLD: otherwise, $t_{\rm end}=0.25$\,s ($M=|u|/c$ between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water); and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
 otherwise, $t_{\rm end}=0.25$\,s, so that $M=|u|/c$ lies between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water; and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
 
-% ===== main.tex, old lines 1492-1492, new lines 1527-1527
+% ===== main.tex, old lines 1492-1492, new lines 1526-1526
 % OLD: The following Riemann problems on $[0,1]$ (on $[-10,10]$ for the detonation products) with transmissive boundaries
 The following Riemann problems on $[0,1]$, or $[-10,10]$ for the detonation products, with transmissive boundaries
 
-% ===== main.tex, old lines 1533-1533, new lines 1568-1568
+% ===== main.tex, old lines 1533-1533, new lines 1567-1567
 % OLD: Dodecane is NASG with liquid $(1.206,\ 1.681\times10^8,\ -996054,\ 0,\ 2532,\ 7.51\times10^{-4})$ and vapour
 Dodecane is NASG with liquid $(1.206,\allowbreak\ 1.681\times10^8,\allowbreak\ -996054,\allowbreak\ 0,\allowbreak\ 2532,\allowbreak\ 7.51\times10^{-4})$ and vapour
 
-% ===== main.tex, old lines 1566-1567, new lines 1601-1602
+% ===== main.tex, old lines 1566-1567, new lines 1600-1601
 % OLD: a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
 % OLD: case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
 a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ in the single-phase
 case and $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ in the two-phase case. The background pressure
 
-% ===== main.tex, old lines 1589-1589, new lines 1624-1624
+% ===== main.tex, old lines 1589-1589, new lines 1623-1623
 % OLD: bottom and top boundaries are walls and the right boundary is transmissive. $300\times100$ cells (the grid of Pelanti and Shyue \cite[Sec.~5.3]{PelantiShyue2014}), $t_{\rm end}=8.6$\,ms,
 bottom and top boundaries are walls and the right boundary is transmissive. $300\times100$ cells, the grid of Pelanti and Shyue \cite[Sec.~5.3]{PelantiShyue2014}, $t_{\rm end}=8.6$\,ms,
 
-% ===== main.tex, old lines 1598-1599, new lines 1633-1634
+% ===== main.tex, old lines 1598-1599, new lines 1632-1633
 % OLD: $\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$ (the grid
 % OLD: is fixed, and the wall boundary condition imposes this normal velocity). $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
 $\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$; the grid
 is fixed and the wall boundary condition imposes this normal velocity. $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
 
-% ===== main.tex, old lines 1609-1609, new lines 1644-1644
+% ===== main.tex, old lines 1609-1609, new lines 1643-1643
 % OLD: boundaries elsewhere. $361\times200$ cells (half the resolution of \cite{Pelanti2022}), $t_{\rm end}=0.4$\,ms, $p$ relaxation; the pressure is recorded at the wall
 boundaries elsewhere. $361\times200$ cells, half the resolution of \cite{Pelanti2022}, $t_{\rm end}=0.4$\,ms, $p$ relaxation; the pressure is recorded at the wall
 
-% ===== main.tex, old lines 1619-1620, new lines 1654-1655
+% ===== main.tex, old lines 1619-1620, new lines 1653-1654
 % OLD: two-phase model with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas,
 % OLD: Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
 two-phase model with total energy, for stiffened-gas and Noble--Abel stiffened-gas phases with mechanical, thermal and
 chemical relaxation and for Mie--Gr\"uneisen phases with instantaneous mechanical relaxation, in one and two space dimensions.
 
-% ===== main.tex, old lines 1624-1628, new lines 1659-1663
+% ===== main.tex, old lines 1624-1628, new lines 1658-1662
 % OLD: finite or infinite rate, a slower process being active only when the faster ones are instantaneous \cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation for the
 % OLD: cell pressure; each stage then reduces to a mildly nonlinear system for the cell pressures with a three-point
 % OLD: (five-point in 2D) Jacobian, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
@@ -348,13 +377,13 @@ for the cell pressures with a three-point Jacobian, five-point in 2D, solved by 
 the Mach number and the relaxation rates. We have proved that, at fixed mesh and under non-degeneracy assumptions, the scheme converges, for data on the
 equilibrium manifold, to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme without that
 
-% ===== main.tex, old lines 1634-1635, new lines 1669-1670
+% ===== main.tex, old lines 1634-1635, new lines 1668-1669
 % OLD: reduces to the unique consistent local share, and the discretisation error with the unique share that keeps both phases
 % OLD: admissible for every defect. No calibrated heat exchange is needed.
 reduces to the unique consistent local share, and the discretisation error with the unique linear share that keeps both phases
 admissible whenever possible. No calibrated heat exchange is needed.
 
-% ===== main.tex, old lines 1637-1642, new lines 1672-1679
+% ===== main.tex, old lines 1637-1642, new lines 1671-1678
 % OLD: The flux is split following Zha and Bilgen: all quantities are transported explicitly with the old velocity by the
 % OLD: path-conservative Rusanov scheme, whose dissipation speed is the material speed, the volume fraction being advected
 % OLD: entirely in this step, while the pressure, its work on each phase and an incremental flux of the conservative transported
@@ -370,12 +399,12 @@ pressure and the velocity with acoustic coefficients, weighted by the deficit of
 the upwind one, so that it vanishes in the low Mach number regime; it is first order at local extrema and second order in
 smooth regions. Second
 
-% ===== main.tex, old lines 1644-1644, new lines 1681-1682
+% ===== main.tex, old lines 1644-1644, new lines 1680-1681
 % OLD: preserves moving contacts and the phase temperatures under transport.
 preserves moving contacts between stiffened-gas or Noble--Abel stiffened-gas phases, at uniform temperature when thermal or
 chemical relaxation is active.
 
-% ===== main.tex, old lines 1646-1648, new lines 1684-1687
+% ===== main.tex, old lines 1646-1648, new lines 1683-1686
 % OLD: The numerical results confirm these properties: second-order convergence on a smooth two-phase vortex, a Newton
 % OLD: iteration count and a time step independent of the Mach number, face velocities that are discretely divergence-free to
 % OLD: $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex, and agreement with exact solutions and reference results
@@ -384,7 +413,7 @@ smooth two-phase vortex at Mach numbers from $2.4$ to $0.024$, and of the pressu
 that are discretely divergence-free to $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex with a time step
 independent of the Mach number, and agreement with exact solutions and reference results
 
-% ===== main.tex, old lines 1650-1650, new lines 1689-1689
+% ===== main.tex, old lines 1650-1650, new lines 1688-1688
 % OLD: two-dimensional shock--bubble, Richtmyer--Meshkov, bubble-collapse and underwater-explosion problems, at instantaneous
 two-dimensional shock--bubble, Richtmyer--Meshkov, vapour-bubble compression and underwater-explosion problems, at instantaneous
 
