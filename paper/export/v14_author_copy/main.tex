@@ -533,17 +533,16 @@ u&0&0&0&0&0&0\\
 0&0&0&u&0&0&0\\
 \ast&\ast&0&\rho_1(\kappa_1-\Gamma_1e_1)&0&0&0\\
 \ast&0&\ast&\rho_2(\kappa_2-\Gamma_2e_2)&0&0&0\\
-\ast&\ast&\ast&K^c&0&0&0
-\end{bmatrix},\\
-K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k-\big(E-\tfrac12\rho u^2\big)}{\sum_k\alpha_k/\Gamma_k},
+\ast&\ast&\ast&\dfrac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k-E+\tfrac12\rho u^2}{\sum_k\alpha_k/\Gamma_k}&0&0&0
+\end{bmatrix},
 \end{gathered}
 \label{eq:Ac}
 \end{equation}
 since the volume fraction and the velocity are advected, the masses are transported at fixed phase internal energies
 $\varepsilon_k$, and the kinetic energy is transported with the mass, so that $E-\tfrac12\rho u^2$ is constant and determines $p$ at the
 advected volumes and transported masses; $\kappa_k$, $\Gamma_k$ and $e_k$ are evaluated at the phase state $\rho_k$, $p_k$ in the rows of $p_k$
-and at $\rho_k$ and the pressure $p$ in $K^c$. The entries $\ast$ are proportional to $u$. For stiffened and Noble--Abel stiffened gases $\kappa_k-\Gamma_ke_k=\Gamma_k\big(b_k(p_k+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)$ and
-$K^c=\sum_km_k\big(b_k(p+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$; both vanish for ideal and stiffened gases
+and at $\rho_k$ and the pressure $p$ in the last row. The entries $\ast$ are proportional to $u$. For stiffened and Noble--Abel stiffened gases $\kappa_k-\Gamma_ke_k=\Gamma_k\big(b_k(p_k+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)$ and
+the last row has $\sum_km_k\big(b_k(p+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$; both vanish for ideal and stiffened gases
 with $q_k=0$. The last three columns of $\mathbf A^c$ vanish, and the eigenvalues are
 \begin{equation}
 \lambda^c_{1,\dots,4}=u,\qquad \lambda^c_{5,6,7}=0 .
@@ -568,9 +567,8 @@ with the relaxation terms $\mathbf S$ of \eqref{eq:general}. In the primitive va
 (p_1-p_2)/\rho&0&0&0&\alpha_1/\rho&\alpha_2/\rho&0\\
 \ast&\ast&0&\rho_1\Gamma_1h_1&u&0&0\\
 \ast&0&\ast&\rho_2\Gamma_2h_2&0&u&0\\
-\ast&\ast&\ast&K^p&0&0&u
-\end{bmatrix},\\
-K^p=\frac{E-\tfrac12\rho u^2+\bar p}{\sum_k\alpha_k/\Gamma_k},
+\ast&\ast&\ast&\dfrac{E-\tfrac12\rho u^2+\bar p}{\sum_k\alpha_k/\Gamma_k}&0&0&u
+\end{bmatrix},
 \end{gathered}
 \label{eq:Ap}
 \end{equation}
