@@ -1,0 +1,94 @@
+% Flowchart of the semi-implicit scheme (Sec. 3). Needs: tikz with the libraries positioning, arrows.meta, calc, fit, backgrounds.
+\begin{tikzpicture}[
+  font=\fontsize{8pt}{9.6pt}\selectfont, >={Stealth[length=2.8mm,width=2.2mm]}, node distance=4mm,
+  hdr/.style={fill=hdrblue, text=white, font=\fontsize{8pt}{9.6pt}\selectfont\bfseries, inner sep=2.5pt, rounded corners=1pt,
+              align=flush center},
+  eq/.style={draw=black!40, fill=white, inner sep=3pt, align=flush center},
+  outer/.style={draw=hdrblue!80, fill=hdrblue!8, rounded corners=4pt, inner sep=5pt},
+  step/.style={draw=black!45, fill=black!5, align=flush center, inner sep=3pt, text width=#1},
+  step/.default=9.6cm,
+  note/.style={align=flush center, font=\fontsize{7pt}{8.4pt}\selectfont},
+  dashedarrow/.style={->, dashed, semithick, black!75},
+]
+\definecolor{hdrblue}{RGB}{31,73,125}
+\definecolor{clgreen}{RGB}{214,232,220}
+\definecolor{rlpurple}{RGB}{226,222,240}
+
+% ----------------------------------------------------------------- full system
+\node[eq, text width=9.6cm] (full) {$\partial_t\mathbf U+\partial_x\mathbf F^c(\mathbf U)+\mathbf B^c(\mathbf U)\,\partial_x\mathbf U
+  +\partial_x\mathbf F^p(\mathbf U)+\mathbf B^p(\mathbf U)\,\partial_xu=\mathbf S(\mathbf U)$};
+\node[hdr, above=0pt of full.north, text width=9.6cm] (fullh) {Full system};
+\begin{scope}[on background layer]
+  \node[outer, fit=(full)(fullh)] (fullbox) {};
+\end{scope}
+
+\node[hdr, below=6mm of fullbox] (split) {Flux Vector Splitting};
+\draw[thick, black!65] (fullbox.south) -- (split.north);
+
+% ----------------------------------------------------------------- the two sub-systems
+\node[eq, below left=15mm and 2.5mm of split.south, anchor=north east, text width=4.75cm, minimum height=1.9cm] (adv)
+  {$\partial_t\mathbf U+\partial_x\mathbf F^c+\mathbf B^c\,\partial_x\mathbf U=\mathbf 0$\\[3pt]
+   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed, flux $\mathbf F^u$;\\ $\alpha_1$ advected entirely}};
+\node[hdr, above=0pt of adv.north, text width=4.75cm] (advh) {Advective, explicit};
+\node[eq, below right=15mm and 2.5mm of split.south, anchor=north west, text width=4.75cm, minimum height=1.9cm] (prs)
+  {$\partial_t\mathbf U+\partial_x\mathbf F^p+\mathbf B^p\,\partial_xu=\mathbf S(\mathbf U)$\\[3pt]
+   {\fontsize{7pt}{8.4pt}\selectfont $\varepsilon_ku$, $m_ku$ as increments $X(u^{n+1}-u^n)$;\\ pressure work $+$ relaxations\\ in one local closure}};
+\node[hdr, above=0pt of prs.north, text width=4.75cm] (prsh) {Pressure--relaxation, implicit};
+\begin{scope}[on background layer]
+  \node[outer, fit=(adv)(advh)] (advbox) {};
+  \node[outer, fit=(prs)(prsh)] (prsbox) {};
+\end{scope}
+\draw[thick, black!65] (split.south west) -- (advbox.north);
+\draw[thick, black!65] (split.south east) -- (prsbox.north);
+
+% ----------------------------------------------------------------- one stage (steps numbered as in Sec. 3.6)
+\node[hdr, below=11mm of split.south |- advbox.south, text width=9.6cm] (alh) {Algorithm: one stage};
+\node[step, below=4mm of alh] (s0)
+  {\textbf{Before the first stage of a step}\\ activation of the closures; projection of $\mathbf U^n$ (instantaneous $pT$, $pTg$)};
+\node[step, below=5mm of s0] (s1)
+  {\textbf{1. Explicit transport} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
+   $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^{\rm b}_1-r_x\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
+\node[step, below=5mm of s1] (s2)
+  {\textbf{2. Face coefficients} on $X^*$, frozen over the stage\\ $u_f$, $p_f$ affine in the adjacent $P$; weight $\varphi$, factors $\psi$};
+\node[step, below=5mm of s2] (s3)
+  {\textbf{Newton iteration for the cell pressures $P$}\\[1pt]
+   3. face velocity with implicit pressure Laplace term;\\
+   \phantom{3. }face pressure with explicit velocity Laplace term on $u^*$;\\
+   \phantom{3. }upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
+   4. local closure $\Rightarrow$ $\bar p^{\rm cl}$, phase states\\
+   5. Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]
+   \textbf{6. Update:} $\rho\mathbf u$, $E$ from 3; $\alpha_k$, $m_k$, $\varepsilon_k$ from 4};
+\begin{scope}[on background layer]
+  \node[outer, fit=(alh)(s0)(s1)(s2)(s3)] (algbox) {};
+\end{scope}
+\draw[thick, black!65] (advbox.south) -- (advbox.south |- algbox.north);
+\draw[thick, black!65] (prsbox.south) -- (prsbox.south |- algbox.north);
+\draw[thick, black!65] (alh) -- (s0); \draw[thick, black!65] (s0) -- (s1); \draw[thick, black!65] (s1) -- (s2); \draw[thick, black!65] (s2) -- (s3);
+
+% ----------------------------------------------------------------- local closure with energy partition
+\node[step=6.3cm, fill=clgreen, draw=black!45, below left=14mm and 6mm of algbox.south, anchor=north east, minimum height=4.3cm] (cl)
+  {\textbf{4. Local closure} at every residual evaluation\\[2pt]
+   \textbf{energy defect}\\ $\delta=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k+s\sum_k\alpha^*_kp_k$\\[2pt]
+   \textbf{partition} $\Lambda_k(\delta)$, $\sum_k\Lambda_k=\delta$:\\
+   $0\le\delta\le H$: shock share $H_k/H$, $H_k$ on $X^*$\\
+   excess over $H$ and $\delta<0$: $\lambda^{\mathcal E}_k=\mathcal E_k/\sum_j\mathcal E_j$\\[2pt]
+   $\Rightarrow\ \sum_k\varepsilon_k=(\rho e)^C$ exactly};
+
+% ----------------------------------------------------------------- relaxation closures by rates
+\node[step=6.3cm, fill=rlpurple, draw=black!45, below right=14mm and 6mm of algbox.south, anchor=north west, minimum height=4.3cm] (rl)
+  {\textbf{Relaxation closure by rates}\\
+   ordering: $\mu=\infty$ if $\theta>0$ or $\nu>0$\\ \phantom{ordering:} $\theta=\infty$ if $\nu>0$\\[3pt]
+   one formula per process, $\zeta=1/(\tau\,{\rm rate})\in[0,\infty]$:\\[2pt]
+   \begin{tabular}{@{}l@{\ \ }l@{}}
+   $\nu>0$:      & $\zeta\,(\rho Y-m^{\rm tr}_2)+g_2-g_1=0$\\[2pt]
+   $\theta>0$:   & $p$ closure $+$ heat $\tau\mathcal Q=\dfrac{T^0_2-T^0_1}{\sum_kC_{pk}^{-1}+\zeta}$\\[6pt]
+   otherwise:    & $\zeta R=p_1-p_2$
+   \end{tabular}\\[3pt]
+   $\zeta=0$: $pTg$, $pT$, $p$ closure;\ \ $\zeta=\infty$: off\\[2pt]
+   $\Rightarrow$ one scalar equation per cell:\\ $\Phi(p)=0$, or $\mathcal F(R)=0$ for finite $\mu$};
+
+\draw[dashedarrow] (s3.south -| cl.north) -- node[pos=0.55, left, note] {$s$, $X^{\rm tr}$,\\$(\rho e)^C$} (cl.north);
+\draw[dashedarrow] (cl.east) -- node[above, note] {$\mu,\theta,\nu$} (rl.west);
+\draw[dashedarrow] (rl.north) -- node[pos=0.45, right, note] {$\bar p^{\rm cl}$,\\phase states} (s3.south -| rl.north);
+
+\end{tikzpicture}

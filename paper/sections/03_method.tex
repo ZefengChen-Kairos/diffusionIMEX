@@ -77,7 +77,8 @@ with $X^\uparrow=X^L$ for $\bar u_{i+1/2}\ge0$, $X^\uparrow=X^R$ otherwise, and 
 from its upwind side, the second is a dissipation acting only at compressive faces, $u^L>u^R$. With the maximum $a_\Omega$ of
 \eqref{eq:rusanov_speed} over the faces of the same direction, the dissipation coefficient is
 $\tfrac12(a_\Omega-|\bar u_{i+1/2}|)-\tfrac14(u^R-u^L)\ge\tfrac12(u^L-u^R)^+$.
-For the row of $\alpha_1$ the path integral is taken along the linear path with the face velocity frozen at the mean
+For the row of $\alpha_1$ the path integral is taken between the cell values $\alpha_{1,i}$ and $\alpha_{1,i+1}$, also for second-order face
+values, along the linear path with the face velocity frozen at the mean
 $\bar u_{i+1/2}$, $\int_0^1u\,\partial_\ell\alpha_1\,\mathrm d\ell=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i})$, and the fluctuation is split
 between the two cells as in Saurel and Abgrall \cite{SaurelAbgrall1999a}, with the Rusanov flux $F^e[\alpha_1]$ of the volume
 $\alpha_1u$,
@@ -117,7 +118,8 @@ For stiffened and Noble--Abel stiffened gases the admissible states of a phase f
 two linear functionals $L^{(1)}_k=\alpha_k-m_kb_k$ and $L^{(2)}_k=\varepsilon_k-m_kq_k-(\alpha_k-m_kb_k)\pi_k$. Since all components share $\phi_i$, such a
 functional of a face state is $L(X^{L,R})=L_i\pm\tfrac{\phi_i}4(L_{i+1}-L_{i-1})$, which is not a convex combination of the cell values and is not
 bounded by the minmod factors of the individual components, e.g.\ at a strong pressure jump coinciding with a jump of
-the phase content. The shared factor is therefore limited further, for every phase and both functionals,
+the phase content. The shared factor is therefore limited further, for every stiffened or Noble--Abel stiffened phase with $L_i>0$ and both
+functionals,
 \begin{equation}
 \phi_i\le\frac{2L_i}{|L_{i+1}-L_{i-1}|},\qquad L\in\{L^{(1)}_k,L^{(2)}_k\},\ k=1,2 ,
 \label{eq:phi_cap}
@@ -455,7 +457,8 @@ $\Lambda_k=\lambda_k\delta+\xi_k$, with $\xi_k=H_k-H\lambda^{\mathcal E}_k$ on t
 $\delta=D_0+ps$, $D_0=(\rho e)^C-\sum_k\varepsilon^{\rm tr}_k$. The NASG $p$ closure of Sec.~\ref{sec:relaxation} selects the active piece at every trial pressure of its
 root solve, so that its output is continuous in $P$; the other closures that use $\Lambda_k$, those
 with finite $\mu$ or $\theta$ and those of Mie--Gr\"uneisen phases, select it at the current Newton iterate $P$, and their output
-jumps where $\delta(P)$ crosses a break point, by an amount that vanishes at a solution.
+jumps where $\delta(P)$ crosses a break point, by an amount that vanishes at a solution of the closures with a common pressure
+and is of order $sR(p_1-p_2)$ for finite $\mu$.
 
 \subsubsection{Relaxation closures}
 \label{sec:relaxation}
@@ -719,7 +722,7 @@ With $\mathbf U^n_E=\mathbf U^n_I=\mathbf U^n$, the stages $i=1,2$ are
 \label{eq:stages}
 \end{equation}
 Each stage is one application of the first-order scheme: the explicit fluxes \eqref{eq:explicit} are evaluated on
-$\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
+$\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the step, explicit transport included, has the length $\tau=a_{ii}\Delta t$, giving the stage
 value $\mathbf U_i$ and $\mathcal K_i=(\mathbf U_i-\tilde{\mathbf U}_{I,i})/\tau$. Since $\mathbf b$ is the last row of $A$, $\mathbf U^{n+1}=\mathbf U_2$. The first step is the smaller
 of \eqref{eq:cfl} and the acoustic step $0.4\big(\max_\Omega(|u|+c_f)/\Delta x+\max_\Omega(|v|+c_f)/\Delta y\big)^{-1}$, as in \cite{BattistiBoscheri2025}, and no step
 may exceed $1.2$ times the previous one, so that \eqref{eq:cfl} is reached after about $\ln(0.5/M_\Omega)/\ln1.2$ steps,
@@ -756,9 +759,9 @@ so that the face velocity and face pressure \eqref{eq:faces} are affine in the t
 \[
 u_f=\bar u^*_f-\Theta_f\,(P_R-P_L),\qquad p_f=W_fP_L+(1-W_f)P_R-\varpi_f ,
 \]
-with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a boundary the
+with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a non-periodic boundary the
 ghost cells take the pressure of the adjacent cell, or the given pressure at the outlet of Sec.~\ref{sec:res_bartak}, and their state is a copy of the boundary cells at transmissive
-boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$.
+boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$. At periodic boundaries the ghost cells and their pressures are those of the opposite side.
 \item \emph{Incremental fluxes and conservative updates.} For given cell pressures, the incremental fluxes
 \eqref{eq:increment} are split into their donor parts $I_f=I^L_f+I^R_f$; the incremental mass fluxes are
 $\hat M^{L,R}_f=\sum_kI^{L,R}_f[m_k]$, $\hat M_f=\hat M^L_f+\hat M^R_f$. Then

@@ -265,7 +265,7 @@ introduces severe stiffness associated with the pressure terms, in addition to t
 The advective sub-system is therefore treated explicitly, with a numerical dissipation proportional to the flow velocity,
 and the pressure--relaxation sub-system implicitly. As Chen et al.\ \cite{Chen2026} evaluate the enthalpy flux as $h^n(\rho u)^{n+1}$,
 the internal energy fluxes are evaluated with the internal energies at $t^n$ and the velocity at $t^{n+1}$, $\varepsilon^n_ku^{n+1}$, the internal
-energy flux of the mixture as their sum and the pressure flux as $\bar p^{\,n+1}u^{n+1}$. So that the implicit step contains the whole
+energy flux of the mixture as their sum and the pressure fluxes as $\bar p^{\,n+1}$ and $\bar p^{\,n+1}u^{n+1}$. So that the implicit step contains the whole
 acoustic coupling, the mass fluxes are evaluated in the same way, $m^n_ku^{n+1}$; the momentum and the kinetic energy are carried
 with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$. These fluxes are split into an old-velocity part and an
 increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$: the first part is evaluated in the explicit step together with the advective fluxes, so that the masses and the internal energies receive the same

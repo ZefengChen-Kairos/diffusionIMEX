@@ -52,7 +52,8 @@
   {\textbf{2. Face coefficients} on $X^*$, frozen over the stage\\ $u_f$, $p_f$ affine in the adjacent $P$; weight $\varphi$, factors $\psi$};
 \node[step, below=5mm of s2] (s3)
   {\textbf{Newton iteration for the cell pressures $P$}\\[1pt]
-   3. face velocity and pressure with implicit Laplace dissipation;\\
+   3. face velocity with implicit pressure Laplace term;\\
+   \phantom{3. }face pressure with explicit velocity Laplace term on $u^*$;\\
    \phantom{3. }upwind incremental fluxes $\Rightarrow$ $X^{\rm tr}$, $s$, $\rho\mathbf u$, $E$, $(\rho e)^C$\\
    4. local closure $\Rightarrow$ $\bar p^{\rm cl}$, phase states\\
    5. Newton update of $G(P)=\bar p^{\rm cl}-P$\\[1pt]

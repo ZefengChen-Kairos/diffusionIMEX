@@ -69,7 +69,7 @@ stiffened gas with $\gamma=4.4$, $\pi=6\times10^8$\,Pa, air an ideal gas with $\
 $p=10^5$\,Pa, $\rho_{\rm water}=1000$, $\rho_{\rm air}=10$, and $\alpha_{\rm water}=1-10^{-8}$ for $x<0.5$, $10^{-8}$ otherwise. The
 computation uses 200 cells and ends at $t=2.79$\,ms, when the interface is at $x=0.779$. Two low-Mach variants follow
 Schropff et al.\ \cite{Schropff2026}: the same fluids with $u=1$\,m/s, $\rho_{\rm air}=0.01$, $\alpha_{\rm water}=1-10^{-7}$ for $x<0.25$ and $10^{-7}$
-otherwise, $t_{\rm end}=0.25$\,s ($M=|u|/c$ between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water); and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
+otherwise, $t_{\rm end}=0.25$\,s, so that $M=|u|/c$ lies between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water; and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
 and $\rho=0.01$ otherwise, $u=1$\,m/s, $p=10^5$\,Pa, $t_{\rm end}=0.5$\,s, so that $M$ ranges from $2.7\times10^{-4}$ to
 $8.5\times10^{-2}$. Both use 200 and 1000 cells. In all three cases uniform velocity and pressure must be preserved
 (Proposition~\ref{prop:wb}).
@@ -102,7 +102,7 @@ two rarefactions & air & $(1,\ -1,\ 0.4)$ & $(1,\ 1,\ 0.4)$ & 0.15 \\
 % ---------------------------------------------------------------------
 \subsubsection{Shock tubes with mechanical relaxation}
 \label{sec:res_shock}
-The following Riemann problems on $[0,1]$ (on $[-10,10]$ for the detonation products) with transmissive boundaries
+The following Riemann problems on $[0,1]$, or $[-10,10]$ for the detonation products, with transmissive boundaries
 are computed with the $p$ relaxation and compared with the exact solution of the five-equation model. The fluids are
 at rest initially.
 
@@ -175,8 +175,8 @@ boundaries both phases are ideal gases with $\gamma=1.4$, and
 \rho_1=\rho_2=1,\qquad u=\sin x\cos y,\qquad v=-\cos x\sin y,\qquad p_1=p_2=p_0+\tfrac14(\cos2x+\cos2y),
 \label{eq:tg}
 \end{equation}
-a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
-case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
+a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ in the single-phase
+case and $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ in the two-phase case. The background pressure
 $p_0=10^2,10^4,\dots,10^{12}$ gives $M=1/\sqrt{1.4\,p_0}$ from $8.45\times10^{-2}$ to $8.45\times10^{-7}$. On a $50\times50$ grid the
 solution is computed to $t=0.2$ with the fixed time step $\Delta t=2.5\times10^{-3}$, independent of $M$; the order of
 accuracy is measured for $p_0=10^6$ and $10^{10}$ on $N=32,\dots,256$ with $\Delta t=0.08/N$. Both computations are made with
@@ -207,8 +207,8 @@ $p$ relaxation, global Rusanov speed.
 A dodecane vapour bubble in liquid dodecane is compressed by a piston \cite[Sec.~5.4]{PelantiShyue2014}. Dodecane is SG
 with liquid $(2.35,\ 4\times10^8,\ -775.269\times10^3,\ 0,\ 1077.7)$ and vapour $(1.025,\ 0,\ -237.547\times10^3,\ -24.4\times10^3,\ 1956.45)$. On $[0,1]^2$ a bubble of radius 0.2 is centred at $(0.5,0.5)$;
 initially $p=10^5$\,Pa and $T=600$\,K, so $\rho_l=458.338$ and $\rho_v=3.408$, with $\alpha_l=10^{-6}$ inside the bubble and
-$\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$ (the grid
-is fixed, and the wall boundary condition imposes this normal velocity). $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
+$\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$; the grid
+is fixed and the wall boundary condition imposes this normal velocity. $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
 $p$--$pT$--$pTg$ relaxation, global Rusanov speed.
 
 % ---------------------------------------------------------------------

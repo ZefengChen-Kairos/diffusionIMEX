@@ -1,0 +1,411 @@
+% Version 14 of the author's cas-sc copy: every change against the copy as pasted on 2026-10-27.
+% Each block: the earlier lines as comments (% OLD:), then the new lines. Files: main.tex and figs/scheme.tex.
+
+% ===== main.tex, old lines 30-30, new lines 30-30
+% OLD: \usepackage[authoryear,longnamesfirst]{natbib}
+\usepackage[numbers,sort&compress]{natbib}
+
+% ===== main.tex, old lines 241-241, new lines 241-241
+% OLD: and Re \cite{SirianniRe2026} are explicit Godunov-type. They
+and Re \cite{SirianniRe2026} are explicit Godunov-type schemes. They
+
+% ===== main.tex, old lines 247-247, new lines 247-247
+% OLD: all variables. whose convergence is
+all variables, whose convergence is
+
+% ===== main.tex, old lines 254-254, new lines 254-254
+% OLD: versions split the flux into a convective part with flow-velocity eigenvalues and a pressure part carrying the acoustic
+versions split the flux into a convective part, whose eigenvalues are the flow velocity or zero, and a pressure part carrying the acoustic
+
+% ===== main.tex, old lines 315-318, new lines 315-319
+% OLD: The discretisation follows a Zha--Bilgen splitting \cite{ZhaBilgen1993}. The explicit step transports all quantities
+% OLD: with the flow velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006} with material-speed
+% OLD: dissipation. The implicit step carries the pressure, its work on each phase and an incremental flux of the
+% OLD: conservative transported quantities. Its central operator is supplemented by Laplace dissipation of pressure and
+The discretisation follows the Toro--V\'azquez-Cend\'on splitting \cite{ToroVazquez2012}, with the mass and internal energy
+fluxes evaluated at the new velocity. The explicit step transports all quantities with the flow velocity by the
+path-conservative Rusanov scheme \cite{Pares2006,Castro2006} with material-speed dissipation. The implicit step carries
+the pressure, its work on each phase and the increments of the mass and internal energy fluxes from the old to the new
+velocity. Its central operator is supplemented by Laplace dissipation of pressure and
+
+% ===== main.tex, old lines 490-496, new lines 491-496
+% OLD: To handle the different time scales of the model we split the fluxes in the manner of Zha and Bilgen
+% OLD: \cite{ZhaBilgen1993}, which allows a different time discretisation for each sub-system according to its stiffness: every
+% OLD: quantity is transported by the flow velocity in one sub-system, and the pressure, its work and the relaxation terms form
+% OLD: the other. The terms of \eqref{eq:general} are separated into the advective part, which transports every component of
+% OLD: $\mathbf U$ with the flow velocity, including the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction, and the
+% OLD: pressure--relaxation part, which contains the pressure flux $\mathbf F^p$, the pressure work of each phase $\mathbf B^p\partial_xu$ and the relaxation terms.
+% OLD: Explicitly,
+To handle the different time scales of the model we split the fluxes in the manner of Toro and V\'azquez-Cend\'on
+\cite{ToroVazquez2012}, which allows a different time discretisation for each sub-system according to its stiffness. The terms
+of \eqref{eq:general} are separated into the advective part, which transports the masses, the momentum and the kinetic
+energy with the flow velocity and contains the non-conservative advection $u\,\partial_x\alpha_1$ of the volume fraction, and the
+pressure--relaxation part, which contains the pressure flux, the internal energy fluxes of the phases with their pressure work
+$\mathbf B^p\partial_xu$, the enthalpy flux of the mixture and the relaxation terms. Explicitly,
+
+% ===== main.tex, old lines 499-499, new lines 499-499
+% OLD: \mathbf F^c(\mathbf U)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ \varepsilon_1u\\ \varepsilon_2u\\ Eu\end{bmatrix},\quad
+\mathbf F^c(\mathbf U)=\begin{bmatrix}0\\ m_1u\\ m_2u\\ \rho u^2\\ 0\\ 0\\ \tfrac12\rho u^3\end{bmatrix},\quad
+
+% ===== main.tex, old lines 501-501, new lines 501-501
+% OLD: \mathbf F^p(\mathbf U)=\begin{bmatrix}0\\0\\0\\ \bar p\\0\\0\\ \bar pu\end{bmatrix},\quad
+\mathbf F^p(\mathbf U)=\begin{bmatrix}0\\0\\0\\ \bar p\\ \varepsilon_1u\\ \varepsilon_2u\\ \big(E-\tfrac12\rho u^2+\bar p\big)u\end{bmatrix},\quad
+
+% ===== main.tex, old lines 528-528, new lines 528-528
+% OLD: \partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\
+\partial_t\mathbf Q+\mathbf A^c(\mathbf Q)\,\partial_x\mathbf Q=\mathbf 0,\\
+
+% ===== main.tex, old lines 534-538, new lines 534-538
+% OLD: 0&0&0&\rho_1\kappa_1&u&0&0\\
+% OLD: 0&0&0&\rho_2\kappa_2&0&u&0\\
+% OLD: 0&0&0&K^c&0&0&u
+% OLD: \end{bmatrix},\qquad
+% OLD: K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k}{\sum_k\alpha_k/\Gamma_k},
+\ast&\ast&0&\rho_1(\kappa_1-\Gamma_1e_1)&0&0&0\\
+\ast&0&\ast&\rho_2(\kappa_2-\Gamma_2e_2)&0&0&0\\
+\ast&\ast&\ast&K^c&0&0&0
+\end{bmatrix},\\
+K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k-\big(E-\tfrac12\rho u^2\big)}{\sum_k\alpha_k/\Gamma_k},
+
+% ===== main.tex, old lines 542-545, new lines 542-547
+% OLD: since the volume fraction, the velocity and the specific internal energies are advected, the phases are compressed by
+% OLD: the flow at constant specific internal energy, and $E-\tfrac12\rho u^2$, transported conservatively, determines $p$ at the advected
+% OLD: volumes and compressed masses, with $\kappa_k$ and $\Gamma_k$ evaluated at $\rho_k$ and the pressure $p$; for stiffened and Noble--Abel stiffened gases $K^c=\sum_k\alpha_k(p+\gamma_k\pi_k)/(\gamma_k-1)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$.
+% OLD: It admits the eigenvalues
+since the volume fraction and the velocity are advected, the masses are transported at fixed phase internal energies
+$\varepsilon_k$, and the kinetic energy is transported with the mass, so that $E-\tfrac12\rho u^2$ is constant and determines $p$ at the
+advected volumes and transported masses; $\kappa_k$, $\Gamma_k$ and $e_k$ are evaluated at the phase state $\rho_k$, $p_k$ in the rows of $p_k$
+and at $\rho_k$ and the pressure $p$ in $K^c$. The entries $\ast$ are proportional to $u$. For stiffened and Noble--Abel stiffened gases $\kappa_k-\Gamma_ke_k=\Gamma_k\big(b_k(p_k+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)$ and
+$K^c=\sum_km_k\big(b_k(p+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$; both vanish for ideal and stiffened gases
+with $q_k=0$. The last three columns of $\mathbf A^c$ vanish, and the eigenvalues are
+
+% ===== main.tex, old lines 547-547, new lines 549-549
+% OLD: \lambda^c_{1,\dots,7}=u .
+\lambda^c_{1,\dots,4}=u,\qquad \lambda^c_{5,6,7}=0 .
+
+% ===== main.tex, old lines 550-553, new lines 552-554
+% OLD: $\mathbf A^c-u\,\mathbf I$ is nilpotent of rank one, so one eigenvector is missing and the sub-system is weakly hyperbolic, as
+% OLD: the pressureless gas dynamics it contains. The characteristic speed is the flow velocity alone. The volume fraction
+% OLD: is transported only by this sub-system; in the pressure--relaxation sub-system it changes only through the relaxation
+% OLD: terms.
+One eigenvector of the eigenvalue $u$ is missing, and the sub-system is weakly hyperbolic, as the pressureless gas dynamics it contains.
+The characteristic speeds are the flow velocity and zero. The volume fraction is transported only by this sub-system; in
+the pressure--relaxation sub-system it changes only through the relaxation terms.
+
+% ===== main.tex, old lines 562-562, new lines 563-563
+% OLD: \partial_t\mathbf Q+\mathbf A^p(\mathbf Q)\,\partial_x\mathbf Q=\tilde{\mathbf S}(\mathbf Q),
+\partial_t\mathbf Q+\mathbf A^p(\mathbf Q)\,\partial_x\mathbf Q=\tilde{\mathbf S}(\mathbf Q),\\
+
+% ===== main.tex, old lines 568-571, new lines 569-573
+% OLD: 0&0&0&\Gamma_1p_1&0&0&0\\
+% OLD: 0&0&0&\Gamma_2p_2&0&0&0\\
+% OLD: 0&0&0&\bar p\big/\sum_k(\alpha_k/\Gamma_k)&0&0&0
+% OLD: \end{bmatrix},
+\ast&\ast&0&\rho_1\Gamma_1h_1&u&0&0\\
+\ast&0&\ast&\rho_2\Gamma_2h_2&0&u&0\\
+\ast&\ast&\ast&K^p&0&0&u
+\end{bmatrix},\\
+K^p=\frac{E-\tfrac12\rho u^2+\bar p}{\sum_k\alpha_k/\Gamma_k},
+
+% ===== main.tex, old lines 575-578, new lines 577-582
+% OLD: with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$. The fourth row is $\partial_x\bar p/\rho$, $\bar p=\alpha_1p_1+\alpha_2p_2$; each phase keeps its
+% OLD: density and is heated by its pressure work, $\partial_tp_k=-\Gamma_kp_k\,\partial_xu$, and the internal energy $E-\tfrac12\rho u^2$ receives $-\bar p\,\partial_xu$, the flux $\partial_x(\bar pu)$ of the total energy
+% OLD: minus the work $u\,\partial_x\bar p$ on the kinetic energy, at fixed volumes and phase densities. Only the velocity and the phase pressures are
+% OLD: coupled, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^5(\lambda^2-c_{\rm w}^2)$ and the eigenvalues are
+with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$, the coefficients evaluated as in $\mathbf A^c$ and the entries $\ast$ again proportional to $u$. The fourth row is $\partial_x\bar p/\rho$,
+$\bar p=\alpha_1p_1+\alpha_2p_2$; each phase keeps its volume and density, and its pressure changes by the transport of $\varepsilon_k$ and by
+the pressure work, with the coefficient $\rho_k\Gamma_kh_k$ of $\partial_xu$, $h_k$ the specific enthalpy; the internal energy $E-\tfrac12\rho u^2$ receives
+the enthalpy flux of the mixture minus the work $u\,\partial_x\bar p$ on the kinetic energy. The first three rows vanish and the last
+column has only its diagonal entry, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^3(\lambda-u)^2(\lambda^2-u\lambda-c_{\rm h}^2)$ and the
+eigenvalues are
+
+% ===== main.tex, old lines 580-580, new lines 584-587
+% OLD: \lambda^p_{1,\dots,5}=0,\qquad \lambda^p_{6,7}=\pm c_{\rm w},\qquad c_{\rm w}^2=\frac1\rho\sum_k\Gamma_k\alpha_kp_k=\sum_kY_k\,\frac{\Gamma_kp_k}{\rho_k} .
+\begin{gathered}
+\lambda^p_{1,2,3}=0,\qquad\lambda^p_{4,5}=u,\qquad \lambda^p_{6,7}=\tfrac12\Big(u\pm\sqrt{u^2+4c_{\rm h}^2}\Big),\\
+c_{\rm h}^2=\sum_kY_k\Gamma_kh_k .
+\end{gathered}
+
+% ===== main.tex, old lines 583-587, new lines 590-598
+% OLD: The remaining part of the sound speed, $\sum_kY_k\kappa_k$, comes from the compression of the phases by the mass fluxes of the
+% OLD: advective sub-system; the two parts add up to the frozen sound speed, $c_{\rm w}^2+\sum_kY_k\kappa_k=c_f^2$. The
+% OLD: speed $c_{\rm w}$ of the pressure work is small in a liquid at moderate pressure, and $c_{\rm w}^2$ is negative for negative phase
+% OLD: pressures, as in cavitation; the sub-system is never solved on its own but together with the incremental advective fluxes
+% OLD: described below, so that the implicit step carries the whole sound speed, $c_f$ or, with relaxation, that of the active closure.
+For $c_{\rm h}^2>0$, $\lambda^p_6>0>\lambda^p_7$ whatever the flow velocity, as for the Euler equations \cite{ToroVazquez2012}. For ideal and
+stiffened gases with $q_k=0$, $\Gamma_kh_k=c_k^2$, and the pressure--relaxation sub-system carries the whole frozen sound speed. In
+general $c_{\rm h}^2+\sum_kY_k(\kappa_k-\Gamma_ke_k)=c_f^2$, the second part coming from the compression of the phases by the mass fluxes
+of the advective sub-system. Through $h_k$, $c_{\rm h}$ depends on the reference energies of the phases, $q_k$ or $\varepsilon_r$: for the water of
+Sec.~\ref{sec:res_cav} in its initial state $c_{\rm h}=430$\,m/s against $c_f=1569$\,m/s. Where $c_{\rm h}^2<0$, as in this liquid water below $275$\,K
+at $10^5$\,Pa and in the low-pressure initial state of the nitromethane of Sec.~\ref{sec:res_shock}, $\lambda^p_{6,7}$ are complex for $u^2<-4c_{\rm h}^2$
+and the sub-system alone is not hyperbolic. It is never solved on its own but together with the incremental mass fluxes
+described below, so that the implicit step carries the whole sound speed, $c_f$ or, with relaxation, that of the active
+closure.
+
+% ===== main.tex, old lines 592-598, new lines 603-611
+% OLD: and the pressure--relaxation sub-system implicitly. So that the implicit step contains the whole acoustic coupling,
+% OLD: the advective fluxes are evaluated with the velocity of the new time level, written as the old velocity $u^n$ plus an
+% OLD: increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$, the momentum and the kinetic
+% OLD: energy being carried with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$: the first part is the
+% OLD: explicit advective flux, and the incremental fluxes, which depend on the unknown velocity, are solved together with the
+% OLD: pressure--relaxation sub-system in Sec.~\ref{sec:implicit}. Since only the advective eigenvalues enter the explicit stability condition, the time
+% OLD: step depends on the flow velocity alone, independently of the sound speed and of the relaxation rates.
+and the pressure--relaxation sub-system implicitly. As Chen et al.\ \cite{Chen2026} evaluate the enthalpy flux as $h^n(\rho u)^{n+1}$,
+the internal energy fluxes are evaluated with the internal energies at $t^n$ and the velocity at $t^{n+1}$, $\varepsilon^n_ku^{n+1}$, the internal
+energy flux of the mixture as their sum and the pressure fluxes as $\bar p^{\,n+1}$ and $\bar p^{\,n+1}u^{n+1}$. So that the implicit step contains the whole
+acoustic coupling, the mass fluxes are evaluated in the same way, $m^n_ku^{n+1}$; the momentum and the kinetic energy are carried
+with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$. These fluxes are split into an old-velocity part and an
+increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$: the first part is evaluated in the explicit step together with the advective fluxes, so that the masses and the internal energies receive the same
+numerical dissipation, and the increments, which depend on the unknown velocity, are solved together with the
+pressure--relaxation sub-system in Sec.~\ref{sec:implicit}. Since only the flow velocity enters the explicit step, the time step depends
+on the flow velocity alone, independently of the sound speed and of the relaxation rates.
+
+% ===== main.tex, old lines 607-608, new lines 620-621
+% OLD: After the notation, Sec.~\ref{sec:advective} presents the explicit update of the
+% OLD: advective sub-system and Sec.~\ref{sec:implicit} the implicit update of the pressure--relaxation sub-system with its
+After the notation, Sec.~\ref{sec:advective} presents the explicit
+transport and Sec.~\ref{sec:implicit} the implicit update of the pressure--relaxation sub-system with its
+
+% ===== main.tex, old lines 624-624, new lines 637-637
+% OLD: \subsection{Advective sub-system}
+\subsection{Explicit transport}
+
+% ===== main.tex, old lines 626-627, new lines 639-642
+% OLD: The advective sub-system \eqref{eq:advective} transports every quantity with the flow velocity. Its $\alpha_1$ row,
+% OLD: $u\,\partial_x\alpha_1$, is not the derivative of any flux, and the sub-system is discretised by the path-conservative Rusanov scheme
+The explicit step advances the advective sub-system \eqref{eq:advective} together with the old-velocity part of the internal
+energy fluxes of Sec.~\ref{sec:split}, $\varepsilon_ku^n$ and $(E-\tfrac12\rho u^2)u^n$, so that every quantity is transported with the flow velocity
+by the flux $\mathbf F^u(\mathbf U)=u\,(0,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$. The $\alpha_1$ row, $u\,\partial_x\alpha_1$, is not the derivative of
+any flux, and the step is discretised by the path-conservative Rusanov scheme
+
+% ===== main.tex, old lines 632-632, new lines 647-647
+% OLD: \mathbf D^-_{i+1/2}+\mathbf D^+_{i+1/2}=\mathbf F^c(\mathbf U^R)-\mathbf F^c(\mathbf U^L)+\int_0^1\mathbf B^c(\boldsymbol\Psi)\,\partial_\ell\boldsymbol\Psi\,\mathrm d\ell ,
+\mathbf D^-_{i+1/2}+\mathbf D^+_{i+1/2}=\mathbf F^u(\mathbf U^R)-\mathbf F^u(\mathbf U^L)+\int_0^1\mathbf B^c(\boldsymbol\Psi)\,\partial_\ell\boldsymbol\Psi\,\mathrm d\ell ,
+
+% ===== main.tex, old lines 642-642, new lines 657-657
+% OLD: the eigenvalue $u$ of the advective sub-system on the two face states, or its maximum over all faces of the same
+the larger flow speed of the two face states, or its maximum over all faces of the same
+
+% ===== main.tex, old lines 660-661, new lines 675-687
+% OLD: and $G^e$ likewise with $v$. For the row of $\alpha_1$ the path integral is taken along the linear path with the face velocity frozen at the mean
+% OLD: $\bar u_{i+1/2}=\tfrac12(u^L+u^R)$, $\int_0^1u\,\partial_\ell\alpha_1\,\mathrm d\ell=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i})$, and the fluctuation is split
+and $G^e$ likewise with $v$. With the mean face velocity $\bar u_{i+1/2}=\tfrac12(u^L+u^R)$ the speed \eqref{eq:rusanov_speed} is
+$a_{i+1/2}=|\bar u_{i+1/2}|+\tfrac12|u^R-u^L|$, and \eqref{eq:rusanov} is identically
+\begin{equation}
+F^e_{i+1/2}[X]=X^{\uparrow}\,\bar u_{i+1/2}-\tfrac12\big(u^L-u^R\big)^+\big(X^R-X^L\big),
+\label{eq:rusanov_upwind}
+\end{equation}
+with $X^\uparrow=X^L$ for $\bar u_{i+1/2}\ge0$, $X^\uparrow=X^R$ otherwise, and $(\cdot)^+=\max(\cdot,0)$. The first term transports $X$ with the mean face velocity
+from its upwind side, the second is a dissipation acting only at compressive faces, $u^L>u^R$. With the maximum $a_\Omega$ of
+\eqref{eq:rusanov_speed} over the faces of the same direction, the dissipation coefficient is
+$\tfrac12(a_\Omega-|\bar u_{i+1/2}|)-\tfrac14(u^R-u^L)\ge\tfrac12(u^L-u^R)^+$.
+For the row of $\alpha_1$ the path integral is taken between the cell values $\alpha_{1,i}$ and $\alpha_{1,i+1}$, also for second-order face
+values, along the linear path with the face velocity frozen at the mean
+$\bar u_{i+1/2}$, $\int_0^1u\,\partial_\ell\alpha_1\,\mathrm d\ell=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i})$, and the fluctuation is split
+
+% ===== main.tex, old lines 700-700, new lines 726-727
+% OLD: the phase content. The shared factor is therefore limited further, for every phase and both functionals,
+the phase content. The shared factor is therefore limited further, for every stiffened or Noble--Abel stiffened phase with $L_i>0$ and both
+functionals,
+
+% ===== main.tex, old lines 708-708, new lines 735-735
+% OLD: The time step is given by the CFL condition of the advective sub-system,
+The time step is given by the CFL condition of the explicit transport,
+
+% ===== main.tex, old lines 721-721, new lines 748-749
+% OLD: All contributions of the pressure--relaxation sub-system are treated implicitly and solved together, within a single step, as follows:
+The pressure flux, the pressure work and the relaxation terms, together with the increments of the mass and internal energy
+fluxes, are treated implicitly and solved together, within a single step, as follows:
+
+% ===== main.tex, old lines 734-734, new lines 762-763
+% OLD: With the incremental fluxes of Sec.~\ref{sec:split}, the semi-discrete form of \eqref{eq:pressure_sub} is
+With the incremental fluxes of Sec.~\ref{sec:split}, the semi-discrete implicit step, \eqref{eq:pressure_sub} without the old-velocity part of
+its internal energy fluxes and with the incremental mass fluxes, is
+
+% ===== main.tex, old lines 810-810, new lines 839-840
+% OLD: face pressure contributes $\tau\,\mathbb L(\eta^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
+face pressure contributes $\tau\,\mathbb L(\eta^u,u^*)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances, acting on
+the velocity of $X^*$; the
+
+% ===== main.tex, old lines 812-812, new lines 842-843
+% OLD: \eqref{eq:wave} it contributes $\tau K^W\mathbb L(\eta^P,P)$, with $K^W\eta^P=\tfrac12c\Delta x$ for equal impedances and $c_p=c_f=c$. Both terms are implicit, so that they do not restrict the time step \eqref{eq:cfl}. In two dimensions the
+\eqref{eq:wave} it contributes $\tau K^W\mathbb L(\eta^P,P)$, with $K^W\eta^P=\tfrac12c\Delta x$ for equal impedances and $c_p=c_f=c$. The pressure term is implicit; the velocity term is explicit,
+with the diffusion number $\tfrac12\varphi_f\psi^u_fc\tau/\Delta x\le\tfrac18$ by \eqref{eq:weight}, so that neither restricts the time step \eqref{eq:cfl}. In two dimensions the
+
+% ===== main.tex, old lines 825-825, new lines 856-856
+% OLD: The face sweeps $u_f\tau$ during the step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f=\bar u_{i+1/2}$ of \eqref{eq:pc_rusanov}; the
+The face sweeps $u_f\tau$ during the step, of which the explicit flux has already swept $\bar u^e_f\tau$, $\bar u^e_f=\bar u_{i+1/2}$ of \eqref{eq:rusanov_upwind}; the
+
+% ===== main.tex, old lines 832-832, new lines 863-866
+% OLD: with $(\cdot)^+=\max(\cdot,0)$ and $(\cdot)^-=\min(\cdot,0)$.
+with $(\cdot)^-=\min(\cdot,0)$. Added to the explicit flux \eqref{eq:rusanov_upwind}, the increment gives the flux of the step,
+$X^L_f(u_f)^++X^R_f(u_f)^--d_f(X^R_f-X^L_f)$ with $d_f$ the dissipation coefficient of the explicit flux given after \eqref{eq:rusanov_upwind}: $m_k$ and $\varepsilon_k$ are transported by the
+face velocity $u_f$ from its upwind side with the face values of the explicit state, $\varepsilon_ku_f$ being the internal energy flux of the
+pressure--relaxation sub-system, and the explicit step contributes their common dissipation.
+
+% ===== main.tex, old lines 1030-1030, new lines 1064-1065
+% OLD: jumps where $\delta(P)$ crosses a break point, by an amount that vanishes at a solution.
+jumps where $\delta(P)$ crosses a break point, by an amount that vanishes at a solution of the closures with a common pressure
+and is of order $sR(p_1-p_2)$ for finite $\mu$.
+
+% ===== main.tex, old lines 1070-1071, new lines 1105-1108
+% OLD: with $A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0+\xi_k$, unique where $c_k^2>0$ on the bracket and found by a Newton iteration in $\alpha$ safeguarded by
+% OLD: bisection in $\ln\alpha$. A stiffened or Noble--Abel stiffened partner phase is admitted only where $N_k>0$, and the outer
+with $A_k=\varepsilon^{\rm tr}_k+\lambda_kD_0+\xi_k$, unique where $c_k^2>0$ on the bracket. The bracket is searched on the branch
+$c_k^2>0$, on which $f_k$ is increasing: an initial volume with $c_k^2\le0$, as for a trace phase that has received mass and energy
+without volume, is first doubled until $c_k^2>0$. The root is found by a Newton iteration in $\alpha$ safeguarded by bisection
+in $\ln\alpha$. A stiffened or Noble--Abel stiffened partner phase is admitted only where $N_k>0$, and the outer
+
+% ===== main.tex, old lines 1184-1184, new lines 1221-1221
+% OLD: phases are compressed at constant specific internal energy, as in the advective sub-system \eqref{eq:advective}.
+phases are compressed at constant specific internal energy, $m_k$ and $\varepsilon_k$ being transported by the same linear Rusanov operator with a shared limiter.
+
+% ===== main.tex, old lines 1266-1266, new lines 1303-1303
+% OLD: time linearisation introduced by the splitting, explicit velocity in the advective fluxes and implicit velocity
+time linearisation introduced by the splitting, explicit velocity in the transport fluxes and implicit velocity
+
+% ===== main.tex, old lines 1272-1272, new lines 1309-1309
+% OLD: where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the state on which the advective sub-system
+where $\mathcal H$ is the spatial discretisation of the split system, $\mathbf U_E$ the state on which the explicit transport
+
+% ===== main.tex, old lines 1291-1291, new lines 1328-1328
+% OLD: $\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the implicit step is $\tau=a_{ii}\Delta t$, giving the stage
+$\mathbf U_{E,i}$, the update starts from $\tilde{\mathbf U}_{I,i}$ instead of $\mathbf U^n$, and the step, explicit transport included, has the length $\tau=a_{ii}\Delta t$, giving the stage
+
+% ===== main.tex, old lines 1302-1302, new lines 1339-1339
+% OLD: \begin{figure}[H]
+\begin{figure}[p]
+
+% ===== main.tex, old lines 1304-1307, new lines 1341-1344
+% OLD: \resizebox*{!}{0.9\textheight}{\input{figs/scheme}}
+% OLD: \caption{Schematic of the semi-implicit scheme. The Zha--Bilgen splitting separates the advective
+% OLD: sub-system, advanced explicitly by the path-conservative Rusanov scheme with the material speed, from the
+% OLD: pressure--relaxation sub-system, solved implicitly together with the incremental fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
+\resizebox*{!}{0.88\textheight}{\input{figs/scheme}}
+\caption{Schematic of the semi-implicit scheme. The Toro--V\'azquez-Cend\'on splitting separates the advective
+sub-system, advanced explicitly with the old-velocity part of the internal energy fluxes, from the pressure--relaxation
+sub-system, solved implicitly with the increments of the mass and internal energy fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
+
+% ===== main.tex, old lines 1322-1322, new lines 1359-1359
+% OLD: \item \emph{Explicit advective sub-system.} The face values are reconstructed on $\mathbf U^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
+\item \emph{Explicit transport.} The face values are reconstructed on $\mathbf U^e$ by \eqref{eq:shared_limiter} with the cap \eqref{eq:phi_cap}, and every
+
+% ===== main.tex, old lines 1343-1343, new lines 1380-1380
+% OLD: with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a boundary the
+with $\Theta_f=\tau/(\bar\rho_f h)+\eta^P_f/h$, $W_f=\rho^*_R/(\rho^*_L+\rho^*_R)$ and $\varpi_f=\eta^u_fD^*_f/h$, $h=\Delta x$ or $\Delta y$. At a non-periodic boundary the
+
+% ===== main.tex, old lines 1345-1345, new lines 1382-1382
+% OLD: boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$.
+boundaries and their mirror image at walls, with the normal velocity $2u_w-u$ for a wall velocity $u_w$; on a wall face $u_f=u_w$. At periodic boundaries the ghost cells and their pressures are those of the opposite side.
+
+% ===== main.tex, old lines 1408-1408, new lines 1445-1445
+% OLD: Sec.~\ref{sec:pressure_system}; the first time step is an acoustic step with Courant number $0.4$. Thermal and chemical relaxation
+Sec.~\ref{sec:pressure_system} and the start-up rule of Sec.~\ref{sec:time}. Thermal and chemical relaxation
+
+% ===== main.tex, old lines 1459-1459, new lines 1496-1496
+% OLD: otherwise, $t_{\rm end}=0.25$\,s ($M=|u|/c$ between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water); and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
+otherwise, $t_{\rm end}=0.25$\,s, so that $M=|u|/c$ lies between $2.7\times10^{-4}$ in the air and $6\times10^{-4}$ in the water; and a single gas, air, with a density step $\rho=1000$ for $x<0.25$
+
+% ===== main.tex, old lines 1492-1492, new lines 1529-1529
+% OLD: The following Riemann problems on $[0,1]$ (on $[-10,10]$ for the detonation products) with transmissive boundaries
+The following Riemann problems on $[0,1]$, or $[-10,10]$ for the detonation products, with transmissive boundaries
+
+% ===== main.tex, old lines 1533-1533, new lines 1570-1570
+% OLD: Dodecane is NASG with liquid $(1.206,\ 1.681\times10^8,\ -996054,\ 0,\ 2532,\ 7.51\times10^{-4})$ and vapour
+Dodecane is NASG with liquid $(1.206,\allowbreak\ 1.681\times10^8,\allowbreak\ -996054,\allowbreak\ 0,\allowbreak\ 2532,\allowbreak\ 7.51\times10^{-4})$ and vapour
+
+% ===== main.tex, old lines 1566-1567, new lines 1603-1604
+% OLD: a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ (single-phase
+% OLD: case) or $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ (two-phase case). The background pressure
+a stationary solution of the incompressible Euler equations \cite{TaylorGreen1937}. The volume fraction is $\alpha_2=\tfrac12$ in the single-phase
+case and $\alpha_2=\tfrac12+\tfrac1{10}(\cos2x+\cos2y)$ in the two-phase case. The background pressure
+
+% ===== main.tex, old lines 1589-1589, new lines 1626-1626
+% OLD: bottom and top boundaries are walls and the right boundary is transmissive. $300\times100$ cells (the grid of Pelanti and Shyue \cite[Sec.~5.3]{PelantiShyue2014}), $t_{\rm end}=8.6$\,ms,
+bottom and top boundaries are walls and the right boundary is transmissive. $300\times100$ cells, the grid of Pelanti and Shyue \cite[Sec.~5.3]{PelantiShyue2014}, $t_{\rm end}=8.6$\,ms,
+
+% ===== main.tex, old lines 1598-1599, new lines 1635-1636
+% OLD: $\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$ (the grid
+% OLD: is fixed, and the wall boundary condition imposes this normal velocity). $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
+$\alpha_v=10^{-6}$ outside, at rest. All boundaries are walls; the left wall moves with velocity $100$\,m/s in $+x$; the grid
+is fixed and the wall boundary condition imposes this normal velocity. $200\times200$ cells, $t_{\rm end}=1.2$\,ms,
+
+% ===== main.tex, old lines 1609-1609, new lines 1646-1646
+% OLD: boundaries elsewhere. $361\times200$ cells (half the resolution of \cite{Pelanti2022}), $t_{\rm end}=0.4$\,ms, $p$ relaxation; the pressure is recorded at the wall
+boundaries elsewhere. $361\times200$ cells, half the resolution of \cite{Pelanti2022}, $t_{\rm end}=0.4$\,ms, $p$ relaxation; the pressure is recorded at the wall
+
+% ===== main.tex, old lines 1619-1620, new lines 1656-1657
+% OLD: two-phase model with total energy and mechanical, thermal and chemical relaxation, for stiffened-gas,
+% OLD: Noble--Abel stiffened-gas and Mie--Gr\"uneisen equations of state, in one and two space dimensions.
+two-phase model with total energy, for stiffened-gas and Noble--Abel stiffened-gas phases with mechanical, thermal and
+chemical relaxation and for Mie--Gr\"uneisen phases with instantaneous mechanical relaxation, in one and two space dimensions.
+
+% ===== main.tex, old lines 1624-1628, new lines 1661-1665
+% OLD: finite or infinite rate, a slower process being active only when the faster ones are instantaneous \cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation for the
+% OLD: cell pressure; each stage then reduces to a mildly nonlinear system for the cell pressures with a three-point
+% OLD: (five-point in 2D) Jacobian, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
+% OLD: the Mach number and the relaxation rates. We have proved that, under non-degeneracy assumptions, the scheme converges
+% OLD: to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme without that
+finite or infinite rate, a slower process being active only when the faster ones are instantaneous \cite{Pelanti2022}, enter one local closure per cell, which reduces to a scalar equation in the
+cell pressure or, for finite mechanical relaxation, in the volume increment; each stage then reduces to a nonlinear system
+for the cell pressures with a three-point Jacobian, five-point in 2D, solved by Newton's method. The time step is restricted by the flow velocity only, whatever
+the Mach number and the relaxation rates. We have proved that, at fixed mesh and under non-degeneracy assumptions, the scheme converges, for data on the
+equilibrium manifold, to the corresponding equilibrium scheme as each relaxation rate tends to infinity and reduces to the scheme without that
+
+% ===== main.tex, old lines 1634-1635, new lines 1671-1672
+% OLD: reduces to the unique consistent local share, and the discretisation error with the unique share that keeps both phases
+% OLD: admissible for every defect. No calibrated heat exchange is needed.
+reduces to the unique consistent local share, and the discretisation error with the unique linear share that keeps both phases
+admissible whenever possible. No calibrated heat exchange is needed.
+
+% ===== main.tex, old lines 1637-1642, new lines 1674-1681
+% OLD: The flux is split following Zha and Bilgen: all quantities are transported explicitly with the old velocity by the
+% OLD: path-conservative Rusanov scheme, whose dissipation speed is the material speed, the volume fraction being advected
+% OLD: entirely in this step, while the pressure, its work on each phase and an incremental flux of the conservative transported
+% OLD: quantities are treated implicitly. The central implicit operator is supplemented by implicit Laplace dissipation of the
+% OLD: pressure and the velocity with acoustic coefficients, weighted by the deficit of the implicit viscosity with respect to
+% OLD: the upwind one, so that it vanishes in the low Mach number regime, and limited to first order at local extrema while second order in smooth regions. Second
+The flux is split following Toro and V\'azquez-Cend\'on, with the mass and internal energy fluxes evaluated at the new
+velocity: all quantities are transported explicitly with the old velocity by the path-conservative Rusanov scheme, whose
+dissipation speed is the material speed, the volume fraction being advected entirely in this step, while the pressure,
+its work on each phase and the increments of the mass and internal energy fluxes from the old to the new velocity are
+treated implicitly. The central implicit operator is supplemented by Laplace dissipation of the
+pressure and the velocity with acoustic coefficients, weighted by the deficit of the backward-Euler viscosity with respect to
+the upwind one, so that it vanishes in the low Mach number regime; it is first order at local extrema and second order in
+smooth regions. Second
+
+% ===== main.tex, old lines 1644-1644, new lines 1683-1684
+% OLD: preserves moving contacts and the phase temperatures under transport.
+preserves moving contacts between stiffened-gas or Noble--Abel stiffened-gas phases, at uniform temperature when thermal or
+chemical relaxation is active.
+
+% ===== main.tex, old lines 1646-1648, new lines 1686-1689
+% OLD: The numerical results confirm these properties: second-order convergence on a smooth two-phase vortex, a Newton
+% OLD: iteration count and a time step independent of the Mach number, face velocities that are discretely divergence-free to
+% OLD: $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex, and agreement with exact solutions and reference results
+The numerical results confirm these properties: second-order convergence of the velocity and the volume fraction on a
+smooth two-phase vortex at Mach numbers from $2.4$ to $0.024$, and of the pressure for well-prepared data, face velocities
+that are discretely divergence-free to $O(M^2)$ down to $M\approx10^{-6}$ on the Taylor--Green vortex with a time step
+independent of the Mach number, and agreement with exact solutions and reference results
+
+% ===== main.tex, old lines 1650-1650, new lines 1691-1691
+% OLD: two-dimensional shock--bubble, Richtmyer--Meshkov, bubble-collapse and underwater-explosion problems, at instantaneous
+two-dimensional shock--bubble, Richtmyer--Meshkov, vapour-bubble compression and underwater-explosion problems, at instantaneous
+
+% ===== figs/scheme.tex, old lines 31-31, new lines 31-31
+% OLD:    {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed;\\ $\alpha_1$ advected entirely}};
+   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed, flux $\mathbf F^u$;\\ $\alpha_1$ advected entirely}};
+
+% ===== figs/scheme.tex, old lines 35-35, new lines 35-35
+% OLD:    {\fontsize{7pt}{8.4pt}\selectfont $+$ incremental fluxes $X(u^{n+1}-u^n)$;\\ pressure work $+$ relaxations\\ in one local closure}};
+   {\fontsize{7pt}{8.4pt}\selectfont $\varepsilon_ku$, $m_ku$ as increments $X(u^{n+1}-u^n)$;\\ pressure work $+$ relaxations\\ in one local closure}};
+
+% ===== figs/scheme.tex, old lines 49-49, new lines 49-49
+% OLD:   {\textbf{1. Explicit advective sub-system} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
+  {\textbf{1. Explicit transport} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
+
+% ===== figs/scheme.tex, old lines 55-55, new lines 55-56
+% OLD:    3. face velocity and pressure with implicit Laplace dissipation;\\
+   3. face velocity with implicit pressure Laplace term;\\
+   \phantom{3. }face pressure with explicit velocity Laplace term on $u^*$;\\
+
