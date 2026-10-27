@@ -204,15 +204,15 @@ K^c=\frac{\sum_k\alpha_k\rho_k\kappa_k/\Gamma_k-\big(E-\tfrac12\rho u^2\big)}{\s
 \end{equation}
 since the volume fraction and the velocity are advected, the masses are transported at fixed phase internal energies
 $\varepsilon_k$, and the kinetic energy is transported with the mass, so that $E-\tfrac12\rho u^2$ is constant and determines $p$ at the
-advected volumes and transported masses, with $\kappa_k$ and $\Gamma_k$ evaluated at $\rho_k$ and the pressure $p$. The entries $\ast$ are
-proportional to $u$. For stiffened and Noble--Abel stiffened gases $\kappa_k-\Gamma_ke_k=\Gamma_k\big(b_k(p_k+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)$ and
+advected volumes and transported masses; $\kappa_k$, $\Gamma_k$ and $e_k$ are evaluated at the phase state $\rho_k$, $p_k$ in the rows of $p_k$
+and at $\rho_k$ and the pressure $p$ in $K^c$. The entries $\ast$ are proportional to $u$. For stiffened and Noble--Abel stiffened gases $\kappa_k-\Gamma_ke_k=\Gamma_k\big(b_k(p_k+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)$ and
 $K^c=\sum_km_k\big(b_k(p+\gamma_k\pi_k)/(\gamma_k-1)-q_k\big)\big/\sum_k(\alpha_k-m_kb_k)/(\gamma_k-1)$; both vanish for ideal and stiffened gases
 with $q_k=0$. The last three columns of $\mathbf A^c$ vanish, and the eigenvalues are
 \begin{equation}
 \lambda^c_{1,\dots,4}=u,\qquad \lambda^c_{5,6,7}=0 .
 \label{eq:eig_adv}
 \end{equation}
-One eigenvector of $u$ is missing and the sub-system is weakly hyperbolic, as the pressureless gas dynamics it contains.
+One eigenvector of the eigenvalue $u$ is missing, and the sub-system is weakly hyperbolic, as the pressureless gas dynamics it contains.
 The characteristic speeds are the flow velocity and zero. The volume fraction is transported only by this sub-system; in
 the pressure--relaxation sub-system it changes only through the relaxation terms.
 \item The pressure--relaxation sub-system is
@@ -237,36 +237,38 @@ K^p=\frac{E-\tfrac12\rho u^2+\bar p}{\sum_k\alpha_k/\Gamma_k},
 \end{gathered}
 \label{eq:Ap}
 \end{equation}
-with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$ and the entries $\ast$ again proportional to $u$. The fourth row is $\partial_x\bar p/\rho$,
+with $\tilde{\mathbf S}=(\partial\mathbf Q/\partial\mathbf U)\,\mathbf S$, the coefficients evaluated as in $\mathbf A^c$ and the entries $\ast$ again proportional to $u$. The fourth row is $\partial_x\bar p/\rho$,
 $\bar p=\alpha_1p_1+\alpha_2p_2$; each phase keeps its volume and density, and its pressure changes by the transport of $\varepsilon_k$ and by
-the pressure work, with the coefficient $\rho_k\Gamma_kh_k$ of $\partial_xu$, $h_k=e_k+p_k/\rho_k$; the internal energy $E-\tfrac12\rho u^2$ receives
+the pressure work, with the coefficient $\rho_k\Gamma_kh_k$ of $\partial_xu$, $h_k$ the specific enthalpy; the internal energy $E-\tfrac12\rho u^2$ receives
 the enthalpy flux of the mixture minus the work $u\,\partial_x\bar p$ on the kinetic energy. The first three rows vanish and the last
-column has only its diagonal entry, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^3(\lambda-u)^2(\lambda^2-u\lambda-c_h^2)$ and the
+column has only its diagonal entry, so the characteristic polynomial of $\mathbf A^p$ is $\lambda^3(\lambda-u)^2(\lambda^2-u\lambda-c_{\rm h}^2)$ and the
 eigenvalues are
 \begin{equation}
 \begin{gathered}
-\lambda^p_{1,2,3}=0,\qquad\lambda^p_{4,5}=u,\qquad \lambda^p_{6,7}=\tfrac12\Big(u\pm\sqrt{u^2+4c_h^2}\Big),\\
-c_h^2=\sum_kY_k\Gamma_kh_k .
+\lambda^p_{1,2,3}=0,\qquad\lambda^p_{4,5}=u,\qquad \lambda^p_{6,7}=\tfrac12\Big(u\pm\sqrt{u^2+4c_{\rm h}^2}\Big),\\
+c_{\rm h}^2=\sum_kY_k\Gamma_kh_k .
 \end{gathered}
 \label{eq:eig_p}
 \end{equation}
-For $c_h^2>0$, $\lambda^p_6>0>\lambda^p_7$ whatever the flow velocity, as for the Euler equations \cite{ToroVazquez2012}. For ideal and
+For $c_{\rm h}^2>0$, $\lambda^p_6>0>\lambda^p_7$ whatever the flow velocity, as for the Euler equations \cite{ToroVazquez2012}. For ideal and
 stiffened gases with $q_k=0$, $\Gamma_kh_k=c_k^2$, and the pressure--relaxation sub-system carries the whole frozen sound speed. In
-general $c_h^2+\sum_kY_k(\kappa_k-\Gamma_ke_k)=c_f^2$, the second part coming from the compression of the phases by the mass fluxes
-of the advective sub-system, and $c_h$ depends on the reference energies $q_k$: for the liquid water of Sec.~\ref{sec:res_cav} in its
-initial state $c_h=430$\,m/s and $c=1569$\,m/s, and $c_h^2<0$ where $h_k<0$, for this water below $275$\,K at $10^5$\,Pa. The
-sub-system is never solved on its own but together with the incremental mass fluxes described below, so that the
-implicit step carries the whole sound speed, $c_f$ or, with relaxation, that of the active closure.
+general $c_{\rm h}^2+\sum_kY_k(\kappa_k-\Gamma_ke_k)=c_f^2$, the second part coming from the compression of the phases by the mass fluxes
+of the advective sub-system. Through $h_k$, $c_{\rm h}$ depends on the reference energies of the phases, $q_k$ or $\varepsilon_r$: for the water of
+Sec.~\ref{sec:res_cav} in its initial state $c_{\rm h}=430$\,m/s against $c_f=1569$\,m/s. Where $c_{\rm h}^2<0$, as in this liquid water below $275$\,K
+at $10^5$\,Pa and in the low-pressure initial state of the nitromethane of Sec.~\ref{sec:res_shock}, $\lambda^p_{6,7}$ are complex for $u^2<-4c_{\rm h}^2$
+and the sub-system alone is not hyperbolic. It is never solved on its own but together with the incremental mass fluxes
+described below, so that the implicit step carries the whole sound speed, $c_f$ or, with relaxation, that of the active
+closure.
 \end{enumerate}
 In the low Mach number regime the acoustic coupling of the two sub-systems is fast compared with the transport, which
 introduces severe stiffness associated with the pressure terms, in addition to the stiffness of the relaxation rates.
 The advective sub-system is therefore treated explicitly, with a numerical dissipation proportional to the flow velocity,
-and the pressure--relaxation sub-system implicitly. The internal energy fluxes are evaluated with the internal energies
-of the explicit state and the velocity of the new time level, $\varepsilon_ku^{n+1}$, as the enthalpy flux in \cite{Chen2026}, and so that the
-implicit step contains the whole acoustic coupling, the mass fluxes are evaluated in the same way, $m_ku^{n+1}$, the momentum and
-the kinetic energy being carried with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$. Both are written as
-the old velocity plus an increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$: the first part is evaluated
-in the explicit step together with the advective fluxes, so that the masses and the internal energies receive the same
+and the pressure--relaxation sub-system implicitly. As Chen et al.\ \cite{Chen2026} evaluate the enthalpy flux as $h^n(\rho u)^{n+1}$,
+the internal energy fluxes are evaluated with the internal energies at $t^n$ and the velocity at $t^{n+1}$, $\varepsilon^n_ku^{n+1}$, the internal
+energy flux of the mixture as their sum and the pressure flux as $\bar p^{\,n+1}u^{n+1}$. So that the implicit step contains the whole
+acoustic coupling, the mass fluxes are evaluated in the same way, $m^n_ku^{n+1}$; the momentum and the kinetic energy are carried
+with the new velocity by the incremental mass flux $\sum_km_k(u^{n+1}-u^n)$. These fluxes are split into an old-velocity part and an
+increment, $Xu^{n+1}=Xu^n+X(u^{n+1}-u^n)$ for $X\in\{m_1,m_2,\varepsilon_1,\varepsilon_2\}$: the first part is evaluated in the explicit step together with the advective fluxes, so that the masses and the internal energies receive the same
 numerical dissipation, and the increments, which depend on the unknown velocity, are solved together with the
 pressure--relaxation sub-system in Sec.~\ref{sec:implicit}. Since only the flow velocity enters the explicit step, the time step depends
 on the flow velocity alone, independently of the sound speed and of the relaxation rates.

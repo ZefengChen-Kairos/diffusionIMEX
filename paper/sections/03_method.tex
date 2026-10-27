@@ -16,8 +16,8 @@ Fig.~\ref{fig:scheme} summarises the split and one stage of the scheme.
 \centering
 \resizebox*{!}{0.84\textheight}{\input{figures/scheme}}
 \caption{Schematic of the semi-implicit scheme. The Toro--V\'azquez-Cend\'on splitting separates the advective
-sub-system, advanced explicitly by the path-conservative Rusanov scheme with the material speed together with the
-old-velocity part of the internal energy fluxes, from the pressure--relaxation sub-system, solved implicitly together with the incremental fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
+sub-system, advanced explicitly with the old-velocity part of the internal energy fluxes, from the pressure--relaxation
+sub-system, solved implicitly with the increments of the mass and internal energy fluxes. Every residual evaluation of the pressure system calls the local closure of each cell, which
 distributes the energy defect $\delta$ between the phases, and the relaxation closure selected by the rates.}
 \label{fig:scheme}
 \end{figure}
@@ -33,7 +33,7 @@ $\delta_y[G]_{i,j}=G_{i,j+1/2}-G_{i,j-1/2}$. Where the $y$-direction is analogou
 \label{sec:advective}
 The explicit step advances the advective sub-system \eqref{eq:advective} together with the old-velocity part of the internal
 energy fluxes of Sec.~\ref{sec:split}, $\varepsilon_ku^n$ and $(E-\tfrac12\rho u^2)u^n$, so that every quantity is transported with the flow velocity
-by the flux $\mathbf F^u(\mathbf U)=u\,(0,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$. Its $\alpha_1$ row, $u\,\partial_x\alpha_1$, is not the derivative of
+by the flux $\mathbf F^u(\mathbf U)=u\,(0,m_1,m_2,\rho u,\varepsilon_1,\varepsilon_2,E)^{\mathsf T}$. The $\alpha_1$ row, $u\,\partial_x\alpha_1$, is not the derivative of
 any flux, and the step is discretised by the path-conservative Rusanov scheme
 \cite{DalMaso1995,Pares2006,Castro2006},
 \begin{equation}
@@ -49,7 +49,7 @@ $\mp\tfrac12a_{i+1/2}(\mathbf U^R-\mathbf U^L)$ enters $\mathbf D^\mp_{i+1/2}$, 
 a_{i+1/2}=\max\big(|u^L_{i+1/2}|,|u^R_{i+1/2}|\big),
 \label{eq:rusanov_speed}
 \end{equation}
-the flow velocity on the two face states, or its maximum over all faces of the same
+the larger flow speed of the two face states, or its maximum over all faces of the same
 direction, so that the dissipation is proportional to the flow velocity.
 
 For the rows of $m_k$, $\rho u$, $\varepsilon_k$ and $E$ the non-conservative part vanishes, the fluctuations are the jump of the flux
@@ -73,9 +73,10 @@ $a_{i+1/2}=|\bar u_{i+1/2}|+\tfrac12|u^R-u^L|$, and \eqref{eq:rusanov} is identi
 F^e_{i+1/2}[X]=X^{\uparrow}\,\bar u_{i+1/2}-\tfrac12\big(u^L-u^R\big)^+\big(X^R-X^L\big),
 \label{eq:rusanov_upwind}
 \end{equation}
-with $X^\uparrow=X^L$ for $\bar u_{i+1/2}\ge0$, $X^\uparrow=X^R$ otherwise, and $(\cdot)^+=\max(\cdot,0)$: the transport with the mean face velocity from
-its upwind side, and a dissipation that acts only at compressive faces. With the maximum speed $a$ over the faces its
-coefficient is $\tfrac12(a-|\bar u_{i+1/2}|)-\tfrac14(u^R-u^L)\ge\tfrac12(u^L-u^R)^+$.
+with $X^\uparrow=X^L$ for $\bar u_{i+1/2}\ge0$, $X^\uparrow=X^R$ otherwise, and $(\cdot)^+=\max(\cdot,0)$. The first term transports $X$ with the mean face velocity
+from its upwind side, the second is a dissipation acting only at compressive faces, $u^L>u^R$. With the maximum $a_\Omega$ of
+\eqref{eq:rusanov_speed} over the faces of the same direction, the dissipation coefficient is
+$\tfrac12(a_\Omega-|\bar u_{i+1/2}|)-\tfrac14(u^R-u^L)\ge\tfrac12(u^L-u^R)^+$.
 For the row of $\alpha_1$ the path integral is taken along the linear path with the face velocity frozen at the mean
 $\bar u_{i+1/2}$, $\int_0^1u\,\partial_\ell\alpha_1\,\mathrm d\ell=\bar u_{i+1/2}\,(\alpha_{1,i+1}-\alpha_{1,i})$, and the fluctuation is split
 between the two cells as in Saurel and Abgrall \cite{SaurelAbgrall1999a}, with the Rusanov flux $F^e[\alpha_1]$ of the volume
@@ -137,7 +138,8 @@ end within the start-up, in backward-Euler steps.
 
 \subsection{Pressure--relaxation sub-system}
 \label{sec:implicit}
-All contributions of the pressure--relaxation sub-system are treated implicitly and solved together, within a single step, as follows:
+The pressure flux, the pressure work and the relaxation terms, together with the increments of the mass and internal energy
+fluxes, are treated implicitly and solved together, within a single step, as follows:
 \begin{enumerate}
 \item for given cell pressures, the face velocities give the incremental fluxes, the transported phase states, the
 strain of the pressure work and the conservative updates of momentum and total energy;
@@ -150,7 +152,8 @@ The implicit step has the length $\tau$, $\tau=\Delta t$ in a first-order step, 
 written, and $\tau=a_{ii}\Delta t$ in a stage of Sec.~\ref{sec:time}; Sec.~\ref{sec:fully} collects the stage.
 
 \paragraph{Semi-discrete implicit step}
-With the incremental fluxes of Sec.~\ref{sec:split}, the semi-discrete form of \eqref{eq:pressure_sub} is
+With the incremental fluxes of Sec.~\ref{sec:split}, the semi-discrete implicit step, \eqref{eq:pressure_sub} without the old-velocity part of
+its internal energy fluxes and with the incremental mass fluxes, is
 \begin{equation}
 \begin{aligned}
 X^{\rm tr}&=X^*-\Delta t\,\partial_x\big(X^{\rm face}(u^{n+1}-u^n)\big),\qquad X\in\{m_k,\varepsilon_k\},\\
@@ -252,7 +255,7 @@ I_f[X]=X^L_f\big[(u_f)^+-(\bar u^e_f)^+\big]+X^R_f\big[(u_f)^--(\bar u^e_f)^-\bi
 \label{eq:increment}
 \end{equation}
 with $(\cdot)^-=\min(\cdot,0)$. Added to the explicit flux \eqref{eq:rusanov_upwind}, the increment gives the flux of the step,
-$X^L_f(u_f)^++X^R_f(u_f)^--d_f(X^R_f-X^L_f)$ with $d_f$ the dissipation coefficient of \eqref{eq:rusanov_upwind}: $m_k$ and $\varepsilon_k$ are transported by the
+$X^L_f(u_f)^++X^R_f(u_f)^--d_f(X^R_f-X^L_f)$ with $d_f$ the dissipation coefficient of the explicit flux given after \eqref{eq:rusanov_upwind}: $m_k$ and $\varepsilon_k$ are transported by the
 face velocity $u_f$ from its upwind side with the face values of the explicit state, $\varepsilon_ku_f$ being the internal energy flux of the
 pressure--relaxation sub-system, and the explicit step contributes their common dissipation.
 
@@ -608,7 +611,7 @@ round-off floor of the closure, and the iteration fails otherwise. At most 60 Ne
 with uniform $u$ and $p$ and arbitrary $\alpha_k$ is preserved exactly by the scheme with mechanical relaxation; with thermal
 or chemical relaxation active this holds if in addition $T_1=T_2=T$ is uniform and, with mass transfer, $T\le T_{\rm sat}(p)$.
 (ii) If the specific internal energy $e_k$ of a phase is uniform, the explicit step keeps it uniform for any velocity: the
-phases are compressed at constant specific internal energy, $m_k$ and $\varepsilon_k$ being transported by the same flux.
+phases are compressed at constant specific internal energy, $m_k$ and $\varepsilon_k$ being transported by the same linear Rusanov operator with a shared limiter.
 \end{proposition}
 \begin{proof}
 (i) By \eqref{eq:eps_nasg} $\varepsilon_k=\mathcal C_k(p)\alpha_k+(q_k-b_k\mathcal C_k(p))m_k$ in every cell, and for a Mie--Gr\"uneisen phase of

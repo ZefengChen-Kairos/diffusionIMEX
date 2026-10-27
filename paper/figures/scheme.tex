@@ -28,11 +28,11 @@
 % ----------------------------------------------------------------- the two sub-systems
 \node[eq, below left=15mm and 2.5mm of split.south, anchor=north east, text width=4.75cm, minimum height=1.9cm] (adv)
   {$\partial_t\mathbf U+\partial_x\mathbf F^c+\mathbf B^c\,\partial_x\mathbf U=\mathbf 0$\\[3pt]
-   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed, with $\varepsilon_ku^n$;\\ $\alpha_1$ advected entirely}};
+   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed, flux $\mathbf F^u$;\\ $\alpha_1$ advected entirely}};
 \node[hdr, above=0pt of adv.north, text width=4.75cm] (advh) {Advective, explicit};
 \node[eq, below right=15mm and 2.5mm of split.south, anchor=north west, text width=4.75cm, minimum height=1.9cm] (prs)
   {$\partial_t\mathbf U+\partial_x\mathbf F^p+\mathbf B^p\,\partial_xu=\mathbf S(\mathbf U)$\\[3pt]
-   {\fontsize{7pt}{8.4pt}\selectfont $+$ incremental fluxes $X(u^{n+1}-u^n)$;\\ pressure work $+$ relaxations\\ in one local closure}};
+   {\fontsize{7pt}{8.4pt}\selectfont $\varepsilon_ku$, $m_ku$ as increments $X(u^{n+1}-u^n)$;\\ pressure work $+$ relaxations\\ in one local closure}};
 \node[hdr, above=0pt of prs.north, text width=4.75cm] (prsh) {Pressure--relaxation, implicit};
 \begin{scope}[on background layer]
   \node[outer, fit=(adv)(advh)] (advbox) {};
