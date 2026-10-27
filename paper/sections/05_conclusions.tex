@@ -26,9 +26,10 @@ the shock profile of the relaxed model ends on the Hugoniot of each phase, compu
 reduces to the unique consistent local share, and the discretisation error with the unique linear share that keeps
 both phases admissible whenever possible. No calibrated heat exchange is needed.
 
-The flux is split following Zha and Bilgen: all quantities, including the volume fraction, are transported explicitly
-with the velocity of the explicit state by the path-conservative Rusanov scheme with material-speed dissipation, while
-the pressure, its work on each phase and an incremental flux are treated implicitly. The central implicit operator is
+The flux is split following Toro and V\'azquez-Cend\'on: all quantities, including the volume fraction, are transported
+explicitly with the velocity of the explicit state by the path-conservative Rusanov scheme with material-speed
+dissipation, while the pressure, its work on each phase and the increments of the mass and internal energy fluxes to the
+new velocity are treated implicitly. The central implicit operator is
 supplemented by Laplace dissipation of the pressure and the velocity with acoustic coefficients, weighted by the
 deficit of the backward-Euler viscosity with respect to the upwind one, so that it vanishes in the low Mach number
 regime; it is first order at local extrema and second order in smooth regions. The stiffly accurate, L-stable LSDIRK2

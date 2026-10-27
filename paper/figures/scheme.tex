@@ -22,13 +22,13 @@
   \node[outer, fit=(full)(fullh)] (fullbox) {};
 \end{scope}
 
-\node[hdr, below=6mm of fullbox] (split) {Zha--Bilgen splitting};
+\node[hdr, below=6mm of fullbox] (split) {Toro--V\'azquez-Cend\'on splitting};
 \draw[thick, black!65] (fullbox.south) -- (split.north);
 
 % ----------------------------------------------------------------- the two sub-systems
 \node[eq, below left=15mm and 2.5mm of split.south, anchor=north east, text width=4.75cm, minimum height=1.9cm] (adv)
   {$\partial_t\mathbf U+\partial_x\mathbf F^c+\mathbf B^c\,\partial_x\mathbf U=\mathbf 0$\\[3pt]
-   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed;\\ $\alpha_1$ advected entirely}};
+   {\fontsize{7pt}{8.4pt}\selectfont path-conservative Rusanov,\\ material speed, with $\varepsilon_ku^n$;\\ $\alpha_1$ advected entirely}};
 \node[hdr, above=0pt of adv.north, text width=4.75cm] (advh) {Advective, explicit};
 \node[eq, below right=15mm and 2.5mm of split.south, anchor=north west, text width=4.75cm, minimum height=1.9cm] (prs)
   {$\partial_t\mathbf U+\partial_x\mathbf F^p+\mathbf B^p\,\partial_xu=\mathbf S(\mathbf U)$\\[3pt]
@@ -46,7 +46,7 @@
 \node[step, below=4mm of alh] (s0)
   {\textbf{Before the first stage of a step}\\ activation of the closures; projection of $\mathbf U^n$ (instantaneous $pT$, $pTg$)};
 \node[step, below=5mm of s0] (s1)
-  {\textbf{1. Explicit advective sub-system} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
+  {\textbf{1. Explicit transport} on $\mathbf U^e$, from $\mathbf U^{\rm b}$\\
    $X^*$: Rusanov fluxes, \ $\alpha^*_1=\alpha^{\rm b}_1-r_x\big(\delta_x[F^e[\alpha_1]]-\alpha^e_1\,\delta_x[\bar u^e]\big)$};
 \node[step, below=5mm of s1] (s2)
   {\textbf{2. Face coefficients} on $X^*$, frozen over the stage\\ $u_f$, $p_f$ affine in the adjacent $P$; weight $\varphi$, factors $\psi$};

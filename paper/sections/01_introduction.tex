@@ -112,11 +112,11 @@ consistent with these relations is unique, compute for every shock strength the 
 profile of the relaxed model ends on the Hugoniot of each phase, and distribute the remaining discretisation error in
 the unique linear proportion that keeps both phases admissible whenever possible.
 
-The discretisation follows a Zha--Bilgen splitting \cite{ZhaBilgen1993}. The explicit step transports all quantities
-with the flow velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006} with material-speed
+The discretisation follows the Toro--V\'azquez-Cend\'on splitting \cite{ToroVazquez2012}. The explicit step transports all
+quantities with the flow velocity by the path-conservative Rusanov scheme \cite{Pares2006,Castro2006} with material-speed
 dissipation, and advects the volume fraction entirely, with a fluctuation keeping the volume, mass and energy of a trace
-phase consistent. The implicit step carries the pressure, its work on each phase and an incremental flux of the
-conservative transported quantities. Its central operator is supplemented by Laplace dissipation of pressure and
+phase consistent. The implicit step carries the pressure, its work on each phase and the increments of the mass and
+internal energy fluxes to the new velocity. Its central operator is supplemented by Laplace dissipation of pressure and
 velocity with acoustic coefficients: the upwind terms of the acoustic Riemann solution, weighted by the deficit of the
 backward-Euler viscosity relative to the upwind one, so that it vanishes at low Mach numbers. This dissipation is first
 order at local extrema and second order in smooth regions \cite{Jameson1995}. The stiffly accurate LSDIRK2 scheme
