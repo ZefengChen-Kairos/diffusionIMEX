@@ -215,9 +215,12 @@ p_f&=\frac{\rho^*_{i+1,j}P_{i,j}+\rho^*_{i,j}P_{i+1,j}}{\rho^*_{i,j}+\rho^*_{i+1
 \end{equation}
 with $\bar u^*_f=\tfrac12(u^*_{i,j}+u^*_{i+1,j})$, $\bar\rho_f=\tfrac12(\rho^*_{i,j}+\rho^*_{i+1,j})$ and, in one dimension, $D^*_f=u^*_{i+1}-u^*_i$. Without the
 factors $\varphi_f\psi_f$ the two diffusive terms are the upwind terms of the acoustic Riemann solution. In the momentum update the
-face pressure contributes $\tau\,\mathbb L(\eta^u,u)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances; the
+face pressure contributes $\tau\,\mathbb L(\eta^u,u^*)$, a bulk viscosity with coefficient $\tfrac12\rho c\Delta x$ for equal impedances, acting on
+the velocity of $X^*$; the
 divergence of the face velocity enters the strain, the transport and the energy flux, and in the pressure equation
-\eqref{eq:wave} it contributes $\tau K^W\mathbb L(\eta^P,P)$, with $K^W\eta^P=\tfrac12c\Delta x$ for equal impedances and $c_p=c_f=c$. Both terms are implicit, so that they do not restrict the time step \eqref{eq:cfl}. In two dimensions the
+\eqref{eq:wave} it contributes $\tau K^W\mathbb L(\eta^P,P)$, with $K^W\eta^P=\tfrac12c\Delta x$ for equal impedances and $c_p=c_f=c$. The pressure term is implicit; the velocity term is explicit,
+with the diffusion number $\tfrac12\varphi_f\psi^u_fc\tau/\Delta x\le\tfrac18$ by \eqref{eq:weight}, so that neither restricts the time
+step \eqref{eq:cfl}. In two dimensions the
 normal velocity difference is replaced by $\Delta x$ times the mean of the two vertex divergences of the face,
 \begin{equation}
 \begin{aligned}
