@@ -1,0 +1,52 @@
+test:
+  grids:
+  - 64
+  - 128
+  - 256
+  period: 4.0
+  radius: 0.15
+  center:
+  - 0.5
+  - 0.75
+  cfl: 0.25
+model:
+  rho:
+  - 1.0
+  - 1.0
+  - 0.001
+  mu: 0.001
+  g: 1.0
+  sigma: 0.0
+  liquid_min: 0.05
+  wall_bc: no_slip
+  bottom_bc: no_slip
+numerics:
+  cfl: 0.25
+  wave_safety: 0.5
+  cap_safety: 0.5
+  scan_safety: 0.25
+  retry_limit: 12
+  transport_scheme: fct
+  ho_limiter: superbee
+  momentum_recon: minmod
+  pressure_solver: auto
+  pressure_rtol: 1.0e-12
+  viscosity_solver: auto
+  viscosity_rtol: 1.0e-12
+  inlet_bc: velocity
+  inlet_patch_cover: 0.5
+  quad_nr: 8
+  quad_ntheta: 32
+  div_tol: 1.0e-08
+  bound_tol: 1.0e-12
+  max_surface_slope: 1.0
+thresholds:
+  local_update: 1.0e-10
+  budget: 1.0e-08
+  simplex: 1.0e-10
+  bounds: 1.0e-12
+  divergence: 1.0e-08
+  rest_velocity: 1.0e-10
+  M_scale_factor: 1.0e-06
+seed: 20261028
+suite_version: stage1_v1

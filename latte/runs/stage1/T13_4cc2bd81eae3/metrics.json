@@ -1,0 +1,32 @@
+{
+  "test_id": "T13",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "4cc2bd81eae3",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "relative-velocity decay matches the backward-Euler two-mass solution to 3.2e-14 (continuous exponential to 2.2e-04, O(dt)); total momentum kept to 2.3e-14; KE non-increasing: True",
+  "mass_residual": 2.3425705819590803e-14,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": 500,
+  "rejected_steps": 0,
+  "details": {
+    "zeta": 0.0005,
+    "rate": 0.128,
+    "err_discrete": 3.1530333899354446e-14,
+    "err_continuous": 0.00021583901468824607
+  },
+  "wall_seconds": 1.71,
+  "null_reasons": {
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test"
+  }
+}

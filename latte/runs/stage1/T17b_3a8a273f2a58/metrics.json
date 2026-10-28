@@ -1,0 +1,28 @@
+{
+  "test_id": "T17b",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "3a8a273f2a58",
+  "status": "blocked",
+  "verdict": "not_applicable",
+  "reason": "cup-edge meniscus / contact line: contact-angle and slip model not chosen (V3 Sec. 6, to seal before real-cup tests)",
+  "mass_residual": null,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

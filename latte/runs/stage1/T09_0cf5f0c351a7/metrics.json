@@ -1,0 +1,26 @@
+{
+  "test_id": "T09",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "0cf5f0c351a7",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "200 FCT steps on random simplex data: component conservation 4.4e-16, max excursion beyond initial per-component range 0.0e+00, min fraction 6.13e-15; sum-to-one 1.1e-16 (structural: third component derived)",
+  "mass_residual": 4.440892098500626e-16,
+  "volume_residual": null,
+  "simplex_error": 1.1102230246251565e-16,
+  "bounds_violation": 0.0,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "wall_seconds": 0.92,
+  "null_reasons": {
+    "volume_residual": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

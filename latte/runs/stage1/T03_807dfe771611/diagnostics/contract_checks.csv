@@ -1,0 +1,18 @@
+case,detail,got,ok
+zero_flow_returns_zero_source,,zero,True
+unknown_interval_is_error,inlet state unknown at t=0.7,INPUT_INVALID,True
+outside_record_is_error,"t=1.5 outside the inlet record [0.0, 1.0]",INPUT_INVALID,True
+bad_semi_axis,inlet semi-axes must be positive,GEOMETRY_INVALID,True
+non_orthonormal_axes,inlet normal/axis must be orthonormal,GEOMETRY_INVALID,True
+bad_composition,inlet composition must be a point of the simplex,INPUT_INVALID,True
+outflow_through_section,inlet has outflow (j < 0) on the handoff section,INPUT_INVALID,True
+footprint_leaves_cup,inlet footprint leaves the fluid columns (no renormalisation),OUT_OF_SCOPE,True
+no_liquid_connection,handoff section is not connected to the liquid surface,GEOMETRY_INVALID,True
+linear_interpolation_between_flow_nodes,,"[0.05, 0.0, 0.25]",True
+hold_before_status_change,,"[0.1, 0.0, 0.25]",True
+no_flow_after_change,,no_flow,True
+next_event,,"[1.0, 2.0]",True
+section_velocity_from_geometry,w_J = d(center)/dt; translation is not counted as inflow,"[0.1, 0.0, 0.0]",True
+step_lands_on_event,,0.0,True
+delivered_volume_equals_QT,,4.3139033765509936e-16,True
+no_flow_identical_to_no_inlet,,bitwise,True

@@ -1,0 +1,46 @@
+{
+  "test_id": "T14",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "ed34611ce857",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "one exchange step each way: loss=gain, donor composition and donor momentum carried, worst error 4.4e-16",
+  "mass_residual": 0.0,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "details": [
+    {
+      "direction": "down",
+      "loss_equals_gain": 3.469446951953614e-17,
+      "carried_composition_err": 4.440892098500626e-16,
+      "momentum_transfer_err": 2.0816681711721685e-17,
+      "total_momentum_err": 0.0,
+      "total_mass_err": 0.0
+    },
+    {
+      "direction": "up",
+      "loss_equals_gain": 1.3877787807814457e-17,
+      "carried_composition_err": 2.220446049250313e-16,
+      "momentum_transfer_err": 0.0,
+      "total_momentum_err": 0.0,
+      "total_mass_err": 0.0
+    }
+  ],
+  "wall_seconds": 0.0,
+  "null_reasons": {
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

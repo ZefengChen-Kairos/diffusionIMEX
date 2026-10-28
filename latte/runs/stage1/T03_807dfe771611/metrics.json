@@ -1,0 +1,146 @@
+{
+  "test_id": "T03",
+  "model_id": "latte-fvm-stage1-3ed236e6b42f",
+  "input_id": "807dfe771611",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "17/17 contract checks pass",
+  "mass_residual": null,
+  "volume_residual": 4.3139033765509936e-16,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": 11,
+  "rejected_steps": null,
+  "details": [
+    {
+      "case": "zero_flow_returns_zero_source",
+      "ok": true,
+      "got": "zero",
+      "detail": ""
+    },
+    {
+      "case": "unknown_interval_is_error",
+      "ok": true,
+      "got": "INPUT_INVALID",
+      "detail": "inlet state unknown at t=0.7"
+    },
+    {
+      "case": "outside_record_is_error",
+      "ok": true,
+      "got": "INPUT_INVALID",
+      "detail": "t=1.5 outside the inlet record [0.0, 1.0]"
+    },
+    {
+      "case": "bad_semi_axis",
+      "ok": true,
+      "got": "GEOMETRY_INVALID",
+      "detail": "inlet semi-axes must be positive"
+    },
+    {
+      "case": "non_orthonormal_axes",
+      "ok": true,
+      "got": "GEOMETRY_INVALID",
+      "detail": "inlet normal/axis must be orthonormal"
+    },
+    {
+      "case": "bad_composition",
+      "ok": true,
+      "got": "INPUT_INVALID",
+      "detail": "inlet composition must be a point of the simplex"
+    },
+    {
+      "case": "outflow_through_section",
+      "ok": true,
+      "got": "INPUT_INVALID",
+      "detail": "inlet has outflow (j < 0) on the handoff section"
+    },
+    {
+      "case": "footprint_leaves_cup",
+      "ok": true,
+      "got": "OUT_OF_SCOPE",
+      "detail": "inlet footprint leaves the fluid columns (no renormalisation)"
+    },
+    {
+      "case": "no_liquid_connection",
+      "ok": true,
+      "got": "GEOMETRY_INVALID",
+      "detail": "handoff section is not connected to the liquid surface"
+    },
+    {
+      "case": "linear_interpolation_between_flow_nodes",
+      "ok": true,
+      "got": [
+        0.05,
+        0.0,
+        0.25
+      ],
+      "detail": ""
+    },
+    {
+      "case": "hold_before_status_change",
+      "ok": true,
+      "got": [
+        0.1,
+        0.0,
+        0.25
+      ],
+      "detail": ""
+    },
+    {
+      "case": "no_flow_after_change",
+      "ok": true,
+      "got": "no_flow",
+      "detail": ""
+    },
+    {
+      "case": "next_event",
+      "ok": true,
+      "got": [
+        1.0,
+        2.0
+      ],
+      "detail": ""
+    },
+    {
+      "case": "section_velocity_from_geometry",
+      "ok": true,
+      "got": [
+        0.1,
+        0.0,
+        0.0
+      ],
+      "detail": "w_J = d(center)/dt; translation is not counted as inflow"
+    },
+    {
+      "case": "step_lands_on_event",
+      "ok": true,
+      "got": 0.0,
+      "detail": ""
+    },
+    {
+      "case": "delivered_volume_equals_QT",
+      "ok": true,
+      "got": 4.3139033765509936e-16,
+      "detail": ""
+    },
+    {
+      "case": "no_flow_identical_to_no_inlet",
+      "ok": true,
+      "got": "bitwise",
+      "detail": ""
+    }
+  ],
+  "wall_seconds": 1.4,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

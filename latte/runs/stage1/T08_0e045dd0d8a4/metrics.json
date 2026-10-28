@@ -1,0 +1,73 @@
+{
+  "test_id": "T08",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "0e045dd0d8a4",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "front x_f vs Ut=0.5: errors ['9.6e-04', '4.6e-04', '2.2e-04', '1.1e-04']; 10-90 width [0.0438, 0.0222, 0.0113, 0.0057] (shrinks with n); downstream milk beyond x_f+0.1 <= 2.3e-07 (no whole-pipe whitening)",
+  "mass_residual": 1.887379141862766e-14,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "details": [
+    {
+      "n": 64,
+      "front_x": 0.500964824141062,
+      "front_err": 0.0009648241410620262,
+      "width_10_90": 0.04375408409002146,
+      "L1": 0.013162341541613599,
+      "max_xM_beyond_front_plus_0.1": 2.2815170857825268e-07,
+      "min_xM_behind_front_minus_0.1": 0.9999024125473421,
+      "milk_err": 0.0
+    },
+    {
+      "n": 128,
+      "front_x": 0.5004608583388548,
+      "front_err": 0.000460858338854786,
+      "width_10_90": 0.022247654390077087,
+      "L1": 0.006790637238010988,
+      "max_xM_beyond_front_plus_0.1": 1.9846285597042957e-12,
+      "min_xM_behind_front_minus_0.1": 0.9999999920138233,
+      "milk_err": 1.2212453270876722e-15,
+      "rate": 0.954797293665647
+    },
+    {
+      "n": 256,
+      "front_x": 0.5002191110919662,
+      "front_err": 0.00021911109196615097,
+      "width_10_90": 0.011310639541812273,
+      "L1": 0.003500661603445745,
+      "max_xM_beyond_front_plus_0.1": 2.893661951000726e-13,
+      "min_xM_behind_front_minus_0.1": 0.9999999999992695,
+      "milk_err": 6.5503158452884236e-15,
+      "rate": 0.9559193560167832
+    },
+    {
+      "n": 512,
+      "front_x": 0.5001063440250395,
+      "front_err": 0.00010634402503950646,
+      "width_10_90": 0.0057066086177368636,
+      "L1": 0.0017791370115325532,
+      "max_xM_beyond_front_plus_0.1": 9.456564213992916e-15,
+      "min_xM_behind_front_minus_0.1": 0.9999999999999732,
+      "milk_err": 1.887379141862766e-14,
+      "rate": 0.976449991304951
+    }
+  ],
+  "wall_seconds": 1.64,
+  "null_reasons": {
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

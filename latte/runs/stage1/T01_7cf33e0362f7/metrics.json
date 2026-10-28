@@ -1,0 +1,28 @@
+{
+  "test_id": "T01",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "7cf33e0362f7",
+  "status": "not_run",
+  "verdict": "not_applicable",
+  "reason": "V0.5 legacy volumetric-source analytic check; V0.5 baseline excluded by user decision (2026-10-28)",
+  "mass_residual": null,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

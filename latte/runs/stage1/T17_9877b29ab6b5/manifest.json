@@ -1,0 +1,39 @@
+{
+  "run_id": "T17_9877b29ab6b5",
+  "test_id": "T17",
+  "model_id": "latte-fvm-stage1-3ed236e6b42f",
+  "input_id": "9877b29ab6b5",
+  "seed": 20261028,
+  "git": {
+    "commit": "6900168518cc6089a4d9af89f566e76b43a6ca66",
+    "latte_dirty": true
+  },
+  "environment": {
+    "python": "3.13.17",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pyamg": "5.3.0",
+    "platform": "Linux-6.18.44-fc-v180-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "cpu_count": 4,
+    "precision": "float64"
+  },
+  "source_sha256": {
+    "__init__.py": "a3cfd14492648aa6a672c2aed175b574ada829327b2de9613c9866a2872c296e",
+    "failures.py": "adfc87afa00c0def3806fbfbb51cc67cd12cb927aced5b7fc7fdee091f51e564",
+    "inlet.py": "d24ad11547c0693fe49504b6588fa4a1efd247e2e56bff16c75351c27f4988de",
+    "linsolve.py": "e43e8e9b08a2d2e6cf92b5498dc7ab2ab7fe58abe4162dbaaeabe660552962ce",
+    "mesh.py": "be16f7f32baf4ec878f19b1845a994a9adc01fc194a0b07d25b244f1e20c26a3",
+    "operators.py": "b2789f60d0612de0b41d75190877f7f367057cd856f8ef1e7d26dcaef383d47e",
+    "remap.py": "b957af918138465319152f644a8ba22d78676110eadd1157cf6502c4a1f58847",
+    "runio.py": "0a584fa52d532ace7dfa76a79b3f812c5d423b66755eb9ccd6c7a8537fc6dc2a",
+    "solver.py": "9f259c1c686de9e4aefa32ee3df59985356c199da6c4c6f992913e5c2f74eada",
+    "transport.py": "22c47fb960dfe553359290104d36e30a72c79dfe76d71d64e9d6543d6f604f58",
+    "stage1/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stage1/common.py": "39f2adcb217064591728ca7fd85e2637afa0f12fea0c90e04a43f887c6c8b96c",
+    "stage1/suite.py": "0a1440bb6a50630a70fe35a80683b8e58dff392b03f269dc831d0a0cb714b69e",
+    "stage1/t_dynamics.py": "4e113329401d8a7fc92ccccdd589b775ebcb59559542183c287805a4cedf9882",
+    "stage1/t_inlet.py": "8895923028101d71373581e23a6131c24051621e804586af417477872a9845e0",
+    "stage1/t_transport.py": "ebfbf781f75bfdfc1ab317d20f76ed018475dd50fea5deea0dfd524634a56e05"
+  }
+}

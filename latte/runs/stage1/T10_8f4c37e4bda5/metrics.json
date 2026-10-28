@@ -1,0 +1,100 @@
+{
+  "test_id": "T10",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "8f4c37e4bda5",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "30 remaps (uniform->geometric->random->uniform x10): conservation 7.8e-16, bounds 0.0e+00; profile L1 (order 2) ['9.82e-02', '3.00e-02', '6.93e-03', '1.16e-03'] for N=[8, 16, 32, 64]",
+  "mass_residual": 7.771561172376096e-16,
+  "volume_residual": null,
+  "simplex_error": 6.661338147750939e-16,
+  "bounds_violation": 0.0,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "details": [
+    {
+      "order": 1,
+      "N": 8,
+      "profile_L1": 0.34935609325026806,
+      "comp_conservation": 2.220446049250313e-16,
+      "mom_conservation": 1.942890293094024e-16,
+      "bounds_excursion": 0.0,
+      "simplex": 3.3306690738754696e-16
+    },
+    {
+      "order": 1,
+      "N": 16,
+      "profile_L1": 0.1553154824142706,
+      "comp_conservation": 2.220446049250313e-16,
+      "mom_conservation": 4.163336342344337e-17,
+      "bounds_excursion": 0.0,
+      "simplex": 3.3306690738754696e-16
+    },
+    {
+      "order": 1,
+      "N": 32,
+      "profile_L1": 0.04926733176306612,
+      "comp_conservation": 3.3306690738754696e-16,
+      "mom_conservation": 1.3444106938820255e-17,
+      "bounds_excursion": 0.0,
+      "simplex": 4.440892098500626e-16
+    },
+    {
+      "order": 1,
+      "N": 64,
+      "profile_L1": 0.018686174844542505,
+      "comp_conservation": 2.220446049250313e-16,
+      "mom_conservation": 4.0115480381963664e-18,
+      "bounds_excursion": 0.0,
+      "simplex": 2.220446049250313e-16
+    },
+    {
+      "order": 2,
+      "N": 8,
+      "profile_L1": 0.09822847510967297,
+      "comp_conservation": 4.440892098500626e-16,
+      "mom_conservation": 7.771561172376096e-16,
+      "bounds_excursion": 0.0,
+      "simplex": 3.3306690738754696e-16
+    },
+    {
+      "order": 2,
+      "N": 16,
+      "profile_L1": 0.029965605341118372,
+      "comp_conservation": 1.1102230246251565e-16,
+      "mom_conservation": 3.452099717193846e-16,
+      "bounds_excursion": 0.0,
+      "simplex": 2.220446049250313e-16
+    },
+    {
+      "order": 2,
+      "N": 32,
+      "profile_L1": 0.006934097463023106,
+      "comp_conservation": 3.3306690738754696e-16,
+      "mom_conservation": 3.178880769727499e-16,
+      "bounds_excursion": 0.0,
+      "simplex": 4.440892098500626e-16
+    },
+    {
+      "order": 2,
+      "N": 64,
+      "profile_L1": 0.0011622586631266029,
+      "comp_conservation": 3.3306690738754696e-16,
+      "mom_conservation": 1.4257258568184383e-16,
+      "bounds_excursion": 0.0,
+      "simplex": 6.661338147750939e-16
+    }
+  ],
+  "wall_seconds": 0.41,
+  "null_reasons": {
+    "volume_residual": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

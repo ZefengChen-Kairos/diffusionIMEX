@@ -1,0 +1,2 @@
+L_cond,L_min_eig,L_symmetry,e_div,gradient_removal,idempotence,poisson_rel_residual,rigid_lid_e_div,rigid_lid_gauge_mean,rigid_lid_nullspace_dim
+84.90285756861982,0.016223878729928694,2.6341383807764442e-17,6.814890492041128e-16,7.513795976251888e-16,1.0088505332210202e-15,6.221895453579075e-16,9.150282404169747e-15,0.0,1

@@ -1,0 +1,53 @@
+{
+  "test_id": "T11",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "a08c673283db",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "equal_density: max|u| 1.3e-13, level drift 1.3e-14; foam_top_layers: max|u| 1.7e-13, level drift 1.1e-14; linear_stratification: max|u| 1.6e-13, level drift 1.1e-14",
+  "mass_residual": 2.3334736806571436e-16,
+  "volume_residual": 0.0,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": 1.6288512869113706e-13,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": 123,
+  "rejected_steps": 0,
+  "details": [
+    {
+      "case": "equal_density",
+      "vmax": 1.3044161252404574e-13,
+      "level_drift": 1.3489209749195652e-14,
+      "volume_residual": 0.0,
+      "divergence_error": 1.4978492361208568e-13,
+      "accepted_steps": 41,
+      "rejected_steps": 0
+    },
+    {
+      "case": "foam_top_layers",
+      "vmax": 1.6991466438356002e-13,
+      "level_drift": 1.1407541578023483e-14,
+      "volume_residual": 0.0,
+      "divergence_error": 1.6288512869113706e-13,
+      "accepted_steps": 41,
+      "rejected_steps": 0
+    },
+    {
+      "case": "linear_stratification",
+      "vmax": 1.649797789391826e-13,
+      "level_drift": 1.1268763699945339e-14,
+      "volume_residual": 0.0,
+      "divergence_error": 1.261859695229169e-13,
+      "accepted_steps": 41,
+      "rejected_steps": 0
+    }
+  ],
+  "wall_seconds": 6.8,
+  "null_reasons": {
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test"
+  }
+}

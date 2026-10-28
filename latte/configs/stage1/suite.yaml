@@ -1,0 +1,156 @@
+# Stage-1 verification suite (V3 G1-G3, spec v3_proposal_2026-10-28 sections 1-17).
+# Synthetic software units (V3 Sec. 9.2): L* = T* = rho* = 1.  These are NOT measured
+# latte-art conditions.
+suite_version: stage1_v1
+seed: 20261028
+thresholds:            # V3 Sec. 9.1 FP64 engineering tolerances
+  local_update: 1.0e-10
+  budget: 1.0e-8
+  simplex: 1.0e-10
+  bounds: 1.0e-12
+  divergence: 1.0e-8
+  rest_velocity: 1.0e-10
+  M_scale_factor: 1.0e-6     # M_scale = factor * initial total mass (Sec. 9.1 denominator floor)
+
+model:                 # common model unless a test overrides it
+  rho: [1.0, 1.0, 1.0e-3]    # B, M, G
+  mu: 1.0e-3                 # nu* = 1e-3 with rho* = 1
+  g: 1.0
+  sigma: 0.0
+  liquid_min: 0.05
+  wall_bc: no_slip
+  bottom_bc: no_slip
+
+numerics:
+  cfl: 0.25
+  wave_safety: 0.5
+  cap_safety: 0.5
+  scan_safety: 0.25
+  retry_limit: 12
+  transport_scheme: fct      # selective joint FCT on top of a flux-limited high-order flux
+  ho_limiter: superbee
+  momentum_recon: minmod
+  pressure_solver: auto
+  pressure_rtol: 1.0e-12
+  viscosity_solver: auto
+  viscosity_rtol: 1.0e-12
+  inlet_bc: velocity         # V3 Sec. 5.2: prescribed normal velocity, Neumann pressure on the patch
+  inlet_patch_cover: 0.5     # numerical choice: column joins the patch if >= 50 % covered
+  quad_nr: 8
+  quad_ntheta: 32
+  quad_max_spacing_cells: 0.25   # polar mapping only
+  inlet_mapping: subgrid         # mesh-aligned sampling of the footprint; totals from the exact polar integral
+  inlet_subgrid: 8
+  div_tol: 1.0e-8
+  bound_tol: 1.0e-12
+  max_surface_slope: 1.0
+
+tests:
+  T02:
+    a: 0.03
+    b: 0.02
+    tilt_deg: 20.0
+    center: [0.1, -0.05, 0.25]
+    U: 1.0
+    tangential: 0.3
+    w_inplane: 0.5
+    w_normal: 0.2
+    quadratures: [[1, 4], [2, 8], [4, 16], [8, 32], [16, 64]]
+    map_grid: 64
+    map_quadratures: [[2, 8], [4, 16], [8, 32], [16, 64], [32, 128]]
+    map_reference: [128, 512]
+    subgrid_levels: [2, 4, 8, 16]
+    subgrid_reference: 64
+  T03:
+    grid: 32
+    depth: 0.25
+    connect_tol: 0.05
+    switch_time: 0.1
+  T05:
+    n: 64
+    N: 4
+    depth: 0.25
+    stripes: 8
+    t_end: 1.0
+  T06:
+    grids: [64, 128, 256]
+    velocity: [1.0, 1.0]
+    t_end: 1.0
+    cfl: 0.25
+    radius: 0.15
+  T07:
+    grids: [64, 128, 256]
+    period: 4.0
+    radius: 0.15
+    center: [0.5, 0.75]
+    cfl: 0.25
+  T08:
+    grids: [64, 128, 256, 512]
+    U: 1.0
+    t_end: 0.5
+    cfl: 0.25
+  T09:
+    n: 64
+    steps: 200
+    cfl: 0.25
+  T10:
+    N_list: [8, 16, 32, 64]
+    cycles: 10
+  T11:
+    n: 32
+    N: 8
+    depth: 0.25
+    radius: 0.5
+    t_end: 2.0
+    foam_phi: 0.3
+    foam_layers: 2
+  T12:
+    nx: 12
+    ny: 10
+    N: 6
+    depth: 0.25
+    bump: 0.02
+  T13:
+    nx: 4
+    depth: 0.25
+    u_lower: 1.0
+    u_upper: 0.0
+    dt: 0.01
+    t_end: 5.0
+  T14:
+    dV_fraction: 0.1
+    steps: 3
+  T15:
+    n: 64
+    N: 8
+    radius: 0.5
+    depth: 0.25
+    reference_inlet: {diameter: 0.04, U: 1.0, center: [0.15, 0.0], t_end: 0.3}
+    gentle_inlet: {diameter: 0.2, U: 0.1, center: [0.1, 0.0], t_end: 1.0}
+    broad_inlet: {diameter: 0.6, U: 0.01, center: [0.0, 0.0], t_end: 1.0}
+  T16:
+    Lx: 0.5
+    depth: 0.25
+    grids: [[32, 16], [64, 32], [128, 64]]
+    blob_radius: 0.04
+    blob_center: [0.25, 0.1]
+    blob_phi: 0.3
+    t_end: 0.5
+  T17:
+    n: 32
+    N: 8
+    sigma: 0.01
+    t_end: 1.0
+    switch_time: 0.05
+    continue_steps: 20
+  W01:
+    H: 0.25
+    amp: 2.5e-4
+    resolutions: [[16, 4], [32, 8], [64, 16]]
+    periods: 2.5
+  W02:
+    H: 0.25
+    amp: 2.5e-4
+    sigma: 0.01
+    resolutions: [[16, 4], [32, 8], [64, 16]]
+    periods: 2.5

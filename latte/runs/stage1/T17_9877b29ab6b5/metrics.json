@@ -1,0 +1,37 @@
+{
+  "test_id": "T17",
+  "model_id": "latte-fvm-stage1-3ed236e6b42f",
+  "input_id": "9877b29ab6b5",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "flat surface with sigma=0.01: max|u| 4.9e-15; capillary dynamics see W02; inlet switch-off leaves no constraint (bitwise identical: True); cup-edge meniscus part BLOCKED (contact-line model undecided)",
+  "mass_residual": null,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": 65,
+  "rejected_steps": null,
+  "details": {
+    "flat_surface_with_tension_max_u": 4.873574496919608e-15,
+    "flat_surface_steps": 65,
+    "wall_faces_are_not_flux_dofs": true,
+    "after_switch_off_bitwise_identical": true,
+    "after_switch_off_max_rel_diff": 0.0,
+    "switch_time_hit": 0.05,
+    "cup_edge_contact_line": "blocked: contact angle / slip model not chosen (walls currently act as a 90-degree contact placeholder)"
+  },
+  "wall_seconds": 8.02,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "test_id": "W01",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "474e16ce5781",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "period error vs omega^2 = (g k + sigma k^3/rho) tanh(kH) (sigma=0.0): ['+4.15%', '+0.98%', '+0.22%'] for (nx,N)=[[16, 4], [32, 8], [64, 16]] (observed order [2.08, 2.14]); hydrostatic theory would differ by -23.6%; amplitude kept [0.863, 0.973, 0.996] with mu=0 (numerical damping)",
+  "mass_residual": null,
+  "volume_residual": 0.0,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": null,
+  "mixture_indicator": null,
+  "solver_residual": null,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "details": [
+    {
+      "nx": 16,
+      "N": 4,
+      "period": 2.7260618466053606,
+      "rel_err": 0.04151734891622705,
+      "steps": 93,
+      "amplitude_ratio_end": 0.8634425254216982,
+      "volume_residual": 0.0
+    },
+    {
+      "nx": 32,
+      "N": 8,
+      "period": 2.6431697107701813,
+      "rel_err": 0.009847635454455439,
+      "steps": 132,
+      "amplitude_ratio_end": 0.9731443905114379,
+      "volume_residual": 0.0
+    },
+    {
+      "nx": 64,
+      "N": 16,
+      "period": 2.623257823109722,
+      "rel_err": 0.0022401130961993143,
+      "steps": 186,
+      "amplitude_ratio_end": 0.9958241624623554,
+      "volume_residual": 0.0
+    }
+  ],
+  "wall_seconds": 2.11,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "divergence_error": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "solver_residual": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "test_id": "T05",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "062090ca3c6a",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "max|C(t)-C(0)| = 2.49e-13, max|u| = 2.07e-15 after 29 steps",
+  "mass_residual": null,
+  "volume_residual": 3.325213295857483e-20,
+  "simplex_error": null,
+  "bounds_violation": 0.0,
+  "divergence_error": 5.66586153344712e-14,
+  "mixture_indicator": [
+    0.0,
+    6.8594779461342995e-15
+  ],
+  "solver_residual": 9.833016911715684e-13,
+  "accepted_steps": 29,
+  "rejected_steps": 0,
+  "wall_seconds": 4.97,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test"
+  }
+}

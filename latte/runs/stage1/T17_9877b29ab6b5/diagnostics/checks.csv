@@ -1,0 +1,2 @@
+after_switch_off_bitwise_identical,after_switch_off_max_rel_diff,cup_edge_contact_line,flat_surface_steps,flat_surface_with_tension_max_u,switch_time_hit,wall_faces_are_not_flux_dofs
+True,0.0,blocked: contact angle / slip model not chosen (walls currently act as a 90-degree contact placeholder),65,4.873574496919608e-15,0.05,True

@@ -1,0 +1,39 @@
+{
+  "test_id": "T12",
+  "model_id": "latte-fvm-stage1-55fe2b79ed77",
+  "input_id": "b7cdb93af963",
+  "status": "completed",
+  "verdict": "pass",
+  "reason": "sloped surface (max slope 0.062), random density 0.7-1, random v*, prescribed wall flux: e_div 6.8e-16, L symmetric to 2.6e-17, lambda_min 1.62e-02 > 0, idempotence 1.0e-15, gradient removal 7.5e-16; rigid lid: null space dim 1, e_div 9.2e-15",
+  "mass_residual": null,
+  "volume_residual": null,
+  "simplex_error": null,
+  "bounds_violation": null,
+  "divergence_error": 6.814890492041128e-16,
+  "mixture_indicator": null,
+  "solver_residual": 6.221895453579075e-16,
+  "accepted_steps": null,
+  "rejected_steps": null,
+  "details": {
+    "L_symmetry": 2.6341383807764442e-17,
+    "L_min_eig": 0.016223878729928694,
+    "L_cond": 84.90285756861982,
+    "e_div": 6.814890492041128e-16,
+    "poisson_rel_residual": 6.221895453579075e-16,
+    "idempotence": 1.0088505332210202e-15,
+    "gradient_removal": 7.513795976251888e-16,
+    "rigid_lid_e_div": 9.150282404169747e-15,
+    "rigid_lid_gauge_mean": 0.0,
+    "rigid_lid_nullspace_dim": 1
+  },
+  "wall_seconds": 0.09,
+  "null_reasons": {
+    "mass_residual": "not applicable to this test",
+    "volume_residual": "not applicable to this test",
+    "simplex_error": "not applicable to this test",
+    "bounds_violation": "not applicable to this test",
+    "mixture_indicator": "not applicable to this test",
+    "accepted_steps": "not applicable to this test",
+    "rejected_steps": "not applicable to this test"
+  }
+}
