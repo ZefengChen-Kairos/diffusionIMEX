@@ -8,7 +8,8 @@ F1  spec main pressure closure (buoyant, coffee pressureless):
 F2  spec retention calibration (all retained milk surfaces, phi_f = 1, v_e = 1.05): flooded cup
 F3  v_e = 1.05 with phi_f calibrated: no impact hole, no stripes (needs a penetrating share at low pour)
 F4  bulk return of all sunk milk (task-book form) vs white material only: stripe contrast of the leaf
-F5  k_h = 0.30 / chi = 0.35 (task-book start) vs 0.15 / 0.70: cut wake (tip length, white at the rim)
+F5  the last stroke: (a) cut into the wall (task-book heart trajectory) vs lift-off pull-through;
+    (b) task-book entrainment C_E = 0.5, sink width >= 3.5 mm vs C_E = 0.3, >= 2 mm: brown groove vs white tail
 """
 import os
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
@@ -113,17 +114,19 @@ def main():
         s4.run()
         rows4.append(img_of(s4, s4.Yf, s4.U[0]))
     # F5 cut wake
-    for lab, PP in (("kh030", P0.with_(k_h=0.30, chi=0.35)), ("kh015", P0)):
-        s5 = Sim(heart(), P=PP, NP=NP)
+    for lab, act5, P5 in (("cut_to_wall", heart(variant=0), P0), ("lift_off", heart(), P0),
+                          ("CE05_sk35", heart(), P0.with_(C_E=0.5, sig_k_min=3.5e-3))):
+        s5 = Sim(act5, P=P5, NP=NP)
         s5.run()
         a5 = alpha_of(s5, s5.Yf, s5.U[0])
         hm = heart_metrics(a5, s5.gf)
         rim = (np.sqrt(s5.gf.X ** 2 + s5.gf.Y ** 2) > 0.034) & (a5 > 0.5)
         res[f"F5_{lab}"] = dict(tip_len_mm=hm["tip_len"] * 1e3, y_front_mm=hm["y_extent"][1] * 1e3,
-                                white_at_rim_mm2=mt.area(rim, s5.gf) * 1e6)
+                                white_at_rim_mm2=mt.area(rim, s5.gf) * 1e6, groove=hm["cut_line"])
         rows4.append(img_of(s5, s5.Yf, s5.U[0]))
     board([rows4], os.path.join(d, "F4_F5_return_and_wake.png"),
-          labels=["leaf, return all milk", "leaf, return white only", "heart, k_h=0.30", "heart, k_h=0.15"],
+          labels=["leaf, return all milk", "leaf, return white only", "heart, cut to the wall",
+                  "heart, lift-off", "heart, C_E=0.5, sk>=3.5mm"],
           cell=220)
     json.dump(res, open(os.path.join(d, "evidence.json"), "w"), indent=1)
     print(json.dumps({k: v for k, v in res.items()}, indent=1, default=str)[:3000])

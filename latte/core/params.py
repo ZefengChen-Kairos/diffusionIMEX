@@ -29,8 +29,8 @@ class PhysParams:
     gamma: float = 7.0          # drag on the bulk [1/s]
     tau_y: float = 0.0          # foam yield stress on the base [Pa] (0 = spec model)
     tau_ex: float = 0.0         # layer-thickness exchange time with the bulk [s] (0 = off)
-    chi: float = 0.70           # momentum retention of the deposited milk (task-book start 0.35)
-    k_h: float = 0.15           # horizontal fraction of the jet speed (task-book start 0.30)
+    chi: float = 0.35           # momentum retention of the deposited milk
+    k_h: float = 0.30           # horizontal fraction of the jet speed
     nu_s: float = 2e-5          # kinematic surface viscosity [m^2/s]; T_s = 2 nu_s M D_h
     # empirical closures
     retention: str = "sigmoid"  # "pi" or "sigmoid"
@@ -39,13 +39,13 @@ class PhysParams:
                                 # (rest drains quietly to the bulk); calibrated from white-area growth
     v_e: float = 0.80
     dv: float = 0.10
-    C_E: float = 0.5
+    C_E: float = 0.3            # task-book start 0.5 (calibrated on the pull-through, REPORT F5)
     C_t: float = 0.3
     v_c: float = 0.025
     sig_d_min: float = 1.1e-3
     sig_d_fac: float = 0.75
     r0_fac: float = 0.6
-    sig_k_min: float = 3.5e-3
+    sig_k_min: float = 2.0e-3   # task-book start 3.5 mm (a thin high-pour stream, D_j ~ 2 mm)
     sig_r_fac: float = 2.5
     # optics
     Phi_star: float = 1.2       # white scale [kg/m^2]

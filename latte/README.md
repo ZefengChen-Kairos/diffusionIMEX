@@ -57,5 +57,5 @@ LATTE_FULL=1 python3 -m pytest -q tests
 python3 bench/benchmark.py
 ```
 
-性能（阶段一，单 CPU 核，numba 后端，128² + 384²）：单图案 23–31 s 墙钟 / 物理秒，即 3.2–5.2 min 一个图案。门禁：56 项判据通过 53 项（未过：G1.3、G2.5、G4.2，分析见报告 §4）。
+性能（阶段一，单 CPU 核，numba 后端，128² + 384²）：单图案 27–35 s 墙钟 / 物理秒，即 3.7–5.5 min 一个图案。门禁：56 项判据通过 54 项（未过：G1.3 冲击点棕洞、G3.2a 高位拖拽位移，分析见报告 §4）。
 阶段二的 GPU（Warp）后端尚未实现，见 `core/solver_warp.py`。
