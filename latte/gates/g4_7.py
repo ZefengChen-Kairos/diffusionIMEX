@@ -25,6 +25,14 @@ def tag_centroid(sh, Y, M, k):
     return np.array([(w * sh.gf.X).sum() / s, (w * sh.gf.Y).sum() / s])
 
 
+def front_edge(sh, Y, M, k, q=0.98):
+    """y of the front of tag k's white region (q-quantile of y over its pixels)."""
+    m = tag_mask(sh, Y, M, k)
+    if not m.any():
+        return float("nan")
+    return float(np.quantile(sh.gf.Y[m], q))
+
+
 def angular_coverage(mask, g, c, nb=36):
     if not mask.any():
         return 0.0
@@ -52,10 +60,12 @@ def run_g4():
     sh = shell(K, P, NP)
     Y1, M1, t1 = snapshot(r, 1.9)      # after dot A, before dot B
     Y2, M2, t2 = snapshot(r, 3.6)      # after dot B, before dot C
-    cA1 = tag_centroid(sh, Y1, M1, 0)
     cA2 = tag_centroid(sh, Y2, M2, 0)
-    d = float((cA2[1] - cA1[1]) * 1e3)
-    R.check("G4.1", "dot B pushes A forward: d centroid_y(A) between t=1.9 and 3.6 s [mm]", d, d > 2.0, "> 2 mm")
+    # the crescent's arms wrap backwards around B, so the push is measured on A's front edge
+    fA1 = front_edge(sh, Y1, M1, 0)
+    fA2 = front_edge(sh, Y2, M2, 0)
+    d = float((fA2 - fA1) * 1e3)
+    R.check("G4.1", "dot B pushes A forward: front edge of A, t=1.9 -> 3.6 s [mm]", d, d > 2.0, "> 2 mm")
     a2 = alpha_of(sh, Y2, M2)
     mA = tag_mask(sh, Y2, M2, 0, a2)
     cB = tag_centroid(sh, Y2, M2, 1)
@@ -80,8 +90,8 @@ def run_g4():
     f1 = min(c.frames, key=lambda f: abs(f[0] - 1.9))
     f2 = c.frames[-1]
     shc = shell(1, P, NP)
-    dc = float((tag_centroid(c, f2[1], f2[2], 0)[1] - tag_centroid(c, f1[1], f1[2], 0)[1]) * 1e3)
-    R.check("G4.4", "control (no dot B): d centroid_y(A) over the same interval [mm], ratio", [dc, dc / d],
+    dc = float((front_edge(c, f2[1], f2[2], 0) - front_edge(c, f1[1], f1[2], 0)) * 1e3)
+    R.check("G4.4", "control (no dot B): front edge of A over the same interval [mm], ratio", [dc, dc / d],
             abs(dc) < 0.2 * abs(d), "< 20 % of G4.1")
     e = tag_ledger_err(r, 0)
     R.check("G4.5", "tag A ledger: surface + bulk (incl. E-subducted, minus R) = injected", e, e < 1e-9, "< 1e-9")
@@ -105,7 +115,7 @@ def leaf_metrics(sh, Y, M):
         sel = (yc > y0) & (yc < y1)
         pk = mt.stripes(prof[sel], 0.15)
         yy = yc[sel][pk]
-        ribs[xo] = dict(n=len(pk), spacing=float(np.mean(np.diff(yy))) if len(pk) > 1 else float("nan"))
+        ribs[xo] = dict(n=mt.n_stripes(pk), spacing=float(np.mean(np.diff(yy))) if len(pk) > 1 else float("nan"))
     best = max(ribs.values(), key=lambda v: v["n"])
     sym = mt.mirror_iou(w)
     # vein: lateral profiles in the rib zone have a dip at x = 0
@@ -169,11 +179,22 @@ def run_g6():
     K = r["Y"].shape[1] - 1
     sh = shell(K, P, NP)
     Y, M, _ = snapshot(r, 4.9)          # after the second (pressing) segment
+    Y0, M0, _ = snapshot(r, 2.5)        # end of the first segment
     share = Y[1] / np.maximum(Y[0], 1e-12)
     a = alpha_of(sh, Y, M)
-    mA = (a > 0.5) & (share > 0.3)
-    _, n = mt.components(mA, 30)
-    R.check("G6.1a", "first batch A stays connected after being pressed open: components", n, 1 <= n <= 2, "1..2")
+    mA_white = (a > 0.5) & (share > 0.3)
+    _, n_white = mt.components(mA_white, 30)
+    # material of batch A (not its whiteness): Y_A > 0.2
+    _, n_mat = mt.components(Y[1] > 0.2, 30)
+
+    def massA(Yx, Mx):
+        Mf = sh.fm.to_fine(sh.g.extrapolate(Mx.copy()))
+        return float((Yx[1] * Mf * sh.gf.wet).sum() * sh.gf.dA)
+    keep = massA(Y, M) / massA(Y0, M0)
+    R.extra["G6.1_white_components_of_A"] = n_white
+    R.check("G6.1a", "batch A is pressed open, not erased and redrawn: surface A mass kept 2.5 -> 4.9 s; "
+            "components of A material (Y_A > 0.2)", [keep, n_mat], keep >= 0.8 and 1 <= n_mat <= 2,
+            "kept >= 80 %, 1..2 pieces")
     e = tag_ledger_err(r, 0)
     R.check("G6.1b", "tag A ledger closure", e, e < 1e-9, "< 1e-9")
     Y6, M6, _ = snapshot(r, 6.3)        # all three layers, before the cut

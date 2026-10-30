@@ -7,6 +7,7 @@ runs override fields, and they record the override.
 from dataclasses import dataclass, asdict, replace
 import hashlib
 import json
+import os
 
 
 @dataclass(frozen=True)
@@ -62,7 +63,7 @@ class PhysParams:
 @dataclass(frozen=True)
 class NumParams:
     L: float = 0.096            # square domain side
-    N: int = 128                # M/P grid
+    N: int = int(os.environ.get("LATTE_N", 128))   # M/P grid (LATTE_N only for smoke tests)
     ratio: int = 3              # fine material grid = ratio*N
     cfl: float = 0.35
     dt_max: float = 2e-3

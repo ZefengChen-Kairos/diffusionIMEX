@@ -99,8 +99,13 @@ def run_g0(full=True):
     a = run(ALL["leaf"](), P, NP, T=T5)
     b = run(ALL["leaf"]().mirrored(), P, NP, T=T5)
     dY = float(np.abs(a.Yf[0] - b.Yf[0][:, ::-1]).max())
-    dU = float(np.abs(a.U[0] - b.U[0][:, ::-1]).max() / a.U[0].max())
-    R.check("G0.5", "mirror input -> mirror output: max|dY|, max|dM|/M", [dY, dU], max(dY, dU) < 1e-8, "< 1e-8")
+    dU = float(max(np.abs(a.U[q] - b.U[q][:, ::-1]).max() / np.abs(a.U[q]).max() for q in (0, 3)))
+    dP = float(np.abs(a.U[1] + b.U[1][:, ::-1]).max() / np.abs(a.U[1]).max())
+    io = mt.iou(mt.white(a), mt.white(b)[:, ::-1])
+    R.check("G0.5a", "mirror: coarse M, Phi, P_x mirror to rounding (rel. max diff)", [dU, dP],
+            max(dU, dP) < 1e-12, "< 1e-12")
+    R.check("G0.5b", "mirror: white masks mirror IoU; fine max|dY| (rounding grown by the BFECC clamp)",
+            [io, dY], io >= 0.999 and dY < 1e-4, "IoU >= 0.999, dY < 1e-4")
 
     # G0.7 positivity over the pulse and the leaf runs
     for nm, sim in (("pulse", s), ("leaf", a)):

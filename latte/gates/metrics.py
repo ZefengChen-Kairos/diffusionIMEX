@@ -66,30 +66,37 @@ def profile(a, grid, x0=0.0, axis="y", width=0.0015):
 
 
 def stripes(prof, amp=0.15):
-    """Indices of white peaks separated by dips deeper than amp (hysteresis)."""
+    """Indices of white peaks that rise > amp above the trough on their left and fall > amp
+    on their right (hysteresis peak finder)."""
     p = np.asarray(prof, float)
     peaks = []
-    i_hi, v_hi = None, -np.inf
-    v_lo = np.inf
-    rising = True
+    if p.size == 0:
+        return peaks
+    looking = True
+    run_min = p[0]
+    cand_v, cand_i, left = -np.inf, None, p[0]
+    cur_min = p[0]
     for k, v in enumerate(p):
-        if rising:
-            if v > v_hi:
-                v_hi, i_hi = v, k
-            if v_hi - v > amp and i_hi is not None and v_hi - v_lo > amp:
-                peaks.append(i_hi)
-                rising = False
-                v_lo = v
+        if looking:
+            if v > cand_v:
+                cand_v, cand_i, left = v, k, run_min
+            run_min = min(run_min, v)
+            if cand_i is not None and cand_v - left > amp and cand_v - v > amp:
+                peaks.append(cand_i)
+                looking = False
+                cur_min = v
         else:
-            if v < v_lo:
-                v_lo = v
-            if v - v_lo > amp:
-                rising = True
-                v_hi, i_hi = v, k
-    # a final peak that ends at the pattern edge
-    if rising and i_hi is not None and v_hi - v_lo > amp and (len(p) - 1 - i_hi) > 0 and v_hi - p[-1] > amp:
-        peaks.append(i_hi)
+            cur_min = min(cur_min, v)
+            if v - cur_min > amp:
+                looking = True
+                run_min = cur_min
+                cand_v, cand_i, left = v, k, cur_min
     return peaks
+
+
+def n_stripes(peaks):
+    """A single white body is not a stripe pattern: stripes need at least two peaks."""
+    return len(peaks) if len(peaks) >= 2 else 0
 
 
 def components(mask, min_area_px=20):

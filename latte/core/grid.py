@@ -8,7 +8,8 @@ class Grid:
         self.L, self.N, self.R = L, N, R_cup
         self.dx = L / N
         self.dA = self.dx * self.dx
-        self.xc = -0.5 * L + (np.arange(N) + 0.5) * self.dx
+        # exactly antisymmetric cell centres (mirror tests are bitwise on the geometry)
+        self.xc = (np.arange(N) - 0.5 * (N - 1)) * self.dx
         self.X, self.Y = np.meshgrid(self.xc, self.xc)          # [j, i] = (y, x)
         self.wet = (self.X ** 2 + self.Y ** 2) < R_cup ** 2
         w = self.wet
@@ -56,7 +57,8 @@ class Grid:
             rad = b + 3.5 * a
         else:
             rad = 4.0 * a
-        sj, si = self.window(x0, rad)
+        # box with a one-cell margin; truncation by distance keeps the kernel mirror symmetric
+        sj, si = self.window(x0, rad + self.dx)
         X = self.X[sj, si] - x0[0]
         Y = self.Y[sj, si] - x0[1]
         rho = np.sqrt(X * X + Y * Y)
@@ -64,7 +66,7 @@ class Grid:
             K = np.exp(-((rho - b) / a) ** 2)
         else:
             K = np.exp(-0.5 * (rho / a) ** 2)
-        K *= self.wet[sj, si]
+        K *= self.wet[sj, si] & (rho <= rad)
         s = K.sum() * self.dA
         if s <= 0:
             return sj, si, K

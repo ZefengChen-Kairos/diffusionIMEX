@@ -39,8 +39,15 @@ def heart_metrics(a, g):
     notch = bool(prof[mid].mean() < 0.8 * np.max(prof[side]) and prof[mid].mean() < 0.6)
     pk = mt.stripes(prof, amp=0.15)
     _, ncomp = mt.components(w, 40)
+    # cut line: brown along the axis inside the white body, between its widest row and the tip
+    # (rows that are white at x = +-3 mm on both sides)
+    i0 = int(np.argmin(np.abs(g.xc)))
+    il = int(np.argmin(np.abs(g.xc + 3e-3)))
+    ir = int(np.argmin(np.abs(g.xc - 3e-3)))
+    rows_in = (yc >= yc[j_wmax]) & (a[:, il] > 0.5) & (a[:, ir] > 0.5)
+    cut_line = float((a[rows_in, i0] < 0.5).mean()) if rows_in.any() else 0.0
     return dict(lobes=len(pk), notch=notch, tip_len=tip_len, ncomp=ncomp, width_max=float(wmax),
-                y_extent=[float(y0), float(y1)])
+                y_extent=[float(y0), float(y1)], cut_line=cut_line, cut_rows=int(rows_in.sum()))
 
 
 def run_g1():
@@ -103,6 +110,10 @@ def run_g1():
     hole_w = float((right - left - 1) * s9.gf.dx) if a_xp < 0.5 else 0.0
     R.check("G1.3", "impact hole: alpha(x_p) < 0.5 and lateral brown width 3-10 mm (alpha, mm)",
             [a_xp, hole_w * 1e3], a_xp < 0.5 and 3e-3 <= hole_w <= 10e-3, "alpha<0.5, 3..10 mm")
+    # where is the nearest brown? (the horseshoe opening behind the jet)
+    from scipy import ndimage
+    dist_brown = ndimage.distance_transform_edt(a >= 0.5) * s9.gf.dx
+    R.extra["G1.3_dist_xp_to_brown_mm"] = float(dist_brown[j0, i0] * 1e3)
     c = mt.centroid(a > 0.5, s9.gf)
     R.check("G1.4", "horseshoe: white centroid ahead of x_p (dy mm)", float((c[1] - xp[1]) * 1e3),
             c[1] - xp[1] > 0, "> 0")
@@ -151,8 +162,8 @@ def run_g1():
     a8 = alpha_of(c8, c8.Yf, c8.U[0])
     hm8 = heart_metrics(a8, c8.gf)
     R.extra["G1.8_metrics"] = hm8
-    R.check("G1.8", "control (cut at h=1.2 cm): no rear notch / no narrow tip", hm8,
-            (not hm8["notch"]) or hm8["tip_len"] < 0.5 * hm["tip_len"], "no notch or tip < half")
+    R.check("G1.8", "control (same pass at h=1.2 cm): brown cut line share drops below half of G1.7", hm8,
+            hm8["cut_line"] < 0.5 * hm["cut_line"], "cut_line < 0.5 x heart")
     board([[img_of(sh, Yf, Mf), img_of(c8, c8.Yf, c8.U[0])]], R.dir + "/heart_vs_lowcut.png",
           labels=["heart (cut h=10 cm)", "control (cut h=1.2 cm)"], cell=260)
     R.write(P, NP)

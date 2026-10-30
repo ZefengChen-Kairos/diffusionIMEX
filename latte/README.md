@@ -7,6 +7,9 @@
 - 模型与实现、与任务书的差异：[`docs/MODEL.md`](docs/MODEL.md)
 - 验收方案（实现前写定）：[`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md)
 - 结果报告（门禁、失败分析、敏感性、性能）：[`docs/REPORT.md`](docs/REPORT.md)
+- 门禁总表 / 敏感性 / benchmark：[`docs/GATES_SUMMARY.md`](docs/GATES_SUMMARY.md)、[`docs/SENSITIVITY.md`](docs/SENSITIVITY.md)、[`docs/BENCHMARK.md`](docs/BENCHMARK.md)
+
+![six patterns](docs/figures/board.png)
 
 ## 目录
 
@@ -54,5 +57,5 @@ LATTE_FULL=1 python3 -m pytest -q tests
 python3 bench/benchmark.py
 ```
 
-性能（阶段一，单 CPU 核，numba 后端，128² + 384²）：单图案约 20–25 s 墙钟 / 物理秒，即 3–4 min 一个图案。
+性能（阶段一，单 CPU 核，numba 后端，128² + 384²）：单图案 23–31 s 墙钟 / 物理秒，即 3.2–5.2 min 一个图案。门禁：56 项判据通过 53 项（未过：G1.3、G2.5、G4.2，分析见报告 §4）。
 阶段二的 GPU（Warp）后端尚未实现，见 `core/solver_warp.py`。

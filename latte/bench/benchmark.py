@@ -75,8 +75,9 @@ def profile(backend, N, steps, warm=200):
     st = pstats.Stats(pr)
     rows = []
     tot = sum(v[3] for k, v in st.stats.items() if k[2] == "step")
+    wrappers = {"rhs", "fine_advect"} if backend == "numba" else set()
     for (fn, line, name), v in st.stats.items():
-        if name in OPS and "latte" in fn:
+        if name in OPS and "latte" in fn and name not in wrappers:
             rows.append(dict(op=name, desc=OPS[name], calls=v[1], cum_s=v[3], share=v[3] / tot))
     rows.sort(key=lambda r: -r["share"])
     return dict(backend=backend, N=N, steps=steps, wall_s=wall, ms_per_step=1e3 * wall / steps,

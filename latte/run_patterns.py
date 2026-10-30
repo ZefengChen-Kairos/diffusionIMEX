@@ -39,8 +39,19 @@ STAGES = {
 SNAP_DT = 0.25
 
 
+def code_hash():
+    """Hash of the solver / closure / grid sources: cached runs are invalidated by code changes."""
+    root = os.path.dirname(os.path.abspath(__file__))
+    h = hashlib.sha1()
+    for f in ("core/solver_np.py", "core/grid.py", "core/kernels_nb.py", "closures/jet_stub.py",
+              "actions/scripts.py"):
+        h.update(open(os.path.join(root, f), "rb").read())
+    return h.hexdigest()[:12]
+
+
 def key(name, P, NP, action):
-    h = hashlib.sha1((P.digest() + json.dumps(NP.to_dict(), sort_keys=True) + action.to_json()).encode())
+    h = hashlib.sha1((P.digest() + json.dumps(NP.to_dict(), sort_keys=True) + action.to_json()
+                      + code_hash()).encode())
     return h.hexdigest()[:12]
 
 

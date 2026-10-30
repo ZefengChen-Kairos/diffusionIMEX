@@ -65,7 +65,7 @@ def g2_metrics(P, NP):
     s.run()
     a = alpha_of(s, s.Yf, s.U[0])
     pk, ys, lam, prof = axis_stripes(a, s.gf)
-    return dict(n=len(pk), lam_mm=lam * 1e3, contrast=mt.contrast(prof, pk))
+    return dict(n=mt.n_stripes(pk), lam_mm=lam * 1e3, contrast=mt.contrast(prof, pk))
 
 
 def main():
