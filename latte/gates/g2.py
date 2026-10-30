@@ -16,6 +16,7 @@ def wobble_action(a=9.0, f=1.5, T_w=3.8, y0=-4.0, y1=-20.0, T_end=None):
     p.move(0.2, h=0.012)
     p.move(0.3, to=(0, y0 + 0.3 / T_w * (y1 - y0)), a=a, f=f)   # wobble ramps in while retreating
     p.move(T_w - 0.3, to=(0, y1))
+    p.move(0.3, Q=0.0)                                    # stop (reached only when T_end > 0.6 + T_w)
     return p.build(T_end=T_end or 0.6 + T_w, continuous=False)
 
 

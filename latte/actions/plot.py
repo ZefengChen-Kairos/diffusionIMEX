@@ -45,15 +45,19 @@ def plot(out):
         axs[r, 1].set_title(f"max |dh/dt| {d['dhdt_max']:.2f} m/s", fontsize=8, loc="left", color=INK)
         ax = axs[r, 2]
         ax.add_patch(plt.Circle((0, 0), 42, fill=False, color=GRID, lw=1))
-        on = a.val["Q"][:k][::10] > 0
-        ax.plot(xy[:, 0], xy[:, 1], color=GRID, lw=0.8)
-        ax.scatter(xy[on, 0], xy[on, 1], s=1.5 + 0.25 * a.val["Q"][:k][::10][on] * (a.val["h"][:k][::10][on] < 0.02),
-                   color=INK, lw=0)
+        q = a.val["Q"][:k][::10]
+        hh = a.val["h"][:k][::10]
+        draw = (q > 0) & (hh < 0.02)
+        lifted = (q > 0) & ~draw
+        ax.plot(xy[:, 0], xy[:, 1], color=GRID, lw=0.6, ls=":")
+        for m, lw, col in ((lifted, 0.9, MUTED), (draw, 1.8, INK)):
+            seg = np.where(m, xy[:, 1], np.nan)
+            ax.plot(xy[:, 0], seg, color=col, lw=lw, solid_capstyle="round")
         ax.set_xlim(-45, 45)
         ax.set_ylim(-45, 45)
         ax.set_aspect("equal")
         ax.axis("off")
-        ax.set_title("spout path (pitcher at -y)", fontsize=8, color=INK)
+        ax.set_title("path: dark = drawing (h < 2 cm), grey = lifted", fontsize=7, color=INK)
     for ax in axs[-1, :2]:
         ax.set_xlabel("t [s]", fontsize=8)
     fig.tight_layout()

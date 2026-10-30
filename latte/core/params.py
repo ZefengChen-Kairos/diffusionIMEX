@@ -33,7 +33,9 @@ class PhysParams:
                                 # "rim": only at the wall; "sorted": base liquid drains from under the foam
     rim_w: float = 3.0e-3       # width of the wall band where the skin goes under [m]
     chi: float = 0.35           # momentum retention of the deposited milk
-    k_h: float = 0.30           # horizontal fraction of the jet speed
+    k_h: float = 0.40           # horizontal fraction of the jet speed (of v0 for vh_form "exit")
+    vh_form: str = "exit"       # horizontal jet velocity at impact: "exit" k_h v0, v0 = Q / A_spout (set at the
+                                # spout; the fall only adds vertical speed); "impact" k_h v_j (task book)
     nu_s: float = 2e-5          # kinematic surface viscosity [m^2/s]; T_s = 2 nu_s M D_h
     # empirical closures
     retention: str = "sigmoid"  # "pi" or "sigmoid"

@@ -420,14 +420,14 @@ def swan(ang_deg=22.0):
     p.move(0.4, to=P2 + np.array([-4.0, 2.0]), Q=Q_THIN, h=H_LIFT, th=0.0)
     p.path(1.4, [(-13.0, -8.0), (-10.0, 14.0), n0 + np.array([2.0, -2.0])])
     p.stroke("neck")
-    p.move(0.4, to=n0, Q=6.0, h=0.015)            # lower the pitcher again
+    p.move(0.4, to=n0, Q=4.5, h=0.020)            # lower the pitcher again: a thin stream
     ths = np.linspace(th0, th1, 7)[1:]
-    p.path(0.9, [c + (r0 + (r1 - r0) * (t - th0) / (th1 - th0)) * np.array([math.cos(t), math.sin(t)])
+    p.path(0.8, [c + (r0 + (r1 - r0) * (t - th0) / (th1 - th0)) * np.array([math.cos(t), math.sin(t)])
                  for t in ths])                   # quickly back towards B: the neck
     hd = p.at()
     p.stroke("head")
-    p.move(0.3, Q=12.0, h=H_DRAW)
-    p.move(0.8)                                   # large flow: the head
+    p.move(0.3, Q=10.0, h=H_DRAW)
+    p.move(0.5)                                   # large flow: the head
     p.stroke("beak")
     p.move(0.35, to=hd + np.array([0.0, 4.0]), Q=Q_PULL, h=0.04)
     p.move(0.25, to=hd + np.array([0.0, 10.0]), Q=0.0, h=0.06)

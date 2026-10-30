@@ -51,7 +51,10 @@ def impact_event(sample, P, v_j_override=None):
     r = retention(v_j, D_j, P)
     e = np.asarray(sample.e, float)
     v_p = np.asarray(sample.v, float)
-    v_h = P.k_h * v_j * e + v_p
+    # the falling stream keeps the horizontal speed it leaves the spout with (gravity is vertical), so
+    # the "exit" form scales with v0 = Q / A_spout; the task-book form scales with the impact speed
+    v_x = sample.Q / P.A_spout if P.vh_form == "exit" else v_j
+    v_h = P.k_h * v_x * e + v_p
     u_d = P.chi * v_h
     eta = 1.0 / (1.0 + float(np.linalg.norm(v_p)) / P.v_c)
     return ImpactEvent(np.asarray(sample.x, float), P.rho_milk * sample.Q, sample.Q, v_j, D_j,

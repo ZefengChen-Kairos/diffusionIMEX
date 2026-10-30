@@ -417,6 +417,7 @@ class Sim:
             B.Mk += rem_tot[4:]
             B.Pm += rem_tot[1:3]
             self.X_sub += rem_tot[0]
+            self.X_milk += rem_tot[3]
         # upwelling of bulk fluid
         up = np.maximum(-dh, 0.0)
         if up.any():

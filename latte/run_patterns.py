@@ -135,7 +135,8 @@ def make_outputs(names, runs, P, NP):
             tags.append(crop_cup(tag_image(Y, shell.gf), shell.gf))
         board([imgs, tags], os.path.join(d, f"{n}_stages.png"), labels=[f"t={t:.1f}s" for t in st], cell=220)
         save(imgs[-1], os.path.join(d, f"{n}_final.png"))
-        ref = os.path.join(ref_dir, f"final_{n}.png")
+        # reference: the video's final frame rectified to a top view, pour axis up (gates/reference.py)
+        ref = os.path.join(ref_dir, f"aligned_{n}.png")
         refim = None
         if os.path.exists(ref):
             im = Image.open(ref).convert("RGB")
@@ -143,7 +144,7 @@ def make_outputs(names, runs, P, NP):
             refim = np.array(im.crop((0, (h - w) // 2, w, (h - w) // 2 + w)))
         rows.append(imgs + [refim])
         labels.append(f"{n}")
-    board(rows, os.path.join(d, "board.png"), labels=["stage 1", "stage 2", "stage 3", "final", "reference video"],
+    board(rows, os.path.join(d, "board.png"), labels=["stage 1", "stage 2", "stage 3", "final", "video (top view, axis up)"],
           row_labels=labels, cell=220)
 
 

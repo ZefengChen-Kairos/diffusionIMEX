@@ -75,15 +75,16 @@ def run_g4():
     cov = angular_coverage(mA, sh.gf, cB)
     R.check("G4.2", "A is a crescent around B: angular coverage of A seen from B's centroid [deg]", cov,
             cov > 180.0, "> 180")
-    # brown separation band between A and B along the axis
+    # brown separation band between A and B along the axis: A wraps around B as a crescent, so the band
+    # is looked for on the axis from B's centroid forward to A's front edge
     yc, prof = mt.profile(a2, sh.gf, x0=0.0, axis="y", width=1.0e-3)
-    yA = cA2[1]
+    yA = fA2
     yB = cB[1]
     sel = (yc > min(yA, yB)) & (yc < max(yA, yB))
     band = float(prof[sel].min()) if sel.any() else 1.0
     # band width: contiguous alpha < 0.6 between them
     width = float((prof[sel] < 0.6).sum() * sh.gf.dx * 1e3)
-    R.check("G4.3", "brown band between A and B on the axis: min alpha, width [mm]", [band, width],
+    R.check("G4.3", "brown band between B (centroid) and A's front edge on the axis: min alpha, width [mm]", [band, width],
             band < 0.6 and width > 0, "alpha < 0.6, width > 0")
     # control: the same pour, but the flow runs out at the end of part A (no part B)
     ctrl = ALL["push_heart"]().truncated(pa.end("A"), T_end=T2, name="push_heart_ctrl")
@@ -105,12 +106,15 @@ def run_g4():
 
 
 # ---------------------------------------------------------------------------- G5
-def leaf_metrics(sh, Y, M):
+def leaf_metrics(sh, Y, M, yr=None):
+    """yr: optional (y_lo, y_hi) window [m] for the rib count / spacing (e.g. the retreat zone)."""
     a = alpha_of(sh, Y, M)
     g = sh.gf
     w = a > 0.5
     ys = g.Y[w]
     y0, y1 = ys.min(), ys.max()
+    if yr is not None:
+        y0, y1 = max(y0, yr[0]), min(y1, yr[1])
     # ribs along a line parallel to the axis on one side
     ribs = {}
     for xo in (5e-3, 7e-3, 9e-3):
@@ -154,10 +158,12 @@ def run_g5():
     from gates.common import step_until
     step_until(sim, r1 - shift + 0.2)
     Yb, Mb, _ = snapshot(r, r1 + 0.2)
-    m_ref = leaf_metrics(sh, Yb, Mb)
-    m_fast = leaf_metrics(sim, sim.Yf, sim.U[0])
+    # ribs laid down during the retreat: between the spout positions at the end and the start of the retreat
+    yr = (base.pos_mm(r1)[1] * 1e-3, base.pos_mm(r0)[1] * 1e-3)
+    m_ref = leaf_metrics(sh, Yb, Mb, yr)
+    m_fast = leaf_metrics(sim, sim.Yf, sim.U[0], yr)
     R.extra["G5.3"] = dict(ref=m_ref, fast=m_fast)
-    R.check("G5.3", "rib spacing before the cut: reference vs retreat x1.5 [mm]",
+    R.check("G5.3", "rib spacing in the retreat zone before the pull-through: reference vs retreat x1.5 [mm]",
             [m_ref["spacing"] * 1e3, m_fast["spacing"] * 1e3], m_fast["spacing"] > m_ref["spacing"], "increases")
     board([[img_of(sh, Yb, Mb), img_of(sim, sim.Yf, sim.U[0]), img_of(sh, Y, M), tagimg_of(sh, Y)]],
           R.dir + "/leaf.png", labels=["ref, end of retreat", "retreat x1.5", "final", "tags"], cell=230)

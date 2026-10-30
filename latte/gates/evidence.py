@@ -8,7 +8,10 @@ F1  spec main pressure closure (buoyant, coffee pressureless):
 F2  spec retention calibration (all retained milk surfaces, phi_f = 1, v_e = 1.05): flooded cup
 F3  v_e = 1.05 with phi_f calibrated: no impact hole, no stripes (needs a penetrating share at low pour)
 F4  bulk return of all sunk milk (task-book form) vs white material only: stripe contrast of the leaf
-F6  layer-thickness exchange: none (task-book) / sorted / wall-only: extent and similarity of the push heart
+F7  horizontal jet velocity: task-book k_h v_j (grows with the fall height) vs k_h v0 (set at the spout):
+    width of the heart's tip 1.5 and 3 mm behind its forward end after the lift-off pull-through
+F6  layer-thickness exchange: none (task-book) / wall-only / sorted / local: white share of the cup surface
+    over time for the heart pour, against the same measurement on the heart video
 F5  the last stroke: (a) cut into the wall (task-book heart trajectory) vs lift-off pull-through;
     (b) task-book entrainment C_E = 0.5, sink width >= 3.5 mm vs C_E = 0.3, >= 2 mm: brown groove vs white tail
 """
@@ -130,26 +133,43 @@ def main():
           labels=["leaf, return all milk", "leaf, return white only", "heart, cut to the wall",
                   "heart, lift-off", "heart, C_E=0.5, sk>=3.5mm"],
           cell=220)
-    # F6 layer-thickness exchange
-    from gates.reference import load_masks, white_mask_sim, best_iou, build
-    from gates.common import out_root
-    rdir = os.path.join(out_root(), "reference")
-    if not os.path.exists(os.path.join(rdir, "push_heart_mask.npy")):
-        build(rdir)
-    refm = load_masks(rdir)
+    # F6 layer-thickness exchange: white share of the cup surface over time, heart pour vs heart video
+    from gates.reference import white_mask_sim, white_fraction_history, disc_fraction
+    times = [3.0, 4.0, 5.0, 6.0, 7.0]
+    res["F6_times"] = times + ["final"]
+    res["F6_video"] = white_fraction_history("heart", times + [11.3])
     row6 = []
-    for lab, P6 in (("none", P0.with_(tau_ex=0.0)), ("sorted", P0.with_(exchange_mode="sorted", tau_ex=0.2)),
-                    ("rim", P0)):
-        s6 = Sim(ALL["push_heart"](), P=P6, NP=NP)
+    for lab, P6 in (("none", P0.with_(tau_ex=0.0)), ("rim", P0.with_(exchange_mode="rim")),
+                    ("sorted", P0.with_(exchange_mode="sorted")), ("local", P0.with_(exchange_mode="local"))):
+        s6 = Sim(ALL["heart"](), P=P6, NP=NP, record_every=0.5)
         s6.run()
-        a6 = alpha_of(s6, s6.Yf, s6.U[0])
-        sm = white_mask_sim(a6, s6.gf)
-        res[f"F6_{lab}"] = dict(iou_push_heart=best_iou(sm, refm["push_heart"], step=10)[0],
-                                white_fraction=float(mt.area(a6 > 0.5, s6.gf) / (np.pi * P0.R_cup ** 2)),
+        fr = []
+        for tq in times:
+            f = min(s6.frames, key=lambda f: abs(f[0] - tq))
+            fr.append(disc_fraction(white_mask_sim(alpha_of(s6, f[1], f[2]), s6.gf)))
+        fr.append(disc_fraction(white_mask_sim(alpha_of(s6, s6.Yf, s6.U[0]), s6.gf)))
+        res[f"F6_{lab}"] = dict(white_fraction=[round(x, 3) for x in fr],
                                 layer_M_max_over_rho_c_h0=float(s6.U[0].max() / (P0.rho_c * P0.h0)))
         row6.append(img_of(s6, s6.Yf, s6.U[0]))
-    board([row6], os.path.join(d, "F6_exchange.png"), labels=["no exchange", "sorted drainage", "wall-only drainage"],
-          cell=230)
+    board([row6], os.path.join(d, "F6_exchange.png"),
+          labels=["no exchange", "wall-only (rim)", "sorted drainage", "local (default)"], cell=230)
+    # F7 horizontal jet velocity at impact: the tip of the heart after the lift-off pull-through
+    row7 = []
+    for lab, P7 in (("impact_kh030", P0.with_(vh_form="impact", k_h=0.30)), ("exit_kh040", P0)):
+        s7 = Sim(ALL["heart"](), P=P7, NP=NP)
+        s7.run()
+        w = alpha_of(s7, s7.Yf, s7.U[0]) > 0.5
+        g = s7.gf
+        band = w & (np.abs(g.X) < 12e-3)
+        y_top = float(g.Y[band].max())
+        wid = []
+        for dy in (1.5e-3, 3.0e-3):
+            j = int(np.argmin(np.abs(g.xc - (y_top - dy))))
+            wid.append(float((w[j] & (np.abs(g.xc) < 12e-3)).sum() * g.dx * 1e3))
+        res[f"F7_{lab}"] = dict(tip_width_mm_at_1p5_3mm=wid, y_front_mm=y_top * 1e3)
+        row7.append(img_of(s7, s7.Yf, s7.U[0]))
+    board([row7], os.path.join(d, "F7_jet_horizontal.png"), labels=["k_h v_j (task book)", "k_h v0 (spout exit)"],
+          cell=260)
     json.dump(res, open(os.path.join(d, "evidence.json"), "w"), indent=1)
     print(json.dumps({k: v for k, v in res.items()}, indent=1, default=str)[:3000])
 
