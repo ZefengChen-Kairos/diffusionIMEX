@@ -170,27 +170,46 @@ class MirroredAction:
         return self.base.to_json()
 
 
-def heart():
+def lift_cut(t0, p0, p1, T, Q, h=0.10, taper=0.3):
+    """High pour moving p0 -> p1 in T seconds; the flow tapers to zero over the last `taper`
+    seconds while the pitcher keeps moving (the barista's lift-off at the end of the cut)."""
+    p0, p1 = np.array(p0, float), np.array(p1, float)
+    tm = t0 + T - taper
+    pm = p0 + (p1 - p0) * (T - taper) / T
+    return [Segment(t0, tm, tuple(p0), tuple(pm), Q, None, h),
+            Segment(tm, t0 + T, tuple(pm), tuple(p1), Q, 0.0, h)]
+
+
+def heart(variant=1, cut=None, t_pour=6.0):
     S = Segment
+    if variant == 0:     # task-book starting values
+        return Action("heart_v0", [
+            S(0.0, 0.8, (0, -18), None, 0.0, 9.0, 0.015, 0.012),
+            S(0.8, 5.2, (0, -18), (0, -4), 9.0, None, 0.012),
+            S(5.2, 5.7, (0, -4), None, 9.0, 6.0, 0.012, 0.10),
+            S(5.7, 7.1, (0, -4), (0, 40), 6.0, None, 0.10),
+        ], 9.0)
+    # tuned: the cut ends just past the front of the disc with the flow tapering off
+    c = cut or ((0, -4), (0, 26), 0.8, 6.0)
+    tp = t_pour
     return Action("heart", [
         S(0.0, 0.8, (0, -18), None, 0.0, 9.0, 0.015, 0.012),
-        S(0.8, 5.2, (0, -18), (0, -4), 9.0, None, 0.012),
-        S(5.2, 5.7, (0, -4), None, 9.0, 6.0, 0.012, 0.10),
-        S(5.7, 7.1, (0, -4), (0, 40), 6.0, None, 0.10),
-    ], 9.0)
+        S(0.8, tp, (0, -18), (0, -4), 9.0, None, 0.012),
+        S(tp, tp + 0.5, (0, -4), c[0], 9.0, c[3], 0.012, 0.10),
+    ] + lift_cut(tp + 0.5, c[0], c[1], c[2], c[3]), tp + 0.5 + c[2] + 1.8)
 
 
 def push_heart(variant=0, cut=None):
     S = Segment
-    # tuned: dots 2 and 3 at Q 12 / h 1.0 cm (Q 14 raises v_j and lowers r to ~0.35);
-    # shorter, gentler cut (spec start: (0,-34)->(0,40), 1.4 s, Q 6)
-    c = cut or ((0, -33), (0, 34), 1.4, 4.0)
+    # tuned: longer dots, dots 2 and 3 at Q 12 / h 1.0 cm (Q 14 raises v_j and lowers r to ~0.35);
+    # short, fast, gentle cut ending past the front with a lift-off (spec start: (0,-34)->(0,40), 1.4 s, Q 6)
+    # the cut ends just past the front of the pattern with a lift-off
+    c = cut or ((0, -30), (0, 24), 0.5, 3.0)
     return Action("push_heart", [
-        S(0.0, 1.3, (0, -10), (0, -2), 13.0, None, 0.013),
-        S(2.0, 3.1, (0, -21), (0, -15), 12.0, None, 0.010),
-        S(3.8, 4.7, (0, -29), (0, -25), 12.0, None, 0.010),
-        S(5.0, 5.0 + c[2], c[0], c[1], c[3], None, 0.10),
-    ], 7.0 + c[2])
+        S(0.0, 1.8, (0, -10), (0, -2), 13.0, None, 0.012),
+        S(2.4, 3.9, (0, -21), (0, -15), 12.0, None, 0.010),
+        S(4.5, 5.8, (0, -29), (0, -25), 12.0, None, 0.010),
+    ] + lift_cut(6.1, c[0], c[1], c[2], c[3]), 7.9 + c[2])
 
 
 def layered_heart(variant=4):
@@ -214,8 +233,7 @@ def layered_heart(variant=4):
             S(0.0, 0.6, (0, -4), None, 11.0, None, 0.014),
             S(0.6, 4.4, (0, -4), (0, -20), 11.0, None, 0.012, a=7.5, f=2.0),
             S(4.4, 4.9, (0, -20), (0, -12), 11.0, 5.0, 0.012, 0.10),
-            S(4.9, 6.3, (0, -12), (0, 40), 4.5, None, 0.10),
-        ], 8.3)
+        ] + lift_cut(4.9, (0, -12), (0, 26), 0.9, 4.5), 7.6)
     if variant == 4:
         # tuned (default): slow retreat with a 9 mm / 1.5 Hz wobble, then a partial cut;
         # lambda = v_rel / f with v_rel = push speed + retreat speed
@@ -223,8 +241,7 @@ def layered_heart(variant=4):
             S(0.0, 0.6, (0, -4), None, 11.0, None, 0.014),
             S(0.6, 4.4, (0, -4), (0, -20), 11.0, None, 0.012, a=9.0, f=1.5),
             S(4.4, 4.9, (0, -20), (0, -12), 11.0, 5.0, 0.012, 0.10),
-            S(4.9, 6.3, (0, -12), (0, 40), 4.5, None, 0.10),
-        ], 8.3)
+        ] + lift_cut(4.9, (0, -12), (0, 26), 0.9, 4.5), 7.6)
     # tuned: wobble near B with a slow forward drift; the new ribbon pushes the old ones forward
     return Action("layered_heart", [
         S(0.0, 0.6, (0, -20), None, 11.0, None, 0.014),
@@ -236,14 +253,14 @@ def layered_heart(variant=4):
 
 def tulip(variant=0, cut=None):
     S = Segment
-    # tuned: point dot at h 1.0 cm, gentler cut (spec start: (0,-34)->(0,40), 1.4 s, Q 5)
-    c = cut or ((0, -33), (0, 34), 1.4, 4.0)
+    # tuned: longer segments, point dot at h 1.0 cm, short fast gentle cut with lift-off
+    # (spec start: (0,-34)->(0,40), 1.4 s, Q 5)
+    c = cut or ((0, -30), (0, 26), 0.5, 3.0)
     return Action("tulip", [
-        S(0.0, 2.4, (0, -14), (0, 4), 12.0, None, 0.012, a=6.0, f=2.4),
-        S(3.0, 4.6, (0, -20), (0, -10), 13.0, None, 0.012, a=6.0, f=2.4),
-        S(5.2, 6.1, (0, -27), None, 12.0, None, 0.010),
-        S(6.4, 6.4 + c[2], c[0], c[1], c[3], None, 0.10),
-    ], 8.4 + c[2])
+        S(0.0, 2.8, (0, -14), (0, 4), 12.0, None, 0.012, a=6.0, f=2.4),
+        S(3.4, 5.4, (0, -20), (0, -10), 13.0, None, 0.012, a=6.0, f=2.4),
+        S(6.0, 7.2, (0, -27), None, 12.0, None, 0.010),
+    ] + lift_cut(7.5, c[0], c[1], c[2], c[3]), 9.3 + c[2])
 
 
 def leaf():
@@ -253,8 +270,7 @@ def leaf():
         S(1.2, 2.0, (0, -6), (0, 4), 11.0, None, 0.012, a=6.0, f=2.8),
         S(2.0, 4.6, (0, 4), (0, -32), 10.0, None, 0.012, a=6.0, f=2.8),
         S(4.6, 5.0, (0, -32), (0, -34), 4.0, None, 0.012, 0.10),
-        S(5.0, 6.4, (0, -34), (0, 40), 4.0, None, 0.10),
-    ], 8.4)
+    ] + lift_cut(5.0, (0, -34), (0, 26), 1.2, 4.0), 8.0)
 
 
 def swan(variant=1):
@@ -281,8 +297,7 @@ def swan(variant=1):
         S(5.7, 6.7, (0, 0), None, 5.0, None, 0.025,
           arc={"c": (-2.0, 0.0), "th0": 0.5 * math.pi, "th1": 1.4 * math.pi, "r0": 24.0, "r1": 20.0}),
         S(6.9, 7.5, (-12, -26), None, 12.0, None, 0.013),
-        S(7.7, 8.2, (-12, -31), (-8, -19), 4.0, None, 0.10),
-    ], 10.2)
+    ] + lift_cut(7.7, (-12, -31), (-11, -24), 0.35, 4.0, taper=0.15), 9.8)
 
 
 ALL = {"heart": heart, "push_heart": push_heart, "layered_heart": layered_heart,

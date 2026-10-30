@@ -37,11 +37,18 @@ def _minmod(dl, dr):
 
 
 class Bulk:
-    """0D bulk ledger: milk / coffee / tag masses and horizontal momentum."""
+    """0D bulk ledger: milk-material / base-liquid / tag masses and horizontal momentum.
+
+    bulk_return == "white" (default): Mm is the whipped (white) milk material in the bulk, i.e.
+    what E entrained from the surface; liquid milk that drains or penetrates joins the base
+    liquid Mc (its amount is counted in Ml).  R returns the white fraction Mm / M.
+    bulk_return == "all_milk" (task-book form): every sunk milk mass goes to Mm and R returns it.
+    """
 
     def __init__(self, P: PhysParams, K):
         self.Mm = 0.0
         self.Mc = P.rho_c * P.V_bulk0
+        self.Ml = 0.0               # liquid milk merged into the base (part of Mc), white mode only
         self.Mk = np.zeros(K)
         self.Pm = np.zeros(2)       # bulk horizontal momentum
         self.P = P
@@ -94,7 +101,7 @@ class Sim:
         self.dt_acc = 0.0
         self.k_acc = 0
         # ledgers (fp64)
-        self.inj = dict(mass=0.0, milk=0.0, tags=np.zeros(self.K), mom=np.zeros(2))
+        self.inj = dict(mass=0.0, milk=0.0, milk_total=0.0, tags=np.zeros(self.K), mom=np.zeros(2))
         self.cup_impulse = np.zeros(2)
         self.ret_mass = 0.0          # integral of D (retained new milk)
         self.E_milk = 0.0            # milk removed from the surface by E
@@ -266,9 +273,14 @@ class Sim:
                 dmom_surf += dt * Drate * ev.u_d
         # --- penetrating part (1 - r) and drained liquid r (1 - phi_f) go to the bulk
         sunk = mdot * dt - Drate * dt
-        B.Mm += sunk
-        if tag >= 0:
-            B.Mk[tag] += sunk
+        white = P.bulk_return == "white"
+        if white:
+            B.Mc += sunk            # liquid milk joins the base liquid; it is not white material
+            B.Ml += sunk
+        else:
+            B.Mm += sunk
+            if tag >= 0:
+                B.Mk[tag] += sunk
         # --- screened sink pair E / R (equal volumes)
         Qe = P.C_E * (1.0 - r) * ev.Q
         Erate_mass = Rrate_mass = 0.0
@@ -336,9 +348,12 @@ class Sim:
         # (mom_in - D u_d - tau_j) plus what E carried down (dmom_surf includes -E u)
         B.Pm += dt * mom_in - dmom_surf
         self.inj["mass"] += mdot * dt
-        self.inj["milk"] += mdot * dt
+        self.inj["milk_total"] += mdot * dt
+        # material ledger input: white material only (white mode) or all milk (task-book form)
+        dm = Drate * dt if white else mdot * dt
+        self.inj["milk"] += dm
         if tag >= 0:
-            self.inj["tags"][tag] += mdot * dt
+            self.inj["tags"][tag] += dm
         self.inj["mom"] += dt * mom_in
         self.ret_mass += Drate * dt
         return dict(x0=x0, r0=r0, sd=sd, sk=sk, sr=sr, Drate=Drate, tag=tag,
@@ -501,7 +516,7 @@ class Sim:
         ev = impact_event(smp, P, vjo) if smp is not None else None
         T0 = self.totals()
         B = self.bulk
-        bulk0 = (B.Mm, B.Mc, B.Mk.copy(), B.Pm.copy())
+        bulk0 = (B.Mm, B.Mc, B.Mk.copy(), B.Pm.copy(), self.inj["milk"], self.inj["tags"].copy())
         cup0 = self.cup_impulse.copy()
         quiet = ev is None and not np.any(self.U[1:3]) and not np.any(self.U[3])
         if not quiet:
@@ -576,14 +591,13 @@ class Sim:
         # (1) total mass: surface + bulk changes by mdot dt
         dtot = (T1["M"] - T0["M"]) + (B.Mm + B.Mc - bulk0[0] - bulk0[1]) - mdt
         e_mass = abs(dtot) / max(T0["M"] + bulk0[0] + bulk0[1], 1e-30)
-        # (2) milk
-        dmilk = (T1["Phi"] - T0["Phi"]) + (B.Mm - bulk0[0]) - mdt
-        e_milk = abs(dmilk) / max(T0["Phi"] + bulk0[0] + mdt, 1e-12)
+        # (2) milk material: surface Phi + bulk material changes by the material input
+        dm_in = self.inj["milk"] - bulk0[4]
+        dmilk = (T1["Phi"] - T0["Phi"]) + (B.Mm - bulk0[0]) - dm_in
+        e_milk = abs(dmilk) / max(T0["Phi"] + bulk0[0] + dm_in, 1e-12)
         # (3) tags
-        dtag = (T1["tags"] - T0["tags"]) + (B.Mk - bulk0[2])
-        if ev is not None and ev.tag >= 0:
-            dtag[ev.tag] -= mdt
-        e_tag = np.abs(dtag).max() / max(T0["Phi"] + bulk0[0] + mdt, 1e-12)
+        dtag = (T1["tags"] - T0["tags"]) + (B.Mk - bulk0[2]) - (self.inj["tags"] - bulk0[5])
+        e_tag = np.abs(dtag).max() / max(T0["Phi"] + bulk0[0] + dm_in, 1e-12)
         # (4) momentum: surface + bulk + cup changes by incoming momentum
         mom_in = ev.mdot * ev.v_h * dt if ev is not None else np.zeros(2)
         dP = (np.array([T1["Px"] - T0["Px"], T1["Py"] - T0["Py"]]) + (B.Pm - bulk0[3])

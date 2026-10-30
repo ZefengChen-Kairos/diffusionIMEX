@@ -29,10 +29,10 @@ LABEL_ZH = {"heart": "大白心", "push_heart": "推推乐", "layered_heart": "�
             "leaf": "树叶", "swan": "天鹅"}
 # stage times (end of the main phases) for the 4-frame stage strips
 STAGES = {
-    "heart": [1.5, 3.5, 5.6, None],
-    "push_heart": [1.4, 3.2, 4.8, None],
+    "heart": [1.5, 3.5, 6.4, None],
+    "push_heart": [2.0, 4.2, 6.0, None],
     "layered_heart": [1.5, 3.0, 4.6, None],
-    "tulip": [2.5, 4.7, 6.2, None],
+    "tulip": [3.0, 5.6, 7.4, None],
     "leaf": [2.0, 3.4, 4.8, None],
     "swan": [4.4, 6.8, 7.6, None],
 }

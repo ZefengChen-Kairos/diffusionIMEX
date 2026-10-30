@@ -23,12 +23,14 @@ class PhysParams:
     h0: float = 0.004           # initial active layer thickness (pure coffee)
     A_spout: float = 2e-5
     V_bulk0: float = 180e-6     # base liquid in the cup when the pattern starts [m^3]
+    bulk_return: str = "white"  # R returns the bulk's white (whipped) material share ("white")
+                                # or its total milk share ("all_milk", task-book form)
     # calibrated physical closures
     gamma: float = 7.0          # drag on the bulk [1/s]
     tau_y: float = 0.0          # foam yield stress on the base [Pa] (0 = spec model)
     tau_ex: float = 0.0         # layer-thickness exchange time with the bulk [s] (0 = off)
-    chi: float = 0.35           # momentum retention of the deposited milk
-    k_h: float = 0.30           # horizontal fraction of the jet speed
+    chi: float = 0.70           # momentum retention of the deposited milk (task-book start 0.35)
+    k_h: float = 0.15           # horizontal fraction of the jet speed (task-book start 0.30)
     nu_s: float = 2e-5          # kinematic surface viscosity [m^2/s]; T_s = 2 nu_s M D_h
     # empirical closures
     retention: str = "sigmoid"  # "pi" or "sigmoid"

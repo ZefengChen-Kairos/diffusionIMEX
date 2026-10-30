@@ -6,24 +6,55 @@ One shared Phi_*, one crema colour with a fixed radial gradient, one milk colour
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-I_CREMA_C = np.array([176, 112, 58], float)    # centre crema
-I_CREMA_E = np.array([128, 72, 34], float)     # rim crema (radial gradient)
-I_MILK = np.array([250, 244, 230], float)
-I_CUP = np.array([236, 236, 232], float)
+# colours sampled from the reference video frames (median crema / rim crema / foam)
+I_CREMA_C = np.array([208, 158, 100], float)   # crema near the centre
+I_CREMA_E = np.array([150, 92, 56], float)     # crema at the rim (radial gradient)
+I_RIM = np.array([112, 64, 38], float)         # meniscus line at the wall
+I_MILK = np.array([251, 248, 241], float)
+I_CUP = np.array([243, 242, 238], float)
+I_BG = np.array([255, 255, 255], float)
+SS = 2                                          # supersampling of the fine grid for display
 
 
 def alpha(phi, Phi_star):
     return 1.0 - np.exp(-(phi / Phi_star) ** 2)
 
 
-def render(phi, grid, Phi_star, flip=True):
-    """phi on the fine grid -> uint8 RGB image (y up when flip=True)."""
-    a = alpha(phi, Phi_star)[..., None]
-    rr = np.sqrt(grid.X ** 2 + grid.Y ** 2) / grid.R
-    w = np.clip(rr, 0, 1)[..., None] ** 2
+def _smooth(x, a, b):
+    t = np.clip((x - a) / (b - a), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def render(phi, grid, Phi_star, flip=True, ss=SS):
+    """phi on the fine grid -> uint8 RGB image (y up when flip=True).
+
+    Same formula for every pattern: alpha = 1 - exp(-(Phi/Phi_*)^2), I = (1-alpha) I_crema + alpha I_milk,
+    with a fixed radial crema gradient.  For display, Phi is upsampled (cubic) by `ss` before alpha
+    and the cup wall / rim are drawn around the liquid."""
+    from scipy import ndimage
+    if ss > 1:
+        phi = np.maximum(ndimage.zoom(phi, ss, order=3, mode="nearest"), 0.0)
+    n = phi.shape[0]
+    xc = (np.arange(n) - 0.5 * (n - 1)) * (grid.L / n)
+    X, Y = np.meshgrid(xc, xc)
+    rr = np.sqrt(X ** 2 + Y ** 2) / grid.R
+    a = alpha(phi, Phi_star)
+    a = a * (rr < 1.0)
+    a = a[..., None]
+    w = _smooth(rr, 0.35, 1.0)[..., None] ** 1.5
     crema = (1 - w) * I_CREMA_C + w * I_CREMA_E
+    m = _smooth(rr, 0.965, 0.995)[..., None]
+    crema = (1 - m) * crema + m * I_RIM
     img = (1 - a) * crema + a * I_MILK
-    img = np.where(grid.wet[..., None], img, I_CUP)
+    # cup wall: liquid edge anti-aliased over ~1 px, ceramic rim, white background
+    px = grid.L / n / grid.R
+    cov = np.clip((1.0 - rr) / px + 0.5, 0.0, 1.0)[..., None]
+    rim = _smooth(rr, 1.0, 1.02)[..., None] * (1 - _smooth(rr, 1.10, 1.115)[..., None])
+    shade = (0.93 + 0.07 * _smooth(rr, 1.0, 1.1))[..., None]
+    cup = I_CUP * shade
+    outer = rim * cup + (1 - rim) * I_BG
+    outer = np.where((rr < 1.05)[..., None], cup, outer)
+    img = cov * img + (1 - cov) * outer
     img = np.clip(img, 0, 255).astype(np.uint8)
     return img[::-1] if flip else img
 
@@ -81,7 +112,7 @@ def board(rows, path, labels=None, row_labels=None, cell=220, pad=6):
     return canvas
 
 
-def crop_cup(img, grid, margin=0.004):
+def crop_cup(img, grid, margin=0.0055):
     """Crop a rendered image to the cup disc bounding box."""
     N = img.shape[0]
     half = (grid.R + margin) / grid.L * N

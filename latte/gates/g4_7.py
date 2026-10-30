@@ -58,14 +58,15 @@ def run_g4():
     r = run_pattern("push_heart", P, NP)
     K = r["Y"].shape[1] - 1
     sh = shell(K, P, NP)
-    Y1, M1, t1 = snapshot(r, 1.9)      # after dot A, before dot B
-    Y2, M2, t2 = snapshot(r, 3.6)      # after dot B, before dot C
+    T1, T2 = 2.2, 4.3                  # after dot A / after dot B (before dot C)
+    Y1, M1, t1 = snapshot(r, T1)
+    Y2, M2, t2 = snapshot(r, T2)
     cA2 = tag_centroid(sh, Y2, M2, 0)
     # the crescent's arms wrap backwards around B, so the push is measured on A's front edge
     fA1 = front_edge(sh, Y1, M1, 0)
     fA2 = front_edge(sh, Y2, M2, 0)
     d = float((fA2 - fA1) * 1e3)
-    R.check("G4.1", "dot B pushes A forward: front edge of A, t=1.9 -> 3.6 s [mm]", d, d > 2.0, "> 2 mm")
+    R.check("G4.1", f"dot B pushes A forward: front edge of A, t={T1} -> {T2} s [mm]", d, d > 2.0, "> 2 mm")
     a2 = alpha_of(sh, Y2, M2)
     mA = tag_mask(sh, Y2, M2, 0, a2)
     cB = tag_centroid(sh, Y2, M2, 1)
@@ -84,10 +85,10 @@ def run_g4():
             band < 0.6 and width > 0, "alpha < 0.6, width > 0")
     # control: only dot A
     act = push_heart()
-    ctrl = Action("push_heart_ctrl", [act.segs[0]], 3.6)
+    ctrl = Action("push_heart_ctrl", [act.segs[0]], T2)
     c = Sim(ctrl, P=P, NP=NP, record_every=0.25)
     c.run()
-    f1 = min(c.frames, key=lambda f: abs(f[0] - 1.9))
+    f1 = min(c.frames, key=lambda f: abs(f[0] - T1))
     f2 = c.frames[-1]
     shc = shell(1, P, NP)
     dc = float((front_edge(c, f2[1], f2[2], 0) - front_edge(c, f1[1], f1[2], 0)) * 1e3)
@@ -96,7 +97,8 @@ def run_g4():
     e = tag_ledger_err(r, 0)
     R.check("G4.5", "tag A ledger: surface + bulk (incl. E-subducted, minus R) = injected", e, e < 1e-9, "< 1e-9")
     board([[img_of(sh, Y1, M1), img_of(sh, Y2, M2), tagimg_of(sh, Y2), img_of(c, f2[1], f2[2])]],
-          R.dir + "/push.png", labels=["t=1.9 (A)", "t=3.6 (A pushed by B)", "tags", "control t=3.6"], cell=230)
+          R.dir + "/push.png", labels=[f"t={T1} (A)", f"t={T2} (A pushed by B)", "tags", f"control t={T2}"],
+          cell=230)
     R.write(P, NP)
     return R
 
@@ -178,8 +180,8 @@ def run_g6():
     r = run_pattern("tulip", P, NP)
     K = r["Y"].shape[1] - 1
     sh = shell(K, P, NP)
-    Y, M, _ = snapshot(r, 4.9)          # after the second (pressing) segment
-    Y0, M0, _ = snapshot(r, 2.5)        # end of the first segment
+    Y, M, _ = snapshot(r, 5.6)          # after the second (pressing) segment
+    Y0, M0, _ = snapshot(r, 3.0)        # end of the first segment
     share = Y[1] / np.maximum(Y[0], 1e-12)
     a = alpha_of(sh, Y, M)
     mA_white = (a > 0.5) & (share > 0.3)
@@ -192,12 +194,12 @@ def run_g6():
         return float((Yx[1] * Mf * sh.gf.wet).sum() * sh.gf.dA)
     keep = massA(Y, M) / massA(Y0, M0)
     R.extra["G6.1_white_components_of_A"] = n_white
-    R.check("G6.1a", "batch A is pressed open, not erased and redrawn: surface A mass kept 2.5 -> 4.9 s; "
+    R.check("G6.1a", "batch A is pressed open, not erased and redrawn: surface A mass kept 3.0 -> 5.6 s; "
             "components of A material (Y_A > 0.2)", [keep, n_mat], keep >= 0.8 and 1 <= n_mat <= 2,
             "kept >= 80 %, 1..2 pieces")
     e = tag_ledger_err(r, 0)
     R.check("G6.1b", "tag A ledger closure", e, e < 1e-9, "< 1e-9")
-    Y6, M6, _ = snapshot(r, 6.3)        # all three layers, before the cut
+    Y6, M6, _ = snapshot(r, 7.4)        # all three layers, before the cut
     a6 = alpha_of(sh, Y6, M6)
     yc, prof = mt.profile(a6, sh.gf, x0=0.0, axis="y", width=1.5e-3)
     # layer bands = groups of white peaks separated by deep brown gaps
@@ -209,7 +211,7 @@ def run_g6():
     R.extra["G6.2_band_tags"] = doms
     board([[img_of(sh, Y, M), tagimg_of(sh, Y), img_of(sh, Y6, M6), tagimg_of(sh, Y6),
             img_of(sh, r["Yfinal"].astype(float), r["Mfinal"].astype(float))]],
-          R.dir + "/tulip.png", labels=["t=4.9", "tags", "t=6.3", "tags", "final"], cell=210)
+          R.dir + "/tulip.png", labels=["t=5.6", "tags", "t=7.4", "tags", "final"], cell=210)
     R.write(P, NP)
     return R
 

@@ -73,18 +73,32 @@ def main():
     ap.add_argument("--N", type=int, default=96)
     ap.add_argument("--ratio", type=int, default=3)
     ap.add_argument("--params", nargs="*", default=PARAMS)
+    ap.add_argument("--part", default="", help="run only the listed params, write sensitivity_<part>.json")
+    ap.add_argument("--merge", action="store_true", help="merge sensitivity_*.json parts and write the table")
     a = ap.parse_args()
     NP = NumParams(N=a.N, ratio=a.ratio)
     P0 = PhysParams()
     d = gate_dir("sensitivity")
-    res = {"base": dict(g1=g1_metrics(P0, NP), g2=g2_metrics(P0, NP))}
-    print("base", res["base"], flush=True)
-    for p in a.params:
-        for f in (0.7, 1.3):
-            P = P0.with_(**{p: getattr(P0, p) * f})
-            res[f"{p}x{f}"] = dict(g1=g1_metrics(P, NP), g2=g2_metrics(P, NP))
-            print(p, f, res[f"{p}x{f}"], flush=True)
-        json.dump(res, open(os.path.join(d, "sensitivity.json"), "w"), indent=1)
+    if a.merge:
+        import glob
+        res = {}
+        for f in sorted(glob.glob(os.path.join(d, "sensitivity_*.json"))):
+            res.update(json.load(open(f)))
+        a.params = [p for p in PARAMS if f"{p}x0.7" in res]
+    else:
+        res = {}
+        if not a.part or a.part == "0":
+            res["base"] = dict(g1=g1_metrics(P0, NP), g2=g2_metrics(P0, NP))
+            print("base", res["base"], flush=True)
+        out = os.path.join(d, f"sensitivity_{a.part}.json" if a.part else "sensitivity.json")
+        for p in a.params:
+            for f in (0.7, 1.3):
+                P = P0.with_(**{p: getattr(P0, p) * f})
+                res[f"{p}x{f}"] = dict(g1=g1_metrics(P, NP), g2=g2_metrics(P, NP))
+                print(p, f, res[f"{p}x{f}"], flush=True)
+            json.dump(res, open(out, "w"), indent=1)
+        if a.part:
+            return
     b = res["base"]
     keys = [("g1", "dAdt"), ("g1", "hole_mm"), ("g1", "offset_mm"), ("g1", "tau_s"),
             ("g2", "n"), ("g2", "lam_mm"), ("g2", "contrast")]
