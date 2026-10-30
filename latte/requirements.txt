@@ -1,0 +1,8 @@
+numpy>=1.26
+scipy>=1.11
+numba>=0.59
+matplotlib>=3.8
+pillow>=10.0
+pytest>=7.4
+# phase two (GPU backend); optional in phase one
+# warp-lang==1.5.1
