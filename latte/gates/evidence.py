@@ -8,6 +8,7 @@ F1  spec main pressure closure (buoyant, coffee pressureless):
 F2  spec retention calibration (all retained milk surfaces, phi_f = 1, v_e = 1.05): flooded cup
 F3  v_e = 1.05 with phi_f calibrated: no impact hole, no stripes (needs a penetrating share at low pour)
 F4  bulk return of all sunk milk (task-book form) vs white material only: stripe contrast of the leaf
+F6  layer-thickness exchange: none (task-book) / sorted / wall-only: extent and similarity of the push heart
 F5  the last stroke: (a) cut into the wall (task-book heart trajectory) vs lift-off pull-through;
     (b) task-book entrainment C_E = 0.5, sink width >= 3.5 mm vs C_E = 0.3, >= 2 mm: brown groove vs white tail
 """
@@ -99,7 +100,8 @@ def main():
           labels=["phi_f=1, v_e=1.05 (t=5.2)", "calibrated (t=5.2)", "wobble, v_e=1.05", "wobble, calibrated"],
           cell=220)
     # F4 bulk return composition
-    from actions.scripts import leaf, heart
+    from actions.scripts import heart as heart_pour
+    leaf = ALL["leaf"]
     from gates.g1 import heart_metrics
     rows4 = []
     for lab, PP in (("all_milk", P0.with_(bulk_return="all_milk")), ("white", P0)):
@@ -114,8 +116,8 @@ def main():
         s4.run()
         rows4.append(img_of(s4, s4.Yf, s4.U[0]))
     # F5 cut wake
-    for lab, act5, P5 in (("cut_to_wall", heart(variant=0), P0), ("lift_off", heart(), P0),
-                          ("CE05_sk35", heart(), P0.with_(C_E=0.5, sig_k_min=3.5e-3))):
+    for lab, act5, P5 in (("cut_to_wall", heart_pour(cut_to=40.0), P0), ("lift_off", heart_pour(), P0),
+                          ("CE05_sk35", heart_pour(), P0.with_(C_E=0.5, sig_k_min=3.5e-3))):
         s5 = Sim(act5, P=P5, NP=NP)
         s5.run()
         a5 = alpha_of(s5, s5.Yf, s5.U[0])
@@ -128,6 +130,26 @@ def main():
           labels=["leaf, return all milk", "leaf, return white only", "heart, cut to the wall",
                   "heart, lift-off", "heart, C_E=0.5, sk>=3.5mm"],
           cell=220)
+    # F6 layer-thickness exchange
+    from gates.reference import load_masks, white_mask_sim, best_iou, build
+    from gates.common import out_root
+    rdir = os.path.join(out_root(), "reference")
+    if not os.path.exists(os.path.join(rdir, "push_heart_mask.npy")):
+        build(rdir)
+    refm = load_masks(rdir)
+    row6 = []
+    for lab, P6 in (("none", P0.with_(tau_ex=0.0)), ("sorted", P0.with_(exchange_mode="sorted", tau_ex=0.2)),
+                    ("rim", P0)):
+        s6 = Sim(ALL["push_heart"](), P=P6, NP=NP)
+        s6.run()
+        a6 = alpha_of(s6, s6.Yf, s6.U[0])
+        sm = white_mask_sim(a6, s6.gf)
+        res[f"F6_{lab}"] = dict(iou_push_heart=best_iou(sm, refm["push_heart"], step=10)[0],
+                                white_fraction=float(mt.area(a6 > 0.5, s6.gf) / (np.pi * P0.R_cup ** 2)),
+                                layer_M_max_over_rho_c_h0=float(s6.U[0].max() / (P0.rho_c * P0.h0)))
+        row6.append(img_of(s6, s6.Yf, s6.U[0]))
+    board([row6], os.path.join(d, "F6_exchange.png"), labels=["no exchange", "sorted drainage", "wall-only drainage"],
+          cell=230)
     json.dump(res, open(os.path.join(d, "evidence.json"), "w"), indent=1)
     print(json.dumps({k: v for k, v in res.items()}, indent=1, default=str)[:3000])
 

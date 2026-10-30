@@ -1,7 +1,7 @@
 """G2: lateral wobble -> layered heart stripes (plotter relation lambda ~ v_rel / f)."""
 import numpy as np
 
-from actions.scripts import Action, Segment
+from actions.scripts import Pitcher
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from gates.common import Report, alpha_of, img_of, step_until
@@ -11,11 +11,12 @@ from render.render import board
 
 def wobble_action(a=9.0, f=1.5, T_w=3.8, y0=-4.0, y1=-20.0, T_end=None):
     """The layered-heart drawing phase without the cut: retreat while wobbling, then stop."""
-    S = Segment
-    return Action(f"wobble_a{a:g}_f{f:g}", [
-        S(0.0, 0.6, (0, y0), None, 11.0, None, 0.014),
-        S(0.6, 0.6 + T_w, (0, y0), (0, y1), 11.0, None, 0.012, a=a, f=f),
-    ], T_end or 0.6 + T_w)
+    p = Pitcher(f"wobble_a{a:g}_f{f:g}", at=(0, y0), h=0.014, Q=0.0)
+    p.move(0.4, Q=11.0)                                   # open the flow
+    p.move(0.2, h=0.012)
+    p.move(0.3, to=(0, y0 + 0.3 / T_w * (y1 - y0)), a=a, f=f)   # wobble ramps in while retreating
+    p.move(T_w - 0.3, to=(0, y1))
+    return p.build(T_end=T_end or 0.6 + T_w, continuous=False)
 
 
 def axis_stripes(a, g, x0=0.0, amp=0.15):

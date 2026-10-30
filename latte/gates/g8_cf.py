@@ -6,7 +6,7 @@ import time
 import resource
 import numpy as np
 
-from actions.scripts import Action, ALL, heart, leaf, Sample
+from actions.scripts import ALL, Sample
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from closures.jet_stub import jet_speed
@@ -18,24 +18,17 @@ from render.render import board
 from run_patterns import run_pattern
 
 
+def heart():
+    return ALL["heart"]()
+
+
+def leaf():
+    return ALL["leaf"]()
+
+
 def perturb(act, rng, eps=0.10):
-    """+-eps random perturbation of segment times, flows and positions (kept feasible)."""
-    segs = []
-    tscale = 1.0 + rng.uniform(-eps, eps)
-    for s in act.segs:
-        d = dict(s.__dict__)
-        d["t0"], d["t1"] = s.t0 * tscale, s.t1 * tscale
-        q = 1.0 + rng.uniform(-eps, eps)
-        d["Q0"] = s.Q0 * q
-        d["Q1"] = None if s.Q1 is None else s.Q1 * q
-        sc = 1.0 + rng.uniform(-eps, eps)
-        d["p0"] = tuple(np.array(s.p0) * sc)
-        d["p1"] = None if s.p1 is None else tuple(np.array(s.p1) * sc)
-        d["tag"] = -1
-        d["taper_in"] = d["taper_out"] = True
-        from actions.scripts import Segment
-        segs.append(Segment(**d))
-    return Action(act.name + "_pert", segs, act.T_end * tscale)
+    """+-eps random scaling of the pour's timing, flow and positions (the hand motion stays smooth)."""
+    return act.perturbed(rng, eps)
 
 
 def classify(name, sim):
@@ -98,10 +91,10 @@ class HeightRelabel:
 
     def __init__(self, base, factor):
         self.base, self.factor = base, factor
-        self.name, self.T_end, self.n_tags, self.segs = base.name + "_relabel", base.T_end, base.n_tags, base.segs
+        self.name, self.T_end, self.n_tags = base.name + "_relabel", base.T_end, base.n_tags
 
-    def sample(self, t, dt_fd=2e-4):
-        s = self.base.sample(t, dt_fd)
+    def sample(self, t, dt_fd=None):
+        s = self.base.sample(t)
         return Sample(s.x, s.v, s.Q, s.h * self.factor, s.e, s.tag)
 
     def to_json(self):

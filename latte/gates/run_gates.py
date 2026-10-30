@@ -11,7 +11,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from gates.common import out_root                     # noqa: E402
 
-ORDER = ["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "CF"]
+ORDER = ["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "CF", "G9"]
 
 
 def run(name, quick=False):
@@ -33,6 +33,9 @@ def run(name, quick=False):
     if name == "G8":
         from gates.g8_cf import run_g8
         return run_g8()
+    if name == "G9":
+        from gates.g9 import run_g9
+        return run_g9()
     if name == "CF":
         from gates.g8_cf import run_cf
         return run_cf()

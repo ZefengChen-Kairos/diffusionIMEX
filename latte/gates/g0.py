@@ -1,7 +1,7 @@
 """G0: conservation, null input, symmetry, backend equivalence, refinement."""
 import numpy as np
 
-from actions.scripts import Action, Segment, ALL, heart
+from actions.scripts import Pitcher, ALL
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from gates.common import Report, run, save_run
@@ -9,7 +9,10 @@ from gates import metrics as mt
 
 
 def pulse_action():
-    return Action("pulse", [Segment(0.0, 0.5, (0, -5), None, 10.0, None, 0.015)], 1.5)
+    """Half-second pour at a fixed point; the flow opens and closes in 0.15 s."""
+    p = Pitcher("pulse", at=(0, -5), h=0.015, Q=0.0)
+    p.move(0.15, Q=10.0).move(0.2).move(0.15, Q=0.0)
+    return p.build(T_end=1.5, continuous=False)
 
 
 def checkerboard_index(f, wet):
@@ -83,10 +86,7 @@ def run_g0(full=True):
     save_run(s, R.dir, "pulse", board_frames=False)
 
     # G0.4 moving pitcher, Q = 0: nothing changes
-    act = ALL["leaf"]()
-    for sg in act.segs:
-        sg.Q0 = 0.0
-        sg.Q1 = 0.0
+    act = ALL["leaf"]().with_flow(0.0)
     s = Sim(act, P=P, n_tags=1)
     U0 = s.U.copy()
     Y0 = s.Yf.copy()

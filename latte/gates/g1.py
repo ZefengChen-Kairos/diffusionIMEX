@@ -1,17 +1,13 @@
 """G1: fixed-point injection -> big white heart."""
 import numpy as np
 
-from actions.scripts import Action, Segment, heart
+from actions.scripts import ALL, dwell
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from gates.common import Report, shell, alpha_of, img_of, step_until, save_run
 from gates import metrics as mt
 from render.render import board, save
 from run_patterns import run_pattern
-
-
-def dwell(Q, T_inj=3.0, T_end=None, x=(0, -10), h=0.012):
-    return Action(f"dwell_Q{Q:g}", [Segment(0.0, T_inj, x, None, Q, None, h)], T_end or T_inj)
 
 
 def heart_metrics(a, g):
@@ -152,11 +148,7 @@ def run_g1():
     ok7 = hm["notch"] and hm["lobes"] >= 2 and hm["tip_len"] >= 5e-3 and hm["ncomp"] <= 2
     R.check("G1.7", "after the cut: rear notch, two lobes, tip >= 5 mm, connected", hm, ok7,
             "notch & lobes>=2 & tip>=5mm & ncomp<=2")
-    act = heart()
-    for sg in act.segs:
-        if sg.t0 >= 5.2:
-            sg.h0 = 0.012
-            sg.h1 = 0.012
+    act = ALL["heart"]().with_height_cap(0.012)   # the same hand motion with the spout kept at 1.2 cm
     c8 = Sim(act, P=P, NP=NP)
     c8.run()
     a8 = alpha_of(c8, c8.Yf, c8.U[0])
@@ -165,6 +157,6 @@ def run_g1():
     R.check("G1.8", "control (same pass at h=1.2 cm): brown cut line share drops below half of G1.7", hm8,
             hm8["cut_line"] < 0.5 * hm["cut_line"], "cut_line < 0.5 x heart")
     board([[img_of(sh, Yf, Mf), img_of(c8, c8.Yf, c8.U[0])]], R.dir + "/heart_vs_lowcut.png",
-          labels=["heart (cut h=10 cm)", "control (cut h=1.2 cm)"], cell=260)
+          labels=["heart (pull-through h=5 cm)", "control (h capped at 1.2 cm)"], cell=260)
     R.write(P, NP)
     return R

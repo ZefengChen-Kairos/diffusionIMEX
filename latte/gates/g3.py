@@ -1,7 +1,7 @@
 """G3: low / high pour switch (draw vs cut), and separation of C_t (drag) and C_E (collapse)."""
 import numpy as np
 
-from actions.scripts import Action, Segment
+from actions.scripts import Pitcher
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from gates.common import Report, alpha_of, img_of, step_until
@@ -12,11 +12,16 @@ T_PASS0, T_PASS1 = 3.0, 4.2
 
 
 def pass_action(h, Q=5.0, x0=(0, -30), x1=(0, 30)):
-    S = Segment
-    return Action(f"pass_h{h:g}", [
-        S(0.0, T_DISC, (0, -6), None, 9.0, None, 0.012),               # white disc, tag A
-        S(T_PASS0, T_PASS1, x0, x1, Q, None, h),                        # straight pass, tag B
-    ], 5.5)
+    # white disc (tag A); the flow closes, the pitcher moves to the start of the pass and takes height h;
+    # straight pass at height h (tag B), the flow opening / closing in 0.15 s inside the pass window
+    x0, x1 = np.array(x0, float), np.array(x1, float)
+    p = Pitcher(f"pass_h{h:g}", at=(0, -6), h=0.012, Q=0.0)
+    p.stroke("A").move(0.3, Q=9.0).move(T_DISC - 0.6).move(0.3, Q=0.0)
+    p.move(T_PASS0 - T_DISC, to=x0, h=h)
+    T = T_PASS1 - T_PASS0
+    p.stroke("B").move(0.15, to=x0 + 0.06 * (x1 - x0), Q=Q).move(T - 0.3, to=x0 + 0.94 * (x1 - x0))
+    p.move(0.15, to=x1, Q=0.0)
+    return p.build(T_end=5.5, continuous=False)
 
 
 def tag_centroid(sim, k):
@@ -33,7 +38,7 @@ def pass_run(P, NP, h, flags=None):
     cA0, mA0 = tag_centroid(s, 0)
     phi0 = s.totals()["Phi"]
     ret0 = s.ret_mass
-    E0, R0 = s.E_milk, s.R_milk
+    E0, R0, X0 = s.E_milk, s.R_milk, s.X_milk
     # time-integrated surface fluxes within 10 mm of the pass line during the pass
     g = s.g
     near = (np.abs(g.X) < 10e-3) & g.wet
@@ -49,7 +54,7 @@ def pass_run(P, NP, h, flags=None):
     cA1, mA1 = tag_centroid(s, 0)
     phi1 = s.totals()["Phi"]
     return dict(sim=s, dcA=(cA1 - cA0), retained=s.ret_mass - ret0, dphi=phi1 - phi0,
-                E=s.E_milk - E0, R=s.R_milk - R0, inflow=inflow, drag=drag)
+                E=s.E_milk - E0, R=s.R_milk - R0, X=s.X_milk - X0, inflow=inflow, drag=drag)
 
 
 def run_g3():
@@ -64,8 +69,8 @@ def run_g3():
     R.check("G3.2b", "high pass adds ~no white: retained mass relative to the low pass",
             hi["retained"] / lo["retained"], hi["retained"] / lo["retained"] < 0.1, "< 0.1")
     s = hi["sim"]
-    closure = abs(hi["dphi"] - (hi["retained"] - hi["E"] + hi["R"])) / max(abs(hi["E"]), 1e-30)
-    R.check("G3.3", "milk removed by E is exactly the Phi ledger change: |dPhi - (D - E + R)| / E",
+    closure = abs(hi["dphi"] - (hi["retained"] - hi["E"] + hi["R"] - hi["X"])) / max(abs(hi["E"]), 1e-30)
+    R.check("G3.3", "milk removed by E is exactly the Phi ledger change: |dPhi - (D - E + R - X_wall)| / E",
             closure, closure < 1e-9, "< 1e-9")
     R.extra["low"] = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in lo.items() if k != "sim"}
     R.extra["high"] = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in hi.items() if k != "sim"}
@@ -76,8 +81,8 @@ def run_g3():
     R.extra["C_E=0"] = dict(drag=ne["drag"], inflow=ne["inflow"], dcA=ne["dcA"].tolist())
     R.check("G3.4a", "C_t = 0: along-path drag flux < 50 % of the reference", [nt["drag"], hi["drag"]],
             abs(nt["drag"]) < 0.5 * abs(hi["drag"]), "< 50 %")
-    R.check("G3.4b", "C_E = 0: inward (collapse) flux < 50 % of the reference", [ne["inflow"], hi["inflow"]],
-            abs(ne["inflow"]) < 0.5 * abs(hi["inflow"]), "< 50 %")
+    R.check("G3.4b", "C_E = 0: inward (collapse) flux < 50 % of the reference (signed: < 0 means outward)",
+            [ne["inflow"], hi["inflow"]], ne["inflow"] < 0.5 * hi["inflow"], "< 50 %")
     board([[img_of(x["sim"], x["sim"].Yf, x["sim"].U[0]) for x in (lo, hi, nt, ne)]], R.dir + "/passes.png",
           labels=["low h=1.5cm", "high h=10cm", "high, C_t=0", "high, C_E=0"], cell=230)
     R.write(P, NP)

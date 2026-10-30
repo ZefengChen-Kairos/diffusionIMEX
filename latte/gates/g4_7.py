@@ -2,7 +2,7 @@
 import math
 import numpy as np
 
-from actions.scripts import Action, push_heart, leaf, tulip, swan
+from actions.scripts import ALL
 from core.params import PhysParams, NumParams
 from core.solver_np import Sim
 from gates.common import Report, shell, alpha_of, img_of, tagimg_of
@@ -58,18 +58,20 @@ def run_g4():
     r = run_pattern("push_heart", P, NP)
     K = r["Y"].shape[1] - 1
     sh = shell(K, P, NP)
-    T1, T2 = 2.2, 4.3                  # after dot A / after dot B (before dot C)
+    pa = ALL["push_heart"]()
+    kA, kB = pa.tag("A"), pa.tag("B")
+    T1, T2 = round(pa.end("A") + 0.25, 2), round(pa.end("B") + 0.25, 2)   # after part A / after part B
     Y1, M1, t1 = snapshot(r, T1)
     Y2, M2, t2 = snapshot(r, T2)
-    cA2 = tag_centroid(sh, Y2, M2, 0)
+    cA2 = tag_centroid(sh, Y2, M2, kA)
     # the crescent's arms wrap backwards around B, so the push is measured on A's front edge
-    fA1 = front_edge(sh, Y1, M1, 0)
-    fA2 = front_edge(sh, Y2, M2, 0)
+    fA1 = front_edge(sh, Y1, M1, kA)
+    fA2 = front_edge(sh, Y2, M2, kA)
     d = float((fA2 - fA1) * 1e3)
     R.check("G4.1", f"dot B pushes A forward: front edge of A, t={T1} -> {T2} s [mm]", d, d > 2.0, "> 2 mm")
     a2 = alpha_of(sh, Y2, M2)
-    mA = tag_mask(sh, Y2, M2, 0, a2)
-    cB = tag_centroid(sh, Y2, M2, 1)
+    mA = tag_mask(sh, Y2, M2, kA, a2)
+    cB = tag_centroid(sh, Y2, M2, kB)
     cov = angular_coverage(mA, sh.gf, cB)
     R.check("G4.2", "A is a crescent around B: angular coverage of A seen from B's centroid [deg]", cov,
             cov > 180.0, "> 180")
@@ -83,21 +85,20 @@ def run_g4():
     width = float((prof[sel] < 0.6).sum() * sh.gf.dx * 1e3)
     R.check("G4.3", "brown band between A and B on the axis: min alpha, width [mm]", [band, width],
             band < 0.6 and width > 0, "alpha < 0.6, width > 0")
-    # control: only dot A
-    act = push_heart()
-    ctrl = Action("push_heart_ctrl", [act.segs[0]], T2)
+    # control: the same pour, but the flow runs out at the end of part A (no part B)
+    ctrl = ALL["push_heart"]().truncated(pa.end("A"), T_end=T2, name="push_heart_ctrl")
     c = Sim(ctrl, P=P, NP=NP, record_every=0.25)
     c.run()
     f1 = min(c.frames, key=lambda f: abs(f[0] - T1))
     f2 = c.frames[-1]
     shc = shell(1, P, NP)
-    dc = float((front_edge(c, f2[1], f2[2], 0) - front_edge(c, f1[1], f1[2], 0)) * 1e3)
-    R.check("G4.4", "control (no dot B): front edge of A over the same interval [mm], ratio", [dc, dc / d],
+    dc = float((front_edge(c, f2[1], f2[2], kA) - front_edge(c, f1[1], f1[2], kA)) * 1e3)
+    R.check("G4.4", "control (flow runs out after part A): front edge of A over the same interval [mm], ratio", [dc, dc / d],
             abs(dc) < 0.2 * abs(d), "< 20 % of G4.1")
-    e = tag_ledger_err(r, 0)
+    e = tag_ledger_err(r, kA)
     R.check("G4.5", "tag A ledger: surface + bulk (incl. E-subducted, minus R) = injected", e, e < 1e-9, "< 1e-9")
     board([[img_of(sh, Y1, M1), img_of(sh, Y2, M2), tagimg_of(sh, Y2), img_of(c, f2[1], f2[2])]],
-          R.dir + "/push.png", labels=[f"t={T1} (A)", f"t={T2} (A pushed by B)", "tags", f"control t={T2}"],
+          R.dir + "/push.png", labels=[f"t={T1} (after A)", f"t={T2} (A pushed by B)", "tags", f"control t={T2}"],
           cell=230)
     R.write(P, NP)
     return R
@@ -144,24 +145,15 @@ def run_g5():
     R.check("G5.4", "midline vein: share of transverse profiles with a dip at x=0", m["vein"], m["vein"] >= 0.5,
             ">= 0.5")
     # G5.3 rib spacing vs retreat speed (retreat 1.5x faster)
-    act = leaf()
-    seg = act.segs[2]
-    T0 = seg.t1 - seg.t0
-    shift = T0 - T0 / 1.5
-    for s_ in act.segs[2:]:
-        if s_ is seg:
-            s_.t1 -= shift
-        else:
-            s_.t0 -= shift
-            s_.t1 -= shift
-    act.T_end -= shift
-    # rebuild to refresh tapers / tags
-    act = Action("leaf_fast_retreat", act.segs, act.T_end)
+    base = ALL["leaf"]()
+    r0, r1 = base.marks["retreat0"], base.marks["retreat1"]
+    shift = (r1 - r0) * (1 - 1 / 1.5)
+    act = base.time_warped(r0, r1, 1.5, name="leaf_fast_retreat")
     sim = Sim(act, P=P, NP=NP)
-    # compare before the central cut: rib spacing at the end of the retreat
+    # compare before the pull-through: rib spacing at the end of the retreat
     from gates.common import step_until
-    step_until(sim, seg.t1 + 0.2)
-    Yb, Mb, _ = snapshot(r, act.segs[2].t1 + shift + 0.2)
+    step_until(sim, r1 - shift + 0.2)
+    Yb, Mb, _ = snapshot(r, r1 + 0.2)
     m_ref = leaf_metrics(sh, Yb, Mb)
     m_fast = leaf_metrics(sim, sim.Yf, sim.U[0])
     R.extra["G5.3"] = dict(ref=m_ref, fast=m_fast)
@@ -180,38 +172,41 @@ def run_g6():
     r = run_pattern("tulip", P, NP)
     K = r["Y"].shape[1] - 1
     sh = shell(K, P, NP)
-    Y, M, _ = snapshot(r, 5.6)          # after the second (pressing) segment
-    Y0, M0, _ = snapshot(r, 3.0)        # end of the first segment
-    share = Y[1] / np.maximum(Y[0], 1e-12)
+    ta = ALL["tulip"]()
+    kA, kB, kC = ta.tag("A"), ta.tag("B"), ta.tag("C")
+    tA, tB, tC = ta.end("A") + 0.2, ta.end("B") + 0.2, ta.end("C") + 0.1
+    Y, M, _ = snapshot(r, tB)           # after the second (pressing) segment
+    Y0, M0, _ = snapshot(r, tA)         # end of the first segment
+    share = Y[1 + kA] / np.maximum(Y[0], 1e-12)
     a = alpha_of(sh, Y, M)
     mA_white = (a > 0.5) & (share > 0.3)
     _, n_white = mt.components(mA_white, 30)
     # material of batch A (not its whiteness): Y_A > 0.2
-    _, n_mat = mt.components(Y[1] > 0.2, 30)
+    _, n_mat = mt.components(Y[1 + kA] > 0.2, 30)
 
     def massA(Yx, Mx):
         Mf = sh.fm.to_fine(sh.g.extrapolate(Mx.copy()))
-        return float((Yx[1] * Mf * sh.gf.wet).sum() * sh.gf.dA)
+        return float((Yx[1 + kA] * Mf * sh.gf.wet).sum() * sh.gf.dA)
     keep = massA(Y, M) / massA(Y0, M0)
     R.extra["G6.1_white_components_of_A"] = n_white
-    R.check("G6.1a", "batch A is pressed open, not erased and redrawn: surface A mass kept 3.0 -> 5.6 s; "
+    R.check("G6.1a", f"batch A is pressed open, not erased and redrawn: surface A mass kept {tA:.1f} -> {tB:.1f} s; "
             "components of A material (Y_A > 0.2)", [keep, n_mat], keep >= 0.8 and 1 <= n_mat <= 2,
             "kept >= 80 %, 1..2 pieces")
-    e = tag_ledger_err(r, 0)
+    e = tag_ledger_err(r, kA)
     R.check("G6.1b", "tag A ledger closure", e, e < 1e-9, "< 1e-9")
-    Y6, M6, _ = snapshot(r, 7.4)        # all three layers, before the cut
+    Y6, M6, _ = snapshot(r, tC)         # all three layers, before the cut
     a6 = alpha_of(sh, Y6, M6)
     yc, prof = mt.profile(a6, sh.gf, x0=0.0, axis="y", width=1.5e-3)
     # layer bands = groups of white peaks separated by deep brown gaps
     pk = mt.stripes(prof, 0.35)
-    R.check("G6.2", "white bands on the axis before the cut (one per injection segment)", len(pk), len(pk) == 3, "== 3")
+    R.check("G6.2", "white bands on the axis before the pull-through (one per part A, B, C)", len(pk), len(pk) == 3, "== 3")
     # each band dominated by a different tag
     i0 = int(np.argmin(np.abs(sh.gf.xc)))
-    doms = [int(np.argmax([Y6[1 + k][i, i0] for k in range(3)])) for i in pk]
+    doms = [ta.labels()[[kA, kB, kC][int(np.argmax([Y6[1 + k][i, i0] for k in (kA, kB, kC)]))]] for i in pk]
     R.extra["G6.2_band_tags"] = doms
     board([[img_of(sh, Y, M), tagimg_of(sh, Y), img_of(sh, Y6, M6), tagimg_of(sh, Y6),
             img_of(sh, r["Yfinal"].astype(float), r["Mfinal"].astype(float))]],
-          R.dir + "/tulip.png", labels=["t=5.6", "tags", "t=7.4", "tags", "final"], cell=210)
+          R.dir + "/tulip.png", labels=[f"t={tB:.1f}", "tags", f"t={tC:.1f}", "tags", "final"], cell=210)
     R.write(P, NP)
     return R
 
@@ -226,19 +221,20 @@ def run_g7():
     Y, M = r["Yfinal"].astype(float), r["Mfinal"].astype(float)
     a = alpha_of(sh, Y, M)
     g = sh.gf
-    wing = (a > 0.5) & ((Y[1] + Y[2] + Y[3]) / np.maximum(Y[0], 1e-12) > 0.5)
-    neck = tag_mask(sh, Y, M, 3, a)
-    head = tag_mask(sh, Y, M, 4, a)
+    act = ALL["swan"]()
+    wing = (a > 0.5) & (Y[1 + act.tag("wing")] / np.maximum(Y[0], 1e-12) > 0.5)
+    neck = tag_mask(sh, Y, M, act.tag("neck"), a)
+    head = tag_mask(sh, Y, M, act.tag("head"), a)
     areas = [mt.area(x, g) * 1e6 for x in (wing, neck, head)]
     R.check("G7.1", "wing / neck / head white areas [mm^2]", areas, min(areas) > 20.0, "each > 20 mm^2")
     # neck width = area / centre-line length of the neck stroke
-    L_neck = 0.9 * math.pi * 22e-3
+    L_neck = act.meta["neck_len_mm"] * 1e-3
     neck_w = mt.area(neck, g) / L_neck
     # wing rib spacing along the wing axis
-    ang = math.radians(22.0)
+    ang = math.radians(act.meta["wing_ang_deg"])
     ax = np.array([math.sin(ang), math.cos(ang)])
-    P0 = np.array([6e-3, -2e-3])
-    s_ = np.linspace(-30e-3, 12e-3, 400)
+    P0 = np.array(act.meta["wing_P0"]) * 1e-3
+    s_ = np.linspace(act.meta["wing_s"][0] * 1e-3, act.meta["wing_s"][1] * 1e-3, 400)
     nrm = np.array([ax[1], -ax[0]])
     sp = []
     for off in (4e-3, 6e-3, -4e-3, -6e-3):

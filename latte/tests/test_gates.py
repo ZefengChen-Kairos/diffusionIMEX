@@ -12,6 +12,16 @@ def _assert(R):
     assert not bad, "failed checks: " + "; ".join(f"{c['id']} {c['desc']} = {c['value']}" for c in bad)
 
 
+@pytest.mark.parametrize("name", ["heart", "push_heart", "layered_heart", "tulip", "leaf", "swan"])
+def test_pour_is_pitcher_feasible(name):
+    """Every pattern pour stays in the feasibility box and within the hand limits: one uninterrupted
+    stream, Q >= 3 ml/s between touch-down and lift-off, bounded |dQ/dt|, |dh/dt|, acceleration."""
+    from actions.scripts import ALL, check_feasible
+    act = ALL[name]()
+    assert check_feasible(act) == []
+    assert check_feasible(act.mirrored()) == []
+
+
 def test_g0_fast():
     from gates.g0 import run_g0
     _assert(run_g0(full=False))

@@ -27,16 +27,19 @@ from gates.common import out_root                                    # noqa: E40
 NAMES = ["heart", "push_heart", "layered_heart", "tulip", "leaf", "swan"]
 LABEL_ZH = {"heart": "大白心", "push_heart": "推推乐", "layered_heart": "千层心", "tulip": "郁金香",
             "leaf": "树叶", "swan": "天鹅"}
-# stage times (end of the main phases) for the 4-frame stage strips
-STAGES = {
-    "heart": [1.5, 3.5, 6.4, None],
-    "push_heart": [2.0, 4.2, 6.0, None],
-    "layered_heart": [1.5, 3.0, 4.6, None],
-    "tulip": [3.0, 5.6, 7.4, None],
-    "leaf": [2.0, 3.4, 4.8, None],
-    "swan": [4.4, 6.8, 7.6, None],
-}
 SNAP_DT = 0.25
+
+
+def stage_times(action, t_end):
+    """Three stages before the end (the ends of the drawing parts, or fractions of a single drawing
+    part, up to the start of the pull-through), and the end."""
+    if action.name == "swan":            # wing, neck, head
+        return [round(action.end(l) + 0.1, 2) for l in ("wing", "neck", "head")] + [t_end]
+    t_cut = action.start("cut")
+    parts = [l for l in action.labels() if l != "cut" and not l.startswith("lift")]
+    if len(parts) >= 3:                  # push heart, tulip: after A, after B, before the pull-through
+        return [round(action.end(l), 2) for l in parts[:2]] + [round(t_cut - 0.05, 2), t_end]
+    return [round(0.4 * t_cut, 2), round(0.7 * t_cut, 2), round(t_cut - 0.05, 2), t_end]
 
 
 def code_hash():
@@ -45,6 +48,8 @@ def code_hash():
     h = hashlib.sha1()
     for f in ("core/solver_np.py", "core/grid.py", "core/kernels_nb.py", "closures/jet_stub.py",
               "actions/scripts.py"):
+        if not os.path.exists(os.path.join(root, f)):
+            continue
         h.update(open(os.path.join(root, f), "rb").read())
     return h.hexdigest()[:12]
 
@@ -122,7 +127,7 @@ def make_outputs(names, runs, P, NP):
         r = runs[n]
         K = r["Y"].shape[1] - 1
         shell = make_sim_shell(P, NP, K)
-        st = [s if s is not None else float(r["t"][-1]) for s in STAGES[n]]
+        st = stage_times(ALL[n](), float(r["t"][-1]))
         imgs, tags = [], []
         for t in st:
             Y, M, tt = snapshot(r, t)

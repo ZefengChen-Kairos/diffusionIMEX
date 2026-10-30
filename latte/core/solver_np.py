@@ -110,6 +110,7 @@ class Sim:
         self.R_tags = np.zeros(self.K)
         self.X_sub = 0.0             # mass subducted by the thickness exchange
         self.X_up = 0.0              # bulk mass upwelled by the thickness exchange
+        self.X_milk = 0.0            # net white material sent to the bulk by the thickness exchange
         self.log = []                # per-step conservation errors
         self.frames = []             # (t, Yf copy, M copy)
         self.record_every = record_every
@@ -373,17 +374,49 @@ class Sim:
         a = 1.0 - math.exp(-dt / P.tau_ex)
         dh = (h - P.h0) * a * wet                        # thickness to remove (>0) or add (<0)
         sub = np.maximum(dh, 0.0)
-        frac = np.minimum(sub / h, 1.0 - self.M_floor / M)  # mass fraction subducted (local mixture)
-        frac = np.maximum(frac, 0.0)
         dA = g.dA
-        rem = U * frac[None]
-        rem_tot = rem.sum(axis=(1, 2)) * dA
-        U -= rem
-        B.Mm += rem_tot[3]
-        B.Mc += rem_tot[0] - rem_tot[3]
-        B.Mk += rem_tot[4:]
-        B.Pm += rem_tot[1:3]
-        self.X_sub += rem_tot[0]
+        if P.exchange_mode == "rim":
+            # the surface skin (crema and foam) only goes under at the cup wall: the excess thickness
+            # drains (local mixture) in a band of width rim_w along the wall
+            if not hasattr(self, "_rim_band"):
+                rr = np.sqrt(g.X ** 2 + g.Y ** 2)
+                self._rim_band = (rr > P.R_cup - P.rim_w) & wet
+            sub = sub * self._rim_band
+            frac = np.minimum(sub / h, 1.0 - self.M_floor / M)
+            frac = np.maximum(frac, 0.0)
+            rem = U * frac[None]
+            rem_tot = rem.sum(axis=(1, 2)) * dA
+            U -= rem
+            B.Mm += rem_tot[3]
+            B.Mc += rem_tot[0] - rem_tot[3]
+            B.Mk += rem_tot[4:]
+            B.Pm += rem_tot[1:3]
+            self.X_sub += rem_tot[0]
+            self.X_milk += rem_tot[3]
+        elif P.exchange_mode == "sorted":
+            # buoyancy-sorted: the floating foam stays, the base liquid under it drains to the bulk
+            dm = np.minimum(np.minimum(P.rho_c * sub, M - U[3]), M - self.M_floor)
+            dm = np.maximum(dm, 0.0) * wet
+            frac = dm / M
+            mom = U[1:3] * frac[None]
+            U[0] -= dm
+            U[1:3] -= mom
+            tot = dm.sum() * dA
+            B.Mc += tot
+            B.Pm += mom.sum(axis=(1, 2)) * dA
+            self.X_sub += tot
+            self._sub_acc = getattr(self, "_sub_acc", 0.0) + dm
+        else:
+            frac = np.minimum(sub / h, 1.0 - self.M_floor / M)  # mass fraction subducted (local mixture)
+            frac = np.maximum(frac, 0.0)
+            rem = U * frac[None]
+            rem_tot = rem.sum(axis=(1, 2)) * dA
+            U -= rem
+            B.Mm += rem_tot[3]
+            B.Mc += rem_tot[0] - rem_tot[3]
+            B.Mk += rem_tot[4:]
+            B.Pm += rem_tot[1:3]
+            self.X_sub += rem_tot[0]
         # upwelling of bulk fluid
         up = np.maximum(-dh, 0.0)
         if up.any():
@@ -397,6 +430,7 @@ class Sim:
             B.Mc -= tot * (1.0 - Yb)
             B.Mk -= tot * Ybk
             self.X_up += tot
+            self.X_milk -= tot * Yb
             # fine grid: the upwelled bulk mixes into the material fractions
             self._up_acc = getattr(self, "_up_acc", 0.0) + add
             self._up_Yb = (Yb, Ybk)
@@ -565,6 +599,17 @@ class Sim:
         return dt
 
     def flush_material(self):
+        sub = getattr(self, "_sub_acc", None)
+        if sub is not None and np.any(sub):
+            # base liquid drained from under the foam: Y = Phi / M rises by M_before / M_after
+            Mc = self.g.extrapolate(self.U[0].copy())
+            Mf = np.maximum(self.fm.to_fine(Mc), 1e-12)
+            Df = np.maximum(self.fm.to_fine(sub), 0.0) * self.gf.wet
+            fac = (Mf + Df) / Mf
+            self.Yf *= fac[None]
+            np.minimum(self.Yf, 1.0, out=self.Yf)
+            self.Yf[1:] = np.minimum(self.Yf[1:], self.Yf[0][None])
+            self._sub_acc = 0.0
         up = getattr(self, "_up_acc", None)
         if up is not None and np.any(up):
             # mixing of upwelled bulk fluid into the fine fractions (exact mixing form)

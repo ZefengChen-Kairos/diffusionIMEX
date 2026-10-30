@@ -14,10 +14,12 @@ import json, os, sys
 d = json.load(open(os.path.join(os.environ["LATTE_OUT"], "gates", "G0", "metrics.json")))
 sys.exit(0 if d["passed"] else 1)
 PY
+echo "== pour inputs (continuous pitcher motion; feasibility checked)"
+python3 -m actions.plot "$LATTE_OUT/pours.png"
 echo "== six patterns (shared parameters) + comparison board"
 python3 run_patterns.py
 echo "== gates G1..G8 + counterfactuals"
-python3 -m gates.run_gates G1 G2 G3 G4 G5 G6 G7 G8 CF
+python3 -m gates.run_gates G1 G2 G3 G4 G5 G6 G7 G8 CF G9
 echo "== sensitivity table"
 python3 -m gates.sensitivity
 echo "== benchmark"
