@@ -1,0 +1,15 @@
+wrote p2_E7_pLap_eps3x3
+run                               wiggle_vy   rough_vy max|u|2(x=0)
+ref_HLL_128                           1.000      0.250         18.0
+ref_HLL_256                           1.048      0.189         23.1
+ref_HLL_512                           1.235      0.214         27.2
+paper1_128                            1.801      0.354         10.8
+paper1_256                            1.118      0.127         16.6
+p2_base_128_CFL0.1                    1.782      0.880         63.8
+p2_base_128_CFL0.4                    1.633      0.743         63.6
+p2_E1_allexplicit                     1.255      0.258         37.1
+p2_E2_epsM0                           2.140      1.179         91.5
+p2_E3_pLap                            1.349      0.448         56.3
+p2_E5_eps0                            3.355      1.552         73.3
+p2_E6_pLap_alpha4                     1.349      0.434         54.3
+p2_E7_pLap_eps3x3                     1.402      0.446         54.9

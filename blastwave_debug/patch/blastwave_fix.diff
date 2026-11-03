@@ -1,0 +1,157 @@
+--- Final_emb_omp_original.cpp	2026-11-03 03:36:29.331505068 +0000
++++ Final_emb_omp_patched.cpp	2026-11-03 04:38:37.978526628 +0000
+@@ -72,7 +72,7 @@
+ Test test = testblastwave;
+ const int nxCells = 1000;
+ const int nyCells = 1000;
+-const double CFL = 0.1;
++double CFL = 0.1;
+ const double KH_MX = 1e-3;             // testKHInstability: Mach number M_x of the stream
+ const double LOOP_A0 = 1e-3;           // testFieldLoop: amplitude A_0 of the field loop (1e-3, 1e-2, 1e-1, 1)
+ const double VORTEX_RHO0 = 1.0;        // testVortex: background density
+@@ -3382,10 +3382,13 @@
+ 	return v / vA;
+ }
+ 
++double g_sw_m0 = 0.15, g_sw_m1 = 0.40, g_sw_alpha = 14.0;   // switch parameters (paper: 0.15, 0.4, 14)
++int g_epsmax3 = 0;   // 1: cell eps := max over the 3x3 neighbourhood before the face max
++int g_pswitch = 0;   // 1: switching function driven by max(M, sqrt(|dp|/p)) and max(M_A, sqrt(|dm|/m))
+ inline double switchS(double M) {
+-	double SW_EPS0  = 0.15;
+-	double SW_EPS1  = 0.40;
+-	double SW_ALPHA = 14.0;
++	double SW_EPS0  = g_sw_m0;
++	double SW_EPS1  = g_sw_m1;
++	double SW_ALPHA = g_sw_alpha;
+ 	
+ 	if (M <= 0.0) return 1.0;
+ 	if (M >= 1.0) return 0.0;
+@@ -3469,7 +3472,36 @@
+ 			double con[NUM_VARS];
+ 			for(int k = 0; k < NUM_VARS; k++) con[k] = u_con(i,j,k);
+ 			cM(i,j) = f_epsM(con); cB(i,j) = f_epsB(con);
+-		}
++			if(g_pswitch){   // [fix B] pressure-fluctuation-aware switch: M_eff = max(M, sqrt(max_nbr |dp|/p)), M_A,eff = max(M_A, sqrt(max_nbr |dm|/m))
++				double pri[NUM_VARS]; ini_con2pri(pri, con);
++				const double pc = fmax(pri[4], 1e-300), mc = fmax(0.5*(pri[5]*pri[5]+pri[6]*pri[6]+pri[7]*pri[7]), 1e-300);
++				double dp = 0.0, dm = 0.0;
++				const int di[4] = {1,-1,0,0}, dj[4] = {0,0,1,-1};
++				for(int q = 0; q < 4; q++){
++					const int ii = std::max(0, std::min(nxCells + 2*ghost_cells - 1, i + di[q])), jj = std::max(0, std::min(nyCells + 2*ghost_cells - 1, j + dj[q]));
++					double cn[NUM_VARS], pn[NUM_VARS]; for(int k = 0; k < NUM_VARS; k++) cn[k] = u_con(ii,jj,k); ini_con2pri(pn, cn);
++					const double pnb = fmax(pn[4], 1e-300), mnb = fmax(0.5*(pn[5]*pn[5]+pn[6]*pn[6]+pn[7]*pn[7]), 1e-300);
++					dp = fmax(dp, fabs(pnb - pc)/fmin(pnb, pc)); dm = fmax(dm, fabs(mnb - mc)/fmin(mnb, mc));
++				}
++				const double Mp = sqrt(dp), Mm = sqrt(dm);
++				const double eM = 1.0 - switchS(fmax(calMach(con), Mp)), eB = 1.0 - switchS(fmax(calAlfvenMach(con), Mm));
++				cM(i,j) = fmin(eps_M_max, fmax(eps_M_min, eM)); cB(i,j) = fmin(eps_B_max, fmax(eps_B_min, eB));
++			}
++		}
++	if(g_epsmax3){   // optional: widen eps by one cell in every direction (3x3 max), as the shock indicator chi
++		static Array cM3(nxCells, nyCells), cB3(nxCells, nyCells);
++		bound_cond_epsilon(cM); bound_cond_epsilon(cB);
++#pragma omp parallel for schedule(static)
++		for(int j = ghost_cells - 1; j <= ghost_cells + nyCells; j++)
++			for(int i = ghost_cells - 1; i <= ghost_cells + nxCells; i++){
++				double m = 0.0, b = 0.0;
++				for(int dj = -1; dj <= 1; dj++) for(int di = -1; di <= 1; di++){ m = fmax(m, cM(i+di,j+dj)); b = fmax(b, cB(i+di,j+dj)); }
++				cM3(i,j) = m; cB3(i,j) = b;
++			}
++#pragma omp parallel for schedule(static)
++		for(int j = ghost_cells - 1; j <= ghost_cells + nyCells; j++)
++			for(int i = ghost_cells - 1; i <= ghost_cells + nxCells; i++){ cM(i,j) = cM3(i,j); cB(i,j) = cB3(i,j); }
++	}
+ #pragma omp parallel for schedule(static)
+ 	for(int j = ghost_cells; j < ghost_cells + nyCells; j++){
+ 		for(int i = ghost_cells; i < ghost_cells + nxCells; i++){
+@@ -4566,6 +4598,8 @@
+ }
+ 
+ std::string g_outdir = "";   // output directory, set in main to plot/<test>/
++int g_plap = 1;      // [fix] 1 = shock-activated pressure Laplacian of paper 1 (eq. 45/85), (1-eps_M)-weighted, in L2 and L4
++std::string g_tag = "";
+ 
+ // intermediate output times (VTK + state file); t = 0 and t = T are always written
+ std::vector<double> output_times(){
+@@ -4655,7 +4689,7 @@
+ 	if(test == testKHInstability) os << "_Mx" << KH_MX;
+ 	if(test == testFieldLoop)     os << "_A" << LOOP_A0;
+ 	if(test == testVortex)        os << "_rho" << VORTEX_RHO0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << VORTEX_L;
+-	os << "_CFL" << CFL;
++	os << "_CFL" << CFL; if(!g_tag.empty()) os << "_" << g_tag;
+ 	testname = os.str();
+ 	return testname;
+ }
+@@ -5027,6 +5061,13 @@
+ 				nu_y = vy_max * dy;
+ 				lap_p =  nu_x/(dx * dx) * ( 0.5 * (shock_eta(i + 1,j) + shock_eta(i,j)) * (getp(i+1,j) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i - 1,j)) * (pii - getp(i - 1,j))) + nu_y/(dy * dy) * ( 0.5 * (shock_eta(i,j + 1) + shock_eta(i,j)) * (getp(i,j + 1) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i,j - 1)) * (pii - getp(i,j-1)));
+ 			}
++			if(g_plap){   // [fix] paper-1 eq.(45)/(85): V'(p) * dt * div(chi |u|_max dx grad p), (1-eps_M) per face, compact (M-matrix)
++				const double a_ = 1.0/(gamma_plasma - 1.0);
++				const double gxp = 0.5*(shock_eta(i+1,j)+shock_eta(i,j))*(1.0-eps_M_grid_x(i,j)),   gxm = 0.5*(shock_eta(i,j)+shock_eta(i-1,j))*(1.0-eps_M_grid_x(i-1,j));
++				const double gyp = 0.5*(shock_eta(i,j+1)+shock_eta(i,j))*(1.0-eps_M_grid_y(i,j)),   gym = 0.5*(shock_eta(i,j)+shock_eta(i,j-1))*(1.0-eps_M_grid_y(i,j-1));
++				const double lp = nu_x/(dx*dx)*(gxp*(getp(i+1,j)-pii) - gxm*(pii-getp(i-1,j))) + nu_y/(dy*dy)*(gyp*(getp(i,j+1)-pii) - gym*(pii-getp(i,j-1)));
++				Ax(M_P(i,j)) -= a_*h*lp;
++			}
+ 		}
+ 	}
+ }
+@@ -5093,6 +5134,8 @@
+ 		}
+ 	const bool emb = g_emb_L2c && g_emb_Qe;
+ 	const double a = 1.0/(gamma_plasma - 1.0), hh = h*h;
++	static Array pst_eta(nxCells, nyCells); static long pst_eta_stamp = -1;
++	if(g_plap && pst_eta_stamp != g_stage_stamp){ ShockDetector(pst_eta, Qe); pst_eta_stamp = g_stage_stamp; }
+ 	double gmax = 0.0;
+ #pragma omp parallel for schedule(static) reduction(max:gmax)
+ 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++)
+@@ -5128,6 +5171,13 @@
+ 				cc[0] -= ex*up; c0 += ex*(up - um); cc[1] += ex*um;
+ 				cc[2] -= ey*vp; c0 += ey*(vp - vm); cc[3] += ey*vm;
+ 			}
++			if(g_plap){   // [fix] shock-activated pressure Laplacian (same as the matrix-free form)
++				const double nu_x = vx_max*dx, nu_y = vy_max*dy;
++				const double gxp = 0.5*(pst_eta(i+1,j)+pst_eta(i,j))*(1.0-eMx(i,j)),   gxm = 0.5*(pst_eta(i,j)+pst_eta(i-1,j))*(1.0-eMx(i-1,j));
++				const double gyp = 0.5*(pst_eta(i,j+1)+pst_eta(i,j))*(1.0-eMy(i,j)),   gym = 0.5*(pst_eta(i,j)+pst_eta(i,j-1))*(1.0-eMy(i,j-1));
++				const double kxp2 = a*h*nu_x/(dx*dx)*gxp, kxm2 = a*h*nu_x/(dx*dx)*gxm, kyp2 = a*h*nu_y/(dy*dy)*gyp, kym2 = a*h*nu_y/(dy*dy)*gym;
++				c0 += kxp2 + kxm2 + kyp2 + kym2; cc[0] -= kxp2; cc[1] -= kxm2; cc[2] -= kyp2; cc[3] -= kym2;
++			}
+ 			int nb[4]; double sg[4];
+ 			pst_nb(i+1, j, nb[0], sg[0]); pst_nb(i-1, j, nb[1], sg[1]); pst_nb(i, j+1, nb[2], sg[2]); pst_nb(i, j-1, nb[3], sg[3]);
+ 			for(int m = 0; m < 4; m++){ cc[m] *= sg[m]; if(nb[m] == q){ c0 += cc[m]; cc[m] = 0.0; } }   // a neighbour mapped onto the cell itself
+@@ -5366,6 +5416,8 @@
+ 
+ void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe,Grid& Qs,Array& eps_M_grid_x, Array& eps_M_grid_y,Array& eps_B_grid_x, Array& eps_B_grid_y, double h){
+ 	build_Hbar(Qe, u_con);   // [o3f] (no-op if already built for this stage)
++	static Array hf_eta(nxCells, nyCells); static long hf_eta_stamp = -1;
++	if(g_plap && hf_eta_stamp != g_stage_stamp){ ShockDetector(hf_eta, Qe); hf_eta_stamp = g_stage_stamp; }
+ //			
+ //			
+ //			//Laplacian Operator
+@@ -5451,6 +5503,13 @@
+ 			double xdivA = (FXf(i,j) - FXf(i-1,j)) / dx;
+ 			double ydivA = (FYf(i,j) - FYf(i,j-1)) / dy;
+ 			Ax(M_P(i,j)) = 1/(gamma_plasma - 1) * x(M_P(i,j)) - h * h * (xdivA + ydivA);
++			if(g_plap){   // [fix] shock-activated pressure Laplacian, identical to the inner operator's
++				const double a_ = 1.0/(gamma_plasma - 1.0), nu_x = vx_max*dx, nu_y = vy_max*dy, pii = x(M_P(i,j));
++				const double gxp = 0.5*(hf_eta(i+1,j)+hf_eta(i,j))*(1.0-eps_M_grid_x(i,j)),   gxm = 0.5*(hf_eta(i,j)+hf_eta(i-1,j))*(1.0-eps_M_grid_x(i-1,j));
++				const double gyp = 0.5*(hf_eta(i,j+1)+hf_eta(i,j))*(1.0-eps_M_grid_y(i,j)),   gym = 0.5*(hf_eta(i,j)+hf_eta(i,j-1))*(1.0-eps_M_grid_y(i,j-1));
++				const double lp = nu_x/(dx*dx)*(gxp*(x(M_P(i+1,j))-pii) - gxm*(pii-x(M_P(i-1,j)))) + nu_y/(dy*dy)*(gyp*(x(M_P(i,j+1))-pii) - gym*(pii-x(M_P(i,j-1))));
++				Ax(M_P(i,j)) -= a_*h*lp;
++			}
+ 		}
+ 	}
+ }
+@@ -6359,6 +6418,12 @@
+ // ============================================================================
+ 
+ int main(int argc, char *argv[]){
++	for(int a = 1; a < argc; a++){ std::string k(argv[a]); auto eq = k.find('='); if(eq == std::string::npos) continue; std::string key = k.substr(0,eq); double v = atof(k.c_str()+eq+1);
++		if(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;
++		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
++		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v;
++		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
++	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << std::endl;
+ 	switch (test) {
+ 		case test0:
+ 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;

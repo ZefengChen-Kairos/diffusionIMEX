@@ -1,0 +1,5 @@
+run                               wiggle_vy   rough_vy max|u|2(x=0)
+ref_HLL_128                           1.000      0.250         18.0
+ref_HLL_256                           1.048      0.189         23.1
+ref_HLL_512                           1.235      0.214         27.2
+ref_HLL_1024                          1.453      0.243         31.3

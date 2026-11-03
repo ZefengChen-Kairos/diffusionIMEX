@@ -1,0 +1,6 @@
+run                               wiggle_vy   rough_vy max|u|2(x=0)
+ref_HLL_512                           1.235      0.214         27.2
+p2_E1_allexplicit                     1.255      0.258         37.1
+p2_E3_pLap                            1.349      0.448         56.3
+p2_E9_pLap_chi1                       1.222      0.339         51.9
+p2_E11_pLap_epsM1                     1.239      0.316         48.0
