@@ -139,7 +139,7 @@ CFL 0.1 与 0.4 的结果逐点几乎相同（`compare_code2_cfl.png`，ρ/p/|u|
 
 ## 5. 修复补丁
 
-文件：`blastwave_debug/patch/apply_patch.py`（对原文件做文本替换），`Final_emb_omp_patched.cpp`（已生成，1000²、CFL 0.1 原设置），`blastwave_fix.diff`。编译命令不变。
+文件：`blastwave_debug/patch/apply_patch.py`（对原文件做文本替换），`Final_emb_omp_patched.cpp`（已生成，1000²、CFL 0.1 原设置；默认开 A 和 C，B 关），`blastwave_fix.diff`。编译命令不变。核对：用这个补丁文件本身（改成 128²）跑 `cfl=0.4`，最终状态（ρ、m、E、B 全部 8 个分量）与实验用代码的 A + C 运行（E24）**逐位相同**。
 
 改动：
 1. **压力 Laplacian**（论文一 (45)/(85)）：`−V'(p)·Δt·div[χ·|u|_max·Δx·(1−ε_M)_face·∇p]`，加在三个地方：`Pressure_Subsystem_AX_ref`（二阶 M-矩阵算子，Newton Jacobian/残差）、`pst_assemble`（它的装配模板，供 Jacobi/LU 预条件；装配后代码自带与矩阵自由形式的一致性自检）、`Pressure_Subsystem_AX_HF`（四阶算子；只有两边都加，亏量修正收敛到的才是“四阶 + Laplacian”）。系数 ν = |u|_max Δx 与代码一的 `GLF` 分支相同；(1−ε_M) 面权重使显式区（ε_M = 1，HLLEM 已有耗散）不受影响。M-矩阵性质保持（只给对角加正量、给邻居加非正量），保正定理前提不变。开关 `g_plap`（默认 1；`plap=0` 回到原来的行为）。
