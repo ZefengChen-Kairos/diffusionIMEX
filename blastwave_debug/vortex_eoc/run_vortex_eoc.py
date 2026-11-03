@@ -4,7 +4,8 @@
 What it does, in one command:
   1. generates one source file per mesh from Final_emb_omp_patched.cpp (test = testVortex, nxCells = nyCells = cells),
   2. compiles them (in parallel),
-  3. runs every (rho0, N) case (in parallel, OMP_NUM_THREADS per job), t_f = 1, CFL 0.8, gamma = 5/3,
+  3. runs every (rho0, N) case (in parallel, OMP_NUM_THREADS per job), t_f = 1, CFL 0.2 (the value used for the
+     table; --cfl changes it), gamma = 5/3,
      B~ = 1, v~ = sqrt(2 pi), u0 = (1, 1), p0 = 1,
      domain rule of Table 1: h = 10/N; rho0 >= 1e-1 -> [-7.5, 7.5]^2 with 1.5 N cells, rho0 <= 1e-2 -> [-5, 5]^2 with N cells,
   4. parses the "VORTEX N=... L2: rho=... u=... p=... Bx=... Az=..." line of every run (L2 errors of the cell averages
@@ -19,7 +20,7 @@ Options:
     --rho0 LIST         comma list, default 1,0.1,0.01,0.001,0.0001,0.00001
     --N LIST            comma list of the nominal N (h = 10/N), default 32,64,128,256
     --domain paper|L5   'paper' = Table-1 rule above (default); 'L5' = [-5,5]^2 with N cells for every rho0
-    --cfl X             default 0.8
+    --cfl X             default 0.2
     --orig              run the ORIGINAL scheme (plap=0 hllemflat=0 hllemcap=0) instead of fixes A + C
     --extra "k=v ..."   extra run-time options passed to every run (e.g. "pswitch=1")
     --max-N N           skip cases whose cell count exceeds N (smoke tests)
@@ -41,7 +42,7 @@ def parse_args():
     ap.add_argument('--rho0', default='1,0.1,0.01,0.001,0.0001,0.00001')
     ap.add_argument('--N', default='32,64,128,256')
     ap.add_argument('--domain', choices=['paper', 'L5'], default='paper')
-    ap.add_argument('--cfl', type=float, default=0.8)
+    ap.add_argument('--cfl', type=float, default=0.2)
     ap.add_argument('--jobs', type=int, default=2, help='concurrent runs')
     ap.add_argument('--threads', type=int, default=4, help='OMP threads per run')
     ap.add_argument('--build-jobs', type=int, default=4)
