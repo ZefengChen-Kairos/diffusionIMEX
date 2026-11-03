@@ -26,7 +26,9 @@ Changes (all other lines are untouched):
     pressure-jump sensor is added.  Removes the odd-even (checkerboard / radial streak) decoupling of the
     density and pressure behind the strong oblique fast shock (Quirk-type carbuncle of low-dissipation
     Riemann solvers; Dumbser-Balsara 2016 use the same cure).  hllemoff=1 switches the anti-diffusion off
-    entirely (plain HLL, diagnostic).
+    entirely (plain HLL, diagnostic).  hllemcap=eta (default HLLEMCAP_DEFAULT) caps delta_k <= 1 - eta, i.e. a
+    fraction eta of the HLL dissipation is kept on the linearly degenerate waves everywhere, which damps the
+    odd-even mode downstream of the shock where the flattener is inactive.
 """
 import sys
 
@@ -107,11 +109,12 @@ inline double switchS(double M) {
 
     # ---- (5) HLLEM flattener ----
     rep("static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;",
-        "static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;\nint g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)\nstatic thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)\nGrid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator")
+        "static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;\nint g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)\ndouble g_hllemcap = HLLEMCAP_DEFAULT;   // [fix C] delta_k <= 1 - g_hllemcap: fraction of the HLL dissipation kept on the LD waves\nstatic thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)\nGrid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator")
     rep("""			double coeff = sL*sR/(sR-sL);
 			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL""",
         """			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
 			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener
+			if(g_hllemcap > 0.0){ const double cp = 1.0 - g_hllemcap; delta_C = fmin(delta_C, cp); delta_Ap = fmin(delta_Ap, cp); delta_Am = fmin(delta_Am, cp); }   // [fix C] cap
 			double coeff = sL*sR/(sR-sL);
 			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL""")
     rep("""	g_env_cap = a_max_x;   // [W]
@@ -226,15 +229,16 @@ inline double switchS(double M) {
         '\tfor(int a = 1; a < argc; a++){ std::string k(argv[a]); auto eq = k.find(\'=\'); if(eq == std::string::npos) continue; std::string key = k.substr(0,eq); double v = atof(k.c_str()+eq+1);\n'
         '\t\tif(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;\n'
         '\t\telse if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;\n'
-        '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v;\n'
+        '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;\n'
         '\t\telse { std::cout << "unknown arg " << k << std::endl; return 1; } }\n'
-        '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << std::endl;\n'
+        '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;\n'
         '\tswitch (test) {')
     rep('\tos << "_CFL" << CFL;\n\ttestname = os.str();', '\tos << "_CFL" << CFL; if(!g_tag.empty()) os << "_" << g_tag;\n\ttestname = os.str();')
-    s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT))
+    s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     return s
 
 HLLEMFLAT_DEFAULT = 2
+HLLEMCAP_DEFAULT = 0.0
 
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
