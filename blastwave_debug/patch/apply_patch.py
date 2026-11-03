@@ -238,7 +238,7 @@ inline double switchS(double M) {
     return s
 
 HLLEMFLAT_DEFAULT = 2
-HLLEMCAP_DEFAULT = 0.0
+HLLEMCAP_DEFAULT = 0.25
 
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]

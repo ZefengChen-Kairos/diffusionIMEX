@@ -1132,7 +1132,7 @@ inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 // numerical flux into its F^c, F^p, F^B parts BEFORE the transverse convolution.
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
 int g_hllemflat = 2, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)
-double g_hllemcap = 0.0;   // [fix C] delta_k <= 1 - g_hllemcap: fraction of the HLL dissipation kept on the LD waves
+double g_hllemcap = 0.25;   // [fix C] delta_k <= 1 - g_hllemcap: fraction of the HLL dissipation kept on the LD waves
 static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
 Grid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator
 extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter

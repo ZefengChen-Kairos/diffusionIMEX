@@ -1,0 +1,4 @@
+run                               wiggle_vy   rough_vy max|u|2(x=0)
+ref_HLL_512                           1.235      0.214         27.2
+E19_ABC                               1.080      0.261         23.8
+E23_ABC_cap                           1.080      0.261         23.8
