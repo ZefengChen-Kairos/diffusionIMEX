@@ -313,6 +313,6 @@ A + C 把三处振荡中的两处去掉了：内部核心的 div u 条纹（A）
 - `REPORT.md`：本报告。
 - `patch/`：`Final_emb_omp_original.cpp`（上传原件）、`apply_patch.py`、`Final_emb_omp_patched.cpp`、`blastwave_fix.diff`。
 - `ref_mhd/`：独立参考解算器 `ref_mhd.cpp`（`.dat` 结果未入库，`./ref_mhd N 1 0.4` 重生成）。
-- `vortex_eoc/run_vortex_eoc.py`：一键重跑论文二表 1 的收敛阶测试（生成各网格源码、并行编译、并行运行、解析误差、算 EOC，输出 Markdown/CSV/LaTeX 表；`--orig` 跑原格式，`--dry-run` 看计划，可断点续跑）。用法：`python3 run_vortex_eoc.py --jobs 4 --threads 8`。
+- `vortex_eoc/run_vortex_eoc.py`：一键重跑论文二表 1 的收敛阶测试（生成各网格源码、并行编译、并行运行、解析误差、算 EOC，输出 Markdown/CSV/LaTeX 表；`--orig` 跑原格式，`--dry-run` 看计划，可断点续跑）。用法：`python3 run_vortex_eoc.py --jobs 4 --threads 8`。默认 CFL 0.2（表 1 实际用的值，作者确认）：CFL 0.2 下 ρ₀ = 1 的 N = 32 行与表 1 逐位一致（含 A_z 7.93e-4），ρ₀ = 10⁻³ 的 N = 32/64 行 u、p、B_x、A_z 与表 1 相差 5–10%、阶数一致（u 2.60、p 3.44、B_x 3.55、A_z 3.65 对表 1 的 2.60、3.37、3.45、3.54），只有 ρ 的误差比表 1 小 6–7 倍（现在的代码比制表时多了密度点值/胞平均修正）。论文正文“CFL = 0.8 unless otherwise stated”对表 1 不适用，表题应写 CFL 0.2、t_f = 1。
 - 图：`compare_128_cfl0.1.png`（两份代码 128²）、`compare_res_paper1.png`（代码一 128/256 vs 代码二）、`compare_code2_cfl.png`（CFL 0.1 vs 0.4）、`code2_128_final_fields.png` / `code2_128_t0.0025_fields.png`（ε、速度、div u 场）、`base128_divu_time.png`（条纹的时间演化）、`exps_*.png`（对照实验的二维放大图）、`lines_*.png`（x = 0 / y = 0 线图）、`ref2d*.png`（与参考解的二维对比）、`rhop_*.png`（窄色标的 ρ、p 内部/翼区图）、`ring_*.png`（翼区环带象限放大：ρ、p、ε_M、ε_B、|u|、M_A）。
 - 脚本：`plot_compare.py`、`plot_exps.py`、`plot_lines.py`、`plot_lines2.py`、`plot_ref2d.py`、`plot_eps_zoom.py`、`plot_rhop.py`、`ring_stats.py`、`read_vtk.py`、`metrics.py`、`stripe_fft.py`；数据表 `metrics_*.txt`、`stripe_fft*.txt`、`rhop_*.txt`、`ring_*.txt`。
