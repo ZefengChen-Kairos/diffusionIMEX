@@ -237,6 +237,8 @@ double g_char_fallback_tol = 1.0e-6;
 // Both jumps are set once from the initial mean field (exactly conserved).
 double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
+double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
+int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
 double g_vortex_Bt = VORTEX_BT;
 // [o3d] face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),
 // t = transverse direction along the face.  Without the covariance term every product of two face
@@ -4736,7 +4738,7 @@ std::string test_name(){
 	std::ostringstream os; os << testname << "_" << nxCells << "x" << nyCells;
 	if(test == testKHInstability) os << "_Mx" << KH_MX;
 	if(test == testFieldLoop)     os << "_A" << LOOP_A0;
-	if(test == testVortex)        os << "_rho" << VORTEX_RHO0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << VORTEX_L;
+	if(test == testVortex)        os << "_rho" << g_vortex_rho0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << g_vortex_L;
 	os << "_CFL" << CFL; if(!g_tag.empty()) os << "_" << g_tag;
 	testname = os.str();
 	return testname;
@@ -4751,6 +4753,7 @@ void IntermediatePlotIntermediatePlot(Grid& u_con, Grid &u_pri, Array&eps_M,Arra
 		if(Tdiff <= 1e-10*time_stop){isPlotTime = true; isDumpTime = true; break;}
 	}
 	if(iteration == 0) isPlotTime = true;
+	if(g_novtk) return;   // novtk=1: no VTK and no state dumps
 	if(isPlotTime || isFinalTime) printAllVariablesToVTK(u_con,u_pri, eps_M,eps_B,testname,iteration,isFinalTime);
 	if(isDumpTime && iteration > 0){   // interior cell averages: i j rho mx my mz E Bx By Bz
 		const std::string fn = g_outdir + "state_" + testname + "_" + std::to_string(iteration) + ".dat";
@@ -6470,6 +6473,7 @@ int main(int argc, char *argv[]){
 		if(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;
 		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
+		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
 	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;
 	switch (test) {
@@ -6588,7 +6592,7 @@ int main(int argc, char *argv[]){
 			y_bc = y_Transmissive;
 			break;
 		case testVortex:
-			x_0 = -VORTEX_L, x_1 = VORTEX_L, y_0 = -VORTEX_L, y_1 = VORTEX_L, z_0 = -1, z_1 = 1;
+			x_0 = -g_vortex_L, x_1 = g_vortex_L, y_0 = -g_vortex_L, y_1 = g_vortex_L, z_0 = -1, z_1 = 1;
 			time_stop = 1;
 			gamma_plasma = 5.0/3.0;
 			x_bc = x_Periodic;
@@ -7035,6 +7039,7 @@ int main(int argc, char *argv[]){
 		std::cout << "SMOOTH2D N=" << nxCells << " t=" << t << " L1(rho)=" << l1 << " L2(rho)=" << sqrt(l2) << " Linf(rho)=" << linf << std::endl;
 	}
 	
+	if(!g_novtk){   // novtk=1: no RK_*.dat field dumps either
 	ofstream outFilerho(g_outdir + "RK_rho.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
@@ -7170,4 +7175,5 @@ int main(int argc, char *argv[]){
 		}
 	}
 	outFileepsB.close();
+	}
 }

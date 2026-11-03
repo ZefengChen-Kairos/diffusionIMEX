@@ -19,6 +19,9 @@ Changes (all other lines are untouched):
     M_eff = max(M, sqrt(max_nbr |dp|/p)) and M_A,eff = max(M_A, sqrt(max_nbr |dm|/m)), m = |B|^2/2,
     over the four face neighbours.  In a smooth low-Mach flow dp/p = O(M^2), so the limit is unchanged;
     a strong pressure jump (dp/p >~ 0.16) is handed to the explicit HLLEM flux.
+ 6. Run-time test parameters for the convergence study (run_vortex_eoc.py): rho0= (vortex background density,
+    default VORTEX_RHO0), vL= (half-width of the vortex domain, default VORTEX_L), novtk=1 (no VTK / state dumps);
+    the output name carries the run-time rho0 and L.
  5. HLLEM flattener (hllemflat=, default HLLEMFLAT_DEFAULT): the anti-diffusion coefficients delta_k of the
     entropy and Alfven waves are multiplied by (1 - chi_face), chi_face = max of the two cells' shock
     indicator (the Balsara flattener of the magnetic Laplacian, evaluated on the explicit stage state);
@@ -106,6 +109,17 @@ inline double switchS(double M) {
 				cM(i,j) = fmin(eps_M_max, fmax(eps_M_min, eM)); cB(i,j) = fmin(eps_B_max, fmax(eps_B_min, eB));
 			}
 		}""")
+
+    # ---- (6) run-time vortex parameters, no-VTK switch ----
+    rep("double g_vortex_rho0 = VORTEX_RHO0;", "double g_vortex_rho0 = VORTEX_RHO0;\ndouble g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)\nint g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)")
+    rep('\tif(test == testVortex)        os << "_rho" << VORTEX_RHO0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << VORTEX_L;',
+        '\tif(test == testVortex)        os << "_rho" << g_vortex_rho0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << g_vortex_L;')
+    rep("\tif(isPlotTime || isFinalTime) printAllVariablesToVTK(u_con,u_pri, eps_M,eps_B,testname,iteration,isFinalTime);\n\tif(isDumpTime && iteration > 0){",
+        "\tif(g_novtk) return;   // novtk=1: no VTK and no state dumps\n\tif(isPlotTime || isFinalTime) printAllVariablesToVTK(u_con,u_pri, eps_M,eps_B,testname,iteration,isFinalTime);\n\tif(isDumpTime && iteration > 0){")
+    rep('\tofstream outFilerho(g_outdir + "RK_rho.dat");', '\tif(!g_novtk){   // novtk=1: no RK_*.dat field dumps either\n\tofstream outFilerho(g_outdir + "RK_rho.dat");')
+    rep('\toutFileepsB.close();\n}', '\toutFileepsB.close();\n\t}\n}')
+    rep("\t\t\tx_0 = -VORTEX_L, x_1 = VORTEX_L, y_0 = -VORTEX_L, y_1 = VORTEX_L, z_0 = -1, z_1 = 1;",
+        "\t\t\tx_0 = -g_vortex_L, x_1 = g_vortex_L, y_0 = -g_vortex_L, y_1 = g_vortex_L, z_0 = -1, z_1 = 1;")
 
     # ---- (5) HLLEM flattener ----
     rep("static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;",
@@ -230,6 +244,7 @@ inline double switchS(double M) {
         '\t\tif(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;\n'
         '\t\telse if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;\n'
         '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;\n'
+        '\t\telse if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;\n'
         '\t\telse { std::cout << "unknown arg " << k << std::endl; return 1; } }\n'
         '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;\n'
         '\tswitch (test) {')
