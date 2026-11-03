@@ -1,6 +1,29 @@
 --- Final_emb_omp_original.cpp	2026-11-03 03:36:29.331505068 +0000
-+++ Final_emb_omp_patched.cpp	2026-11-03 06:12:35.226397691 +0000
-@@ -72,7 +72,7 @@
++++ Final_emb_omp_patched.cpp	2026-11-03 12:30:45.807284767 +0000
+@@ -1,4 +1,22 @@
+ // ============================================================================
++// PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
++//   fix A  [plap=1, default ON]     shock-activated pressure Laplacian of paper 1 (eq. 45/85), (1-eps_M)-weighted,
++//                                   in the implicit pressure operators L2 (matrix-free + assembled stencil) and L4.
++//                                   Identically zero where the shock indicator chi = 0 (smooth flow): no change there.
++//   fix C  [hllemflat=2, hllemcap=0.25, default ON]
++//                                   HLLEM anti-diffusion of the entropy/Alfven waves: delta_k *= (1 - chi_face)
++//                                   (chi_face = max over the two cells of max(chi, pressure-jump sensor)) and
++//                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
++//                                   the strong oblique fast shock.
++//   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
++//   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
++//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= tag=
++//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixAC                          (fixes A + C)
++//         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
++// Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
++// travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
++// ============================================================================
++// ============================================================================
+ // Dual-parameter (eps_M, eps_B) IMEX finite volume scheme for ideal MHD, third order in space and time.
+ // Final_emb_omp.cpp: OpenMP version (compile with -fopenmp).  Final_emb_serial.cpp is the same code
+ // without the OpenMP pragmas.
+@@ -72,7 +90,7 @@
  Test test = testblastwave;
  const int nxCells = 1000;
  const int nyCells = 1000;
@@ -9,7 +32,7 @@
  const double KH_MX = 1e-3;             // testKHInstability: Mach number M_x of the stream
  const double LOOP_A0 = 1e-3;           // testFieldLoop: amplitude A_0 of the field loop (1e-3, 1e-2, 1e-1, 1)
  const double VORTEX_RHO0 = 1.0;        // testVortex: background density
-@@ -1131,6 +1131,10 @@
+@@ -1131,6 +1149,10 @@
  // rest of the numerical flux is dissipation + anti-diffusion).  HLLEM_Update needs them to split the
  // numerical flux into its F^c, F^p, F^B parts BEFORE the transverse convolution.
  static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
@@ -20,7 +43,7 @@
  extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter
  double g_env_cap = 0.0;   // [W] time-step speed of the current sweep direction (a_max_x / a_max_y), set by HLLEM_Update
  long g_env_wide = 0;      // [W] counter: faces whose envelope was widened
-@@ -1366,6 +1370,9 @@
+@@ -1366,6 +1388,9 @@
  			{ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);
  #pragma omp atomic
  				g_ent_lim++; } }
@@ -30,7 +53,7 @@
  			double coeff = sL*sR/(sR-sL);
  			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL
  			for(int k = 0; k < NUM_VARS; k++){
-@@ -1653,12 +1660,34 @@
+@@ -1653,12 +1678,34 @@
  	static bool parts_init = false;
  	if(!parts_init){ parts_init = true; }   // (zero from the Grid constructor)
  
@@ -65,7 +88,7 @@
  			HLLEM_x(QL, QR, eps_M_grid_x(i,j), eps_B_grid_x(i,j), f);
  			{	// [o3l] parts of the numerical flux
  				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
-@@ -1677,6 +1706,7 @@
+@@ -1677,6 +1724,7 @@
  		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // [o3] y-faces on +-2 extra columns
  			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
  			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_yR(i,j,k); QR[k] = w_yL(i,j+1,k); }
@@ -73,7 +96,7 @@
  			HLLEM_y(QL, QR, eps_M_grid_y(i,j), eps_B_grid_y(i,j), f);
  			{	// [o3l] parts of the numerical flux
  				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
-@@ -3382,10 +3412,13 @@
+@@ -3382,10 +3430,13 @@
  	return v / vA;
  }
  
@@ -90,7 +113,7 @@
  	
  	if (M <= 0.0) return 1.0;
  	if (M >= 1.0) return 0.0;
-@@ -3469,7 +3502,36 @@
+@@ -3469,7 +3520,36 @@
  			double con[NUM_VARS];
  			for(int k = 0; k < NUM_VARS; k++) con[k] = u_con(i,j,k);
  			cM(i,j) = f_epsM(con); cB(i,j) = f_epsB(con);
@@ -128,7 +151,7 @@
  #pragma omp parallel for schedule(static)
  	for(int j = ghost_cells; j < ghost_cells + nyCells; j++){
  		for(int i = ghost_cells; i < ghost_cells + nxCells; i++){
-@@ -4566,6 +4628,8 @@
+@@ -4566,6 +4646,8 @@
  }
  
  std::string g_outdir = "";   // output directory, set in main to plot/<test>/
@@ -137,7 +160,7 @@
  
  // intermediate output times (VTK + state file); t = 0 and t = T are always written
  std::vector<double> output_times(){
-@@ -4655,7 +4719,7 @@
+@@ -4655,7 +4737,7 @@
  	if(test == testKHInstability) os << "_Mx" << KH_MX;
  	if(test == testFieldLoop)     os << "_A" << LOOP_A0;
  	if(test == testVortex)        os << "_rho" << VORTEX_RHO0 << "_Bt" << VORTEX_BT << "_U" << VORTEX_U0 << "_L" << VORTEX_L;
@@ -146,7 +169,7 @@
  	testname = os.str();
  	return testname;
  }
-@@ -5027,6 +5091,13 @@
+@@ -5027,6 +5109,13 @@
  				nu_y = vy_max * dy;
  				lap_p =  nu_x/(dx * dx) * ( 0.5 * (shock_eta(i + 1,j) + shock_eta(i,j)) * (getp(i+1,j) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i - 1,j)) * (pii - getp(i - 1,j))) + nu_y/(dy * dy) * ( 0.5 * (shock_eta(i,j + 1) + shock_eta(i,j)) * (getp(i,j + 1) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i,j - 1)) * (pii - getp(i,j-1)));
  			}
@@ -160,7 +183,7 @@
  		}
  	}
  }
-@@ -5093,6 +5164,8 @@
+@@ -5093,6 +5182,8 @@
  		}
  	const bool emb = g_emb_L2c && g_emb_Qe;
  	const double a = 1.0/(gamma_plasma - 1.0), hh = h*h;
@@ -169,7 +192,7 @@
  	double gmax = 0.0;
  #pragma omp parallel for schedule(static) reduction(max:gmax)
  	for(int j = ghost_cells; j < nyCells + ghost_cells; j++)
-@@ -5128,6 +5201,13 @@
+@@ -5128,6 +5219,13 @@
  				cc[0] -= ex*up; c0 += ex*(up - um); cc[1] += ex*um;
  				cc[2] -= ey*vp; c0 += ey*(vp - vm); cc[3] += ey*vm;
  			}
@@ -183,7 +206,7 @@
  			int nb[4]; double sg[4];
  			pst_nb(i+1, j, nb[0], sg[0]); pst_nb(i-1, j, nb[1], sg[1]); pst_nb(i, j+1, nb[2], sg[2]); pst_nb(i, j-1, nb[3], sg[3]);
  			for(int m = 0; m < 4; m++){ cc[m] *= sg[m]; if(nb[m] == q){ c0 += cc[m]; cc[m] = 0.0; } }   // a neighbour mapped onto the cell itself
-@@ -5366,6 +5446,8 @@
+@@ -5366,6 +5464,8 @@
  
  void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe,Grid& Qs,Array& eps_M_grid_x, Array& eps_M_grid_y,Array& eps_B_grid_x, Array& eps_B_grid_y, double h){
  	build_Hbar(Qe, u_con);   // [o3f] (no-op if already built for this stage)
@@ -192,7 +215,7 @@
  //			
  //			
  //			//Laplacian Operator
-@@ -5451,6 +5533,13 @@
+@@ -5451,6 +5551,13 @@
  			double xdivA = (FXf(i,j) - FXf(i-1,j)) / dx;
  			double ydivA = (FYf(i,j) - FYf(i,j-1)) / dy;
  			Ax(M_P(i,j)) = 1/(gamma_plasma - 1) * x(M_P(i,j)) - h * h * (xdivA + ydivA);
@@ -206,7 +229,7 @@
  		}
  	}
  }
-@@ -6359,6 +6448,12 @@
+@@ -6359,6 +6466,12 @@
  // ============================================================================
  
  int main(int argc, char *argv[]){
@@ -219,7 +242,7 @@
  	switch (test) {
  		case test0:
  			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
-@@ -6760,6 +6855,7 @@
+@@ -6760,6 +6873,7 @@
  			WENO3Reconstruction(Qe, w_xL, w_xR, w_yL, w_yR, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y);
  
  			// Convective Subsystem F^c + split explicit F^p,F^B (HLLEM: AP-preserving)

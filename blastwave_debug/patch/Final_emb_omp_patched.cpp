@@ -1,4 +1,22 @@
 // ============================================================================
+// PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
+//   fix A  [plap=1, default ON]     shock-activated pressure Laplacian of paper 1 (eq. 45/85), (1-eps_M)-weighted,
+//                                   in the implicit pressure operators L2 (matrix-free + assembled stencil) and L4.
+//                                   Identically zero where the shock indicator chi = 0 (smooth flow): no change there.
+//   fix C  [hllemflat=2, hllemcap=0.25, default ON]
+//                                   HLLEM anti-diffusion of the entropy/Alfven waves: delta_k *= (1 - chi_face)
+//                                   (chi_face = max over the two cells of max(chi, pressure-jump sensor)) and
+//                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
+//                                   the strong oblique fast shock.
+//   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
+//   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= tag=
+//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixAC                          (fixes A + C)
+//         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
+// Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
+// travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
+// ============================================================================
+// ============================================================================
 // Dual-parameter (eps_M, eps_B) IMEX finite volume scheme for ideal MHD, third order in space and time.
 // Final_emb_omp.cpp: OpenMP version (compile with -fopenmp).  Final_emb_serial.cpp is the same code
 // without the OpenMP pragmas.
