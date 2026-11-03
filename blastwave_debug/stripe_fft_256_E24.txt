@@ -1,0 +1,5 @@
+run                               N    peak period   rms(div u)
+ref_HLL_1024                   1024      15.69 cells        27.5   (power in period<=8 cells: 0%)
+base_256                        256       5.78 cells        42.6   (power in period<=8 cells: 41%)
+E24_AC                          256      13.00 cells        25.6   (power in period<=8 cells: 6%)
+E23_ABC                         256      13.00 cells        28.5   (power in period<=8 cells: 14%)

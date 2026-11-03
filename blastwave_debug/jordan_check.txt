@@ -1,0 +1,29 @@
+state: u = 0.30612, v = -0.15873, w = 0.17857
+advective F^c (8x8): char poly = lam**4*(49*lam - 15)**4/5764801
+   eigenvalue 15/49      alg. mult = 4  geom. mult = 3  DEFECTIVE
+   eigenvalue 0          alg. mult = 4  geom. mult = 4  
+pressure  F^p (8x8): char poly = lam**6*(28005264*lam**2 - 8573040*lam - 152319127)/28005264
+   eigenvalue -2.18411   alg. mult = 1  geom. mult = 1  
+   eigenvalue 2.49023    alg. mult = 1  geom. mult = 1  
+   eigenvalue 0          alg. mult = 6  geom. mult = 6  
+magnetic  F^B (8x8): char poly = lam**4*(1764*lam**2 - 540*lam - 875)*(61740*lam**2 - 18900*lam - 62449)/108909360
+   eigenvalue -0.567674  alg. mult = 1  geom. mult = 1  
+   eigenvalue 0.873797   alg. mult = 1  geom. mult = 1  
+   eigenvalue -0.864245  alg. mult = 1  geom. mult = 1  
+   eigenvalue 1.17037    alg. mult = 1  geom. mult = 1  
+   eigenvalue 0          alg. mult = 4  geom. mult = 3  DEFECTIVE
+
+advective F^c (7x7, Bx column removed): char poly = -lam**3*(49*lam - 15)**4/5764801
+   eigenvalue 15/49      alg. mult = 4  geom. mult = 3  DEFECTIVE
+   eigenvalue 0          alg. mult = 3  geom. mult = 3  
+pressure  F^p (7x7, Bx column removed): char poly = -lam**5*(28005264*lam**2 - 8573040*lam - 152319127)/28005264
+   eigenvalue -2.18411   alg. mult = 1  geom. mult = 1  
+   eigenvalue 2.49023    alg. mult = 1  geom. mult = 1  
+   eigenvalue 0          alg. mult = 5  geom. mult = 5  
+magnetic  F^B (7x7, Bx column removed): char poly = -lam**3*(1764*lam**2 - 540*lam - 875)*(61740*lam**2 - 18900*lam - 62449)/108909360
+   eigenvalue -0.567674  alg. mult = 1  geom. mult = 1  
+   eigenvalue 0.873797   alg. mult = 1  geom. mult = 1  
+   eigenvalue -0.864245  alg. mult = 1  geom. mult = 1  
+   eigenvalue 1.17037    alg. mult = 1  geom. mult = 1  
+   eigenvalue 0          alg. mult = 3  geom. mult = 3  
+
