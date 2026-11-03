@@ -1131,6 +1131,9 @@ inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 // rest of the numerical flux is dissipation + anti-diffusion).  HLLEM_Update needs them to split the
 // numerical flux into its F^c, F^p, F^B parts BEFORE the transverse convolution.
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
+int g_hllemflat = 2, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)
+static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
+Grid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator
 extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter
 double g_env_cap = 0.0;   // [W] time-step speed of the current sweep direction (a_max_x / a_max_y), set by HLLEM_Update
 long g_env_wide = 0;      // [W] counter: faces whose envelope was widened
@@ -1366,6 +1369,8 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			{ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);
 #pragma omp atomic
 				g_ent_lim++; } }
+			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
+			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener
 			double coeff = sL*sR/(sR-sL);
 			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL
 			for(int k = 0; k < NUM_VARS; k++){
@@ -1653,12 +1658,34 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 	static bool parts_init = false;
 	if(!parts_init){ parts_init = true; }   // (zero from the Grid constructor)
 
+	static Array hchi(nxCells, nyCells);
+	if(g_hllemflat && g_hllem_Qe){
+		ShockDetector(hchi, *g_hllem_Qe);   // [fix C] chi of the explicit stage state (ghosts filled by bound_cond_array)
+		if(g_hllemflat >= 2){   // + pressure-jump sensor: s_p = min(1, max_nbr |dp| / min(p) / 0.5), cell := max(chi, s_p)
+			static Array pc(nxCells, nyCells), sp(nxCells, nyCells);
+			const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++){
+				double q[NUM_VARS], pr[NUM_VARS]; for(int k = 0; k < NUM_VARS; k++) q[k] = (*g_hllem_Qe)(i,j,k); ini_con2pri(pr, q); pc(i,j) = fmax(pr[4], 1e-300);
+			}
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++){
+				const double p0 = pc(i,j); double d = 0.0;
+				const double pn[4] = {pc(i+1,j), pc(i-1,j), pc(i,j+1), pc(i,j-1)};
+				for(int q = 0; q < 4; q++) d = fmax(d, fabs(pn[q] - p0)/fmin(pn[q], p0));
+				sp(i,j) = fmin(1.0, d/0.5);
+			}
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
+		}
+	}
 	g_env_cap = a_max_x;   // [W]
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // [o3] x-faces on +-2 extra rows
 		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
 			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
 			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_xR(i,j,k); QR[k] = w_xL(i+1,j,k); }
+			if(g_hllemflat){ const int jc = std::max(1, std::min(nyCells + 2*ghost_cells - 2, j)); g_face_chi = fmax(hchi(i,jc), hchi(i+1,jc)); }
 			HLLEM_x(QL, QR, eps_M_grid_x(i,j), eps_B_grid_x(i,j), f);
 			{	// [o3l] parts of the numerical flux
 				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
@@ -1677,6 +1704,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // [o3] y-faces on +-2 extra columns
 			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
 			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_yR(i,j,k); QR[k] = w_yL(i,j+1,k); }
+			if(g_hllemflat){ const int ic = std::max(1, std::min(nxCells + 2*ghost_cells - 2, i)); g_face_chi = fmax(hchi(ic,j), hchi(ic,j+1)); }
 			HLLEM_y(QL, QR, eps_M_grid_y(i,j), eps_B_grid_y(i,j), f);
 			{	// [o3l] parts of the numerical flux
 				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
@@ -6421,9 +6449,9 @@ int main(int argc, char *argv[]){
 	for(int a = 1; a < argc; a++){ std::string k(argv[a]); auto eq = k.find('='); if(eq == std::string::npos) continue; std::string key = k.substr(0,eq); double v = atof(k.c_str()+eq+1);
 		if(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;
 		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
-		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v;
+		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
-	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << std::endl;
+	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << std::endl;
 	switch (test) {
 		case test0:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
@@ -6825,6 +6853,7 @@ int main(int argc, char *argv[]){
 			WENO3Reconstruction(Qe, w_xL, w_xR, w_yL, w_yR, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y);
 
 			// Convective Subsystem F^c + split explicit F^p,F^B (HLLEM: AP-preserving)
+			g_hllem_Qe = &Qe;
 			HLLEM_Update(u_con, Qs, w_xL,w_xR,w_yL,w_yR, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y, adt);
 			bound_cond_u(u_con);
 

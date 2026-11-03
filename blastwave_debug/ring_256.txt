@@ -1,0 +1,5 @@
+ref HLL 1024           ring(0.30<r<0.42, 35<th<85): M med=2.51  M_A med=0.26  beta med=0.0108  rho[1.00,1.42]  p[0.10,5.58]
+base 256               ring(0.30<r<0.42, 35<th<85): M med=2.34  M_A med=0.26  beta med=0.0117  rho[1.00,1.50]  p[0.01,10.77]  eps_M med=1.00 frac>0.5=0.69  eps_B med=0.20 frac>0.5=0.28
+E14 A+B 256            ring(0.30<r<0.42, 35<th<85): M med=2.40  M_A med=0.26  beta med=0.0116  rho[1.00,1.42]  p[0.09,11.59]  eps_M med=1.00 frac>0.5=0.75  eps_B med=0.30 frac>0.5=0.36
+E12 all-explicit 256   ring(0.30<r<0.42, 35<th<85): M med=2.41  M_A med=0.26  beta med=0.0116  rho[0.83,1.88]  p[0.09,11.51]  eps_M med=1.00 frac>0.5=1.00  eps_B med=1.00 frac>0.5=1.00
+wrote ring_256.png

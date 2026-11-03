@@ -14,6 +14,7 @@
 2. **直接原因**：内部区域 M ≈ 0.2、M_A ≈ 0.2（都在切换带 [0.15, 0.4] 内），ε_M、ε_B 中位数只有 0.05–0.08，压力通量和磁通量几乎全部走隐式路径；隐式路径是四阶中心有限体积算子，除了 χ 门控的磁 Laplacian 外没有任何激波耗散（论文一压力方程的激波激活 Laplacian (45)/(85) 在论文二里被去掉了；`Final_emb_omp.cpp` 里 `Pressure_Subsystem_AX_ref` 还算着 `lap_p`，但**从未加到 Ax 上**，是死代码）。而 blast 内部并不是真正的低马赫光滑流：从 ±x 反射回来的激波在中心汇聚，δp/p ~ 0.1–0.4，β ≈ 1.4。显式部分（HLLEM-WENO3）本身是干净的：把 ε 固定为 1（全显式，E1/E12）内部与参考解一样光滑；ε 固定为 0（全隐式，E5）最差。
 3. **修复 A（已实现、已验证）**：把论文一的压力激波 Laplacian 按 (1−ε_M) 面权重加回隐式压力算子（二阶 M-矩阵算子、四阶算子、预条件模板三处都加，M-矩阵性质与保正定理不变）。128²：内部网格尺度能量 8% → 1%，v_y 粗糙度 0.74 → 0.45（参考解 0.21–0.25）；256²：41% → 8%，粗糙度 1.09 → 0.98。条纹基本消失，但 256² 上膨胀区（χ = 0）残余毛刺仍在。
 4. **修复 B（已实现、已在 128² 和 256² 验证，见第 6 节）**：切换函数除了马赫数还看局部压力/磁压的相对变化，M_eff = max(M, √(max|Δp|/p))、M_A,eff = max(M_A, √(max|Δm|/m))。这正是论文二结论里自己提出的方向（“ε 和激波指示器都由速度驱动，对静止流体中的压力跳变是盲的”）：它让内部的反射激波走显式 HLLEM，而对真正的低马赫光滑流（δp/p ~ M²）不起作用，AP 性质不变。A + B 把内部 v_y 粗糙度降到 0.27（128²）/0.38（256²）（全显式 0.26/0.27，参考解 0.21–0.24），时间步只缩小 6–8%，激波位置和极值不变；256² 上残余一点交界处的毛刺（第 6 节）。
+4b. **密度/压力的振荡有两处**（第 6.1 节）：内部的 ρ “十字亮点”和 p 网格纹路是上面同一个隐式路径问题，A + B 后消失；快激波后面的翼区环带（β ≈ 0.01、M ≈ 2.4、M_A ≈ 0.26、ε_M = 1）里 ρ 的径向条纹/棋盘格是 HLLEM 线性退化波反耗散在强激波后的奇偶解耦（Quirk 型），A、B 对它无效；**修复 C**（δ_k 乘以激波压平因子 (1 − χ_face)，χ_face 含压力跳传感器）把环带 ρ 粗糙度从 1.62 降到 0.53（参考解 0.45），三个修复合用后 128² 的 ρ、p、v_y 都与参考解一样光滑。
 5. **论文与代码的参数不一致**（两篇论文都有）：代码的 blast wave 用 B₀ = 70/√(4π)、γ = 1.4、erf 平滑的初值、CFL = 0.1；论文文本写的是 B₀ = 100/√(4π)、γ = 5/3（论文二“除非另有说明”）、尖锐初值、CFL = 0.8。论文一图 13 的磁压色标（环境 m ≈ 195 = 70²/8π，而不是 100²/8π ≈ 398）和 |u|² 最大值 240 说明论文一的图也是用 B₀ = 70 算的。论文二 κ₁ = 0.4，代码 `shock_kappa1 = 0.05`（论文一 κ₁ = 10⁻³，代码一 0.001，一致）。
 6. CFL 0.1 与 0.4 在 128² 上结果逐点几乎相同，CFL 不是问题；blast wave 的时间步本来就等于全显式磁声步长（dt/dt_MHD 中位数 1.06–1.09，因为激波区 ε = 1 且内部快磁声速 ≈ 40 与激波区一样大）。
 
@@ -143,14 +144,15 @@ CFL 0.1 与 0.4 的结果逐点几乎相同（`compare_code2_cfl.png`，ρ/p/|u|
 改动：
 1. **压力 Laplacian**（论文一 (45)/(85)）：`−V'(p)·Δt·div[χ·|u|_max·Δx·(1−ε_M)_face·∇p]`，加在三个地方：`Pressure_Subsystem_AX_ref`（二阶 M-矩阵算子，Newton Jacobian/残差）、`pst_assemble`（它的装配模板，供 Jacobi/LU 预条件；装配后代码自带与矩阵自由形式的一致性自检）、`Pressure_Subsystem_AX_HF`（四阶算子；只有两边都加，亏量修正收敛到的才是“四阶 + Laplacian”）。系数 ν = |u|_max Δx 与代码一的 `GLF` 分支相同；(1−ε_M) 面权重使显式区（ε_M = 1，HLLEM 已有耗散）不受影响。M-矩阵性质保持（只给对角加正量、给邻居加非正量），保正定理前提不变。开关 `g_plap`（默认 1；`plap=0` 回到原来的行为）。
 2. **压力/磁压敏感的切换函数**（修复 B，开关 `pswitch=1`，默认值见第 6 节）：ε_M = 1 − s(max(M, √(max_nbr|Δp|/p)))，ε_B = 1 − s(max(M_A, √(max_nbr|Δm|/m)))，邻域取 4 个面邻居，m = |B|²/2。低马赫光滑流中 δp/p ~ M²，√ 后 ~ M，不改变 AP 极限；强压力跳（δp/p ≳ 0.16）处 ε → 1。
-3. 命令行参数（无需重编译）：`cfl=`、`epsMmin=`、`epsMmax=`、`epsBmin=`、`epsBmax=`、`plap=`、`pswitch=`、`kappa1=`、`swm0=`、`swm1=`、`swalpha=`、`epsmax3=`、`tag=`（tag 附加到输出目录名）。
+3. **HLLEM 激波压平**（修复 C，开关 `hllemflat=`，默认 2，见第 6.1 节）：熵波和 Alfvén 波的反耗散系数 δ_k 乘以 (1 − χ_face)，χ_face 取面两侧格子的 max(χ, s_p)，χ 是磁 Laplacian 已用的 Balsara 压平因子（显式级态上算），s_p = min(1, max_nbr|Δp|/min(p)/0.5) 是压力跳传感器；`hllemflat=1` 只用 χ，`hllemflat=0` 关闭，`hllemoff=1` 完全关掉反耗散（纯 HLL，诊断用）。
+4. 命令行参数（无需重编译）：`cfl=`、`epsMmin=`、`epsMmax=`、`epsBmin=`、`epsBmax=`、`plap=`、`pswitch=`、`hllemflat=`、`hllemoff=`、`kappa1=`、`swm0=`、`swm1=`、`swalpha=`、`epsmax3=`、`tag=`（tag 附加到输出目录名）。
 
 用法（1000²）：
 ```bash
 g++ -O3 -march=native -fopenmp -std=c++17 -I/usr/include/eigen3 Final_emb_omp_patched.cpp -o mhd
-OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixA              # 修复 A（压力 Laplacian）
-OMP_NUM_THREADS=32 ./mhd cfl=0.4 pswitch=1 tag=fixAB   # 修复 A + B
-OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 tag=orig       # 原行为，用于对照
+OMP_NUM_THREADS=32 ./mhd cfl=0.4 pswitch=1 tag=fixABC              # 修复 A + B + C（推荐）
+OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixAC                         # 修复 A + C
+OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 tag=orig       # 原行为，用于对照
 ```
 （128² 上 CFL 0.1 与 0.4 结果相同，1000² 用 0.4 可以省 4 倍时间；如要与论文叙述一致再用 0.8 试。）
 
@@ -187,11 +189,41 @@ OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 tag=orig       # 原行为，用于对�
 
 ---
 
+## 6.1 密度与压力的振荡（翼区环带）与修复 C
+
+用窄色标重新看 ρ 和 p（`rhop_128.png`、`rhop_256.png`、`rhop_E18E19.png`，放大到 ρ ∈ [0.9, 1.5]、p ∈ [0, 12]）后，密度/压力的振荡有**两处**：
+
+1. **内部**（|x|<0.1、|y|<0.15，ρ ≈ 0.2、p ≈ 100–150）：ρ 沿两条坐标轴有一串亮点（“十字”），p 有网格纹路。这和第 4 节的速度条纹是同一件事（隐式路径无耗散），修复 A + B 之后消失（E14/E19 的 ρ、p 内部图与参考解一致）。
+2. **翼区环带**（快激波后面、0.30 < r < 0.42、与 x 轴夹角 35°–85°，ρ ≈ 1.0–1.4、p ≈ 0.1–6、β ≈ 0.01，M ≈ 2.4 **超声速**、M_A ≈ 0.26）：ρ 有径向条纹，128² 时是棋盘格，p 的激波层有锯齿。这块区域 ε_M = 1（显式），ε_B 从激波后的 1 过渡到 0.2。全显式（ε_B ≡ 1，E12）时整个环带是强棋盘格（`ring_256.png` 右列）。**修复 A、B 对它无效**（E14 的环带 ρ 粗糙度 1.19，base 1.62，参考解 0.32–0.45）。
+
+   机理：HLLEM 对线性退化波（熵波、Alfvén 波）做反耗散，系数 δ_k = 1 − λ⁻/s_L − λ⁺/s_R；与激波面相切的面上法向速度 ≈ 0，熵波速度 λ_C = u_n ≈ 0，δ_C → 1，于是沿激波面方向的密度扰动完全没有耗散——这就是 Roe/HLLEM 类低耗散求解器在强激波后的奇偶解耦（Quirk 型 carbuncle）。论文二 (54)-(59) 的 HLLEM 没有在激波附近压低 δ_k；Dumbser–Balsara (2016) 的 HLLEM 本身就带一个激波压平因子。诊断实验（128²，不含修复 A/B，`rhop_E16E17.txt`，`ring_E16E17.png`）：
+
+   | 128² | 环带 ρ 粗糙度 | 环带 p | 内部 ρ |
+   |---|---|---|---|
+   | 参考解 128² / 512² | 0.32 / 0.45 | 0.40 / 0.69 | 0.40 / 0.30 |
+   | base | 1.62 | 1.60 | 1.25 |
+   | E16 δ_k·(1−χ_face)（χ = 磁 Laplacian 用的 Balsara 压平因子） | 0.79 | 1.50 | 1.33 |
+   | E17 δ_k ≡ 0（纯 HLL，诊断） | 0.50 | 1.56 | 1.15 |
+
+   关掉反耗散环带就干净（0.50 ≈ 参考解），证实来源；只用 χ（div u 门控，只在激波层 ±1 格为 1）压平只去掉一半，因为条纹在激波层里生成。
+
+   **修复 C**（`hllemflat=2`，补丁默认）：δ_k ← δ_k·(1 − χ_face)，χ_face = 两侧格子的 max(χ, s_p)，s_p = min(1, max_nbr|Δp|/min(p)/0.5)（相邻格压力相对跳变 ≥ 50% 时完全压平）。只在激波层起作用，接触/剪切/Alfvén 波在光滑区的反耗散不变。三个修复合在一起（128²，CFL 0.4，`rhop_E18E19.txt`，`metrics_E18E19.txt`，`rhop_E18E19.png`，`lines_E18E19.png`）：
+
+   | 128² | 环带 ρ | 环带 p | 内部 ρ | 内部 p | 内部 v_y 粗糙度 | 沿 x=0 的 max\|u\|² |
+   |---|---|---|---|---|---|---|
+   | 参考解 512² | 0.45 | 0.69 | 0.30 | 0.13 | 0.21 | 27 |
+   | base | 1.62 | 1.60 | 1.25 | 0.46 | 0.74 | 64 |
+   | E14 A + B | 1.19 | 1.10 | 0.80 | 0.28 | 0.27 | 45 |
+   | E18 A + B + C(χ) | 0.71 | 1.12 | 1.07 | 0.28 | 0.25 | 37 |
+   | **E19 A + B + C(χ, Δp)** | **0.53** | 1.16 | **0.78** | **0.26** | **0.26** | **24** |
+
+   E19 的 ρ、p 二维图（内部和环带）在 128² 上已经和参考解一样光滑（`rhop_E18E19.png` 最右列）；环带 p 的残余粗糙度在激波层本身（参考解也有 0.69），不是振荡。256² 的 E20（A + B + C）正在跑，结果出来后补到这里。
+
 ## 7. 还没解决的问题与建议
 
 1. **1000² 的验证**：本机只能跑到 256²。两个修复的作用方向在 128² → 256² 上是一致的，但 256² 上修复 A 单独不够、A + B 还剩一点交界处毛刺；1000² 请用第 5 节的命令对照 `orig`/`fixA`/`fixAB` 三个运行，看内部 |u|² 沿 x = 0 的线图和 div u 的谱（`stripe_fft.py`，`metrics.py` 两个脚本都能直接读 `plt_*.vtk`）。修复 B 的两个阈值（√(Δp/p) 进入切换函数、4 邻居）是第一次尝试，没有调过；如果 1000² 上交界处的毛刺仍在，可以试 8 邻居或把 Δp/p 不开方（更保守）。
 2. **隐式磁路径的耗散**：E10 说明磁通量全隐式时即使有压力 Laplacian 也会变差；磁预测子的 Laplacian 是 χ 门控的（κ₁ 代码取 0.05，论文 0.4），而 CT 之后的 B = curl₄A 与 Lorentz 力（四阶中心）没有耗散。如果修复 B 不够，下一步是让磁 Laplacian 的门控也响应 |Δm|/m，或在 Lorentz 力/感应通量里用 (1−ε_B) 加权的迎风面值。
-3. **全显式模式（ε ≡ 1）的密度棋盘格**：HLLEM 的熵波反耗散在 u ≈ 0 的强磁化区把密度的耗散完全去掉，现有限制只在 |Δρ|/ρ > 0.5 时起作用；需要一个随 δ_C 的小振幅限制（Dumbser–Balsara 的 flattener 型）。blast 的 base 运行里这块区域是隐式的，所以没有显现，但 Orszag–Tang 一类问题会碰到。
+3. **HLLEM 在强激波后的奇偶解耦**：已由修复 C 处理（第 6.1 节）；s_p 的阈值 0.5 和 4 邻居是第一次尝试，Orszag–Tang、rotor 这类有强激波的算例也应该用修复 C 复查一遍（原代码的 Orszag–Tang 1000² 图里可能也有同样的条纹）。
 4. **论文文本**：blast wave 的 B₀/γ/初值平滑/CFL/κ₁ 要与代码统一（两篇都要改）；论文二应说明 HLLEM 的两处额外限制（熵反耗散关闭、包络加宽）以及压力子系统的激波耗散（如采用修复 A），并把“压力下界被触及”的说法与实际 p_min 核对。
 5. 代码一的 blast wave 翼区压力偏高 4–5 倍，是全场 Rusanov（s_max = |u|_max）的数值加热，论文一的图 13 应注意这一点（与 Balsara–Spicer 对比时翼区会偏亮）。
 
@@ -202,5 +234,5 @@ OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 tag=orig       # 原行为，用于对�
 - `REPORT.md`：本报告。
 - `patch/`：`Final_emb_omp_original.cpp`（上传原件）、`apply_patch.py`、`Final_emb_omp_patched.cpp`、`blastwave_fix.diff`。
 - `ref_mhd/`：独立参考解算器 `ref_mhd.cpp`（`.dat` 结果未入库，`./ref_mhd N 1 0.4` 重生成）。
-- 图：`compare_128_cfl0.1.png`（两份代码 128²）、`compare_res_paper1.png`（代码一 128/256 vs 代码二）、`compare_code2_cfl.png`（CFL 0.1 vs 0.4）、`code2_128_final_fields.png` / `code2_128_t0.0025_fields.png`（ε、速度、div u 场）、`base128_divu_time.png`（条纹的时间演化）、`exps_*.png`（对照实验的二维放大图）、`lines_*.png`（x = 0 / y = 0 线图）、`ref2d*.png`（与参考解的二维对比）。
-- 脚本：`plot_compare.py`、`plot_exps.py`、`plot_lines.py`、`plot_lines2.py`、`plot_ref2d.py`、`plot_eps_zoom.py`、`read_vtk.py`、`metrics.py`、`stripe_fft.py`；数据表 `metrics_*.txt`、`stripe_fft*.txt`。
+- 图：`compare_128_cfl0.1.png`（两份代码 128²）、`compare_res_paper1.png`（代码一 128/256 vs 代码二）、`compare_code2_cfl.png`（CFL 0.1 vs 0.4）、`code2_128_final_fields.png` / `code2_128_t0.0025_fields.png`（ε、速度、div u 场）、`base128_divu_time.png`（条纹的时间演化）、`exps_*.png`（对照实验的二维放大图）、`lines_*.png`（x = 0 / y = 0 线图）、`ref2d*.png`（与参考解的二维对比）、`rhop_*.png`（窄色标的 ρ、p 内部/翼区图）、`ring_*.png`（翼区环带象限放大：ρ、p、ε_M、ε_B、|u|、M_A）。
+- 脚本：`plot_compare.py`、`plot_exps.py`、`plot_lines.py`、`plot_lines2.py`、`plot_ref2d.py`、`plot_eps_zoom.py`、`plot_rhop.py`、`ring_stats.py`、`read_vtk.py`、`metrics.py`、`stripe_fft.py`；数据表 `metrics_*.txt`、`stripe_fft*.txt`、`rhop_*.txt`、`ring_*.txt`。

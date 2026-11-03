@@ -19,6 +19,14 @@ Changes (all other lines are untouched):
     M_eff = max(M, sqrt(max_nbr |dp|/p)) and M_A,eff = max(M_A, sqrt(max_nbr |dm|/m)), m = |B|^2/2,
     over the four face neighbours.  In a smooth low-Mach flow dp/p = O(M^2), so the limit is unchanged;
     a strong pressure jump (dp/p >~ 0.16) is handed to the explicit HLLEM flux.
+ 5. HLLEM flattener (hllemflat=, default HLLEMFLAT_DEFAULT): the anti-diffusion coefficients delta_k of the
+    entropy and Alfven waves are multiplied by (1 - chi_face), chi_face = max of the two cells' shock
+    indicator (the Balsara flattener of the magnetic Laplacian, evaluated on the explicit stage state);
+    with hllemflat=2 the cell indicator is max(chi, min(1, max_nbr |dp|/min(p) / 0.5)), i.e. a
+    pressure-jump sensor is added.  Removes the odd-even (checkerboard / radial streak) decoupling of the
+    density and pressure behind the strong oblique fast shock (Quirk-type carbuncle of low-dissipation
+    Riemann solvers; Dumbser-Balsara 2016 use the same cure).  hllemoff=1 switches the anti-diffusion off
+    entirely (plain HLL, diagnostic).
 """
 import sys
 
@@ -97,6 +105,64 @@ inline double switchS(double M) {
 			}
 		}""")
 
+    # ---- (5) HLLEM flattener ----
+    rep("static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;",
+        "static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;\nint g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)\nstatic thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)\nGrid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator")
+    rep("""			double coeff = sL*sR/(sR-sL);
+			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL""",
+        """			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
+			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener
+			double coeff = sL*sR/(sR-sL);
+			if(!ld_ok){ for(int k=0;k<NUM_VARS;k++) flux[k]=FHLL[k]; return; }   // degenerate state: plain HLL""")
+    rep("""	g_env_cap = a_max_x;   // [W]
+#pragma omp parallel for collapse(2) schedule(static)
+	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // [o3] x-faces on +-2 extra rows
+		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
+			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
+			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_xR(i,j,k); QR[k] = w_xL(i+1,j,k); }
+			HLLEM_x(QL, QR, eps_M_grid_x(i,j), eps_B_grid_x(i,j), f);""",
+        """	static Array hchi(nxCells, nyCells);
+	if(g_hllemflat && g_hllem_Qe){
+		ShockDetector(hchi, *g_hllem_Qe);   // [fix C] chi of the explicit stage state (ghosts filled by bound_cond_array)
+		if(g_hllemflat >= 2){   // + pressure-jump sensor: s_p = min(1, max_nbr |dp| / min(p) / 0.5), cell := max(chi, s_p)
+			static Array pc(nxCells, nyCells), sp(nxCells, nyCells);
+			const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++){
+				double q[NUM_VARS], pr[NUM_VARS]; for(int k = 0; k < NUM_VARS; k++) q[k] = (*g_hllem_Qe)(i,j,k); ini_con2pri(pr, q); pc(i,j) = fmax(pr[4], 1e-300);
+			}
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++){
+				const double p0 = pc(i,j); double d = 0.0;
+				const double pn[4] = {pc(i+1,j), pc(i-1,j), pc(i,j+1), pc(i,j-1)};
+				for(int q = 0; q < 4; q++) d = fmax(d, fabs(pn[q] - p0)/fmin(pn[q], p0));
+				sp(i,j) = fmin(1.0, d/0.5);
+			}
+#pragma omp parallel for collapse(2) schedule(static)
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
+		}
+	}
+	g_env_cap = a_max_x;   // [W]
+#pragma omp parallel for collapse(2) schedule(static)
+	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // [o3] x-faces on +-2 extra rows
+		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
+			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
+			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_xR(i,j,k); QR[k] = w_xL(i+1,j,k); }
+			if(g_hllemflat){ const int jc = std::max(1, std::min(nyCells + 2*ghost_cells - 2, j)); g_face_chi = fmax(hchi(i,jc), hchi(i+1,jc)); }
+			HLLEM_x(QL, QR, eps_M_grid_x(i,j), eps_B_grid_x(i,j), f);""")
+    rep("""			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
+			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_yR(i,j,k); QR[k] = w_yL(i,j+1,k); }
+			HLLEM_y(QL, QR, eps_M_grid_y(i,j), eps_B_grid_y(i,j), f);""",
+        """			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
+			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_yR(i,j,k); QR[k] = w_yL(i,j+1,k); }
+			if(g_hllemflat){ const int ic = std::max(1, std::min(nxCells + 2*ghost_cells - 2, i)); g_face_chi = fmax(hchi(ic,j), hchi(ic,j+1)); }
+			HLLEM_y(QL, QR, eps_M_grid_y(i,j), eps_B_grid_y(i,j), f);""")
+    rep("""			// Convective Subsystem F^c + split explicit F^p,F^B (HLLEM: AP-preserving)
+			HLLEM_Update(u_con, Qs, w_xL,w_xR,w_yL,w_yR, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y, adt);""",
+        """			// Convective Subsystem F^c + split explicit F^p,F^B (HLLEM: AP-preserving)
+			g_hllem_Qe = &Qe;
+			HLLEM_Update(u_con, Qs, w_xL,w_xR,w_yL,w_yR, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y, adt);""")
+
     # ---- (1a) matrix-free second-order operator: apply the Laplacian ----
     rep("""				lap_p =  nu_x/(dx * dx) * ( 0.5 * (shock_eta(i + 1,j) + shock_eta(i,j)) * (getp(i+1,j) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i - 1,j)) * (pii - getp(i - 1,j))) + nu_y/(dy * dy) * ( 0.5 * (shock_eta(i,j + 1) + shock_eta(i,j)) * (getp(i,j + 1) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i,j - 1)) * (pii - getp(i,j-1)));
 			}
@@ -160,12 +226,15 @@ inline double switchS(double M) {
         '\tfor(int a = 1; a < argc; a++){ std::string k(argv[a]); auto eq = k.find(\'=\'); if(eq == std::string::npos) continue; std::string key = k.substr(0,eq); double v = atof(k.c_str()+eq+1);\n'
         '\t\tif(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;\n'
         '\t\telse if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;\n'
-        '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v;\n'
+        '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v;\n'
         '\t\telse { std::cout << "unknown arg " << k << std::endl; return 1; } }\n'
-        '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << std::endl;\n'
+        '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << std::endl;\n'
         '\tswitch (test) {')
     rep('\tos << "_CFL" << CFL;\n\ttestname = os.str();', '\tos << "_CFL" << CFL; if(!g_tag.empty()) os << "_" << g_tag;\n\ttestname = os.str();')
+    s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT))
     return s
+
+HLLEMFLAT_DEFAULT = 2
 
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
