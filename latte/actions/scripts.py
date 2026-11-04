@@ -317,18 +317,18 @@ def push_heart():
     large flow for a heart (11.5-13 s); small flow lifted to finish (13.5-14.5 s)."""
     p = Pitcher("push_heart", at=(0, -22))
     p.stroke("A")
-    touch_down(p, Q=10.0)
-    p.move(1.5)                                   # first layer at B
-    p.move(2.0, to=(0, -16), Q=11.0)              # keep pouring: the pattern is pushed towards D
+    touch_down(p, Q=9.0)
+    p.move(1.2)                                   # first layer at B
+    p.move(1.6, to=(0, -16), Q=9.5)               # keep pouring: the pattern is pushed towards D
     p.stroke("lift1")
-    lift_back(p, back=(0, -24), Q=11.0)
+    lift_back(p, back=(0, -24), Q=9.5)
     p.stroke("B")
-    p.move(1.0)
-    p.move(2.4, to=(0, -19), Q=12.0)              # large flow pushes the layers to C
+    p.move(0.8)
+    p.move(1.9, to=(0, -19), Q=10.5)              # large flow pushes the layers to C
     p.stroke("lift2")
-    lift_back(p, back=(0, -26), Q=11.0)
+    lift_back(p, back=(0, -26), Q=9.5)
     p.stroke("C")
-    p.move(1.6)                                   # the last heart at B
+    p.move(1.3)                                   # the last heart at B
     p.stroke("cut")
     pull_through(p, to=(0, 30), T=1.5)
     return p.build(notes="three parts at B separated by lifts with a thin stream; lift-off pull-through")
@@ -356,33 +356,34 @@ def tulip():
     the base pattern open (10.5-11.5 s); 3rd part back at B (12-14 s), a heart (14.5-15.5 s), lift."""
     p = Pitcher("tulip", at=(0, -20))
     p.stroke("A")
-    touch_down(p, Q=10.0)
+    touch_down(p, Q=9.0)
     p.move(0.4, a=7.0, f=3.0)
-    p.move(2.4)                                   # wobble at B
-    p.move(1.2, to=(0, -8))                       # forward while wobbling
+    p.move(2.0)                                   # wobble at B
+    p.move(1.0, to=(0, -8))                       # forward while wobbling
     p.move(0.3, a=0.0)
-    p.move(1.0)                                   # keep pouring: the lines wrap back
+    p.move(0.8)                                   # keep pouring: the lines wrap back
     p.stroke("lift1")
-    lift_back(p, back=(0, -22), Q=10.0)
+    lift_back(p, back=(0, -22), Q=9.0)
     p.stroke("B")
-    p.move(0.6)
+    p.move(0.5)
     p.move(0.3, a=6.0, f=3.0)
-    p.move(1.4, to=(0, -14))                      # wobble while pushing forward
+    p.move(1.2, to=(0, -14))                      # wobble while pushing forward
     p.move(0.3, a=0.0)
-    p.move(1.0, Q=12.0)                           # large flow presses the base pattern open
+    p.move(0.8, Q=10.5)                           # large flow presses the base pattern open
     p.stroke("lift2")
-    lift_back(p, back=(0, -24), Q=11.0)
+    lift_back(p, back=(0, -24), Q=9.5)
     p.stroke("C")
-    p.move(1.4)                                   # the heart
+    p.move(1.2)                                   # the heart
     p.stroke("cut")
     pull_through(p, to=(0, 30), T=1.4)
     return p.build(notes="three parts, lifts with a thin stream between them; lift-off pull-through")
 
 
-def leaf():
+def leaf(retreat_speedup=1.0):
     """Video: inject at B (0-1 s), keep the flow and start the wobble (1-2.5 s), two wobbles forward
     once the half-disc forms (3-5 s), retreat quickly to the cup edge (5.5-8.5 s), lower the flow
-    and lift to finish (9-10.5 s)."""
+    and lift to finish (9-10.5 s).  retreat_speedup > 1 shortens only the retreat move (the wobble
+    frequency stays), raising the retreat speed v_rel for the plotter relation (G5.3)."""
     p = Pitcher("leaf", at=(0, -18))
     p.stroke("A")
     touch_down(p, Q=11.0)
@@ -390,7 +391,7 @@ def leaf():
     p.move(1.6)                                   # wobble at B
     p.move(1.0, to=(0, -8))                       # two wobbles forward
     p.mark("retreat0")
-    p.move(3.0, to=(0, -36), Q=10.0)              # retreat to the edge while wobbling
+    p.move(3.0 / retreat_speedup, to=(0, -36), Q=10.0)   # retreat to the edge while wobbling
     p.mark("retreat1")
     p.move(0.3, a=0.0)
     p.stroke("cut")

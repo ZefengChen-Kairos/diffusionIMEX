@@ -28,7 +28,8 @@ class PhysParams:
     # calibrated physical closures
     gamma: float = 7.0          # drag on the bulk [1/s]
     tau_y: float = 0.0          # foam yield stress on the base [Pa] (0 = spec model)
-    tau_ex: float = 0.1         # layer-thickness exchange time with the bulk [s] (0 = off)
+    tau_ex: float = 0.0         # layer-thickness exchange time with the bulk [s] (0 = task-book model;
+                                # with realistic pours the foam piles and the white area saturates by itself, F6)
     exchange_mode: str = "local"  # "local": excess thickness goes under (local mixture) where it forms;
                                 # "rim": only at the wall; "sorted": base liquid drains from under the foam
     rim_w: float = 3.0e-3       # width of the wall band where the skin goes under [m]
@@ -48,10 +49,10 @@ class PhysParams:
     C_t: float = 0.3
     v_c: float = 0.025
     sig_d_min: float = 0.6e-3   # task-book start 1.1 mm (finer ribbons from a fast wobble)
-    sig_d_fac: float = 0.75
-    r0_fac: float = 0.6
+    sig_d_fac: float = 0.45
+    r0_fac: float = 1.5
     sig_k_min: float = 2.0e-3   # task-book start 3.5 mm (a thin high-pour stream, D_j ~ 2 mm)
-    sig_r_fac: float = 2.5
+    sig_r_fac: float = 1.2
     # optics
     Phi_star: float = 1.2       # white scale [kg/m^2]
     pressure: str = "elastic"   # "buoyant" (spec main, eq. D) or "elastic" (spec fallback)

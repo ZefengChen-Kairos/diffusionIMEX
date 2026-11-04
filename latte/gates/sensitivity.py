@@ -22,7 +22,8 @@ from gates.g1 import dwell                             # noqa: E402
 from gates.g2 import wobble_action, axis_stripes       # noqa: E402
 from gates import metrics as mt                        # noqa: E402
 
-PARAMS = ["gamma", "chi", "k_h", "nu_s", "phi_f", "v_e", "dv", "C_E", "C_t", "v_c", "sig_k_min", "Phi_star"]
+PARAMS = ["gamma", "chi", "k_h", "nu_s", "phi_f", "v_e", "dv", "C_E", "C_t", "v_c", "sig_k_min", "Phi_star",
+          "r0_fac", "sig_d_fac", "sig_r_fac"]
 
 
 def g1_metrics(P, NP):

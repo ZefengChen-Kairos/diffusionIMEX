@@ -149,10 +149,11 @@ def run_g5():
     R.check("G5.4", "midline vein: share of transverse profiles with a dip at x=0", m["vein"], m["vein"] >= 0.5,
             ">= 0.5")
     # G5.3 rib spacing vs retreat speed (retreat 1.5x faster)
+    from actions.scripts import leaf as leaf_pour
     base = ALL["leaf"]()
     r0, r1 = base.marks["retreat0"], base.marks["retreat1"]
     shift = (r1 - r0) * (1 - 1 / 1.5)
-    act = base.time_warped(r0, r1, 1.5, name="leaf_fast_retreat")
+    act = leaf_pour(retreat_speedup=1.5)   # retreat speed x1.5, wobble frequency unchanged
     sim = Sim(act, P=P, NP=NP)
     # compare before the pull-through: rib spacing at the end of the retreat
     from gates.common import step_until

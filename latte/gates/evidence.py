@@ -139,8 +139,9 @@ def main():
     res["F6_times"] = times + ["final"]
     res["F6_video"] = white_fraction_history("heart", times + [11.3])
     row6 = []
-    for lab, P6 in (("none", P0.with_(tau_ex=0.0)), ("rim", P0.with_(exchange_mode="rim")),
-                    ("sorted", P0.with_(exchange_mode="sorted")), ("local", P0.with_(exchange_mode="local"))):
+    for lab, P6 in (("none", P0), ("rim", P0.with_(exchange_mode="rim", tau_ex=0.1)),
+                    ("sorted", P0.with_(exchange_mode="sorted", tau_ex=0.1)),
+                    ("local", P0.with_(exchange_mode="local", tau_ex=0.1))):
         s6 = Sim(ALL["heart"](), P=P6, NP=NP, record_every=0.5)
         s6.run()
         fr = []
@@ -152,7 +153,7 @@ def main():
                                 layer_M_max_over_rho_c_h0=float(s6.U[0].max() / (P0.rho_c * P0.h0)))
         row6.append(img_of(s6, s6.Yf, s6.U[0]))
     board([row6], os.path.join(d, "F6_exchange.png"),
-          labels=["no exchange", "wall-only (rim)", "sorted drainage", "local (default)"], cell=230)
+          labels=["no exchange (default)", "wall-only (rim)", "sorted drainage", "local"], cell=230)
     # F7 horizontal jet velocity at impact: the tip of the heart after the lift-off pull-through
     row7 = []
     for lab, P7 in (("impact_kh030", P0.with_(vh_form="impact", k_h=0.30)), ("exit_kh040", P0)):
