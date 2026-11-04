@@ -42,9 +42,9 @@
 | G5 | G5.2 left/right symmetry: mirror IoU of the white mask | 0.9887 | >= 0.75 | PASS |
 | G5 | G5.4 midline vein: share of transverse profiles with a dip at x=0 | 1 | >= 0.5 | PASS |
 | G5 | G5.3 rib spacing in the retreat zone before the pull-through: reference vs retreat x1.5 [mm] | [4.625, 6.625] | increases | PASS |
-| G6 | G6.1a batch A is pressed open, not erased and redrawn: surface A mass kept 5.2 -> 9.8 s; components of A material (Y_A > 0.2) | [0.9531, 1] | kept >= 80 %, 1..2 pieces | PASS |
-| G6 | G6.1b tag A ledger closure | 1.878e-15 | < 1e-9 | PASS |
-| G6 | G6.2 white bands on the axis before the pull-through (one per part A, B, C) | 1 | == 3 | **FAIL** |
+| G6 | G6.1a batch A is pressed open, not erased and redrawn: surface A mass kept 5.2 -> 10.6 s; components of A material (Y_A > 0.2) | [0.9475, 1] | kept >= 80 %, 1..2 pieces | PASS |
+| G6 | G6.1b tag A ledger closure | 2.561e-15 | < 1e-9 | PASS |
+| G6 | G6.2 white bands on the axis before the pull-through (one per part A, B, C) | 2 | == 3 | **FAIL** |
 | G7 | G7.1 wing / neck / head white areas [mm^2] | [2030, 207.4, 295.6] | each > 20 mm^2 | PASS |
 | G7 | G7.2 neck width < wing rib spacing [mm] | [4.075, 8] | neck < rib | PASS |
 | G7 | G7.3 same physics parameters as all other patterns (digest) | 1a6b8d7baeea | == shared | PASS |
@@ -61,6 +61,6 @@
 | G9 | G9-heart heart: white IoU vs the rectified video frame, pour axes aligned (axis tolerance -6 deg); IoU with the simulation upside down; white fraction sim / video | [0.6552, 0.5906, 0.4387, 0.4129] | report | PASS |
 | G9 | G9-push_heart push_heart: white IoU vs the rectified video frame, pour axes aligned (axis tolerance -6 deg); IoU with the simulation upside down; white fraction sim / video | [0.398, 0.4014, 0.5109, 0.2985] | report | PASS |
 | G9 | G9-layered_heart layered_heart: white IoU vs the rectified video frame, pour axes aligned (axis tolerance -6 deg); IoU with the simulation upside down; white fraction sim / video | [0.657, 0.6292, 0.4819, 0.4999] | report | PASS |
-| G9 | G9-tulip tulip: white IoU vs the rectified video frame, pour axes aligned (axis tolerance +4 deg); IoU with the simulation upside down; white fraction sim / video | [0.5193, 0.4929, 0.5663, 0.3748] | report | PASS |
+| G9 | G9-tulip tulip: white IoU vs the rectified video frame, pour axes aligned (axis tolerance -2 deg); IoU with the simulation upside down; white fraction sim / video | [0.5119, 0.4691, 0.5568, 0.3748] | report | PASS |
 | G9 | G9-leaf leaf: white IoU vs the rectified video frame, pour axes aligned (axis tolerance +6 deg); IoU with the simulation upside down; white fraction sim / video | [0.6733, 0.6313, 0.5207, 0.5875] | report | PASS |
 | G9 | G9-swan swan: white IoU vs the rectified video frame, pour axes aligned (axis tolerance -4 deg); IoU with the simulation upside down; white fraction sim / video | [0.5263, 0.53, 0.5577, 0.3767] | report | PASS |
