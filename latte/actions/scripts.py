@@ -108,10 +108,18 @@ def touch_down(p, Q, T=0.5, h=H_DRAW):
     return p.move(T, Q=Q, h=h)
 
 
-def lift_back(p, back, Q, T=1.5, h=H_LIFT):
+def lift_back(p, back, Q, T=1.5, h=H_LIFT, hover=0.0, Q_h=5.0, h_h=0.045):
     """Between two strokes: lift the spout and thin the stream while moving back, lower again at
-    `back` and open the flow to Q (the stream is not interrupted)."""
+    `back` and open the flow to Q (the stream is not interrupted).  hover > 0 holds a thin, fast
+    stream over the landing point for `hover` seconds before lowering (the barista's aim-and-settle;
+    its high-v_j churn etches the boundary of the previous layer)."""
     x0, x1 = p.at(), np.asarray(back, float)
+    if hover > 0:
+        p.move(0.30 * T, to=x0 + 0.25 * (x1 - x0), Q=Q_THIN, h=h)
+        p.move(0.45 * T, to=x1)
+        p.move(0.25 * T, h=h_h, Q=Q_h)
+        p.move(hover)
+        return p.move(0.3, Q=Q, h=H_DRAW)
     p.move(0.30 * T, to=x0 + 0.25 * (x1 - x0), Q=Q_THIN, h=h)
     p.move(0.40 * T, to=x0 + 0.90 * (x1 - x0))
     return p.move(0.30 * T, to=x1, Q=Q, h=H_DRAW)
@@ -363,7 +371,7 @@ def tulip():
     p.move(0.3, a=0.0)
     p.move(0.8)                                   # keep pouring: the lines wrap back
     p.stroke("lift1")
-    lift_back(p, back=(0, -22), Q=9.0)
+    lift_back(p, back=(0, -22), Q=9.0, hover=0.5)
     p.stroke("B")
     p.move(0.5)
     p.move(0.3, a=6.0, f=3.0)
@@ -371,9 +379,9 @@ def tulip():
     p.move(0.3, a=0.0)
     p.move(0.8, Q=10.5)                           # large flow presses the base pattern open
     p.stroke("lift2")
-    lift_back(p, back=(0, -24), Q=9.5)
+    lift_back(p, back=(0, -26), Q=9.5, hover=0.5)
     p.stroke("C")
-    p.move(1.2)                                   # the heart
+    p.move(1.0, Q=10.5)                           # the heart
     p.stroke("cut")
     pull_through(p, to=(0, 30), T=1.4)
     return p.build(notes="three parts, lifts with a thin stream between them; lift-off pull-through")
