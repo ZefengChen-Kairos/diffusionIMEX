@@ -15,7 +15,8 @@ What it does, in one command:
 Usage (typical, 32 cores):
     python3 run_vortex_eoc.py --jobs 4 --threads 8
 Options:
-    --src PATH          source file (default ../patch/Final_emb_omp_patched.cpp)
+    --src PATH          source file; by default Final_emb_omp_patched.cpp is looked for next to this script,
+                        in the current directory, and in ../patch/
     --outdir DIR        work/output directory (default ./eoc_run)
     --rho0 LIST         comma list, default 1,0.1,0.01,0.001,0.0001,0.00001
     --N LIST            comma list of the nominal N (h = 10/N), default 32,64,128,256
@@ -37,7 +38,7 @@ FIELDS = ['rho', 'u', 'p', 'Bx', 'Az']
 
 def parse_args():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--src', default=os.path.join(HERE, '..', 'patch', 'Final_emb_omp_patched.cpp'))
+    ap.add_argument('--src', default='', help='source file; by default looked up next to this script, in the current directory, or in ../patch/')
     ap.add_argument('--outdir', default=os.path.join(os.getcwd(), 'eoc_run'))
     ap.add_argument('--rho0', default='1,0.1,0.01,0.001,0.0001,0.00001')
     ap.add_argument('--N', default='32,64,128,256')
@@ -54,6 +55,16 @@ def parse_args():
     ap.add_argument('--cxx', default='g++')
     ap.add_argument('--cxxflags', default='-O3 -march=native -fopenmp -std=c++17 -I/usr/include/eigen3')
     return ap.parse_args()
+
+
+def find_source(name='Final_emb_omp_patched.cpp'):
+    """Look for the patched source next to this script, in the current directory, then in ../patch/."""
+    tried = [os.path.join(HERE, name), os.path.join(os.getcwd(), name), os.path.join(HERE, '..', 'patch', name)]
+    for p in tried:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    sys.exit('%s not found. Looked in:\n  ' % name + '\n  '.join(os.path.abspath(p) for p in tried) +
+             '\nPut it in one of these, or pass --src /full/path/to/%s' % name)
 
 
 def case_setup(rho0, N, rule):
@@ -143,7 +154,10 @@ def main():
     a = parse_args()
     rho0s = [float(x) for x in a.rho0.split(',')]
     Ns = [int(x) for x in a.N.split(',')]
-    src = os.path.abspath(a.src); out = os.path.abspath(a.outdir)
+    src = os.path.abspath(a.src) if a.src else find_source()
+    if not os.path.exists(src):
+        sys.exit('source file not found: %s' % src)
+    out = os.path.abspath(a.outdir)
     os.makedirs(out, exist_ok=True); os.makedirs(os.path.join(out, 'bin'), exist_ok=True); os.makedirs(os.path.join(out, 'src'), exist_ok=True)
     resfile = os.path.join(out, 'results.json')
     results = {}
