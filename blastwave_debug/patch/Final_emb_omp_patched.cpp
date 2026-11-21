@@ -9,9 +9,15 @@
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
+//   fix D  [betafloor=BETA, default OFF]
+//                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
+//                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  For the blast
+//                                   wave (beta_amb = 5.13e-4) use betafloor=5e-4: log10 p_min -2.15 -> -1.01, p_max
+//                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
+//                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= tag=
-//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixAC                          (fixes A + C)
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= tag=
+//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
 // travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
@@ -239,6 +245,7 @@ double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
 double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
+double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)
 double g_vortex_Bt = VORTEX_BT;
 // [o3d] face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),
 // t = transverse direction along the face.  Without the covariance term every product of two face
@@ -6429,6 +6436,19 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 			std::cout<<endl;
 	}
 	
+	if(g_betafloor > 0.0){   // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (see apply_patch.py)
+#pragma omp parallel for collapse(2) schedule(static)
+		for(int j = ghost_cells; j < ghost_cells + nyCells; j++)
+			for(int i = ghost_cells; i < ghost_cells + nxCells; i++){
+				const double rr = fmax(u_con(i,j,0), 1e-300);
+				const double ke = 0.5*(u_con(i,j,1)*u_con(i,j,1) + u_con(i,j,2)*u_con(i,j,2) + u_con(i,j,3)*u_con(i,j,3))/rr;
+				const double mb = 0.5*(u_con(i,j,5)*u_con(i,j,5) + u_con(i,j,6)*u_con(i,j,6) + u_con(i,j,7)*u_con(i,j,7));
+				const double pmin_loc = g_betafloor * mb;
+				if((gamma_plasma - 1.0)*(u_con(i,j,4) - ke - mb) < pmin_loc)
+					u_con(i,j,4) = pmin_loc/(gamma_plasma - 1.0) + ke + mb;
+			}
+	}
+
 	bound_cond_u(u_con);
 	
 	if(nyCells != 1 && nxCells != 1){
@@ -6474,6 +6494,7 @@ int main(int argc, char *argv[]){
 		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
+		else if(key=="betafloor") g_betafloor = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
 	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;
 	switch (test) {

@@ -249,6 +249,58 @@ inline double switchS(double M) {
         '\tstd::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;\n'
         '\tswitch (test) {')
     rep('\tos << "_CFL" << CFL;\n\ttestname = os.str();', '\tos << "_CFL" << CFL; if(!g_tag.empty()) os << "_" << g_tag;\n\ttestname = os.str();')
+    # ------------------------------------------------------------------ fix D
+    # MINIMUM PLASMA BETA.  Measured on the blast wave (B = 70/sqrt(4 pi), m = |B|^2/2 = 194.96,
+    # p_amb = 0.1, so beta_amb = 2 p/|B|^2 = 5.13e-4): the thermal energy is 0.128% of the total, so
+    # p = (g-1)(E - KE - |B|^2/2) is a catastrophic cancellation.  At the foot of the fast shock the
+    # CT field (curl4 of the WENO5-Z-advected vector potential) is compressed a fraction of a cell
+    # AHEAD of where the conservative HLLEM/WENO3 flux raises E.  A 0.056% mis-phasing of |B| against
+    # a -0.007% change in E is a -93% change in p: the ambient pressure ahead of the front collapses
+    # from 0.1 to ~0.007 (probe at (0.3008,0.2305), 128^2: p = 0.1 to 5 digits up to step 280,
+    # then 0.0343 -> 0.0130 -> p_star = -0.0148 in steps 295-297 as the front passes).  Paper 1's code
+    # has the same defect and goes NEGATIVE there (-0.005 at 128^2, half the domain below ambient),
+    # so a log10 p figure of it must have been clipped.
+    # This limiter enforces  p >= betafloor * |B|^2/2  on the conservative state at the end of every
+    # stage, i.e. a floor on the plasma beta instead of the absolute floor p_floor = 1e-7.  Set
+    # betafloor just below the ambient beta of the problem (blast wave: betafloor=5e-4 -> p >= 0.0975).
+    # Measured at 128^2, CFL 0.4: log10 p_min -2.15 -> -1.01 (reference solver: -1.01), p_max 200.6 ->
+    # 200.7 (unchanged), frac(p < 0.05) 0.0142 -> 0, shock profile changed by < 2%, divB unaffected.
+    # It is a positivity limiter, not a cure: it adds energy in the floored cells and must be reported
+    # as such.  The cure is to make B's discrete update consistent with E's at shocks (or to carry the
+    # pressure/entropy in low-beta cells, as a dual-energy formalism does).  DEFAULT OFF (betafloor=0)
+    # so that every other test is bit-identical.
+    rep("""int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""",
+        """int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
+double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)""")
+
+    rep("""else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;""",
+        """else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
+		else if(key=="betafloor") g_betafloor = v;""")
+
+    rep("""	bound_cond_u(u_con);
+	
+	if(nyCells != 1 && nxCells != 1){
+		// TODO-2D: adapt to our 6-arg Staggered_CT(u_con,Bx_p0,By_0p,Bx_p0_Qs,By_0p_Qs,h) before running 2D
+	}""",
+        """	if(g_betafloor > 0.0){   // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (see apply_patch.py)
+#pragma omp parallel for collapse(2) schedule(static)
+		for(int j = ghost_cells; j < ghost_cells + nyCells; j++)
+			for(int i = ghost_cells; i < ghost_cells + nxCells; i++){
+				const double rr = fmax(u_con(i,j,0), 1e-300);
+				const double ke = 0.5*(u_con(i,j,1)*u_con(i,j,1) + u_con(i,j,2)*u_con(i,j,2) + u_con(i,j,3)*u_con(i,j,3))/rr;
+				const double mb = 0.5*(u_con(i,j,5)*u_con(i,j,5) + u_con(i,j,6)*u_con(i,j,6) + u_con(i,j,7)*u_con(i,j,7));
+				const double pmin_loc = g_betafloor * mb;
+				if((gamma_plasma - 1.0)*(u_con(i,j,4) - ke - mb) < pmin_loc)
+					u_con(i,j,4) = pmin_loc/(gamma_plasma - 1.0) + ke + mb;
+			}
+	}
+
+	bound_cond_u(u_con);
+	
+	if(nyCells != 1 && nxCells != 1){
+		// TODO-2D: adapt to our 6-arg Staggered_CT(u_con,Bx_p0,By_0p,Bx_p0_Qs,By_0p_Qs,h) before running 2D
+	}""")
+
     s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     header = '''// ============================================================================
 // PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
@@ -261,9 +313,15 @@ inline double switchS(double M) {
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
+//   fix D  [betafloor=BETA, default OFF]
+//                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
+//                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  For the blast
+//                                   wave (beta_amb = 5.13e-4) use betafloor=5e-4: log10 p_min -2.15 -> -1.01, p_max
+//                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
+//                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= tag=
-//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.4 tag=fixAC                          (fixes A + C)
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= tag=
+//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
 // travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
