@@ -435,6 +435,69 @@ p >= betafloor * |B|^2 / 2
 
 ---
 
+---
+
+## 9. 新版论文（`IMEX_MHD-2.pdf`, 37 页）与 `Final_emb_omp.cpp` 的逐条核对
+
+核对对象是**原始**代码 `patch/Final_emb_omp_original.cpp`（修复 A/C/D 是本报告的补丁，不在论文里，不参与比对）。
+
+### 9.1 参数不一致（论文说 A，代码做 B）
+
+| # | 项 | 论文 | 代码 | 备注 |
+|---|---|---|---|---|
+| 1 | blast wave B₀ | eq (113) `(100/√(4π), 0, 0)` = 28.21 | `70.0/sqrt(4π)` = 19.75 | **论文自己的 Fig.6 站在代码这边**：m 色标 100–380、环境值 ≈195，而 195 = 70²/(8π)；若真用 100 则环境 m = 100²/(8π) = 398，整张 m 图都对不上。所以要改的是 eq (113)，不是代码 |
+| 2 | blast wave 初值 | eq (114) 锐跳 `p = 1000 (r≤R) / 0.1 (r>R)` | `erf((r−rD)/ε)` 平滑，ε = √(dx²+dy²) | 论文完全没提平滑；而平滑宽度随网格变，是影响收敛性表述的量 |
+| 3 | blast wave γ | §4 "unless otherwise stated γ = 5/3"，§4.6 未另行声明 | `gamma_plasma = 1.4` | |
+| 4 | CFL | §4 "CFL = 0.8"（§4.1/4.3 另注 0.2） | `const double CFL = 0.1` | 全局硬编码，所有 2D 算例都是 0.1 |
+| 5 | 激波指示器 κ₁ | eq (72) `κ₁ = 0.4` | `shock_kappa1 = 0.05` | **差 8 倍**。κ₁ 越小激波判据越松，eq (71) 的磁 Laplacian 作用范围越大 |
+
+### 9.2 论文未提及、但在已发表算例里实际生效的机制
+
+| # | 机制 | 代码位置 | 与论文哪句冲突 |
+|---|---|---|---|
+| 6 | **熵反耗散限制器**：当相对密度跳 J = \|Δρ\|/min(ρ) > 0.5 时 `δ_C *= max(0,(1−J)/0.5)`，J ≥ 1 时完全关闭 | `HLLEM_x` 第 1360–1368 行 | §3.2 的 δ_k 只由 eq (59) 定义，没有任何按密度跳的关断。代码注释说明了原因（Orszag–Tang 磁零点在 1024² 上会长出网格尺度密度结构直到点值失效）—— 这是真实的格式成分，blast wave 128² 上有 1452 个面触发 |
+| 7 | **HLL 包络加宽**：同样在 J > 0.5 时把 s_L, s_R 朝**未分裂**（全 MHD）快速度展宽，权重 θ = min(1,(J−0.5)/0.5)，上限为当前方向的时间步速度 | 第 1215–1230 行 | **与 §3.2 "AP scaling in δ_k" 的论断直接冲突**：论文写 "In the stiff limit ε_M, ε_B → 0 the split spectrum collapses onto {0,u}, so that s_L, s_R = O(\|u\|)"。加宽之后，强接触面上 s_L, s_R 回到全 MHD 速度量级，耗散不再是 O(\|u\|)。eq (52) 也只用分裂特征值的 Einfeldt 估计 |
+| 8 | **反卷积正性保护**：格心均值→点值之后，若点值的 ρ 或 p 低于面均值的**一半**，整个点值作废、退回 MP3 限制后的面均值 | 第 2405–2412 行 | §3.3 "Admissibility" 只给了 eq (66) 的 Zhang–Shu 收缩，下界是 ρ_min = p_min = **10⁻¹³**。代码的 "不得低于一半" 比它强了十几个量级，而且是另一个步骤（反卷积，不是面重构）。注释写明是 blast wave 静止态 1000:0.1 跳变逼出来的 |
+| 9 | **压力算子里的焓地板**：`h = γ/(γ−1)·max(p, p_floor)/ρ`，负内能的格子被钳到 0 以保 M-矩阵 | 第 4914 行起 | §3.4.4 只说 V 被换成 V_mod、T₄ 用 T₂ 做 defect correction，没提算子系数本身还要钳 |
+| 10 | **CT 初始化的内能补偿**：B 由 eq (75) 从 A 重建后，代码做 `E += mb_new − mb_old` 以保住内能 | 第 6673–6681 行 | §3.4.2 只写 "The initial field is defined through (75) from the cell averages of the initial potential"。少了这一步，初始内能会被 O(h⁴) 的磁能差污染——在 β = 5×10⁻⁴ 下这不是小量 |
+
+### 9.3 表述与逻辑问题
+
+11. **"two linear solves per stage" 站不住**。Highlights、摘要和结论都写 "each stage requires one linear system for a magnetic predictor and one for the pressure"。实际计数（blast wave 128²，298 步 × 4 级 = 1192 级）：`pressure solves 1192`（确实每级 1 次）但 `defect-correction sweeps 5789`，即每级 **4.86 个 defect-correction sweep**，每个 sweep 调一次 `Pressure_NestedNewton`（Newton 最多 60 次迭代，每次迭代一个 GMRES 解）。§3.4.4 的 eq (85) 写了 `k = 0,1,…` 所以正文没有隐瞒，但摘要/Highlights 的说法与实际成本差一个量级。建议改成 "one linear system for the magnetic predictor and one nonlinear pressure system solved by defect correction"，并给出实测的平均 sweep 数。
+
+12. **Fig. 4 和 Fig. 6 的图注都是 Fig. 5（Orszag–Tang）的文字**。Fig. 4 实际是 rotor（6 格：ρ 到 10.5、域 [−0.5,0.5]²），Fig. 6 实际是 blast wave（log ρ / log p / \|u\|² / m / ε_M / ε_B）。三张图共用同一段 OT 图注。
+
+13. **§4.6 的压力地板位置说反了**。论文写 "the lower bound on the pressure of Section 3.4.4 is attained in the cells **behind** the fast shock in the direction across the field"。我在 128²/256² 上用单点探针实测：地板是在快激波**前方**那圈未扰动的环境区被触及（r ∈ [0.30, 0.42]，物理快激波在 r ≈ 0.2975），而且角向最深处在 **20°–45°**（min p = 0.0070），不是 "across the field" 的 90°（那里 min p = 0.032）。详见第 6.4 节。注：我用的是代码的 B₀ = 70/√(4π) 和 γ = 1.4，若论文真按 eq (113) 的 100/√(4π) 跑，位置可能不同 —— 但那样 Fig. 6 的 m 色标就对不上了（见第 1 条）。
+
+14. **多处未解析的交叉引用 `??`**：§3.3 末尾 "the pressure floor p_ε of Section ??"、eq (72) 后 "the largest magnetic eigenvalue (??)"、§4.1 "listed in Table ??"、"Fig. ?? shows the time step"、§4.3 "The initial data are (??)–(??)" 与 "an exact steady state of (??)"、Fig. 2/3 的 "Section ??"、§4.7 "is reported in Fig. ??"。
+
+15. **Fig. 3 的图注承诺了图里没有的对比**：caption 写 "using either the staggered or the unstaggered adaptation of the CT method"，但图中只有一条数值曲线（Dual ε-IMEX）加参考解；而且 §3.4.2 只描述了 unstaggered CT。代码里 `Staggered_CT` 在 2D 路径上是 `// TODO-2D: adapt to our 6-arg Staggered_CT(...) before running 2D`，即 2D 的 staggered 分支根本没接。
+
+16. **死代码**：`Pressure_Subsystem_AX_ref` 里仍然计算 `lap_p`（第 5024–5028 行），全文件只出现 2 次（声明 + 赋值），**从未加到 `Ax` 上**。这是论文一 eq (45)/(85) 的压力激波 Laplacian 的残留。论文二**正确地**没有声称有这一项（eq (71) 的稳定化只加在磁预测子上），所以这不是论文与代码的矛盾；但它意味着隐式压力算子里没有任何激波耗散，正是第 4 节内部振荡的来源，论文最好明说一句。
+
+### 9.4 核对一致的部分（都逐行比对过，没有问题）
+
+- 切换函数 eq (46)：M₀ = 0.15、M₁ = 0.4、α = 14，四个分支的顺序与表达式与 `switchS` 逐字一致 ✓
+- eq (47) ε = 1 − s ✓；eq (48) 面上取两格最大 ✓
+- eq (72) 激波指示器的结构 `min[1, max(0, −(h div u + κ₁c)/(κ₁c))]` + 3×3 取最大 ✓（只有 κ₁ 的值不同，见第 5 条）
+- eq (85) 的 p_ε = 10⁻⁷、θ = 0.9 ✓（`p_floor`、`theta_floor`）
+- eq (66) 的 ρ_min = p_min = 10⁻¹³ ✓（另见第 8 条：代码还有一个更强的保护）
+- eq (54) 后 "If p^L ≤ 0, p^R ≤ 0 or ã² ≤ 10⁻¹⁰ the anti-diffusive term is omitted" ✓（`ld_ok = (pL>0)&&(pR>0)&&(a2_t>1e-10)`）
+- eq (53) 四次方程根界 `R = 2max(|c₃|, |c₂|^{1/2}, |c₁|^{1/3}, |c₀/2|^{1/4})` ✓ 逐字一致
+- Corollary 2.4 的解耦阈值 "ε_B|B̃_x|/√ρ̄ < 10⁻⁸ × 局部信号速度" ✓（`!(ca_eff > 1.0e-8*spd)`）
+- §3.1/§3.3 "ε_M bounded from below by 10⁻² in the basis only" ✓（`g_eps_basis_min = 1.0e-2`）
+- eq (88) SA-DIRK(3,4,3) 的 δ ≈ 0.4358665215 ✓
+- eq (75) 的四阶 curl 模板 `(−A_{j+2} + 8A_{j+1} − 8A_{j−1} + A_{j−2})/(12Δy)` ✓ 逐项一致
+- eq (100) 的能量装配 `E = p/(γ−1) + 线性化的 k 和 m` ✓ 与代码第 6416 行一致（注意：这正是第 6.4 节分析的那个二次余项的来源，论文的写法本身没错，但没说明事后用精确非线性分解反算出的压力与解出的 p 相差这个余项）
+- eq (45) 的时间步确实基于**分裂**谱 λ̃^c，不是全 MHD 谱 ✓（blast wave 上 dt/dt_MHD ≈ 1.07 > 1 即为证据；KH 上 Fig. 9 给到 10⁴）
+- 其余算例初值全部一致：Orszag–Tang eq (111)–(112)（ρ₀ = γ²、p₀ = γ、u₀、B₀）✓；rotor eq (109)–(110)（ρ = 10、u = (−10y, 10x)、p = 1、B₀ = 2.5/√(4π)、r ≤ 0.1 锐跳无 taper）✓；field loop eq (115)（ρ = 1、**p = 10⁵**、u = (2,1,0)、域 [−1,1]×[−0.5,0.5]、R = 0.3、A₀/√(4π)）✓；KH eq (116)–(117)（ρ = γ = 1.4、p = 1、η(y) 四段、B = (0.1M_x,0,0)）✓
+- §4.1 "the time step ... based on the material velocity alone, with no dependence on the acoustic or Alfvén speeds" —— 这句在**涡旋一节**的语境下成立（那里 ε_M, ε_B → 0），且 eq (45) 本身表述正确。旧版论文里那句无条件的断言已经改对了 ✓
+
+### 9.5 优先级建议
+
+改掉 **1–5**（纯参数，改论文或改代码二选一；第 1 条应改论文，因为 Fig. 6 证明图是用 70 跑的）；补上 **6–7** 的说明（这两条是真实的格式成分，而且第 7 条与论文自己的 AP 论断冲突，审稿人若复现会发现）；修 **11–15**（表述与图注，不涉及算法）。第 8–10、16 属于"代码里有、论文里没有"的实现细节，建议在数值实现小节用两三句带过。
+
+
 ## 8. 文件清单（`blastwave_debug/`）
 
 - `REPORT.md`：本报告。
