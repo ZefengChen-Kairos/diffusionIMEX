@@ -427,13 +427,35 @@ double g_betafloor = 0.0;""")
     # senv on by default, CFL to the paper's 0.8
     rep("""int g_senv = 0;""", """int g_senv = 1;""")
 
+    # [fix F 修正] gamma= 必须在测试设置 switch 之后生效: switch 里的 gamma_plasma = ...
+    # 会把命令行解析的值覆盖掉.  原先 gamma= 看着生效 (横幅打印的是解析值) 其实无效,
+    # 实测: bsmooth=1 b0=70 gamma=1.4 复现原始初值时总能 U 差整整 1e3 = 1000/0.4 - 1000/(2/3).
+    rep("""double g_blast_B0 = 100.0;""",
+        """double g_gamma_set = 0.0;          // [fix F] gamma= 的值; 0 = 用各算例自己的默认
+double g_blast_B0 = 100.0;""")
+    rep("""else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") gamma_plasma = v;""",
+        """else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") g_gamma_set = v;""")
+    rep("""	dx = (x_1 - x_0)/(nxPoints-1);
+	dy = (y_1 - y_0)/(nyPoints-1);
+	dz = (z_1 - z_0)/(nzPoints-1);""",
+        """	if(g_gamma_set > 0.0) gamma_plasma = g_gamma_set;   // [fix F] 覆盖算例默认, 必须在 switch 之后
+	std::cout << "EFFECTIVE gamma=" << gamma_plasma << " time_stop=" << time_stop
+	          << " mesh=" << nxCells << "x" << nyCells << std::endl;
+
+	dx = (x_1 - x_0)/(nxPoints-1);
+	dy = (y_1 - y_0)/(nyPoints-1);
+	dz = (z_1 - z_0)/(nzPoints-1);""")
+
+    # Az 保持原始的运算顺序, 否则 B 会差 1e-13 (curl4 A 重建初场)
+    rep("""				Az_val = (g_blast_B0 / sqrt(4.0*M_PI)) * y;   // [fix F] must match eq.(106)""",
+        """				Az_val = (1.0/sqrt(4.0*M_PI) * g_blast_B0) * y;   // [fix F] eq.(106); 运算顺序与原始一致, 保证 bsmooth=1 b0=70 逐位复现""")
+
     # 启动时把新选项也打印出来, 便于事后核对一次运行到底用了什么
     rep('" hllemcap=" << g_hllemcap << std::endl;',
         '" hllemcap=" << g_hllemcap\n'
         '\t          << " senv=" << g_senv << " betafloor=" << g_betafloor\n'
         '\t          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin\n'
-        '\t          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth\n'
-        '\t          << ",gamma=" << gamma_plasma << ")" << std::endl;')
+        '\t          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth << ")" << std::endl;')
 
     rep("""double CFL = 0.1;""", """double CFL = 0.8;""")
 

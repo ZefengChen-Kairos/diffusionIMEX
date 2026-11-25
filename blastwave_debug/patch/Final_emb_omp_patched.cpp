@@ -263,6 +263,7 @@ double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time:
 int g_senv = 1;
 double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
+double g_gamma_set = 0.0;          // [fix F] gamma= 的值; 0 = 用各算例自己的默认
 double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
 double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
 double g_blast_tend = 0.01;        // [fix F] final time
@@ -3987,7 +3988,7 @@ void A_initial(Grid &A){
 				break;
 			
 			case testblastwave:
-				Az_val = (g_blast_B0 / sqrt(4.0*M_PI)) * y;   // [fix F] must match eq.(106)
+				Az_val = (1.0/sqrt(4.0*M_PI) * g_blast_B0) * y;   // [fix F] eq.(106); 运算顺序与原始一致, 保证 bsmooth=1 b0=70 逐位复现
 				break;
 			
 			case testRotor:
@@ -6524,13 +6525,12 @@ int main(int argc, char *argv[]){
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
 		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;
 		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
-		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") gamma_plasma = v;
+		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") g_gamma_set = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
 	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap
 	          << " senv=" << g_senv << " betafloor=" << g_betafloor
 	          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin
-	          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth
-	          << ",gamma=" << gamma_plasma << ")" << std::endl;
+	          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth << ")" << std::endl;
 	switch (test) {
 		case test0:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
@@ -6684,6 +6684,10 @@ int main(int argc, char *argv[]){
 
 	}
 	
+	if(g_gamma_set > 0.0) gamma_plasma = g_gamma_set;   // [fix F] 覆盖算例默认, 必须在 switch 之后
+	std::cout << "EFFECTIVE gamma=" << gamma_plasma << " time_stop=" << time_stop
+	          << " mesh=" << nxCells << "x" << nyCells << std::endl;
+
 	dx = (x_1 - x_0)/(nxPoints-1);
 	dy = (y_1 - y_0)/(nyPoints-1);
 	dz = (z_1 - z_0)/(nzPoints-1);
