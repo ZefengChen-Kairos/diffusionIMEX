@@ -301,6 +301,55 @@ double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloo
 		// TODO-2D: adapt to our 6-arg Staggered_CT(u_con,Bx_p0,By_0p,Bx_p0_Qs,By_0p_Qs,h) before running 2D
 	}""")
 
+    # ------------------------------------------------------------------ fix E
+    # HLL WAVE-SPEED ENVELOPE.  eq.(52) builds s_L, s_R from the Einfeldt estimates of the
+    # SPLIT spectrum, which is O(|u| + eps c).  Where eps -> 0 AND u -> 0 - the post-shock
+    # plateau of a symmetric collision, a stagnation point - the envelope collapses to zero
+    # and the HLL flux is left with no dissipation at all.  Measured on RP6 (u = +-36.87,
+    # t = 0.03): the post-shock plateau comes out at rho = 3.884 against 3.982 exact and
+    # p = 1821 against 1806, and feeding that wrong plateau into the mass Rankine-Hugoniot
+    # relation puts the shock at -0.3835, which is where it is.  A resolution study settles
+    # that it is not a discretisation error: from 250 to 2000 cells the density error moves
+    # only from -3.12% to -2.45% and the pressure error sits at +0.82% throughout, i.e. the
+    # scheme CONVERGES to the wrong intermediate state.
+    # senv=1 takes the union of the split envelope with the GLOBAL MAXIMUM MATERIAL speed of
+    # the sweep direction (vx_max / vy_max, already computed in caldt):
+    #     s_L <= -max|u|,   s_R >= +max|u|.
+    # It is still a material speed, so the O(|u|) scaling of section 3.2 - and with it the
+    # AP property - is untouched; it only stops the envelope vanishing at stagnation points.
+    # Measured (RP6, CFL 0.8), plateau rho / plateau p / shock, exact 3.98179 / 1806.24 / -0.3713:
+    #    N     senv=0                        senv=1
+    #    250   3.8577 / 1821.8 / -0.3860     3.9577 / 1810.2 / -0.3740
+    #    500   3.8703 / 1820.9 / -0.3850     3.9705 / 1808.7 / -0.3730
+    #    1000  3.8811 / 1821.3 / -0.3835     3.9779 / 1808.8 / -0.3715
+    #    2000  3.8844 / 1821.1 / -0.3832
+    # senv=1 converges to the exact state; the plateau noise drops from std 16 to 3.3.  The
+    # low-Mach travelling vortex (rho0 = 1e-3) is unchanged: L2 at N = 32/64 agrees to 2-3%
+    # with senv=0 and the velocity error is slightly SMALLER (EOC 2.61 -> 2.74).
+    # DEFAULT OFF so that nothing else changes; turn it on with senv=1.
+    rep("""int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""",
+        """// [fix E] HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
+// 1 = their union with the global maximum MATERIAL speed of the sweep direction, which keeps
+// the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points.
+int g_senv = 0;
+double g_senv_u = 0.0;             // global max|u| of the current sweep direction
+int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""")
+
+    rep("""		sL = fmin(fmin(loL, loT), loR);
+		sR = fmax(fmax(hiL, hiT), hiR);
+	}""",
+        """		sL = fmin(fmin(loL, loT), loR);
+		sR = fmax(fmax(hiL, hiT), hiR);
+	}
+	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E]""")
+
+    rep("""	g_env_cap = a_max_x;   // [W]""", """	g_env_cap = a_max_x;   // [W]
+	g_senv_u  = vx_max;    // [fix E]""")
+    rep("""	g_env_cap = a_max_y;   // [W]""", """	g_env_cap = a_max_y;   // [W]
+	g_senv_u  = vy_max;    // [fix E]""")
+    rep("""else if(key=="betafloor") g_betafloor = v;""",
+        """else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;""")
+
     s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     header = '''// ============================================================================
 // PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
@@ -313,6 +362,14 @@ double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloo
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
+//   fix E  [senv=1, default OFF]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
+//                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
+//                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
+//                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
+//                                   post-shock state on RP5/RP6 (RP6: rho 3.884 vs 3.982 exact, shock -0.383 vs -0.371,
+//                                   unchanged from 250 to 2000 cells).  senv=1 restores convergence (at 1000 cells:
+//                                   rho -0.10%, shock -0.3715) and, being a material speed, leaves the AP scaling and
+//                                   the low-Mach vortex untouched.  See REPORT.md section 10.
 //   fix D  [betafloor=BETA, default OFF]
 //                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
 //                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  For the blast
@@ -320,7 +377,7 @@ double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloo
 //                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
 //                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= tag=
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= tag=
 //   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the

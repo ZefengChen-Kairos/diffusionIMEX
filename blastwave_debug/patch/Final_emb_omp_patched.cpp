@@ -9,6 +9,14 @@
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
+//   fix E  [senv=1, default OFF]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
+//                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
+//                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
+//                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
+//                                   post-shock state on RP5/RP6 (RP6: rho 3.884 vs 3.982 exact, shock -0.383 vs -0.371,
+//                                   unchanged from 250 to 2000 cells).  senv=1 restores convergence (at 1000 cells:
+//                                   rho -0.10%, shock -0.3715) and, being a material speed, leaves the AP scaling and
+//                                   the low-Mach vortex untouched.  See REPORT.md section 10.
 //   fix D  [betafloor=BETA, default OFF]
 //                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
 //                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  For the blast
@@ -16,7 +24,7 @@
 //                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
 //                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= tag=
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= tag=
 //   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
@@ -244,6 +252,11 @@ double g_char_fallback_tol = 1.0e-6;
 double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
 double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
+// [fix E] HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
+// 1 = their union with the global maximum MATERIAL speed of the sweep direction, which keeps
+// the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points.
+int g_senv = 0;
+double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
 double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)
 double g_vortex_Bt = VORTEX_BT;
@@ -1237,6 +1250,7 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 		sL = fmin(fmin(loL, loT), loR);
 		sR = fmax(fmax(hiL, hiT), hiR);
 	}
+	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E]
 	// [W] Strong density jump, J = |drho|/min(rho) > 1/2 (the J of the entropy anti-diffusion limiter below).  The split
 	// envelope is O(|u| + eps c): at a stagnation point of a low-Mach region it vanishes, and so does the dissipation of the
 	// plain HLL flux the limiter falls back to (measured: Orszag-Tang X-point, eps_M = 0, density holes grow until the point
@@ -1709,6 +1723,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		}
 	}
 	g_env_cap = a_max_x;   // [W]
+	g_senv_u  = vx_max;    // [fix E]
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // [o3] x-faces on +-2 extra rows
 		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
@@ -1728,6 +1743,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		}
 	}
 	g_env_cap = a_max_y;   // [W]
+	g_senv_u  = vy_max;    // [fix E]
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
 		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // [o3] y-faces on +-2 extra columns
@@ -6494,7 +6510,7 @@ int main(int argc, char *argv[]){
 		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
-		else if(key=="betafloor") g_betafloor = v;
+		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
 	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;
 	switch (test) {
