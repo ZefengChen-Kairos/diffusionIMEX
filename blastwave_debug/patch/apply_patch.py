@@ -350,6 +350,93 @@ int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""
     rep("""else if(key=="betafloor") g_betafloor = v;""",
         """else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;""")
 
+    # ------------------------------------------------------------------ fix F
+    # BLAST WAVE PER THE PAPER (section 4.6, eq.(106)-(107)).  The code shipped a different
+    # configuration from the one the paper prints: B0 = 70/sqrt(4 pi) instead of 100/sqrt(4 pi),
+    # an erf-smoothed pressure jump of width sqrt(dx^2+dy^2) instead of the sharp jump of
+    # eq.(107), and gamma = 1.4 instead of the 5/3 that section 4 declares "unless otherwise
+    # stated".  All four are now taken from the paper, and all four are run-time options so the
+    # old configuration is one flag away:
+    #     b0=      the Gaussian number in B0 = (b0, 0, 0)/sqrt(4 pi)   (paper 100, was 70)
+    #     pin=     central pressure                                     (paper 1000)
+    #     tend=    final time                                           (paper 0.01)
+    #     bsmooth= 1 restores the erf smoothing of the old code         (default 0 = sharp)
+    #     gamma=   ratio of specific heats                              (paper 5/3, was 1.4)
+    # "Blast wave test II" of the same section (p_in = 1e4, B0 = 1000/sqrt(4 pi), t = 0.001,
+    # beta = 2.51e-6) is then simply   b0=1000 pin=1e4 tend=0.001.
+    rep("""double g_betafloor = 0.0;""",
+        """double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
+double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
+double g_blast_tend = 0.01;        // [fix F] final time
+int    g_blast_smooth = 0;         // [fix F] 1 = erf-smoothed jump (the old code), 0 = sharp (eq.(107))
+double g_betafloor = 0.0;""")
+
+    rep("""			case testblastwave: {
+				double rad = sqrt(x*x + y*y);
+				double rD = 0.1;
+				double prsL = 1000.0, prsR = 0.1;
+				double eps = 1 * sqrt(dx*dx + dy*dy);   // smoothing width
+				
+				q[0] = 1.0;
+				q[1] = 0; q[2] = 0; q[3] = 0;
+				q[4] = 0.5*(prsR+prsL) + 0.5*(prsR-prsL) * erf((rad - rD)/eps);
+				q[5] = 70.0 / sqrt(4.0 * M_PI);   // B = 70 G (Boscheri-Thomann 2024), m = 70^2/(8 pi) = 195
+				q[6] = 0.0;
+				q[7] = 0.0;
+				break;
+			}""",
+        """			case testblastwave: {   // [fix F] paper section 4.6, eq.(106)-(107)
+				double rad = sqrt(x*x + y*y);
+				double rD = 0.1;
+				double prsL = g_blast_pin, prsR = 0.1;
+				q[0] = 1.0;
+				q[1] = 0; q[2] = 0; q[3] = 0;
+				if(g_blast_smooth){   // the old code's erf smoothing, one cell diagonal wide
+					double eps = 1 * sqrt(dx*dx + dy*dy);
+					q[4] = 0.5*(prsR+prsL) + 0.5*(prsR-prsL) * erf((rad - rD)/eps);
+				}else{                // eq.(107): sharp
+					q[4] = (rad <= rD) ? prsL : prsR;
+				}
+				q[5] = g_blast_B0 / sqrt(4.0 * M_PI);   // eq.(106)
+				q[6] = 0.0;
+				q[7] = 0.0;
+				break;
+			}""")
+
+    rep("""			case testblastwave:
+				Az_val = (1.0/sqrt(4.0*M_PI) * 70.0) * y;
+				break;""",
+        """			case testblastwave:
+				Az_val = (g_blast_B0 / sqrt(4.0*M_PI)) * y;   // [fix F] must match eq.(106)
+				break;""")
+
+    rep("""		case testblastwave:
+			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
+			time_stop = 0.01;
+			gamma_plasma = 1.4;   // Boscheri-Thomann 2024""",
+        """		case testblastwave:
+			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
+			time_stop = g_blast_tend;        // [fix F]
+			gamma_plasma = 5.0/3.0;          // [fix F] section 4: "unless otherwise stated, gamma = 5/3\"""")
+
+    rep("""else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;""",
+        """else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;
+\t\telse if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
+\t\telse if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") gamma_plasma = v;""")
+
+    # senv on by default, CFL to the paper's 0.8
+    rep("""int g_senv = 0;""", """int g_senv = 1;""")
+
+    # 启动时把新选项也打印出来, 便于事后核对一次运行到底用了什么
+    rep('" hllemcap=" << g_hllemcap << std::endl;',
+        '" hllemcap=" << g_hllemcap\n'
+        '\t          << " senv=" << g_senv << " betafloor=" << g_betafloor\n'
+        '\t          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin\n'
+        '\t          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth\n'
+        '\t          << ",gamma=" << gamma_plasma << ")" << std::endl;')
+
+    rep("""double CFL = 0.1;""", """double CFL = 0.8;""")
+
     s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     header = '''// ============================================================================
 // PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
@@ -362,7 +449,11 @@ int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
-//   fix E  [senv=1, default OFF]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
+//   fix F  [default ON]             blast wave taken from the paper's section 4.6: B0 = 100/sqrt(4 pi) (eq.106), the SHARP
+//                                   jump of eq.(107), gamma = 5/3 and CFL = 0.8.  Run-time options b0= pin= tend=
+//                                   bsmooth= gamma= restore any of the old values; "Blast wave test II" of the same
+//                                   section is  b0=1000 pin=1e4 tend=0.001.
+//   fix E  [senv=1, default ON]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
 //                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
 //                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
 //                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
@@ -377,8 +468,9 @@ int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""
 //                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
 //                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= tag=
-//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= b0= pin= tend= bsmooth= gamma= tag=
+//   e.g.  OMP_NUM_THREADS=32 ./mhd                                            (paper's blast wave, 1000^2, t = 0.01)
+//         OMP_NUM_THREADS=32 ./mhd b0=1000 pin=1e4 tend=0.001 tag=blast2       (blast wave test II)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
 // travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.

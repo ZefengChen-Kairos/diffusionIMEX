@@ -9,7 +9,11 @@
 //                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
 //                                   the strong oblique fast shock.
 //   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
-//   fix E  [senv=1, default OFF]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
+//   fix F  [default ON]             blast wave taken from the paper's section 4.6: B0 = 100/sqrt(4 pi) (eq.106), the SHARP
+//                                   jump of eq.(107), gamma = 5/3 and CFL = 0.8.  Run-time options b0= pin= tend=
+//                                   bsmooth= gamma= restore any of the old values; "Blast wave test II" of the same
+//                                   section is  b0=1000 pin=1e4 tend=0.001.
+//   fix E  [senv=1, default ON]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
 //                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
 //                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
 //                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
@@ -24,8 +28,9 @@
 //                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
 //                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= tag=
-//   e.g.  OMP_NUM_THREADS=32 ./mhd cfl=0.1 betafloor=5e-4 tag=fixACD            (blast wave: fixes A + C + D)
+//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= b0= pin= tend= bsmooth= gamma= tag=
+//   e.g.  OMP_NUM_THREADS=32 ./mhd                                            (paper's blast wave, 1000^2, t = 0.01)
+//         OMP_NUM_THREADS=32 ./mhd b0=1000 pin=1e4 tend=0.001 tag=blast2       (blast wave test II)
 //         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
 // Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
 // travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
@@ -104,7 +109,7 @@ MagField magfield = UnStaggerCT;
 Test test = testblastwave;
 const int nxCells = 1000;
 const int nyCells = 1000;
-double CFL = 0.1;
+double CFL = 0.8;
 const double KH_MX = 1e-3;             // testKHInstability: Mach number M_x of the stream
 const double LOOP_A0 = 1e-3;           // testFieldLoop: amplitude A_0 of the field loop (1e-3, 1e-2, 1e-1, 1)
 const double VORTEX_RHO0 = 1.0;        // testVortex: background density
@@ -255,9 +260,13 @@ double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time:
 // [fix E] HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
 // 1 = their union with the global maximum MATERIAL speed of the sweep direction, which keeps
 // the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points.
-int g_senv = 0;
+int g_senv = 1;
 double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
+double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
+double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
+double g_blast_tend = 0.01;        // [fix F] final time
+int    g_blast_smooth = 0;         // [fix F] 1 = erf-smoothed jump (the old code), 0 = sharp (eq.(107))
 double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)
 double g_vortex_Bt = VORTEX_BT;
 // [o3d] face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),
@@ -2965,16 +2974,19 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 				q[6] = sin(4 * M_PI * x);
 				q[7] = 0;
 				break;
-			case testblastwave: {
+			case testblastwave: {   // [fix F] paper section 4.6, eq.(106)-(107)
 				double rad = sqrt(x*x + y*y);
 				double rD = 0.1;
-				double prsL = 1000.0, prsR = 0.1;
-				double eps = 1 * sqrt(dx*dx + dy*dy);   // smoothing width
-				
+				double prsL = g_blast_pin, prsR = 0.1;
 				q[0] = 1.0;
 				q[1] = 0; q[2] = 0; q[3] = 0;
-				q[4] = 0.5*(prsR+prsL) + 0.5*(prsR-prsL) * erf((rad - rD)/eps);
-				q[5] = 70.0 / sqrt(4.0 * M_PI);   // B = 70 G (Boscheri-Thomann 2024), m = 70^2/(8 pi) = 195
+				if(g_blast_smooth){   // the old code's erf smoothing, one cell diagonal wide
+					double eps = 1 * sqrt(dx*dx + dy*dy);
+					q[4] = 0.5*(prsR+prsL) + 0.5*(prsR-prsL) * erf((rad - rD)/eps);
+				}else{                // eq.(107): sharp
+					q[4] = (rad <= rD) ? prsL : prsR;
+				}
+				q[5] = g_blast_B0 / sqrt(4.0 * M_PI);   // eq.(106)
 				q[6] = 0.0;
 				q[7] = 0.0;
 				break;
@@ -3975,7 +3987,7 @@ void A_initial(Grid &A){
 				break;
 			
 			case testblastwave:
-				Az_val = (1.0/sqrt(4.0*M_PI) * 70.0) * y;
+				Az_val = (g_blast_B0 / sqrt(4.0*M_PI)) * y;   // [fix F] must match eq.(106)
 				break;
 			
 			case testRotor:
@@ -6511,8 +6523,14 @@ int main(int argc, char *argv[]){
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
 		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;
+		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
+		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") gamma_plasma = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
-	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap << std::endl;
+	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap
+	          << " senv=" << g_senv << " betafloor=" << g_betafloor
+	          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin
+	          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth
+	          << ",gamma=" << gamma_plasma << ")" << std::endl;
 	switch (test) {
 		case test0:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
@@ -6610,8 +6628,8 @@ int main(int argc, char *argv[]){
 			break;
 		case testblastwave:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
-			time_stop = 0.01;
-			gamma_plasma = 1.4;   // Boscheri-Thomann 2024
+			time_stop = g_blast_tend;        // [fix F]
+			gamma_plasma = 5.0/3.0;          // [fix F] section 4: "unless otherwise stated, gamma = 5/3"
 			x_bc = x_Transmissive;   // match CASTOR: rho/v/p Dirichlet(ambient) + B transmissive
 			y_bc = y_Transmissive;
 			break;
