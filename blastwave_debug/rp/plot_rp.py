@@ -19,14 +19,17 @@ OUTDIR = os.path.dirname(os.path.abspath(__file__)) + "/fig"
 # exact: 10 列 x rho u v w p Bx By Bz E
 # dual : 12 列 x rho vx vy vz p Bx By Bz E eps_M eps_B
 # std  : 3 列  x y value (每个变量一个文件)
+# CFL02 = True 用 CFL 0.2 的运行; False 用 CFL 0.8 (论文 §4 的默认值)
+CFL02 = True
+_S = "_c02_senv1" if CFL02 else "_senv1"
 U = "/root/.claude/uploads/fa41aa46-3215-5a47-a5d7-66870c4d191b"
 D = os.path.dirname(os.path.abspath(__file__)) + "/data"
 CASES = {
-    "RP5": dict(exact=U+"/01b3c9db-RP5.dat", dual=D+"/rp5_senv1.dat",
+    "RP5": dict(exact=U+"/01b3c9db-RP5.dat", dual=D+"/rp5"+_S+".dat",
                 std={"rho": U+"/3612a0da-RK5_rho.dat", "p": U+"/c7d25eb0-RK5_p.dat", "By": U+"/ca49d3c3-RK5_By.dat"}),
-    "RP6": dict(exact=U+"/89c34670-RP6.dat", dual=D+"/rp6_senv1.dat",
+    "RP6": dict(exact=U+"/89c34670-RP6.dat", dual=D+"/rp6"+_S+".dat",
                 std={"rho": U+"/94186312-RK6_rho.dat", "p": U+"/17835d25-RK6_p.dat", "By": U+"/15ad3d0d-RK6_By.dat"}),
-    "RP7": dict(exact=U+"/0df4d866-RP7.dat", dual=D+"/rp7_senv1.dat",
+    "RP7": dict(exact=U+"/0df4d866-RP7.dat", dual=D+"/rp7"+_S+".dat",
                 std={"rho": U+"/b8931b67-RK7_rho.dat", "p": U+"/ed44c5d9-RK7_p.dat", "By": U+"/ff3ed7a3-RK7_By.dat"}),
 }
 VARS = [("rho", 1, "Density"), ("p", 5, "Pressure"), ("By", 7, r"$\mathbf{B_y}$")]
