@@ -435,7 +435,7 @@ double g_betafloor = 0.0;""")
 \t\telse if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") gamma_plasma = v;""")
 
     # senv on by default, CFL to the paper's 0.8
-    rep("""int g_senv = 0;""", """int g_senv = 1;""")
+    rep("""int g_senv = 0;""", """int g_senv = 2;""")
 
     # [fix F 修正] gamma= 必须在测试设置 switch 之后生效: switch 里的 gamma_plasma = ...
     # 会把命令行解析的值覆盖掉.  原先 gamma= 看着生效 (横幅打印的是解析值) 其实无效,
@@ -485,7 +485,7 @@ double g_blast_B0 = 100.0;""")
 //                                   jump of eq.(107), gamma = 5/3 and CFL = 0.8.  Run-time options b0= pin= tend=
 //                                   bsmooth= gamma= restore any of the old values; "Blast wave test II" of the same
 //                                   section is  b0=1000 pin=1e4 tend=0.001.
-//   fix E  [senv=1, default ON]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
+//   fix E  [senv=2, default ON]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
 //                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
 //                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
 //                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
@@ -510,6 +510,18 @@ double g_blast_B0 = 100.0;""")
 //                                   vanish as M -> 0 in the quiet part of a multi-scale domain, i.e. senv=1 is in
 //                                   tension with the AP claim; the local [W] widening below is capped by g_env_cap and
 //                                   does keep the asymptotic scaling.
+//                                   MEASURED senv=2 (same metric, > 1% local extrema):
+//                                       2D blast, rho    senv=2  0.73%   (senv=1 8.18%, senv=0 1.21%)  -> best of the three
+//                                       2D blast, p      senv=2  3.85%   (senv=1 10.33%, senv=0 4.67%)
+//                                       1D RP5,   rho    senv=2  2.63%   (senv=1 0.00%, senv=0 32.21%), L1 vs senv=1 0.33%
+//                                       1D RP6,   rho    senv=2  1.13%   (senv=1 0.00%, senv=0  3.63%), L1 vs senv=1 0.19%
+//                                       1D RP7           identical to senv=1 to 1e-16
+//                                   and the 1D residual is LOCALIZED: 19 of the 21 oscillating cells of RP5 sit in the one
+//                                   0.05-wide bin that holds the contact discontinuity at x = -0.0006 (median amplitude
+//                                   1.68%), 7 of 9 likewise for RP6 -- i.e. post-contact ringing of the entropy wave, not
+//                                   the quarter-of-the-domain failure senv=0 shows.  Cost +0.45% steps vs senv=1 (RP5
+//                                   4839 vs 4817, RP6 4996 vs 4976).  DEFAULT CHANGED 1 -> 2 on this evidence; senv=1
+//                                   remains available and is what the 1D figures of paper 1 were produced with.
 //   fix D  [betafloor=BETA, default OFF]
 //                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
 //                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  It is a
