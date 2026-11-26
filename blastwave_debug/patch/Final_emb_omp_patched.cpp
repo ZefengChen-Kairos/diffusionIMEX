@@ -21,12 +21,45 @@
 //                                   unchanged from 250 to 2000 cells).  senv=1 restores convergence (at 1000 cells:
 //                                   rho -0.10%, shock -0.3715) and, being a material speed, leaves the AP scaling and
 //                                   the low-Mach vortex untouched.  See REPORT.md section 10.
+//                                   senv=2 is the LOCAL version of the same floor, max|u_n| over {L, Roe, R} of each
+//                                   face.  The global floor is only correct where max|u| IS the local scale, i.e. on
+//                                   single-scale problems (1D RPs, the low-Mach vortex).  On the b0=100 blast wave
+//                                   (|u| ~ 30 in the hot interior, ~0 in the ambient) it widens EVERY face to the
+//                                   interior value, which amplifies the HLLEM delta_k anti-diffusion on the linearly
+//                                   degenerate waves in the quiet ambient.  Measured at 256^2, CFL 0.2, t = 0.01,
+//                                   fraction of cells that are a local extremum of amplitude > 1%:
+//                                       2D blast, rho    senv=1  8.18%    senv=0  1.21%
+//                                       2D blast, p      senv=1 10.33%    senv=0  4.67%
+//                                       1D RP5,   rho    senv=1  0.00%    senv=0 32.21%
+//                                       1D RP6,   rho    senv=1  0.00%    senv=0  3.63%
+//                                       1D RP7,   rho    senv=1  0.00%    senv=0  0.00%  (identical to 1e-16)
+//                                   so NEITHER global setting is right for both, and the 2D figure of the paper's
+//                                   section 4.6 is the senv=1 one.  Note also that a global O(max|u|) floor does not
+//                                   vanish as M -> 0 in the quiet part of a multi-scale domain, i.e. senv=1 is in
+//                                   tension with the AP claim; the local [W] widening below is capped by g_env_cap and
+//                                   does keep the asymptotic scaling.
 //   fix D  [betafloor=BETA, default OFF]
 //                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
-//                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  For the blast
-//                                   wave (beta_amb = 5.13e-4) use betafloor=5e-4: log10 p_min -2.15 -> -1.01, p_max
-//                                   unchanged, shock profile changed by < 2%.  It is a positivity limiter, not a cure
-//                                   for the underlying CT-vs-flux mis-phasing at the shock foot; see REPORT.md.
+//                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  It is a
+//                                   positivity limiter, not a cure for the underlying CT-vs-flux mis-phasing at the
+//                                   shock foot; see REPORT.md.
+//                                   CHOOSE betafloor << beta_ambient OF THE TEST, or the floor rewrites the initial
+//                                   condition.  beta_amb = 2 p_amb / |B|^2: 5.13e-4 for b0=70 but only 2.51e-4 for the
+//                                   paper's b0=100, so the older recommendation betafloor=5e-4 is now ABOVE ambient and
+//                                   fires in every ambient cell (measured at 256^2, b0=100: p_amb 0.1 -> 0.3227, i.e.
+//                                   3.2x the test's ambient pressure; the shock radius is unchanged, so it is easy to
+//                                   miss).  betafloor=2.5e-5 (= 0.1 beta_amb, p >= 9.95e-3) leaves p_amb at 0.10000 and
+//                                   still clips the low-beta jet on the y axis, where senv=0/b0=100 reaches p = 1.1e-4
+//                                   (beta = 2.8e-7) in 54 cells at t = 0.01.
+//                                   KNOWN BUG, unfixed: where the floor fires in a steady region it RATCHETS to
+//                                   p_floor + (gamma-1)*Delta(|B|^2/2) instead of p_floor, because the block runs where
+//                                   u_con holds Btilde while the solution carries B.  E = p_floor/(gamma-1) + ke + mb
+//                                   has mb ~ 1300x the p_floor/(gamma-1) term at b0=100, so |Btilde|/|B| - 1 = 2.3e-4
+//                                   becomes a 62% error in p (predicted 0.19894 + 0.12378 = 0.32272, measured 0.32272).
+//                                   This is the catastrophic cancellation the three-way split exists to avoid, re-entered
+//                                   at exactly the low beta where the floor is used.  Fix: apply the floor as an
+//                                   increment, p_cur = (gamma-1)(E - ke - mb); if(p_cur < pmin) E += (pmin - p_cur)/(gamma-1),
+//                                   at a point where B is final -- then ke and mb cancel exactly.
 //   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
 //                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= b0= pin= tend= bsmooth= gamma= tag=
 //   e.g.  OMP_NUM_THREADS=32 ./mhd                                            (paper's blast wave, 1000^2, t = 0.01)
@@ -258,8 +291,14 @@ double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
 double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
 // [fix E] HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
-// 1 = their union with the global maximum MATERIAL speed of the sweep direction, which keeps
-// the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points.
+// 1 = their union with the GLOBAL maximum MATERIAL speed of the sweep direction, which keeps
+// the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points;
+// 2 = their union with the LOCAL max|u_n| over {L, Roe, R} of each face.  senv=1 is correct on
+// single-scale problems (1D RPs, the low-Mach vortex) but on a problem with a large dynamic
+// range in |u| (the 2D blast wave: |u| ~ 30 in the hot interior, ~0 in the ambient) it widens
+// the envelope of EVERY face to the interior value, which amplifies the HLLEM delta_k
+// anti-diffusion on the linearly degenerate waves in the quiet ambient.  senv=2 is the local
+// version of the same floor and does not couple distant parts of the domain.
 int g_senv = 1;
 double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
@@ -1260,7 +1299,11 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 		sL = fmin(fmin(loL, loT), loR);
 		sR = fmax(fmax(hiL, hiT), hiR);
 	}
-	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E]
+	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E] global |u| floor
+	else if(g_senv == 2){   // [fix E2] LOCAL material-speed floor: max|u_n| over {L, Roe, R} of THIS face
+		const double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));
+		if(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }
+	}
 	// [W] Strong density jump, J = |drho|/min(rho) > 1/2 (the J of the entropy anti-diffusion limiter below).  The split
 	// envelope is O(|u| + eps c): at a stagnation point of a low-Mach region it vanishes, and so does the dissipation of the
 	// plain HLL flux the limiter falls back to (measured: Orszag-Tang X-point, eps_M = 0, density holes grow until the point
