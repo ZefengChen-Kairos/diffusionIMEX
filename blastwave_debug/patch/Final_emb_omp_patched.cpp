@@ -267,7 +267,7 @@ double g_gamma_set = 0.0;          // [fix F] gamma= 的值; 0 = 用各算例自
 double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
 double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
 double g_blast_tend = 0.01;        // [fix F] final time
-int    g_blast_smooth = 0;         // [fix F] 1 = erf-smoothed jump (the old code), 0 = sharp (eq.(107))
+int    g_blast_smooth = 1;         // [fix F] 1 = erf-smoothed jump (DEFAULT, = the original code), 0 = sharp (paper eq.(107))
 double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)
 double g_vortex_Bt = VORTEX_BT;
 // [o3d] face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),

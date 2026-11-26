@@ -360,7 +360,7 @@ int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""
     #     b0=      the Gaussian number in B0 = (b0, 0, 0)/sqrt(4 pi)   (paper 100, was 70)
     #     pin=     central pressure                                     (paper 1000)
     #     tend=    final time                                           (paper 0.01)
-    #     bsmooth= 1 restores the erf smoothing of the old code         (default 0 = sharp)
+    #     bsmooth= 0 uses the sharp jump of paper eq.(107)              (default 1 = erf smoothing, as the original code)
     #     gamma=   ratio of specific heats                              (paper 5/3, was 1.4)
     # "Blast wave test II" of the same section (p_in = 1e4, B0 = 1000/sqrt(4 pi), t = 0.001,
     # beta = 2.51e-6) is then simply   b0=1000 pin=1e4 tend=0.001.
@@ -368,7 +368,7 @@ int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)""
         """double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
 double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
 double g_blast_tend = 0.01;        // [fix F] final time
-int    g_blast_smooth = 0;         // [fix F] 1 = erf-smoothed jump (the old code), 0 = sharp (eq.(107))
+int    g_blast_smooth = 1;         // [fix F] 1 = erf-smoothed jump (DEFAULT, = the original code), 0 = sharp (paper eq.(107))
 double g_betafloor = 0.0;""")
 
     rep("""			case testblastwave: {
