@@ -1,0 +1,3632 @@
+%% 
+%% Copyright 2019-2024 Elsevier Ltd
+%% 
+%% This file is part of the 'CAS Bundle'.
+%% --------------------------------------
+%% 
+%% It may be distributed under the conditions of the LaTeX Project Public
+%% License, either version 1.3c of this license or (at your option) any
+%% later version.  The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 1999/12/01 or later.
+%% 
+%% The list of all files belonging to the 'CAS Bundle' is
+%% given in the file `manifest.txt'.
+%% 
+%% Template article for cas-sc documentclass for 
+%% double column output.
+
+\documentclass[a4paper,fleqn]{cas-sc}
+
+% If the frontmatter runs over more than one page
+% use the longmktitle option.
+
+%\documentclass[a4paper,fleqn,longmktitle]{cas-sc}
+
+%\usepackage[numbers]{natbib}
+%\usepackage[authoryear]{natbib}
+\usepackage{amsmath,amssymb,bm,mathtools,amsthm}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{placeins}
+\usepackage{hyperref}
+ 
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+ 
+\newcommand{\eps}{\varepsilon}
+\newcommand{\epsM}{\eps_{M}}
+\newcommand{\epsB}{\eps_{B}}
+\newcommand{\Bb}{\mathbf{B}}
+\newcommand{\FF}{\mathbf{F}}
+\newcommand{\GG}{\mathbf{G}}
+\newcommand{\RR}{\mathbf{R}}
+\newcommand{\LL}{\mathbf{L}}
+\newcommand{\AAt}{\tilde{\mathbf{A}}}
+\newcommand{\half}{\tfrac{1}{2}}
+\newcommand{\mm}{\mathbf{m}}
+\DeclareMathOperator{\minmod}{minmod}
+\DeclareMathOperator{\median}{median}
+% Floats. In cas-sc a figure/table without options may only go at the top
+% of a page ([t]), and for tables "[htbp]" is silently ignored. Give every
+% float its placement through the class key, e.g. \begin{figure}[pos=htbp];
+% full-page figures use [pos=p].
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.6}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+\renewcommand{\floatpagefraction}{0.6}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\topfraction}{0.95}
+%%%Author macros
+\def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
+\tsc{WGM}
+\tsc{QE}
+%%%
+
+% Uncomment and use as if needed
+%\newtheorem{theorem}{Theorem}
+%\newtheorem{lemma}[theorem]{Lemma}
+%\newdefinition{rmk}{Remark}
+%\newproof{pf}{Proof}
+%\newproof{pot}{Proof of Theorem \ref{thm}}
+
+\begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+
+% Short title
+\shorttitle{}    
+
+% Short author
+\shortauthors{}  
+
+% Main title of the paper
+\title [mode = title]{A high order shock capturing IMEX finite volume scheme with Mach- and Alfvén-adaptive flux splitting for ideal MHD}  
+
+% Title footnote mark
+% eg: \tnotemark[1]
+\tnotemark[1] 
+
+% Title footnote 1.
+% eg: \tnotetext[1]{Title footnote text}
+\tnotetext[1]{} 
+
+% First author
+%
+% Options: Use if required
+% eg: \author[1,3]{Author Name}[type=editor,
+%       style=chinese,
+%       auid=000,
+%       bioid=1,
+%       prefix=Sir,
+%       orcid=0000-0000-0000-0000,
+%       facebook=<facebook id>,
+%       twitter=<twitter id>,
+%       linkedin=<linkedin id>,
+%       gplus=<gplus id>]
+
+\author[1]{}%[<options>]
+
+% Corresponding author indication
+\cormark[1]
+
+% Footnote of the first author
+\fnmark[1]
+
+% Email id of the first author
+\ead{}
+
+% URL of the first author
+\ead[url]{}
+
+% Credit authorship
+% eg: \credit{Conceptualization of this study, Methodology, Software}
+\credit{}
+
+% Address/affiliation
+\affiliation[1]{organization={},
+            addressline={}, 
+            city={},
+%          citysep={}, % Uncomment if no comma needed between city and postcode
+            postcode={}, 
+            state={},
+            country={}}
+
+\author[2]{}%[]
+
+% Footnote of the second author
+\fnmark[2]
+
+% Email id of the second author
+\ead{}
+
+% URL of the second author
+\ead[url]{}
+
+% Credit authorship
+\credit{}
+
+% Address/affiliation
+\affiliation[2]{organization={},
+            addressline={}, 
+            city={},
+%          citysep={}, % Uncomment if no comma needed between city and postcode
+            postcode={}, 
+            state={},
+            country={}}
+
+% Corresponding author text
+\cortext[1]{Corresponding author}
+
+% Footnote text
+\fntext[1]{}
+
+% For a title note without a number/mark
+%\nonumnote{}
+
+% Here goes the abstract
+\begin{abstract}
+We present an adaptive implicit--explicit (IMEX) finite volume scheme for the
+ideal magnetohydrodynamics (MHD) equations that adapts to the local Mach and
+Alfv\'en number regime. The flux is decomposed into advective,
+acoustic and magnetic parts, and the fractions of the acoustic and of the
+magnetic part that are treated explicitly are governed by two independent local
+parameters, $\epsM$ and $\epsB$, driven by the acoustic and the Alfv\'en Mach
+number respectively. Each stiffness is thus transferred to the implicit solver
+independently: the channel that is not stiff is returned to an upwind Riemann
+solver instead of being carried by the implicit operator, and the explicit time
+step is freed from the sound-speed and from the Alfv\'en-speed constraint
+separately, while in the supersonic and super-Alfv\'enic regime the scheme
+reduces to a fully explicit Godunov-type method. A characteristic analysis gives
+the Alfv\'en speeds from a quadratic in $\epsB$ alone and the magnetosonic speeds
+from a quartic in both parameters, and shows the explicit sub-system to be
+strongly hyperbolic whenever $\epsM>0$. The Alfv\'en fields span a
+two-dimensional invariant subspace whose dual functionals annihilate every other
+wave family, so that their projection is available in closed form at every value
+of the parameters; on this rests an HLLEM Riemann solver that resolves the
+contact and the rotational discontinuities sharply even in the stiff limit, where
+the complete characteristic basis is lost. An exact block decomposition of the split system
+confines the singular limits of its eigenvectors to low-dimensional sub-blocks,
+so that the split characteristic basis can be used in a third-order
+characteristic WENO reconstruction with a monotonicity-preserving limiter. On
+the implicit side, the kinetic and magnetic energies are linearised consistently
+with the partitioned IMEX Runge--Kutta scheme and an unstaggered,
+potential-based constrained transport is written as a linear map of the
+momentum; both are embedded in the pressure operator, so that each stage
+solves for a magnetic predictor and then for the pressure, without iterating
+between the two, with a magnetic field that is divergence-free to machine
+precision and with the total energy conserved without re-solving for the
+pressure. Numerical experiments on standard benchmarks, from the
+near-incompressible to the supersonic regime, confirm at least third-order
+accuracy.
+\end{abstract}
+
+% Use if graphical abstract is present
+%\begin{graphicalabstract}
+%\includegraphics{}
+%\end{graphicalabstract}
+
+% Research highlights
+\begin{highlights}
+\item Flux splitting with two parameters driven by acoustic and Alfv\'en Mach numbers
+\item Explicit sub-system proved hyperbolic with complete eigenvectors
+\item Constrained transport embedded in the pressure operator, with no iteration between the magnetic and the pressure sub-system
+\item Third-order in space and time; time step freed from the acoustic and Alfvén constraints where they are stiff
+\end{highlights}
+
+
+% Keywords
+% Each keyword is seperated by \sep
+\begin{keywords}
+Ideal magnetohydrodynamics \sep
+All Mach and Alfv\'en numbers \sep
+Semi-implicit IMEX finite volume schemes \sep
+Adaptive flux splitting \sep
+Divergence-free \sep
+Third-order in space and time \sep
+shock capturing
+\end{keywords}
+
+\maketitle
+
+% Main text
+\section{Introduction}\label{sec:intro}
+
+The equations of ideal magnetohydrodynamics (MHD) describe an electrically
+conducting fluid coupled to a magnetic field and form a first-order nonlinear system
+of non-strictly hyperbolic conservation laws. They arise in astrophysical plasma
+dynamics~\cite{GoedbloedPoedts2019,Priest2014} and in inertial and magnetic
+confinement fusion~\cite{Jardin2010,AtzeniMeyer2004,Slutz2010,Sinars2020}, where a
+magnetically dominated plasma may evolve rapidly from a near-equilibrium
+configuration into a fully time-dependent compressible regime. What distinguishes
+MHD from gas dynamics, for the purposes of numerical design, is that it is stiff in
+\emph{two} independent ways: the acoustic Mach number $M$ controls the stiffness of the gas pressure, the
+Alfv\'en Mach number $M_A$ that of the Maxwell stress (magnetic pressure and
+tension). As
+$M\to0$ the system approaches a weakly compressible regime governed by an elliptic
+pressure balance; an analogous singular limit arises as $M_A\to0$, typical of
+magnetic-pressure dominated plasmas. The two limits stem from different physical
+mechanisms, are reached independently, and routinely coexist within a single
+computation.
+
+Density-based Godunov-type finite volume schemes~\cite{BrioWu1988,MiyoshiKusano2005}
+face two difficulties in these limits. The time step is dictated by the fast
+magnetosonic speed rather than by the material velocity, giving an $\mathcal O(1/M)$
+or $\mathcal O(1/M_A)$ overhead beyond what the physically relevant transport
+requires~\cite{Klein1995}; and the artificial dissipation of upwind fluxes scales
+with that same speed, so that the asymptotic scaling $p=p_0+\mathcal O(M^{2})$ is
+lost~\cite{GuillardViozat2017,Dellacherie2010}. Since the fast magnetosonic speed
+degenerates to the Alfv\'en speed in the magnetic-pressure dominated regime, both
+reappear as $M_A\to0$. Rescaling the flux
+dissipation~\cite{barsukow2021truly,barsukow2023all} restores the correct scaling but
+not the time step, which then calls for a fully implicit
+integration~\cite{leidi2022finite,viallet2011towards} and hence for large
+nonsymmetric nonlinear systems whose convergence is difficult to control.
+
+Treating implicitly only the stiff terms, while keeping the nonlinear transport
+explicit, avoids both difficulties. This is naturally realised within the class of
+implicit--explicit (IMEX) Runge--Kutta integrators~\cite{RKIMEX,RKIMEX2} applied to a
+flux-vector splitting: the implicit step reduces to linear or mildly nonlinear solves, and the time
+step is constrained only by the eigenvalues of the explicit sub-system. Pressure-based
+semi-implicit schemes of this kind were made conservative and shock-capturing by
+Dumbser and Casulli~\cite{DumbserCasulli2016}, who combined them with the
+Toro--V\'azquez splitting~\cite{TVSplit}, with high-order all-Mach extensions
+following~\cite{BoscheriPareschi2021,TavelliDumbser2017,FVVEM}. For MHD the
+development has proceeded by successively removing the stiff wave families from the
+explicit step: Dumbser et al.~\cite{Dumbser2019} kept the pressure implicit and the
+magnetic field explicit, so that the time step remains governed by the Alfv\'en
+speed; removing that restriction requires the field to be implicit as well, which
+Fambri~\cite{Fambri2021} achieved through a three-way splitting into advective,
+acoustic and magnetic sub-systems, the structure also underlying the collocated
+formulations of Dematt\'e et al.~\cite{Dematte2024} and of Boscheri and
+Thomann~\cite{BoscheriThomann2024}. We adopt that three-way splitting; our point of
+departure concerns not the splitting itself, but how its parts are assigned to the
+explicit and the implicit sub-system.
+
+In all of these schemes the two sub-systems coincide \emph{exactly} with the parts of
+the splitting: the advective flux is explicit, the entire acoustic and magnetic
+fluxes implicit. This is well suited to the stiff limits, and has two consequences
+elsewhere. In supersonic and super-Alfv\'enic regions the pressure and magnetic
+dynamics are still handled by the implicit solver, which relies on central-type
+stencils rather than on upwind shock capturing, unless Rusanov-type dissipation is
+explicitly reintroduced~\cite{DumbserCasulli2016,BoscheriThomann2024,MHDIMEX}. And, with those fluxes assigned
+entirely to the implicit side, the explicit sub-system loses its spectral separation:
+its eigenvalues collapse onto $\{0,u\}$ and the Jacobian admits no complete set of
+eigenvectors, so it is only weakly hyperbolic. This precludes eigenstructure-based
+Riemann solvers such as Roe~\cite{Roe1981} or
+HLLEM~\cite{einfeldt1991godunov,HLLEM}, whose construction relies on the left
+and right eigenvectors for wave projection, and leaves scalar-dissipation fluxes of
+Rusanov type~\cite{Rusanov1962} as the usual choice. The consequence is
+more severe than in gas dynamics: the degenerate spectrum retains no trace of the
+rotational discontinuities either, so the Alfv\'en waves---which carry no acoustic
+stiffness whatsoever---are smeared at the same rate as everything else.
+
+We depart from this rigid identification. The fraction of the acoustic and of the
+magnetic flux returned to the explicit sub-system is controlled by \emph{two
+independent} adaptive parameters, $\varepsilon_M$ and $\varepsilon_B$, driven
+respectively by the local acoustic and Alfv\'en Mach numbers. Letting a splitting
+parameter respond to the Mach number has been explored for gas dynamics by Degond and
+Tang~\cite{DegondTang2011} and by Iampietro and
+collaborators~\cite{IampietroEtAl2018,IampietroEtAl2018b,IampietroEtAl2020}; a single
+parameter, however, is necessarily sub-optimal for MHD whenever $M\neq M_A$, since
+the two stiffness mechanisms are governed by distinct dimensionless numbers. It
+either over-stabilises the non-stiff channel or leaves the stiff one partially
+unresolved, and it is precisely the two \emph{mixed} regimes---a high-$\beta$
+low-Mach plasma, whose Alfv\'en waves would be needlessly implicit, and a strongly
+magnetised plasma at moderate Mach number, whose acoustic waves would be---that a
+single parameter cannot represent. The dual-parameter splitting addresses the two stiffnesses simultaneously and
+independently, and recovers the fully explicit Godunov discretisation where
+neither channel is stiff. What it buys over a single parameter is not
+symmetric in the two mixed regimes, and the asymmetry follows from the
+definitions rather than from experiment. The conditions $\epsM\to0$ and
+$\epsB\to1$ together force $c_B\lesssim\|\mathbf u\|\ll a$, hence
+$\beta\gg1$: wherever the splitting returns the magnetic flux to the explicit
+solver while the acoustic flux is implicit, the field is a weak perturbation of
+the gas dynamics. The converse regime, $\epsM\to1$ with $\epsB\to0$, forces
+$\beta\ll1$, and there the magnetic flux dominates the dynamics. The gain
+accordingly sits in the second of the two.
+
+Against a single parameter driven by the acoustic Mach number alone, which is
+the direct transcription of the gas-dynamics
+construction~\cite{DegondTang2011,IampietroEtAl2018}, a strongly magnetised
+flow at moderate Mach number leaves the magnetic flux explicit and the time
+step set by the Alfv\'en speed, which $\epsB$ removes---by orders of
+magnitude, and over a large part of the domain: in the blast wave of
+Section~\ref{sec:blast} the two parameters differ by more than one half over
+about two fifths of the cells, with $\epsM\approx1$ and $\epsB\approx0$
+there. Against a single parameter driven by whichever Mach number is the more
+restrictive---the safe choice---the second parameter instead costs a little.
+Both fluxes are implicit under the safe choice, so its admissible step is the
+larger one, by a factor bounded by two, since a non-stiff channel has a wave
+speed below the material speed, and equal to $1.19$ in the field-loop
+advection of Section~\ref{sec:fieldloop}. What is bought in exchange is an
+upwind rather than a central discretisation of the non-stiff flux. In that
+test the exchange does not show in the solution: the retained magnetic energy
+and the error against the exact solution agree to four digits between the two
+choices, the in-plane field being advanced by the constrained transport of
+Section~\ref{sec:CT} in either case, so that $\epsB$ reaches it only through
+the velocity.
+
+Two structural results follow, and they serve different parts of the scheme. The
+first is the restoration of strong hyperbolicity: whenever $\epsM>0$ the explicit
+Jacobian has eight real eigenvalues and a complete set of right eigenvectors,
+whose closed form we derive. This is what licenses the characteristic
+reconstruction of the explicit terms. It is also all it licenses, and not
+uniformly: the closed-form basis degenerates as $\epsM\to0$, so the
+reconstruction is carried out with the splitting parameter bounded away from
+zero, while the flux itself is not.
+
+The second result is what makes a wave-resolving Riemann solver possible at
+\emph{every} value of the parameters, including the stiff limit in which the
+complete basis is lost. The split system decomposes exactly: the divergence mode
+is trivially decoupled, and the Alfv\'en fields span a two-dimensional invariant
+subspace whose dual functionals annihilate every other wave family. Their
+projection is therefore available in closed form and is regular both as
+$B_\perp\to0$ and as $\epsB B_x\to0$, so the two rotational discontinuities can
+be resolved where the degenerate spectrum of the standard splitting retains no
+trace of them at all. We use this in an HLLEM flux of $\delta_k$-driven
+asymptotic-preserving form, whose wave-speed envelope is built from the split
+spectrum itself and whose entropy strength is taken in the classical form,
+bounded uniformly in $\epsM$. Of the two singular limits of the closed-form
+eigenvectors, only the remaining aligned sector requires a numerical inverse.
+
+Third order is a specification here rather than a contribution: high-order,
+asymptotic-preserving, divergence-free discretisations of MHD have been built
+before, among them the finite-difference WENO schemes with constrained transport
+of Chen, Wu and Xiong~\cite{ChenWuXiong2023}. What has to be shown is that the
+splitting and the two structural results above survive at that order. Third-order
+accuracy in space on the explicit terms is obtained with a characteristic
+WENO3-Z reconstruction~\cite{DonBorges2013, BORGES20083191} and a
+monotonicity-preserving limiter~\cite{SureshHuynh1997}, for which we prove that
+the design order survives at smooth extrema. The implicit terms are discretised
+with a fourth-order finite volume operator family, and third-order accuracy in
+time follows from a stiffly accurate IMEX Runge--Kutta
+scheme~\cite{BoscheriPareschi2021}, the stiff accuracy being what guarantees
+asymptotic consistency in both limits.
+
+The second contribution concerns the implicit step. In the semi-implicit schemes
+cited above the kinetic energy couples the pressure to the momentum
+nonlinearly, which is resolved by a second pressure solve or by a Picard
+iteration, and the solenoidal involution $\nabla\!\cdot\!\mathbf B=0$, which is
+not inherited at the discrete level~\cite{Toth2000}, is restored by a separate
+constrained-transport step~\cite{EvansHawley1988,Rossmanith2006}. Here the
+kinetic and magnetic energies are linearised about the explicit argument of the
+partitioned IMEX scheme, and the unstaggered, potential-based constrained
+transport of Rossmanith~\cite{Rossmanith2006} is written as a linear map of the
+momentum. Both enter the pressure operator, so that an implicit stage solves
+for a magnetic predictor and then for the pressure, without iterating between
+the two: the energy is balanced with a divergence-free field throughout the
+solve, the total energy is conserved without a second solve, and the formal
+order of the time integrator is retained. Positivity of the pressure is enforced
+with the mechanism of~\cite{MHDIMEX}, extended to the fourth-order operator by defect correction.
+
+The remainder of this paper is organised as follows. Section~\ref{sec:governing}
+introduces the governing equations, the three-way flux splitting and the
+dual-parameter $\varepsilon$-split form, with a characteristic analysis of the
+split system and its block decomposition. Section~\ref{sec:scheme} describes the
+numerical method. Section~\ref{sec:result} assesses the scheme on benchmarks in
+one and two space dimensions from the near-incompressible to the supersonic regime, and conclusions are drawn in Section~\ref{sec:Conclusion}.
+% ===========================================================================
+\section{System of governing equations}
+\label{sec:governing}
+
+In conservative form, the ideal MHD equations read
+\begin{equation}
+\label{eq:ideal_MHD}
+\begin{cases}
+\dfrac{\partial \rho}{\partial t}+ \nabla \cdot (\rho \mathbf{u}) = 0, \\[1.5ex]
+\dfrac{\partial (\rho \mathbf{u})}{\partial t}+ \nabla \cdot \left( \rho \mathbf{u} \otimes \mathbf{u}
++ \left( p + \tfrac{1}{2}\|\Bb\|^2 \right)\mathbf{I}- \Bb \otimes \Bb \right) = \mathbf{0}, \\[1.5ex]
+\dfrac{\partial E}{\partial t}+ \nabla \cdot \left( \left( E + p + \tfrac{1}{2}\|\Bb\|^2 \right)\mathbf{u}
+- (\mathbf{u}\cdot\Bb)\,\Bb \right) = 0, \\[1.5ex]
+\dfrac{\partial \Bb}{\partial t}+ \nabla \cdot \left( \Bb \otimes \mathbf{u}- \mathbf{u} \otimes \Bb \right) = \mathbf{0}.
+\end{cases}
+\end{equation}
+Here $\rho$ denotes the fluid density, $\mathbf{u}=[u,v,w]^{\mathsf T}$ the velocity,
+$\Bb=[B_x,B_y,B_z]^{\mathsf T}$ the magnetic field, and $E$ the total energy
+per unit volume, the sum of internal, kinetic and magnetic contributions,
+\begin{equation}
+\label{eq:total_energy}
+E=\rho e+k+m,\qquad
+k=\half\rho\|\mathbf{u}\|^2,\qquad
+m=\half\|\Bb\|^2,
+\end{equation}
+with $e$ the specific internal energy. The magnetic field is nondimensionalised
+such that the vacuum magnetic permeability is unity.
+
+In addition, the magnetic field must satisfy the divergence-free constraint
+\begin{equation}
+\label{eq:divB}
+\nabla\cdot\Bb=0,
+\end{equation}
+which is a constraint of the system: if it holds at the initial time, the
+evolution equations~\eqref{eq:ideal_MHD} preserve it for all later times at the
+continuous level. At the discrete level this property is not automatically
+inherited, and a dedicated treatment is required.
+
+The system is closed by the ideal gas law,
+\begin{equation}
+\label{eq:eos}
+e(p,\rho)=\frac{p}{(\gamma-1)\rho},
+\end{equation}
+with $\gamma$ the ratio of specific heats, so that the pressure depends linearly
+on the internal energy. The specific enthalpy is $h=e+p/\rho$ and the sound speed
+is
+\begin{equation}
+\label{eq:soundspeed}
+a=\sqrt{\frac{\gamma p}{\rho}} .
+\end{equation}
+
+Letting $\mathbf{U}=(\rho,\rho\mathbf{u},E,\Bb)^{\mathsf T}$ denote the vector of conserved
+quantities, the system~\eqref{eq:ideal_MHD} is written in compact form as
+\begin{equation}
+\label{eq:compact_MHD}
+\partial_t\mathbf{U}+\nabla\cdot\boldsymbol{\mathcal F}(\mathbf{U})=\mathbf0,
+\qquad \boldsymbol{\mathcal F}=(\FF,\GG).
+\end{equation}
+For one-dimensional flows aligned with the $x$-direction it reads
+\begin{equation}
+\label{eq:1DMHD}
+\frac{\partial}{\partial t}
+\begin{bmatrix}
+\rho \\ \rho u \\ \rho v \\ \rho w \\ E \\ B_x \\ B_y \\ B_z
+\end{bmatrix}
++
+\frac{\partial}{\partial x}
+\begin{bmatrix}
+\rho u \\
+\rho u^2+p+\half\|\Bb\|^2-B_x^2 \\
+\rho uv-B_xB_y \\
+\rho uw-B_xB_z \\
+u\big(E+p+\half\|\Bb\|^2\big)-B_x(\mathbf{u}\cdot\Bb) \\
+0 \\
+uB_y-vB_x \\
+uB_z-wB_x
+\end{bmatrix}
+=\mathbf 0 .
+\end{equation}
+This system has the eight eigenvalues
+\begin{equation}
+\label{eq:MHD_eigs}
+\lambda_{1,8} = u \pm c_f, \qquad
+\lambda_{2,7} = u \pm c_a, \qquad
+\lambda_{3,6} = u \pm c_s, \qquad
+\lambda_4 = u, \qquad
+\lambda_5 = 0 ,
+\end{equation}
+with the Alfv\'en speed $c_a$ and the fast and slow magnetosonic speeds
+$c_f$, $c_s$,
+\begin{equation}
+\label{eq:MHD_speeds}
+c_a = \frac{|B_x|}{\sqrt{\rho}},\qquad
+c_{f,s}^2 =\frac{1}{2}\left(c_B^2 + a^2\pm
+\sqrt{\left(c_B^2 + a^2\right)^2-4 c_a^2 a^2}\right),
+\qquad c_B=\frac{\|\Bb\|}{\sqrt{\rho}} .
+\end{equation}
+
+\paragraph{Two stiffness scales.}
+The numerical stiffness of~\eqref{eq:ideal_MHD} is controlled by two
+independent dimensionless numbers, the acoustic and the Alfv\'en Mach number,
+\begin{equation}
+\label{eq:two_mach}
+M=\frac{\|\mathbf{u}\|}{a},\qquad
+M_A=\frac{\|\mathbf{u}\|}{c_B} .
+\end{equation}
+When $M\ll1$ the spectral radius of the Jacobian is set by the fast magnetosonic
+speed, forcing an $\mathcal O(1/M)$ time-step penalty relative to
+material advection; when $M_A\ll1$ the Alfv\'en and magnetosonic speeds become
+large, producing an \emph{independent} $\mathcal O(1/M_A)$ restriction.
+ 
+
+
+\subsection{Three-way flux splitting}
+\label{sec:3split}
+
+The numerical method developed in this work is built upon the three-way flux splitting for MHD introduced by Fambri~\cite{Fambri2021} and later developed by Chen et al.~\cite{MHDIMEX}, in which the physical flux of the MHD system~\eqref{eq:ideal_MHD} is decomposed into advective, pressure and magnetic contributions,
+\begin{equation}
+\mathbf{F}(\mathbf{U}) = \mathbf{F}^c(\mathbf{U}) + \mathbf{F}^p(\mathbf{U}) + \mathbf{F}^B(\mathbf{U}),
+\end{equation}
+with
+\begin{equation}
+\mathbf{F}^c =
+\begin{bmatrix}
+\rho u \\
+\rho u^2 \\
+\rho uv \\
+\rho uw \\
+k u \\
+0 \\
+0 \\
+0
+\end{bmatrix},\quad
+\mathbf{F}^p =
+\begin{bmatrix}
+0 \\
+p \\
+0 \\
+0 \\
+\rho h u \\
+0 \\
+0 \\
+0
+\end{bmatrix},\quad
+\mathbf{F}^B =
+\begin{bmatrix}
+0 \\
+\frac{1}{2}\|\mathbf{B}\|^2 - B_x^2 \\
+-B_xB_y \\
+-B_xB_z \\
+\|\mathbf{B}\|^2u - B_x(\mathbf{u}\cdot\mathbf{B}) \\
+0 \\
+uB_y - vB_x \\
+uB_z - wB_x
+\end{bmatrix}.
+\end{equation}
+
+
+The three resulting sub-systems are referred to as the advection, pressure and magnetic sub-systems.
+
+\paragraph{Advection sub-system.}
+The convective flux $\mathbf{F}^c$ has eigenvalues
+\begin{equation}
+\label{eq:adv_eigs}
+\lambda^c_{1,2,3,4}=0,\qquad \lambda^c_{5,6,7,8}=u,
+\end{equation}
+Thus, the sub-system is weakly hyperbolic, since one eigenvector associated with $\lambda^c$ = $u$ is missing. Its eigenstructure contains no trace of the acoustic, Alfvén or magnetosonic waves.
+
+\paragraph{Pressure sub-system.}
+The pressure flux $\mathbf{F}^p$ carries the eigenvalues
+\begin{equation}
+\label{eq:p_eigs}
+\lambda^p_{1,2,3,4,5,6}=0,\qquad
+\lambda^p_{7,8}=\frac{1}{2}\left(u\pm\sqrt{u^2+4a^2}\right).
+\end{equation}
+In the previous IMEX schemes for MHD~\cite{Fambri2021,MHDIMEX}
+this sub-system is treated implicitly, which removes the acoustic stiffness
+from the explicit time-step constraint.
+
+\paragraph{Magnetic sub-system.}
+The magnetic flux $\mathbf{F}^B$ carries the eigenvalues
+\begin{equation}
+\label{eq:B_eigs}
+\lambda^B_{1,2,3,4}=0,\qquad
+\lambda^B_{5,6}=\frac{1}{2}\left(u\pm\sqrt{u^2+4c_a^2}\right),\qquad
+\lambda^B_{7,8}=\frac{1}{2}\left(u\pm\sqrt{u^2+4c_B^2}\right),
+\end{equation}
+This sub-system isolates the Alfvén and magnetic-tension stiffness.
+
+In a standard IMEX framework \cite{MHDIMEX}, with the advective sub-system
+treated explicitly and the pressure and magnetic sub-systems treated implicitly,
+the weak hyperbolicity of $\mathbf{F}^c$ becomes a fundamental limitation: without
+a complete set of eigenvectors, neither a complete approximate Riemann solver nor a
+characteristic reconstruction can be built for the explicit step. A Rusanov-type
+flux is then the usual choice, whose scalar dissipation acts on all components
+alike and smears contact and shear waves.
+ 
+% ---------------------------------------------------------------------------
+\subsection{Dual-parameter $\eps$-split form}
+\label{sec:eps_split}
+
+To overcome the deficiency identified at the end of Section~\ref{sec:3split},
+a fraction of the acoustic and of the magnetic flux is returned to the
+explicit sub-system, controlled by two independent parameters
+$\epsM,\epsB\in[0,1]$:
+\begin{equation}
+\label{eq:eps_split}
+\FF(\mathbf{U})=\tilde\FF^{c}(\mathbf{U})+\tilde\FF^{p}(\mathbf{U})+\tilde\FF^{B}(\mathbf{U}),
+\end{equation}
+where the modified convective flux $\tilde\FF^{c}$, the modified pressure flux
+$\tilde\FF^{p}$ and the modified magnetic flux $\tilde\FF^{B}$ are defined as
+\begin{equation}
+\label{eq:new_split}
+\begin{aligned}
+&\tilde\FF^{c}=\FF^{c}(\mathbf{U})+\epsM\FF^{p}(\mathbf{U})+\epsB\FF^{B}(\mathbf{U})=
+\begin{bmatrix}
+\rho u\\[2pt]
+\rho u^{2}+\epsM\,p+\epsB\!\left(\half\|\Bb\|^{2}-B_x^{2}\right)\\[2pt]
+\rho uv-\epsB B_xB_y\\[2pt]
+\rho uw-\epsB B_xB_z\\[2pt]
+ku+\epsM\,\rho h u+\epsB\!\left(\|\Bb\|^{2}u-B_x(\mathbf{u}\cdot\Bb)\right)\\[2pt]
+0\\[2pt]
+\epsB\!\left(uB_y-vB_x\right)\\[2pt]
+\epsB\!\left(uB_z-wB_x\right)
+\end{bmatrix},
+\\[10pt]
+&\tilde\FF^{p}=(1-\epsM)\,\FF^{p}(\mathbf{U})=
+\begin{bmatrix}
+0\\[2pt]
+(1-\epsM)\,p\\[2pt]
+0\\[2pt]
+0\\[2pt]
+(1-\epsM)\,\rho h u\\[2pt]
+0\\[2pt]
+0\\[2pt]
+0
+\end{bmatrix},
+% \\[10pt]
+\tilde\FF^{B}=(1-\epsB)\,\FF^{B}(\mathbf{U})=
+\begin{bmatrix}
+0\\[2pt]
+(1-\epsB)\!\left(\half\|\Bb\|^{2}-B_x^{2}\right)\\[2pt]
+-(1-\epsB)\,B_xB_y\\[2pt]
+-(1-\epsB)\,B_xB_z\\[2pt]
+(1-\epsB)\!\left(\|\Bb\|^{2}u-B_x(\mathbf{u}\cdot\Bb)\right)\\[2pt]
+0\\[2pt]
+(1-\epsB)\!\left(uB_y-vB_x\right)\\[2pt]
+(1-\epsB)\!\left(uB_z-wB_x\right)
+\end{bmatrix},
+\end{aligned}
+\end{equation}
+
+
+For every value of $\epsM$ and $\epsB$ the three fluxes sum to the full flux:
+the parameters only redistribute the acoustic and the magnetic contributions
+between the explicit and the implicit part, without altering the total. The advective sub-system is treated explicitly,
+while the residual fluxes $\tilde\FF^{p}$ and $\tilde\FF^{B}$ are integrated
+implicitly. The parameters $\epsM,\epsB$ are defined locally and adapt to the
+flow conditions as described in Section~\ref{sec:eps_strategy}.
+ 
+
+
+\subsubsection{Eigenstructure of the explicit sub-system}
+\label{sec:eigenstructure}
+
+We derive the eigenstructure of $\AAt=\partial\tilde\FF^{c}/\partial\mathbf{U}$    from the quasilinear form in primitive variables
+$\mathbf Q=(\rho,u,v,w,p,B_x,B_y,B_z)^{\mathsf T}$. Linearising
+\eqref{eq:new_split} about a state, using $a^2=\gamma p/\rho$ and the
+divergence-free constraint~\eqref{eq:divB}, which in one dimension reads $\partial_xB_x=0$ and
+therefore annihilates the $B_x$ column, the explicit
+sub-system $\partial_t\mathbf U+\tilde{\mathbf A}\,\partial_x\mathbf U=0$
+is equivalent to $\partial_t\mathbf Q+\tilde{\mathbf A}_p\,\partial_x\mathbf Q=0$ with 
+\begin{equation}
+\label{eq:prim_jac}
+\AAt_{p}=
+\begin{bmatrix}
+u & \rho & 0 & 0 & 0 & 0 & 0 & 0\\[2pt]
+0 & u & 0 & 0 & \tfrac{\epsM}{\rho} & 0 & \tfrac{\epsB B_y}{\rho} & \tfrac{\epsB B_z}{\rho}\\[2pt]
+0 & 0 & u & 0 & 0 & 0 & -\tfrac{\epsB B_x}{\rho} & 0\\[2pt]
+0 & 0 & 0 & u & 0 & 0 & 0 & -\tfrac{\epsB B_x}{\rho}\\[2pt]
+0 & \epsM\rho a^2 & 0 & 0 & \epsM u & 0 & 0 & 0\\[2pt]
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\[2pt]
+0 & \epsB B_y & -\epsB B_x & 0 & 0 & 0 & \epsB u & 0\\[2pt]
+0 & \epsB B_z & 0 & -\epsB B_x & 0 & 0 & 0 & \epsB u
+\end{bmatrix}.
+\end{equation}
+
+The two scalings act on distinct couplings: $\epsM$ multiplies the
+pressure--velocity acoustic block (rows/columns $u,p$), while $\epsB$ multiplies the velocity--field magnetic block (rows/columns
+$u,v,w,B_y,B_z$). The advective
+self-transport $u\,\partial_x$ of $\rho$ and of the transverse momenta is carried
+by $\FF^c$ and is therefore unscaled; the transport of $p$ and of $\Bb$,
+which lives in $\FF^p$ and $\FF^B$, is scaled by $\epsM$ and $\epsB$ respectively,
+producing the diagonal entries $\epsM u$ and $\epsB u$.
+
+\paragraph{Decoupling.}
+The characteristic equation $\det(\AAt_p-\lambda\mathbf I)=0$ factorises into four
+groups, exactly as in full MHD. The vanishing row for $B_x$ gives the divergence
+mode $\lambda_5=0$. The density couples only to $u$, yielding the entropy wave
+$\lambda_4=u$ with $\delta p=\delta\mathbf{u}=\delta\Bb=0$. The transverse components
+split, under the rotation
+\begin{equation}
+\label{eq:beta}
+\beta_y=\frac{B_y}{B_\perp},\quad\beta_z=\frac{B_z}{B_\perp},\quad
+B_\perp=\sqrt{B_y^2+B_z^2},
+\end{equation}
+into a component perpendicular to $\Bb_\perp$ (Alfv\'en) and a component aligned
+with $\Bb_\perp$ (magnetosonic).
+
+\paragraph{Alfv\'en waves.}
+The perpendicular combinations $v_\perp=\beta_z v-\beta_y w$,
+$B_\perp^{\!*}=\beta_z B_y-\beta_y B_z$ satisfy a closed $2\times2$ system. The
+$\partial_x u$ coupling drops, since $\beta_z B_y-\beta_y B_z=0$, leaving
+\begin{equation}
+(u-\lambda)\,v_\perp-\frac{\epsB B_x}{\rho}\,B_\perp^{\!*}=0,\qquad
+-\epsB B_x\,v_\perp+(\epsB u-\lambda)\,B_\perp^{\!*}=0,
+\end{equation}
+whose determinant gives the Alfv\'en dispersion relation
+\begin{equation}
+\label{eq:alfven_disp}
+(u-\lambda)(\epsB u-\lambda)-\epsB^2 c_a^2=0
+\;\Longleftrightarrow\;
+\lambda^2-(1+\epsB)u\,\lambda+\epsB u^2-\epsB^2 c_a^2=0,
+\end{equation}
+that is,
+\begin{equation}
+\label{eq:alfven_eig}
+\tilde\lambda_A^{\pm}=\half\!\left[(1+\epsB)u\pm\Delta_A\right],\qquad
+\Delta_A=\sqrt{(1-\epsB)^2u^2+4\epsB^2c_a^2}.
+\end{equation}
+The Alfv\'en speeds depend on $\epsB$ \emph{alone}: the magnetic parameter
+controls them independently of the acoustic parameter.
+
+\paragraph{Magnetosonic waves.}
+The aligned combinations $v_\parallel=\beta_y v+\beta_z w$,
+$B_\parallel=\beta_y B_y+\beta_z B_z=B_\perp$, together with $u$ and $p$, satisfy a
+$4\times4$ system. Writing $\alpha=u-\lambda$, $\beta=\epsM u-\lambda$,
+$\phi=\epsB u-\lambda$, the $u$--$p$ acoustic block and the
+$v_\parallel$--$B_\parallel$ magnetic block read
+\begin{equation}
+\begin{bmatrix}\alpha & \epsM/\rho\\ \epsM\rho a^2 & \beta\end{bmatrix}
+\!\begin{bmatrix}\delta u\\ \delta p\end{bmatrix}
++\begin{bmatrix}\epsB B_\perp/\rho\\ 0\end{bmatrix}\!\delta B_\parallel=0,
+\qquad
+\alpha\,\delta v_\parallel-\frac{\epsB B_x}{\rho}\delta B_\parallel=0,
+\quad
+\epsB B_\perp\,\delta u-\epsB B_x\,\delta v_\parallel+\phi\,\delta B_\parallel=0.
+\end{equation}
+Eliminating $\delta p$ from the acoustic block and $\delta v_\parallel$ from the
+tension relation introduces the determinants
+\begin{equation}
+\label{eq:DsDA}
+D_s=\alpha\beta-\epsM^2a^2,\qquad
+D_A=\alpha\phi-\epsB^2c_a^2,
+\end{equation}
+and reduces the system to
+\begin{equation}
+\label{eq:ms_reduced}
+D_s\,\delta u+\frac{\beta\,\epsB B_\perp}{\rho}\,\delta B_\parallel=0,
+\qquad
+\alpha\,\epsB B_\perp\,\delta u+D_A\,\delta B_\parallel=0,
+\end{equation}
+whose determinant vanishes precisely when
+\begin{equation}
+\label{eq:ms_disp}
+D_s\,D_A=\epsB^2\,b_\perp^2\,\alpha\beta,\qquad b_\perp^2=\frac{B_y^2+B_z^2}{\rho},
+\end{equation}
+which is the magnetosonic quartic in $\lambda$. At $u=0$ one has
+$\alpha=\beta=\phi=-\lambda$, $\alpha\beta=\lambda^2$, and~\eqref{eq:ms_disp}
+reduces, using $c_a^2+b_\perp^2=c_B^2$, to the biquadratic
+\begin{equation}
+\label{eq:biquad}
+\lambda^4-(\epsM^2a^2+\epsB^2c_B^2)\lambda^2+\epsM^2a^2\,\epsB^2c_a^2=0,
+\end{equation}
+with roots
+\begin{equation}
+\label{eq:ms_eig}
+\tilde\lambda_{f,s}^{\pm}=\pm\frac{1}{\sqrt2}
+\sqrt{\epsM^2a^2+\epsB^2c_B^2\pm\sqrt{(\epsM^2a^2+\epsB^2c_B^2)^2-4\epsM^2a^2\epsB^2c_a^2}}.
+\end{equation}
+
+\paragraph{Limits.}
+\begin{itemize}
+\item \textbf{As $\epsM,\epsB\to0$:} the Alfv\'en pair~\eqref{eq:alfven_eig}
+tends to $\half(u\pm|u|)$ and the quartic~\eqref{eq:ms_disp} degenerates to
+$\lambda^2(u-\lambda)^2=0$, so that the spectrum collapses to
+\begin{equation}
+\tilde\lambda^{c}\in\{0^{(4)},\,u^{(4)}\},
+\end{equation}
+recovering the weakly hyperbolic advective sub-system~\eqref{eq:adv_eigs} of the standard
+three-way splitting.
+
+\item \textbf{As $\epsM=\epsB\to1$:} the two relations recover the full MHD
+spectrum $\{u\pm c_f,\;u\pm c_a,\;u\pm c_s,\;u,\;0\}$
+of~\eqref{eq:MHD_eigs}.
+\end{itemize}
+
+\begin{theorem}[Hyperbolicity of the explicit sub-system]\label{thm:hyp}
+Let $\rho>0$, $p>0$ and let $\varepsilon_M,\varepsilon_B\in[0,1]$ be frozen.
+Then the matrix $\tilde{\mathbf A}_p$ of \eqref{eq:prim_jac} has the following properties.
+\begin{enumerate}
+\item[(i)] All eight eigenvalues are real.
+\item[(ii)] If $\varepsilon_M>0$, $\tilde{\mathbf A}_p$ has a complete set of
+real eigenvectors, for every $\varepsilon_B\in[0,1]$ and every state,
+including $B_x=0$, $B_\perp=0$ and coinciding wave speeds.
+\item[(iii)] If $\varepsilon_M=0$, $\tilde{\mathbf A}_p$ is defective, with
+exactly one eigenvector missing for $\lambda=u$, unless $B_x=0$ and
+$\varepsilon_BB_\perp\neq0$.
+\end{enumerate}
+\end{theorem}
+ 
+\begin{proof}
+The $B_x$ row and the $B_x$ column of \eqref{eq:prim_jac} vanish, so $\mathbf e_{B_x}$ is
+an eigenvector with $\lambda=0$ and it suffices to consider the remaining
+seven variables, ordered as $(\rho\,|\,\mathbf r)$ with
+$\mathbf r=(u,v,w,p,B_y,B_z)^{\mathsf T}$. No equation other than the first
+involves $\rho$, hence the corresponding $7\times7$ matrix is block triangular,
+\begin{equation}\label{eq:A7}
+\mathbf A_7=\begin{bmatrix} u & \rho\,\mathbf e_u^{\mathsf T}\\[2pt]
+\mathbf 0 & \mathbf C\end{bmatrix},
+\qquad
+\mathbf C=\begin{bmatrix}
+u & 0 & 0 & \varepsilon_M/\rho & \varepsilon_B B_y/\rho & \varepsilon_B B_z/\rho\\
+0 & u & 0 & 0 & -\varepsilon_B B_x/\rho & 0\\
+0 & 0 & u & 0 & 0 & -\varepsilon_B B_x/\rho\\
+\varepsilon_M\rho a^2 & 0 & 0 & \varepsilon_M u & 0 & 0\\
+\varepsilon_B B_y & -\varepsilon_B B_x & 0 & 0 & \varepsilon_B u & 0\\
+\varepsilon_B B_z & 0 & -\varepsilon_B B_x & 0 & 0 & \varepsilon_B u
+\end{bmatrix}.
+\end{equation}
+ 
+\emph{Step 1: symmetrisation.}
+\emph{Step 1: symmetrisation.}
+With the positive definite diagonal matrix
+$\mathbf S=\operatorname{diag}\bigl(\rho,\rho,\rho,(\rho a^2)^{-1},1,1\bigr)$
+one verifies directly that $\mathbf S\mathbf C$ is symmetric: the pairs of
+off-diagonal entries become $(\varepsilon_M,\varepsilon_M)$,
+$(\varepsilon_BB_{y,z},\varepsilon_BB_{y,z})$ and
+$(-\varepsilon_BB_x,-\varepsilon_BB_x)$. Hence
+$\mathbf S^{1/2}\mathbf C\,\mathbf S^{-1/2}
+=\mathbf S^{-1/2}(\mathbf S\mathbf C)\,\mathbf S^{-1/2}$ is symmetric, so that
+$\mathbf C$ has real eigenvalues and is diagonalisable over $\mathbb R$, for
+all $\varepsilon_M,\varepsilon_B\in[0,1]$. The spectrum of $\mathbf A_7$ is
+$\{u\}\cup\sigma(\mathbf C)$, which proves (i).
+ 
+\emph{Step 2: a criterion for completeness.}
+For $\mu\in\sigma(\mathbf C)$, $\mu\neq u$, every eigenvector $\mathbf r$ of
+$\mathbf C$ lifts to the eigenvector
+$\bigl(\rho\,r_u/(\mu-u),\,\mathbf r\bigr)$ of $\mathbf A_7$. For $\lambda=u$,
+let $\mathcal N_u=\ker(\mathbf C-u\mathbf I)$ and $m=\dim\mathcal N_u\ge0$.
+Since $\mathbf C$ is diagonalisable, the algebraic multiplicity of $u$ in
+$\mathbf A_7$ is $1+m$, whereas
+$(x,\mathbf r)\in\ker(\mathbf A_7-u\mathbf I)$ if and only if
+$\mathbf r\in\mathcal N_u$ and $r_u=0$. Therefore $\mathbf A_7$ is
+diagonalisable if and only if
+\begin{equation}\label{eq:criterion}
+r_u=0\quad\text{for every }\mathbf r\in\ker(\mathbf C-u\mathbf I),
+\end{equation}
+and otherwise exactly one eigenvector is missing, since $\{r_u=0\}$ then has
+codimension one in $\mathcal N_u$.
+ 
+\emph{Step 3: evaluation of the criterion.}
+Writing $\mathbf r=(\delta u,\delta v,\delta w,\delta p,\delta B_y,\delta B_z)$,
+the equations $(\mathbf C-u\mathbf I)\,\mathbf r=\mathbf 0$ read
+\begin{align}
+&\varepsilon_M\,\delta p+\varepsilon_B\,(B_y\,\delta B_y+B_z\,\delta B_z)=0,
+\label{eq:ku}\\
+&\varepsilon_BB_x\,\delta B_y=\varepsilon_BB_x\,\delta B_z=0,
+\label{eq:kv}\\
+&\varepsilon_M\rho a^2\,\delta u=(1-\varepsilon_M)\,u\,\delta p,
+\label{eq:kp}\\
+&\varepsilon_BB_y\,\delta u-\varepsilon_BB_x\,\delta v=(1-\varepsilon_B)\,u\,\delta B_y,
+\qquad
+\varepsilon_BB_z\,\delta u-\varepsilon_BB_x\,\delta w=(1-\varepsilon_B)\,u\,\delta B_z.
+\label{eq:kB}
+\end{align}
+Suppose that \eqref{eq:criterion} fails and normalise $\delta u=1$.
+ 
+\emph{Case $\varepsilon_M>0$.} By \eqref{eq:kp},
+$(1-\varepsilon_M)\,u\,\delta p=\varepsilon_M\rho a^2>0$, so that
+$\varepsilon_M<1$, $u\neq0$ and $\delta p\neq0$. If
+$\varepsilon_BB_x\neq0$, \eqref{eq:kv} gives $\delta B_y=\delta B_z=0$ and
+then \eqref{eq:ku} gives $\delta p=0$, a contradiction. If
+$\varepsilon_BB_x=0$, \eqref{eq:kB} reduces to
+$\varepsilon_BB_{y,z}=(1-\varepsilon_B)\,u\,\delta B_{y,z}$; multiplying
+\eqref{eq:ku} by $(1-\varepsilon_M)(1-\varepsilon_B)\,u$ and inserting
+\eqref{eq:kp} and \eqref{eq:kB} yields
+\[
+\varepsilon_M^2\,\rho a^2\,(1-\varepsilon_B)
++(1-\varepsilon_M)\,\varepsilon_B^2B_\perp^2=0 .
+\]
+Both terms are non-negative, so $\varepsilon_B=1$ and $B_\perp=0$; but then
+\eqref{eq:ku} reads $\varepsilon_M\,\delta p=0$, again a contradiction. Hence
+\eqref{eq:criterion} holds, which proves (ii).
+ 
+\emph{Case $\varepsilon_M=0$.} If $\varepsilon_BB_x\neq0$, the vector
+$\mathbf r=(1,\,B_y/B_x,\,B_z/B_x,\,0,\,0,\,0)$ satisfies
+\eqref{eq:ku}--\eqref{eq:kB}; if $\varepsilon_B=0$, or if $B_x=0$ and
+$B_\perp=0$, so does $\mathbf r=\mathbf e_u$. In each of these cases
+\eqref{eq:criterion} is violated. In the remaining case, $B_x=0$ and
+$\varepsilon_BB_\perp\neq0$, \eqref{eq:kB} gives
+$\varepsilon_BB_{y,z}=(1-\varepsilon_B)\,u\,\delta B_{y,z}$, and multiplying
+\eqref{eq:ku} by $(1-\varepsilon_B)\,u$ yields
+$\varepsilon_B^2B_\perp^2=0$, a contradiction, so that \eqref{eq:criterion}
+holds. This proves (iii).
+\end{proof}
+ 
+\begin{remark}[Non-uniform conditioning]\label{rem:nonuniform}
+The eigenvector basis of Theorem~\ref{thm:hyp}(ii) is not uniformly
+conditioned as $\varepsilon_M\to0$. For $\varepsilon_BB_x\neq0$ the entropy
+strength of a jump $\Delta\mathbf Q$ in the split basis is
+\begin{equation}\label{eq:went_split}
+w_{\rm ent}^{\rm split}
+=\Delta\rho-\frac{\Delta p}{\varepsilon_Ma^2}
+-\kappa_M\Bigl(\Delta u+\frac{B_y\,\Delta v+B_z\,\Delta w}{B_x}\Bigr),
+\qquad
+\kappa_M=\frac{\rho\,(1-\varepsilon_M)\,u}{\varepsilon_M^2\,a^2},
+\end{equation}
+which reduces to the classical $\Delta\rho-\Delta p/a^2$ for
+$\varepsilon_M=1$ and grows as $\varepsilon_M^{-2}$ otherwise, the trace of
+the Jordan block of case (iii). In the characteristic reconstruction of Section~\ref{sec:reconstruction} the basis is therefore evaluated with $\varepsilon_M$ bounded from below by $10^{-2}$; by Theorem~\ref{thm:hyp} no bound on $\varepsilon_B$ is required.
+
+\end{remark}
+
+\paragraph{Right eigenvectors.}
+The split right eigenvectors are closed-form deformations of the standard
+Roe--Balsara basis~\cite{RoeBalsara1996}; we give them in the primitive
+variables $\mathbf Q$, the conservative eigenvectors following by the
+transformation $\mathbf M=\partial\mathbf U/\partial\mathbf Q$. The divergence
+mode is $\mathbf e_{B_x}$. The entropy eigenvector is $\varepsilon$-independent
+and, consistently with $\delta p=\delta\mathbf u=\delta\mathbf B=0$, is carried
+entirely by the density, $\mathbf r_{\rm ent}=\mathbf e_\rho$. With
+$\alpha_A^{\pm}=u-\tilde\lambda_A^{\pm}$, the Alfv\'en eigenvectors follow from
+the perpendicular $2\times2$ block,
+\begin{equation}\label{eq:R_alf}
+\mathbf r_A^{\pm}=\Big(0,0,-\tfrac{\varepsilon_B B_xB_z}{\rho\,\alpha_A^{\pm}},
+\tfrac{\varepsilon_B B_xB_y}{\rho\,\alpha_A^{\pm}},0,0,-B_z,B_y\Big)^{\mathsf T},
+\end{equation}
+and for each root $\lambda$ of the magnetosonic quartic~\eqref{eq:ms_disp},
+\begin{equation}\label{eq:r_ms}
+\mathbf r_{\rm ms}=\Bigl(-\frac{\rho}{\alpha},\;1,\;
+-\frac{\varepsilon_B^2B_xB_y}{\rho D_A},\;
+-\frac{\varepsilon_B^2B_xB_z}{\rho D_A},\;
+-\frac{\varepsilon_M\rho a^2}{\beta},\;0,\;
+-\frac{\varepsilon_BB_y\,\alpha}{D_A},\;
+-\frac{\varepsilon_BB_z\,\alpha}{D_A}\Bigr)^{\mathsf T},
+\end{equation}
+with $\alpha$, $\beta$, $D_A$ from~\eqref{eq:DsDA} evaluated at that
+$\lambda$. Theorem~\ref{thm:hyp}(ii) guarantees a complete set of
+eigenvectors for $\varepsilon_M>0$;    the closed forms above, however, degenerate where $B_\perp$ vanishes and become singular where $\alpha$, $\beta$ or $D_A$ vanish, and in the
+implementation the Alfv\'en pair is taken in the regularised form of
+Corollary~\ref{cor:alfven} and the aligned sector is diagonalised
+numerically, see Lemma~\ref{lem:blocks}.
+
+\paragraph{Implicit sub-systems.}
+Since $\tilde{\mathbf F}^p=(1-\epsM)\,\mathbf F^p$ and
+$\tilde{\mathbf F}^B=(1-\epsB)\,\mathbf F^B$, the implicit sub-systems of the
+$\varepsilon$-split form have, for frozen parameters, the eigenvalues
+\eqref{eq:p_eigs} and~\eqref{eq:B_eigs} scaled by the complementary weights,
+\begin{equation}
+\label{eq:implicit_eigs}
+\tilde\lambda^{p}_{7,8}=\frac{1-\epsM}{2}\!\left(u\pm\sqrt{u^2+4a^2}\right),
+\qquad
+\tilde\lambda^{B}_{5,6}=\frac{1-\epsB}{2}\!\left(u\pm\sqrt{u^2+4c_a^2}\right),
+\qquad
+\tilde\lambda^{B}_{7,8}=\frac{1-\epsB}{2}\!\left(u\pm\sqrt{u^2+4c_B^2}\right),
+\end{equation}
+the remaining ones being zero. Their implicit treatment thus removes the
+acoustic and the Alfv\'en stiffness independently of one another, while the
+explicit step is governed by $\tilde\lambda^{c}$ alone.
+
+The closed-form eigenvectors fail in two limits: the Alfv\'en
+pair~\eqref{eq:R_alf} degenerates as $B_\perp\to0$, and the entropy
+projection is singular as $\epsM\to0$ (Remark~\ref{rem:nonuniform}). The
+following decomposition confines each of them to a sub-block.
+
+\begin{lemma}[Block decomposition]
+\label{lem:blocks}
+With $B_\perp$, $\beta_y$, $\beta_z$ as in~\eqref{eq:beta} (any fixed unit vector
+when $B_\perp=0$), set
+\[
+\mathbf e_v=(0,0,\beta_z,-\beta_y,0,0,0,0)^{\mathsf T},\qquad
+\mathbf e_B=(0,0,0,0,0,0,\beta_z,-\beta_y)^{\mathsf T}.
+\]
+Then $\AAt_{p}$ of~\eqref{eq:prim_jac} is block diagonal with respect to
+\[
+\mathbb R^{8}
+=\operatorname{span}\{\mathbf e_{B_x}\}
+\oplus\underbrace{\operatorname{span}\{\mathbf e_v,\mathbf e_B\}}_{S_A}
+\oplus\underbrace{\operatorname{span}\{\mathbf e_\rho,\mathbf e_u,
+ \mathbf e_{v_\parallel},\mathbf e_p,\mathbf e_{B_\parallel}\}}_{S_\parallel},
+\]
+and specifically
+\begin{enumerate}
+\item[\rm(i)] the $B_x$ row and the $B_x$ column of $\AAt_p$ vanish, so
+$\Delta B_x$ is itself a characteristic variable with $\tilde\lambda=0$;
+\item[\rm(ii)] $S_\parallel$ is invariant, the induced action being
+\begin{equation}
+\label{eq:A5}
+\mathbf A_5=
+\begin{bmatrix}
+u & \rho & 0 & 0 & 0\\[2pt]
+0 & u & 0 & \tfrac{\epsM}{\rho} & \tfrac{\epsB B_\perp}{\rho}\\[2pt]
+0 & 0 & u & 0 & -\tfrac{\epsB B_x}{\rho}\\[2pt]
+0 & \epsM\rho a^2 & 0 & \epsM u & 0\\[2pt]
+0 & \epsB B_\perp & -\epsB B_x & 0 & \epsB u
+\end{bmatrix},
+\end{equation}
+whose spectrum is the entropy speed $u$ together with the four roots
+of~\eqref{eq:ms_disp};
+\item[\rm(iii)] $S_A$ is invariant with induced action
+\begin{equation}
+\label{eq:A2}
+\mathbf A_2=\begin{bmatrix} u & -\sigma_v\\ -\sigma_B & \epsB u\end{bmatrix},
+\qquad \sigma_v=\frac{\epsB B_x}{\rho},\qquad \sigma_B=\epsB B_x,
+\end{equation}
+whose eigenvalues are the split Alfv\'en speeds~\eqref{eq:alfven_eig}, and the
+functionals
+$\ell_v(\delta\mathbf Q)=\beta_z\,\delta v-\beta_y\,\delta w$,
+$\ell_B(\delta\mathbf Q)=\beta_z\,\delta B_y-\beta_y\,\delta B_z$
+vanish on every eigenvector
+of $\AAt_p$ not contained in $S_A$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(i) is read off~\eqref{eq:prim_jac}. For (iii), let $\delta\mathbf Q=c_1\mathbf e_v+c_2\mathbf e_B$. The $u$-row contributes $\epsB\rho^{-1}c_2(B_y\beta_z-B_z\beta_y)=0$; the $\rho$- and $p$-rows vanish because $\delta\mathbf Q$ has no $\rho$, $u$ or $p$ component; the $v$- and $w$-rows give
+$(uc_1-\sigma_vc_2)(\beta_z,-\beta_y)$ and the $B_y$-, $B_z$-rows give
+$(-\sigma_Bc_1+\epsB u\,c_2)(\beta_z,-\beta_y)$, both again in $S_A$. The
+annihilation statement holds because the magnetosonic eigenvectors have
+$(\delta v,\delta w)$ and $(\delta B_y,\delta B_z)$ parallel to
+$(\beta_y,\beta_z)$, the entropy eigenvector is proportional to $\mathbf e_\rho$,
+and the divergence eigenvector to $\mathbf e_{B_x}$. Statement (ii) is the same
+computation for the complementary rotation.
+\end{proof}
+
+Since $\mathbf A_5$ and $\mathbf A_2$ are restrictions of $\tilde{\mathbf A}_p$ to
+the invariant subspaces $S_\parallel$ and $S_A$, Theorem~\ref{thm:hyp}(i)
+implies that the Alfv\'en quadratic~\eqref{eq:alfven_disp} and the
+magnetosonic quartic~\eqref{eq:ms_disp} have only real roots, for every
+value of $u$.
+
+\begin{corollary}[Regularised split Alfv\'en eigenvectors]
+\label{cor:alfven}
+The eigenpairs of~\eqref{eq:A2} are
+\[
+\mathbf r_\pm=(\sigma_v,\ \alpha_A^{\pm}),\qquad
+\boldsymbol\ell_\pm=(\sigma_B,\ \alpha_A^{\pm}),\qquad
+\boldsymbol\ell_\pm\!\cdot\mathbf r_\pm=\epsB^{2}c_a^{2}+(\alpha_A^{\pm})^{2},
+\]
+so that
+\begin{equation}
+\label{eq:Ralf_reg}
+\hat{\mathbf r}_A^{\pm}=\sigma_v\,\mathbf e_v+\alpha_A^{\pm}\,\mathbf e_B
+\end{equation}
+is~\eqref{eq:R_alf} rescaled by $-\alpha_A^{\pm}/B_\perp$ and is regular as
+$B_\perp\to0$.
+\end{corollary}
+
+The normalisation $\epsB^{2}c_a^{2}+(\alpha_A^{\pm})^{2}$ vanishes only as
+$\epsB B_x\to0$, and then only for the branch with $\alpha_A^{\pm}=0$. This is a
+degeneracy of the parametrisation, not of the system: at $\epsB B_x=0$ the
+block~\eqref{eq:A2} is diagonal, so $v_\perp$ and $B^{*}_\perp$ decouple with the
+speeds $u$ and $\epsB u$ and the eigenvectors $\mathbf e_v$, $\mathbf e_B$. This
+limit is used when $\epsB|B_x|/\sqrt\rho$ falls below $10^{-8}$ times the local
+signal speed.
+ 
+
+ 
+% ===========================================================================
+\section{Semi-implicit numerical scheme}
+\label{sec:scheme}
+
+This section presents the semi-implicit numerical method proposed in this work. We
+begin by establishing the computational framework and notation, followed by the
+adaptive splitting strategy, the explicit treatment of the advective sub-system,
+and the implicit solution of the magnetic and pressure sub-systems.
+
+We restrict our presentation to two spatial dimensions on a uniform Cartesian mesh. The computational domain
+$\Omega=[x_{\min},x_{\max}]\times[y_{\min},y_{\max}]$ is partitioned into
+$N_x\times N_y$ rectangular control volumes with uniform spacing
+\begin{equation}
+\label{eq:mesh}
+\Delta x=\frac{x_{\max}-x_{\min}}{N_x},\qquad
+\Delta y=\frac{y_{\max}-y_{\min}}{N_y}.
+\end{equation}
+A control volume is indexed by the pair $(i,j)$, with its centre located at
+$\mathbf x_{i,j}=(x_i,y_j)$. The midpoints of the cell interfaces in the $x$- and
+$y$-directions are
+\begin{equation}
+\label{eq:face_centres}
+\mathbf x_{i+\frac12,j}=\left(\frac{x_i+x_{i+1}}{2},\;y_j\right),\qquad
+\mathbf x_{i,j+\frac12}=\left(x_i,\;\frac{y_j+y_{j+1}}{2}\right).
+\end{equation}
+Throughout this paper, superscripts denote discrete time levels and subscripts
+identify spatial locations. The scheme is a finite volume method: the discrete
+unknowns are the cell averages of the conservative variables, all of which,
+including the magnetic field, are associated with the control volumes
+(collocated arrangement). The divergence-free constraint is enforced by an
+unstaggered constrained-transport step that evolves the cell averages of the
+magnetic vector potential, see Section~\ref{sec:CT}.
+
+The time interval $[0,t_{\mathrm{out}}]$ is discretised by time steps
+$\Delta t=t^{n+1}-t^{n}$, always subject to a CFL-type stability condition based
+\emph{only} on the characteristic speeds of the explicit sub-system
+\eqref{eq:new_split}. Thus, with $|\tilde\lambda^{c}_{\max}|^{n}$ denoting the
+largest eigenvalue of the split convective sub-system at time level $t^{n}$,
+\begin{equation}
+\label{eq:cfl}
+\Delta t\le \mathrm{CFL}\,
+\frac{\min(\Delta x,\Delta y)}{\max_\Omega|\tilde\lambda^{c}_{\max}|^{n}}.
+\end{equation}
+Condition~\eqref{eq:cfl} is based on the $\eps$-split convective spectrum rather
+than on the full MHD spectrum~\eqref{eq:MHD_eigs}. In the low-Mach and low-Alfv\'en
+regime $\epsM,\epsB\to0$ and $|\tilde\lambda^{c}_{\max}|\to\|\mathbf{u}\|$, so that the
+time step is governed by the material velocity rather than by the sound speed or
+the Alfv\'en speed; in the supersonic and super-Alfv\'enic regime
+$\epsM,\epsB\to1$ and the full MHD spectrum is recovered. Because the two
+parameters act independently, either constraint may be removed on its own: the
+time step is freed from the acoustic restriction wherever $M\ll1$ and from the
+Alfv\'enic restriction wherever $M_A\ll1$, regardless of the other.
+
+Two remarks on what this does and does not gain. A single parameter driven by the
+more restrictive of the two Mach numbers vanishes whenever either channel is
+stiff, so it yields the same $\mathcal O(\|\mathbf u\|)$ explicit spectrum
+as~\eqref{eq:cfl}; the second parameter then changes not the step but the
+discretisation of the channel that is not stiff, which is returned to the upwind
+solver of Section~\ref{sec:hllem} instead of being carried by the central-type
+implicit operator. It is against a single parameter driven by the acoustic Mach
+number alone that the step itself improves, and then by orders of magnitude,
+since such a parameter leaves $\FF^{B}$ explicit in a strongly magnetised flow.
+
+\subsection{Adaptive $\eps$-splitting strategy}
+\label{sec:eps_strategy}
+
+The two splitting parameters control the partition of the acoustic and of the
+magnetic flux between the explicit and the implicit sub-systems, and their values
+should reflect the local flow regime. We define them from the local acoustic and
+Alfv\'en Mach numbers~\eqref{eq:two_mach} through a single switching
+function. Following~\cite{NewAP}, for each cell $(i,j)$ we set
+\begin{equation}
+\label{eq:switch}
+s(\mu)=\begin{cases}
+1-\mu^{\alpha}, & 0\le\mu\le M_0,\\[4pt]
+\exp\!\Big(1-\dfrac{1}{1-\big(\frac{\mu-M_0}{M_1-M_0}\big)^{2}}\Big)
+\big[(1-M_0^{\alpha})-(1-M_1)^{\alpha}\big]+(1-M_1)^{\alpha}, & M_0<\mu<M_1,\\[6pt]
+(1-\mu)^{\alpha}, & M_1\le\mu\le1,\\[4pt]
+0,& \mu>1,
+\end{cases}
+\end{equation}
+with $M_0=0.15$, $M_1=0.4$ and $\alpha=14$, and then define
+\begin{equation}
+\label{eq:eps_def}
+\epsM{}_{,i,j}=1-s\big(M_{i,j}\big),
+\qquad
+\epsB{}_{,i,j}=1-s\big(M_{A,i,j}\big).
+\end{equation}
+The same switching function is applied to two different arguments: the
+acoustic parameter is driven by $M$ and the magnetic one by $M_A$. By
+construction $\epsM,\epsB\in[0,1]$, with $\varepsilon\to0$ in the
+corresponding stiff limit (where nearly the entire flux of that channel is
+delegated to the implicit solver) and $\varepsilon=1$ once the corresponding
+Mach number reaches unity (where that channel is returned entirely to the
+explicit sub-system), with a continuous monotone transition in between. By Theorem~\ref{thm:hyp} the explicit sub-system has real eigenvalues for all
+values of the parameters and a complete set of eigenvectors whenever
+$\epsM>0$, irrespective of $\epsB$. Since $\epsM=M^{\alpha}$ for $M\le M_0$, it
+vanishes only where the velocity vanishes, but it falls below machine precision
+already for $M\lesssim0.07$, so that low-Mach regions are numerically at the
+limit $\epsM=0$ of Theorem~\ref{thm:hyp}(iii). The Riemann solver does not
+require $\epsM>0$, since it uses only the regularised Alfv\'en projection and
+the classical entropy strength (Section~\ref{sec:hllem}). The characteristic
+basis does: its conditioning degrades as $\epsM\to0$
+(Remark~\ref{rem:nonuniform}), and it is therefore evaluated with $\epsM$
+bounded from below by $10^{-2}$, as described in
+Section~\ref{sec:reconstruction}. No bound on $\epsB$ is needed.
+
+Since the numerical flux is evaluated at cell interfaces, the interface splitting
+parameters are defined as
+\begin{equation}
+\label{eq:eps_face}
+\eps^{x}_{i+\frac12,j}=\max\!\left(\eps_{i,j},\;\eps_{i+1,j}\right),
+\qquad
+\eps^{y}_{i,j+\frac12}=\max\!\left(\eps_{i,j},\;\eps_{i,j+1}\right),
+\end{equation}
+for $\eps\in\{\epsM,\epsB\}$ alike. The $\max$ operator ensures that if either
+adjacent cell requires a larger explicit contribution, the interface flux is
+computed with the more explicit splitting, which enhances stability at transitions
+between stiff and non-stiff regions.
+
+The behaviour of each channel separately is summarised as follows.
+\begin{itemize}
+\item \textbf{Acoustically supersonic} ($M\ge1$): $\epsM=1$. The pressure flux is
+entirely retained in the explicit sub-system, and the acoustic waves are handled
+by the Riemann solver.
+\item \textbf{Acoustically stiff} ($M\ll1$): $\epsM=M^{\alpha}\approx0$. Nearly
+all of the acoustic flux is delegated to the implicit solver, and the explicit
+time step ceases to feel the sound speed $a$.
+\item \textbf{Magnetically super-Alfv\'enic} ($M_A\ge1$): $\epsB=1$, the magnetic
+flux is fully explicit, and the Alfv\'en and magnetosonic waves are resolved by
+the Riemann solver.
+\item \textbf{Magnetically stiff} ($M_A\ll1$): $\epsB\approx0$, the magnetic
+flux is delegated to the implicit solver, and the explicit time step ceases to feel the Alfv\'en speed $c_B$.
+\end{itemize}
+
+Because $\epsM$ and $\epsB$ are evaluated independently, the four combinations of
+these regimes are all admissible, and it is precisely the two \emph{mixed} cases
+that a single-parameter splitting cannot represent: a flow that is acoustically
+stiff but magnetically non-stiff (a high-$\beta$ low-Mach plasma) would have its
+Alfv\'en waves over-stabilised, while a flow that is magnetically stiff but
+acoustically non-stiff (a strongly magnetised low-$\beta$ plasma at moderate Mach
+number) would have its acoustic waves needlessly implicit.
+
+
+\subsection{Advection sub-system}
+\label{sec:hllem}
+
+The advective sub-system is integrated explicitly using a standard finite volume
+formulation. At each time step, the cell-averaged state $\mathbf{U}^{n}_{i,j}$ is advanced
+to an intermediate value $\mathbf{U}^{*}_{i,j}$ via
+\begin{equation}
+\label{eq:adv_update}
+\mathbf{U}^{*}_{i,j}=\mathbf{U}^{n}_{i,j}
+-\frac{\Delta t}{\Delta x}\big(\tilde\FF^{\eps}_{i+\frac12,j}-\tilde\FF^{\eps}_{i-\frac12,j}\big)
+-\frac{\Delta t}{\Delta y}\big(\tilde\GG^{\eps}_{i,j+\frac12}-\tilde\GG^{\eps}_{i,j-\frac12}\big),
+\end{equation}
+where $\tilde\FF^{\eps}$ and $\tilde\GG^{\eps}$ are numerical fluxes consistent
+with the split convective flux $\tilde\FF^{c}$ of~\eqref{eq:new_split}. We
+describe the construction in the $x$-direction; the $y$-direction flux follows by
+the cyclic permutation $(x,y,z)\to(y,z,x)$. We note that $\rho^{n+1}=\rho^{*}$,
+since the density flux involves neither the pressure nor the magnetic
+contribution and is therefore already fully updated at this stage.
+
+\paragraph{Standard IMEX baseline: scalar-dissipation fluxes.}
+Existing semi-implicit three-way splittings~\cite{Fambri2021,MHDIMEX}
+correspond to the fixed choice $\epsM=\epsB\equiv0$, for which the convective
+sub-system is only weakly hyperbolic. The absence of a complete set of linearly
+independent eigenvectors precludes the use of characteristic-based Riemann solvers
+and forces a scalar dissipation of Rusanov type~\cite{Rusanov1962},
+\begin{equation}
+\label{eq:rusanov}
+\tilde\FF^{\eps}_{i+\frac12,j}
+=\half\!\left[\tilde\FF^{c}(\mathbf{U}^{L})+\tilde\FF^{c}(\mathbf{U}^{R})
+-s^{\max}_{i+\frac12,j}\big(\mathbf{U}^{R}-\mathbf{U}^{L}\big)\right],
+\qquad
+s^{\max}_{i+\frac12,j}=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\mathbf{U}^{R}\}}\big|\tilde\lambda^{c}_{\max}(\mathbf{U})\big| ,
+\end{equation}
+which smears the entropy, Alfv\'en and magnetosonic fields equally.
+
+\paragraph{$\eps$-IMEX: AP-HLLEM flux.}
+Whenever $\epsM > 0$ the adaptive splitting restores strong hyperbolicity of the
+convective sub-system: the Jacobian~\eqref{eq:prim_jac} admits eight real
+eigenvalues together with a complete set of right eigenvectors. This makes the HLLEM scheme of Einfeldt et al.~\cite{einfeldt1991godunov},
+in the formulation of Dumbser and Balsara~\cite{HLLEM}, applicable.
+Starting from the two-wave HLLE solver, HLLEM adds an anti-diffusive correction
+along the linearly degenerate intermediate fields, so that contact and rotational
+discontinuities are resolved sharply while the robustness of HLLE is preserved.
+The construction below is built so that the entire asymptotic-preserving scaling
+resides in the wave coefficients $\delta_k$, while the wave structure is supplied
+by the split basis of Section~\ref{sec:eigenstructure}.
+
+The averaged state is the Cargo--Gallice MHD Roe mean~\cite{CargoGallice1997},
+\begin{equation}
+\label{eq:roe}
+\tilde\rho=\sqrt{\rho_L\rho_R},\quad
+\tilde\psi=\frac{\sqrt{\rho_L}\psi_L+\sqrt{\rho_R}\psi_R}{\sqrt{\rho_L}+\sqrt{\rho_R}}\ \ (\psi=u,v,w,H),\quad
+\tilde B_i=\frac{\sqrt{\rho_R}B_{iL}+\sqrt{\rho_L}B_{iR}}{\sqrt{\rho_L}+\sqrt{\rho_R}}.
+\end{equation}
+where $H=(E+p+\tfrac12\|\mathbf B\|^2)/\rho$ is the total specific enthalpy, and the
+Roe sound speed is
+$\tilde a^2=(\gamma-1)\big(\tilde H-\tfrac12\|\tilde{\mathbf u}\|^2-\|\tilde{\mathbf B}\|^2/\tilde\rho\big)$. The wave-speed envelope is given by the Einfeldt estimates built from the extreme
+\emph{split} eigenvalues of the left, right and Roe-average states. Denoting by
+$\tilde\lambda^{\mp}_{f}(\mathbf{U})$ the smallest and largest roots of the magnetosonic
+quartic~\eqref{eq:ms_disp} at a state $\mathbf{U}$,
+\begin{equation}
+\label{eq:einfeldt}
+s_{L}=\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{-}_{f}(\mathbf{U}),
+\qquad
+s_{R}=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}).
+\end{equation}
+Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
+on the invariant blocks of Lemma~\ref{lem:blocks} the interval
+$[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
+Alfv\'en speeds~\eqref{eq:alfven_eig}. We have verified this over the whole
+admissible range of states and of $(\epsM,\epsB)\in[0,1]^2$; the two intervals
+touch only in the degenerate limit $\epsB B_x\to0$, where the Alfv\'en pair
+collapses onto $\{u,\epsB u\}$. The anti-diffusion coefficients
+$\delta_k$ of~\eqref{eq:deltak} therefore lie in $[0,1]$ for all three linearly
+degenerate fields without further clipping.
+
+Writing the quartic~\eqref{eq:ms_disp} in monic form,
+$\lambda^4+c_3\lambda^3+c_2\lambda^2+c_1\lambda+c_0=0$, all its roots are
+real by Lemma~\ref{lem:blocks} and bounded in modulus by
+\begin{equation}\label{eq:fujiwara}
+R=2\max\Bigl(|c_3|,\;|c_2|^{1/2},\;|c_1|^{1/3},\;\bigl|\tfrac12c_0\bigr|^{1/4}\Bigr).
+\end{equation}
+Newton's method started from $R$ therefore decreases monotonically to
+$\tilde\lambda_f^{+}$, and started from $-R$ increases monotonically to
+$\tilde\lambda_f^{-}$; about ten scalar iterations suffice and no eigenvalue
+solver is required at the interface. The monotone iteration is also what makes
+the evaluation robust. The roots are real, but two of them nearly coincide over
+a non-negligible part of the state space, and a general-purpose root finder
+applied to the coefficients $(c_3,c_2,c_1,c_0)$ then returns spurious complex
+pairs -- for randomly sampled admissible states, in a few per cent of them.
+Newton started outside the root interval of a polynomial with real roots cannot
+leave it, so the envelope is obtained without any such failure.
+For $s_L\ge0$ or $s_R\le0$ the
+flux reduces to the upwind value $\tilde\FF^{c}(\mathbf{U}^{L})$ or
+$\tilde\FF^{c}(\mathbf{U}^{R})$; for $s_L<0<s_R$ the AP-HLLEM flux reads
+\begin{equation}
+\label{eq:hllem}
+\tilde\FF^{\eps}_{i+\frac12,j}
+=\FF^{\mathrm{HLL}}_{i+\frac12,j}
+-\frac{s_Ls_R}{s_R-s_L}\sum_{k\in\{\mathrm{ent},A^{\pm}\}}\delta_k\,w_k\,\RR_k,
+\end{equation}
+with the standard HLL flux
+\begin{equation}
+\label{eq:hll}
+\FF^{\mathrm{HLL}}_{i+\frac12,j}
+=\frac{s_R\,\tilde\FF^{c}(\mathbf{U}^{L})-s_L\,\tilde\FF^{c}(\mathbf{U}^{R})
++s_Ls_R\big(\mathbf{U}^{R}-\mathbf{U}^{L}\big)}{s_R-s_L}.
+\end{equation}
+If $p^{L}\le0$, $p^{R}\le0$ or $\tilde a^{2}\le10^{-10}$ the anti-diffusive term
+is omitted.
+
+\paragraph{Wave strengths.}
+The three linearly degenerate fields are the entropy wave at
+$\tilde\lambda_{\mathrm{ent}}=\tilde u$ and the two Alfv\'en waves at
+$\tilde\lambda_A^{\pm}$ of~\eqref{eq:alfven_eig}. Throughout,
+$\Delta(\cdot)=(\cdot)^{R}-(\cdot)^{L}$ denotes the interface jump and tildes
+denote Roe-average quantities.
+
+For the Alfv\'en pair the projection is available in closed form: by
+Lemma~\ref{lem:blocks}(iii) the transverse functionals
+\begin{equation}
+\label{eq:alf_jumps}
+\Delta v_\perp=\beta_z\,\Delta v-\beta_y\,\Delta w,
+\qquad
+\Delta B_\perp^{*}=\beta_z\,\Delta B_y-\beta_y\,\Delta B_z
+\end{equation}
+isolate the Alfv\'en content of the interface jump, and
+Corollary~\ref{cor:alfven} gives the strengths and the regularised
+eigenvectors
+\begin{equation}
+\label{eq:walf}
+w_A^{\pm}=\frac{\sigma_B\,\Delta v_\perp+\alpha_A^{\pm}\,\Delta B_\perp^{*}}
+{\epsB^{2}c_a^{2}+(\alpha_A^{\pm})^{2}},
+\qquad
+\hat{\mathbf r}_A^{\pm}=\sigma_v\,\mathbf e_v+\alpha_A^{\pm}\,\mathbf e_B,
+\end{equation}
+with $\sigma_v$, $\sigma_B$ from~\eqref{eq:A2}. For
+$\epsB|\tilde B_x|/\sqrt{\tilde\rho}\to0$ the pair is replaced by its
+decoupled limit.
+
+The entropy field is treated differently. Its exact strength in the split
+basis, \eqref{eq:went_split}, is unbounded as $\epsM\to0$. In the complete
+eigen-decomposition $\sum_kw_k\RR_k=\Delta\mathbf U$ this growth is cancelled
+by the density components of the magnetosonic fields, but the anti-diffusive
+term of~\eqref{eq:hllem} weights the fields with different $\delta_k$, so
+that the cancellation is lost. The entropy strength is therefore taken in the
+classical form, which is bounded for all $\epsM$ and coincides
+with~\eqref{eq:went_split} across a contact discontinuity,
+\begin{equation}
+\label{eq:went}
+w_{\mathrm{ent}}=\Delta\rho-\frac{\Delta p}{\tilde a^{2}},
+\qquad
+\RR_{\mathrm{ent}}=\bigl(1,\,\tilde u,\,\tilde v,\,\tilde w,\,
+\half\|\tilde{\mathbf u}\|^{2},\,0,\,0,\,0\bigr)^{\mathsf T}.
+\end{equation}
+
+\paragraph{AP scaling in $\delta_k$.}
+The anti-diffusion coefficients measure the separation of each linearly
+degenerate speed from the wave-speed envelope, and are built from the
+\emph{split} eigenvalues,
+\begin{equation}
+\label{eq:deltak}
+\delta_k=1-\frac{\tilde\lambda_k^{-}}{s_L}-\frac{\tilde\lambda_k^{+}}{s_R},
+\qquad
+\tilde\lambda^{\pm}=\tfrac12\bigl(\tilde\lambda\pm|\tilde\lambda|\bigr),
+\end{equation}
+restricted to $[0,1]$. By construction $\delta_k\to0$ when the corresponding
+speed approaches the envelope, as it does near strong shocks, and
+$\delta_k\to1$ for a well-separated field, restoring the resolution of a
+complete Riemann solver. In the stiff limit $\epsM,\epsB\to0$ the split spectrum collapses onto $\{0,u\}$,
+so that $s_L,s_R=\mathcal O(|u|)$: the coefficient $s_Ls_R/(s_R-s_L)$
+of~\eqref{eq:hllem}, and with it both the HLL dissipation and the anti-diffusive
+term, scales with the material velocity rather than with the sound or Alfv\'en
+speed. Where $u$ has one sign across the interface, $s_Ls_R=0$ and the flux
+reduces to the upwind value. The asymptotic-preserving property is thus
+continuous in $\epsM,\epsB$, with no solver switching.
+
+
+\subsection{Characteristic WENO3-Z reconstruction}
+\label{sec:reconstruction}
+
+Third-order accuracy of the explicit terms is obtained by a characteristic
+WENO3-Z reconstruction~\cite{DonBorges2013} with a monotonicity-preserving
+limiter, performed on the cell averages $\mathbf q_i$ of the primitive variables.
+These are computed from the conservative cell averages through point values
+(deconvolution, pointwise conversion, convolution) with the operators of
+Section~\ref{sec:fv_ops}. We describe the left state at the face $i+\tfrac12$;
+the right state follows by symmetry and the $y$-direction by the permutation
+$(x,y,z)\to(y,z,x)$.
+
+The jumps of the primitive variables are projected onto the split characteristic
+basis, reconstructed, and mapped back,
+\begin{equation}
+\label{eq:incr_proj}
+\mathbf q^{L}_{i+\frac12}=\mathbf q_i+\RR\,\mathrm{incr},
+\qquad
+\mathrm{incr}_k=\half\big(w_0\,\Delta_-c_k+w_1\,\Delta_+c_k\big),
+\qquad
+\Delta_\pm c=\LL\,\Delta_\pm\mathbf q,
+\end{equation}
+where $\RR$ and $\LL$ are the split eigenvector operators at the arithmetic mean
+of the two adjacent states and at the interface parameters~\eqref{eq:eps_face},
+with $\epsM$ bounded from below by $10^{-2}$ in the basis only. The block
+decomposition of Lemma~\ref{lem:blocks} reduces the inversion to the
+five-dimensional aligned sector and removes the $B_\perp\to0$ degeneracy.
+With ideal weights
+$d_0=\tfrac13$, $d_1=\tfrac23$ and $\beta_0=(\Delta_-c_k)^2$,
+$\beta_1=(\Delta_+c_k)^2$, the weights are
+\begin{equation}
+\label{eq:wenoz}
+\tau=|\beta_0-\beta_1|,\qquad
+\omega_j=d_j\!\left[1+\left(\frac{\tau}{\beta_j+\epsilon_{w,k}}\right)^{\!2}\right],\qquad
+w_j=\frac{\omega_j}{\omega_0+\omega_1},
+\qquad
+\epsilon_{w,k}=(\Delta x\,S_k)^{2},
+\end{equation}
+with $S_k$ the magnitude of the $k$-th characteristic variable,
+$S_k^{2}=\sum_m(\LL_{km}\max_\Omega|q_m|)^2$. The mesh-dependent regularisation
+keeps $w_j=d_j+\mathcal O(h^2)$ also in the neighbourhood of critical points,
+where a constant $\epsilon_w$ reduces the three-point scheme to second order.
+
+The face values are then limited componentwise by the monotonicity-preserving
+bounds of Suresh and Huynh~\cite{SureshHuynh1997}, applied here to the
+third-order value and restricted to the four-point stencil
+$\{q_{i-1},q_{i},q_{i+1},q_{i+2}\}$ of the reconstruction: the curvature measure $d_M$
+is the minmod of the two available second differences, and it is used in both
+the median and the large-curvature bounds. We refer to this variant as MP3. With
+$\Delta q_i=q_i-q_{i-1}$ and
+$q^{\mathrm{MP}}=q_i+\minmod(q_{i+1}-q_i,\,2\Delta q_i)$, the WENO value
+$q^{\mathrm W}$ is accepted if
+$(q^{\mathrm W}-q_i)(q^{\mathrm W}-q^{\mathrm{MP}})\le0$; otherwise
+\begin{equation}
+\label{eq:mp3_cand}
+d_M=\minmod\!\big(q_{i-1}-2q_i+q_{i+1},\;q_i-2q_{i+1}+q_{i+2}\big),
+\end{equation}
+\begin{equation}
+\label{eq:mp3_three}
+q^{\mathrm{UL}}=q_i+2\Delta q_i,\qquad
+q^{\mathrm{MD}}=\half(q_i+q_{i+1})-\half d_M,\qquad
+q^{\mathrm{LC}}=q_i+\half\Delta q_i+\tfrac43 d_M,
+\end{equation}
+\begin{equation}
+\label{eq:mp3_bounds}
+\begin{aligned}
+q^{\min}&=\max\!\big(\min(q_i,q_{i+1},q^{\mathrm{MD}}),\,\min(q_i,q^{\mathrm{UL}},q^{\mathrm{LC}})\big),\\
+q^{\max}&=\min\!\big(\max(q_i,q_{i+1},q^{\mathrm{MD}}),\,\max(q_i,q^{\mathrm{UL}},q^{\mathrm{LC}})\big),
+\end{aligned}
+\qquad
+q^{\mathrm{final}}=\median\!\big(q^{\mathrm W},q^{\min},q^{\max}\big).
+\end{equation}
+
+\begin{proposition}\label{prop:mp3}
+Let $q\in C^3(J)$ on a compact interval $J$ and assume that $q$ has no
+degenerate critical point, $|q'(x)|+|q''(x)|>0$ on $J$. Let $q_i$ denote the
+cell averages of $q$ and let $q^{\rm W}$ satisfy
+$|q^{\rm W}-q(x_{i+1/2})|\le K_{\rm W}h^3$. Then there exists $h_0>0$,
+depending only on $\|q\|_{C^3(J)}$, on $\min_J(|q'|+|q''|)$ and on
+$K_{\rm W}$, such that for $h<h_0$ the limiter
+\eqref{eq:mp3_cand}--\eqref{eq:mp3_bounds} returns $q^{\rm W}$ unchanged in every cell whose
+stencil $\{x_{i-1},\dots,x_{i+2}\}$ lies in $J$. In particular the design
+order is retained at smooth extrema, wherever they are located relative to
+the mesh.
+\end{proposition}
+ 
+\begin{proof}
+By compactness there is $c_0>0$ such that, at every $x\in J$,
+$|q'(x)|\ge c_0$ or $|q''(x)|\ge c_0$. All remainders below are bounded by
+$Kh^3$ (or $Kh^2$ where stated), with $K$ depending only on
+$\|q\|_{C^3(J)}$ and $K_{\rm W}$. Since the limiter commutes with
+$q\mapsto-q$, signs may be fixed without loss of generality. We write
+$q'=q'(x_i)$ and $q''=q''(x_i)$.
+ 
+\emph{Case A: $|q'|\ge c_0$; let $q'>0$.} Taylor expansion gives
+$q_{i+1}-q_i=hq'+\mathcal O(h^2)$, $2\Delta q_i=2hq'+\mathcal O(h^2)$ and
+$q^{\rm W}-q_i=\tfrac12hq'+\mathcal O(h^2)$. Hence
+$q^{\rm MP}-q_i=hq'+\mathcal O(h^2)$ and, for $h$ small,
+$0<q^{\rm W}-q_i<q^{\rm MP}-q_i$, so that
+$(q^{\rm W}-q_i)(q^{\rm W}-q^{\rm MP})<0$ and $q^{\rm W}$ is accepted.
+ 
+\emph{Case B: $|q''|\ge c_0$; let $q''>0$.} Set
+\[
+\kappa=h^2q''\ \ge\ c_0\,h^2,\qquad
+\vartheta=\frac{q'}{h\,q''}\in\mathbb R ,
+\]
+so that $\vartheta h$ is, to leading order, the signed distance from the
+critical point to $x_i$. No bound on $\vartheta$ is assumed. For cell
+averages,
+$q_{i+k}-q_i=\kappa\bigl(k\vartheta+\tfrac12k^2\bigr)+\mathcal O(h^3)$, and
+$q(x_{i+1/2})-q_i
+=\kappa\bigl(\tfrac12\vartheta+\tfrac18-\tfrac1{24}\bigr)+\mathcal O(h^3)$.
+Therefore, each up to $\mathcal O(h^3)$,
+\begin{gather*}
+q_{i+1}-q_i=\kappa\bigl(\vartheta+\tfrac12\bigr),\qquad
+\Delta q_i=\kappa\bigl(\vartheta-\tfrac12\bigr),\qquad
+d_M=\kappa,\qquad
+q^{\rm W}-q_i=\kappa\bigl(\tfrac12\vartheta+\tfrac1{12}\bigr),\\[2pt]
+q^{\rm UL}-q_i=\kappa\,(2\vartheta-1),\qquad
+q^{\rm MD}-q_i=\kappa\bigl(\tfrac12\vartheta-\tfrac14\bigr),\qquad
+q^{\rm LC}-q_i=\kappa\bigl(\tfrac12\vartheta+\tfrac{13}{12}\bigr);
+\end{gather*}
+for $d_M$ this uses that both second differences in \eqref{eq:mp3_cand} equal
+$\kappa+\mathcal O(h^3)$ and are therefore positive for $h$ small.
+Consequently, for every $\vartheta$,
+\begin{equation}\label{eq:mp_ident}
+q^{\rm W}=q^{\rm MD}+\tfrac13\kappa=q^{\rm LC}-\kappa
+\qquad\text{up to }\mathcal O(h^3).
+\end{equation}
+ 
+\emph{Lower bound.} By \eqref{eq:mp_ident},
+$\min(q_i,q_{i+1},q^{\rm MD})\le q^{\rm MD}=q^{\rm W}-\tfrac13\kappa$.
+Moreover
+\[
+\min(q_i,q^{\rm UL},q^{\rm LC})\le\min(q_i,q^{\rm UL})
+=q^{\rm W}-\kappa\,\max\bigl(\tfrac12\vartheta+\tfrac1{12},\,
+\tfrac{13}{12}-\tfrac32\vartheta\bigr)\le q^{\rm W}-\tfrac13\kappa ,
+\]
+the maximum of the two affine functions being smallest at
+$\vartheta=\tfrac12$, where it equals $\tfrac13$. Hence
+$q^{\min}\le q^{\rm W}-\tfrac13\kappa$.
+ 
+\emph{Upper bound.} By \eqref{eq:mp_ident},
+$\max(q_i,q^{\rm UL},q^{\rm LC})\ge q^{\rm LC}=q^{\rm W}+\kappa$, and
+\[
+\max(q_i,q_{i+1},q^{\rm MD})\ge\max(q_i,q_{i+1})
+=q^{\rm W}+\kappa\,\max\bigl(-\tfrac12\vartheta-\tfrac1{12},\,
+\tfrac12\vartheta+\tfrac5{12}\bigr)\ge q^{\rm W}+\tfrac16\kappa ,
+\]
+the maximum being smallest at $\vartheta=-\tfrac12$, where it equals
+$\tfrac16$. Hence $q^{\max}\ge q^{\rm W}+\tfrac16\kappa$.
+ 
+Including the remainders, and since $\min$ and $\max$ are Lipschitz,
+\[
+q^{\min}\le q^{\rm W}-\tfrac13\kappa+Kh^3,\qquad
+q^{\max}\ge q^{\rm W}+\tfrac16\kappa-Kh^3 ,
+\]
+and $\kappa\ge c_0h^2$ gives $q^{\min}<q^{\rm W}<q^{\max}$ for
+$h<c_0/(6K)$. Therefore
+$\operatorname{median}(q^{\rm W},q^{\min},q^{\max})=q^{\rm W}$, whether or
+not the acceptance test is passed.
+\end{proof}
+ 
+% (former Remark 3.3 deleted; one sentence of running text instead)
+\noindent The result relies on the specific coefficients $2$ and $\tfrac43$
+in \eqref{eq:mp3_three} and on the use of the same curvature measure $d_M$ in
+$q^{\rm MD}$ and in $q^{\rm LC}$.
+
+
+\paragraph{Admissibility.}
+\label{sec:zslimiter}
+In strongly magnetised regions the internal energy is a small difference of
+large kinetic and magnetic contributions, and a small overshoot of the
+reconstruction can produce a face state with negative pressure, for which the
+Roe average of Section~\ref{sec:hllem} is not defined. Following the first
+stage of the Zhang--Shu procedure~\cite{ZhangShu2010}, each limited face value
+$\mathbf q^{\mathrm{rec}}$ is therefore contracted towards the cell average,
+\begin{equation}
+\label{eq:thetascale}
+\tilde{\mathbf q}=\bar{\mathbf q}_{i,j}
++\theta\big(\mathbf q^{\mathrm{rec}}-\bar{\mathbf q}_{i,j}\big),
+\qquad
+\theta=\min_{x\in\{\rho,p\}}
+\min\!\Big(1,\ \frac{\bar x_{i,j}-x_{\min}}{\bar x_{i,j}-x^{\mathrm{rec}}}\Big),
+\end{equation}
+with $x_{\min}\in\{\rho_{\min},p_{\min}\}$, $\rho_{\min}=p_{\min}=10^{-13}$,
+$\theta=1$ where $x^{\mathrm{rec}}\ge x_{\min}$ and $\theta=0$ where
+$\bar x_{i,j}\le x_{\min}$. Since the reconstruction is performed in primitive
+variables, $\rho$ and $p$ are affine in $\theta$, so that
+$\rho,p\ge(\rho_{\min},p_{\min})$ holds for $\tilde{\mathbf q}$ whenever it
+holds for $\bar{\mathbf q}_{i,j}$. This floor only keeps the face states
+admissible for the Riemann solver and is unrelated to the pressure floor
+$p_\varepsilon$ of Section~\ref{sec:nestednewton}.
+ 
+
+
+\subsection{Implicit magnetic and acoustic sub-systems}
+\label{sec:implicit}
+After the explicit advective update the density $\rho^{n+1}=\rho^{*}$ is known, and
+the residual fluxes $(1-\epsB)\FF^{B}$ and $(1-\epsM)\FF^{p}$ are integrated
+implicitly, the magnetic field first and the pressure second. Each sub-system is
+reduced to a single linear system by eliminating the momentum: the first one
+yields a predictor of the magnetic field, the second one the pressure together
+with the divergence-free magnetic field. This section presents both in
+semi-discrete form; the discrete operators are given in
+Section~\ref{sec:highorder}.
+
+\subsubsection{Magnetic sub-system}
+\label{sec:magnetic}
+Following the elimination strategy of~\cite{BoscheriThomann2024}, the momentum
+equation is substituted into the induction equation, with the gas pressure
+gradient taken at the old time level. The quadratic Maxwell stress is linearised about $\mathbf B^{n}$: the magnetic
+pressure by its tangent,
+$\tfrac12\|\mathbf B\|^{2}\approx\mathbf B^{n}\!\cdot\!\mathbf B-\tfrac12\|\mathbf B^{n}\|^{2}$,
+and the tension as $\mathbf B\otimes\mathbf B^{n}$. In this section a star
+denotes the state after the explicit update~\eqref{eq:adv_update}, which
+already contains the explicit shares $\epsM\mathbf F^p$ and
+$\epsB\mathbf F^B$, and the superscript $n$ the old time level, about which
+the nonlinear terms are linearised. The momentum entering the induction
+equation is thus
+\begin{equation}
+\label{eq:mag_mom}
+(\rho\mathbf u)^{\dagger}=(\rho\mathbf u)^{*}
+-\Delta t\,\nabla\!\cdot\!\Bigl[(1-\epsB)\Bigl(
+\bigl(\mathbf B^{n}\!\cdot\!\tilde{\mathbf B}-\tfrac12\|\mathbf B^{n}\|^{2}\bigr)\mathbf I
+-\tilde{\mathbf B}\otimes\mathbf B^{n}\Bigr)\Bigr]
+-\Delta t\,\nabla\bigl[(1-\epsM)\,p^{n}\bigr],
+\end{equation}
+and the field is advanced by
+\begin{equation}
+\label{eq:induction}
+\tilde{\mathbf B}=\mathbf B^{*}
+-\Delta t\,\nabla\!\cdot\!\Bigl[(1-\epsB)\bigl(
+\mathbf B^{n}\otimes\mathbf u^{\dagger}-\mathbf u^{\dagger}\otimes\mathbf B^{n}\bigr)\Bigr],
+\qquad
+\mathbf u^{\dagger}=\frac{(\rho\mathbf u)^{\dagger}}{\rho^{n+1}} .
+\end{equation}
+Inserting \eqref{eq:mag_mom} into \eqref{eq:induction} eliminates the velocity and
+gives a linear system for $\tilde{\mathbf B}$ alone,
+\begin{equation}
+\label{eq:mag_sys}
+\tilde{\mathbf B}-\Delta t^{2}\,\mathcal D_B^{n}\bigl[\tilde{\mathbf B}\bigr]
+-\mathcal S_h\bigl[\tilde{\mathbf B}\bigr]=\mathbf b ,
+\end{equation}
+in which $\mathcal D_B^{n}$ is the composition of the linearised stress divergence in~\eqref{eq:mag_mom}, the division by
+$\rho^{n+1}$ and the induction operator in~\eqref{eq:induction},
+$\mathbf b$ collects the terms that do not depend on $\tilde{\mathbf B}$, and
+$\mathcal S_h$ is the stabilisation term defined below. The system is solved
+once with GMRES.
+
+The solution $\tilde{\mathbf B}$ is a predictor: it removes the Alfv\'enic
+stiffness, but it is not the magnetic field of the new time level, which is
+obtained by constrained transport in the pressure sub-system. Its only use is
+the implicit share of the Lorentz force, evaluated with the full quadratic
+stress,
+\begin{equation}
+\label{eq:mag_inter}
+(\rho\mathbf u)^{**}=(\rho\mathbf u)^{*}
+-\Delta t\,\nabla\!\cdot\!\bigl[(1-\epsB)\,\mathbf F^{B}_{\rho\mathbf{u}}(\tilde{\mathbf B})\bigr].
+\end{equation}
+
+
+\paragraph{Shock-activated stabilisation.}
+The central discretisation of $\mathcal D_{B}^{n}$ carries no numerical
+dissipation. Following~\cite{MHDIMEX}, a Laplacian is added to the
+predictor,
+\begin{equation}
+\label{eq:mag_stab}
+\mathcal S_{h}\big[\tilde\Bb\big]
+=\Delta t\sum_{d\in\{x,y\}}\partial_{d}\Big(\chi\,(1-\epsB)\,
+\big|\lambda^{B}_{d}\big|_{\max}\,\Delta d\;\partial_{d}\tilde\Bb\Big),
+\end{equation}
+% --- chi, directly after (71) ---
+where $\chi\in[0,1]$ is the shock indicator (flattener) of
+Balsara~\cite{Balsara2012}, evaluated on the explicit stage state,
+\begin{equation}\label{eq:chi}
+\tilde\chi_{i,j}=\min\Bigl[1,\,\max\Bigl(0,\,
+-\frac{\min(\Delta x,\Delta y)\,(\nabla\!\cdot\!\mathbf u)_{i,j}+\kappa_1\,c_{i,j}^{\min}}
+{\kappa_1\,c_{i,j}^{\min}}\Bigr)\Bigr],
+\qquad
+\chi_{i,j}=\max_{|k|,|l|\le1}\tilde\chi_{i+k,j+l},
+\end{equation}
+with central differences for the divergence, $c^{\min}_{i,j}$ the minimum of
+$\sqrt{a^2+c_B^2}$ over the $3\times3$ neighbourhood and $\kappa_1=0.4$, and
+$|\lambda^B_d|_{\max}=\max_\Omega\tfrac12\big(|u_d|+\sqrt{u_d^2+4c_B^2}\big)$ the
+largest magnetic eigenvalue of~\eqref{eq:B_eigs} in direction $d$, evaluated at the
+beginning of the time step.
+
+\subsubsection{Constrained transport}
+\label{sec:CT}
+The solenoidal constraint is enforced by the unstaggered, potential-based
+constrained transport of Rossmanith~\cite{Rossmanith2006}. In two dimensions only
+the $z$-component $A$ of the vector potential is needed; with
+$B_x=\partial_yA$, $B_y=-\partial_xA$ the induction equation for the in-plane
+field reduces to the advection equation
+\begin{equation}
+\label{eq:Aadvect}
+\frac{\partial A}{\partial t}+\mathbf{u}\cdot\nabla A=0 ,
+\end{equation}
+which is advanced in this non-conservative form. The cell averages of $A$ are
+updated with the transport term evaluated on the old potential and with the new
+velocity,
+\begin{equation}
+\label{eq:Aupdate}
+A^{n+1}_{i,j}=A^{n}_{i,j}-\Delta t\,\Big[\bar u\,G_x+\bar v\,G_y
++\tfrac{\Delta x^{2}}{12}\big(\partial_x\bar u\,\partial_xG_x+\partial_x\bar v\,\partial_xG_y\big)
++\tfrac{\Delta y^{2}}{12}\big(\partial_y\bar u\,\partial_yG_x+\partial_y\bar v\,\partial_yG_y\big)\Big]_{i,j},
+\end{equation}
+where $\bar{\mathbf{u}}$ is the cell average of the velocity
+$(\rho\mathbf{u})^{n+1}/\rho^{n+1}$, $G_x$ and $G_y$ are the upwind derivatives of
+$A^{n}$ computed with the fifth-order Hamilton--Jacobi WENO
+stencils~\cite{JiangPeng2000} and Z-type weights, and the last two terms are the
+covariance that makes the product of two cell averages a fourth-order
+approximation of the cell average of the product; the slopes of $G$ are evaluated with
+limited differences. The in-plane field follows from the fourth-order discrete
+curl
+\begin{equation}
+\label{eq:curl4}
+(B_x)_{i,j}=\frac{-A_{i,j+2}+8A_{i,j+1}-8A_{i,j-1}+A_{i,j-2}}{12\,\Delta y},
+\qquad
+(B_y)_{i,j}=-\frac{-A_{i+2,j}+8A_{i+1,j}-8A_{i-1,j}+A_{i-2,j}}{12\,\Delta x},
+\end{equation}
+which satisfies the matching fourth-order central divergence identically. The
+initial field is defined through~\eqref{eq:curl4} from the cell averages of the
+initial potential. Since~\eqref{eq:Aadvect} is the full induction equation, the
+field obtained in this way replaces the in-plane components produced by the
+explicit update, and no weighting by $\epsB$ is involved.
+
+This last point is a consistency property of the splitting rather than an
+omission, and it is worth making explicit. The only characteristic speed
+of~\eqref{eq:Aadvect} is the material velocity. In the potential formulation an
+in-plane Alfv\'en wave is a coupled oscillation of $(\rho\mathbf u)$ and $A$ in
+which the restoring force sits in the Lorentz term of the momentum equation and
+not in the transport of $A$; the Alfv\'enic stiffness of that pair is therefore
+carried entirely by $\mathbf F^{B}_{\rho\mathbf{u}}$, which is precisely what
+$(1-\epsB)$ sends to the implicit side in~\eqref{eq:mag_mom}
+and~\eqref{eq:mag_inter}. Equation~\eqref{eq:Aadvect} may consequently be
+advanced explicitly at every value of the parameters, at no cost beyond the
+material CFL condition that~\eqref{eq:cfl} already imposes, and the splitting
+weights exactly those components in which the Alfv\'en stiffness appears. The
+same observation is what makes the potential form preferable to a staggered one
+in the present setting: a staggered constrained transport advances the in-plane
+field from a face-centred electric field, which would have to be apportioned
+between the explicit and implicit shares of the induction flux consistently with
+the partitioned tableau, whereas~\eqref{eq:Aadvect} is the physical transport
+equation and carries all shares at once.
+
+One consequence has to be stated plainly, because it bounds what the Riemann
+solver of Section~\ref{sec:hllem} can be claimed to do. The anti-diffusion
+of~\eqref{eq:hllem} acts on the components that the finite volume operator
+advances: in two dimensions the momentum, the energy and $B_z$, and in one
+dimension the transverse field as well, since the in-plane induction is then
+itself a finite volume flux. The in-plane field of a two-dimensional
+computation is advanced by~\eqref{eq:Aadvect} instead, and inherits the
+anti-diffusion only through the velocity that transports $A$. That path is
+real but weak. In the field-loop advection of
+Section~\ref{sec:fieldloop} at $A_0=1$ on $128\times64$ cells, a case in which
+the splitting realises $\epsM=0$ and $\epsB=1$ simultaneously, switching off
+every $\delta_k$ changes $\Bb_\perp$ by $1.2\times10^{-6}$ in relative maximum
+norm, against a discretisation error of $8.8\times10^{-3}$ in the same norm,
+and leaves the retained magnetic energy and the peak of $\|\Bb_\perp\|$
+unchanged to six digits. The sharp resolution of rotational discontinuities
+demonstrated in Section~\ref{sec:MHD_1d} is accordingly a one-dimensional
+statement about the field; in two dimensions it is a statement about the
+momentum, the energy and $B_z$.
+
+For given $A^{n}$ and a given upwind direction, \eqref{eq:Aupdate}
+and~\eqref{eq:curl4} define the new in-plane field as an \emph{affine} function
+of the velocity. We make this exact by selecting the upwind side of $G_x$, $G_y$
+with the velocity of the old time level and by using central differences for the
+slopes of $\bar{\mathbf{u}}$; the nonlinear weights then act on $A^{n}$ only. We
+denote the resulting map by
+\begin{equation}
+\label{eq:CTmap}
+\Bb_\perp^{n+1}=\mathcal C\big[(\rho\mathbf{u})^{n+1}\big].
+\end{equation}
+
+\subsubsection{Pressure sub-system}
+\label{sec:pressure}
+The pressure sub-system couples the acoustic pressure gradient, the energy
+equation and the magnetic field of the new time level. The momentum is
+\begin{equation}
+\label{eq:p_mom}
+(\rho\mathbf{u})^{n+1}=(\rho\mathbf{u})^{\ast\ast}-\Delta t\,\nabla\big[(1-\epsM)\,p^{n+1}\big],
+\end{equation}
+the in-plane field is given by~\eqref{eq:CTmap}, and the out-of-plane field and
+the total energy receive the implicit share of the induction and of the magnetic
+energy flux, both evaluated with the new velocity and the old field,
+\begin{align}
+\label{eq:Bz}
+B_z^{n+1}&=B_z^{\ast}-\Delta t\,\nabla\!\cdot\!\big[(1-\epsB)\big(\mathbf{u}^{n+1}B_z^{n}-w^{n+1}\Bb^{n}\big)\big],\\
+\label{eq:Umag}
+E^{\ast\ast}&=E^{\ast}-\Delta t\,\nabla\!\cdot\!\big[(1-\epsB)\big(\|\Bb^{n}\|^{2}\mathbf{u}^{n+1}
+-(\mathbf{u}^{n+1}\!\cdot\Bb^{n})\,\Bb^{n}\big)\big],
+\end{align}
+where a star denotes the value after the explicit update. With
+$\rho e=p/(\gamma-1)$ the energy equation reads
+\begin{equation}
+\label{eq:energy_imp}
+\frac{p^{n+1}}{\gamma-1}+k^{n+1}+m^{n+1}
+=E^{\ast\ast}-\Delta t\,\nabla\!\cdot\!\big[(1-\epsM)\,h^{n}(\rho\mathbf{u})^{n+1}\big],
+\end{equation}
+in which the kinetic and magnetic energies are linearised about the old time
+level,
+\begin{equation}
+\label{eq:klin}
+k^{n+1}=\frac{(\rho\mathbf{u})^{n}\!\cdot\!(\rho\mathbf{u})^{n+1}-\half\|(\rho\mathbf{u})^{n}\|^{2}}{\rho^{n+1}},
+\qquad
+m^{n+1}=\Bb^{n}\!\cdot\!\Bb^{n+1}-\half\|\Bb^{n}\|^{2}.
+\end{equation}
+By~\eqref{eq:p_mom} the momentum is an affine function of $p^{n+1}$, and so are,
+through~\eqref{eq:CTmap}, \eqref{eq:Bz}, \eqref{eq:Umag} and~\eqref{eq:klin},
+the magnetic field, $E^{\ast\ast}$, $k^{n+1}$ and $m^{n+1}$. Writing
+$\Phi[\mathbf m]=E^{\ast\ast}[\mathbf m]-k[\mathbf m]-m[\mathbf m]$ for the
+dependence of these terms on the momentum, \eqref{eq:energy_imp} becomes a single
+linear equation for the pressure,
+\begin{equation}
+\label{eq:pwave}
+\frac{p^{n+1}}{\gamma-1}
+-\Delta t^{2}\,\nabla\!\cdot\!\Big[(1-\epsM)\,h^{n}\,\nabla\big((1-\epsM)\,p^{n+1}\big)\Big]
+-\Phi\Big[(\rho\mathbf{u})^{\ast\ast}-\Delta t\,\nabla\big((1-\epsM)p^{n+1}\big)\Big]
+=-\Delta t\,\nabla\!\cdot\!\big[(1-\epsM)\,h^{n}(\rho\mathbf{u})^{\ast\ast}\big].
+\end{equation}
+The constrained transport, the induction of $B_z$ and the magnetic energy flux
+are thus part of the pressure operator: every evaluation of the left-hand side
+computes the divergence-free field associated with the trial pressure, so that
+the energy is balanced with a solenoidal field throughout the solve. The
+operator is not symmetric, because of the first-order terms contributed by
+$\Phi$, and~\eqref{eq:pwave} is solved as described in Section \ref{sec:nestednewton}. Once $p^{n+1}$ is known, the
+momentum follows from~\eqref{eq:p_mom}, the magnetic field
+from~\eqref{eq:CTmap} and~\eqref{eq:Bz}, and the total energy from
+\begin{equation}
+\label{eq:Unew}
+E^{n+1}=\frac{p^{n+1}}{\gamma-1}+k^{n+1}+m^{n+1}.
+\end{equation}
+
+\paragraph{Conservation.}
+The new total energy~\eqref{eq:Unew} is \emph{defined} as the left-hand side
+of the solved equation~\eqref{eq:energy_imp}, with the same linearised energies
+$k^{n+1}$ and $m^{n+1}$. Hence
+\begin{equation}
+\label{eq:cons_energy}
+E^{n+1}=E^{\ast\ast}-\Delta t\,\nabla\!\cdot\!\big[(1-\epsM)\,h^{n}(\rho\mathbf{u})^{n+1}\big],
+\end{equation}
+and since $E^{\ast\ast}$ is itself obtained from $E^{n}$ by flux differences, the
+total energy is conserved. A second pressure solve would be necessary only if the
+energy were re-assembled from the quadratic energies
+$\|(\rho\mathbf{u})^{n+1}\|^{2}/(2\rho^{n+1})$ and $\half\|\Bb^{n+1}\|^{2}$, which
+are not the quantities appearing in the solved equation. Mass and momentum are
+updated in flux form by~\eqref{eq:step_adv}, \eqref{eq:mag_inter}
+and~\eqref{eq:p_mom}, and are therefore conserved as well.
+
+An implicit step thus solves for the predictor $\tilde\Bb$ and then for the
+pressure, without any iteration between the two sub-systems and without a second
+pressure solve. The pressure system is itself solved by the defect correction
+of Section~\ref{sec:nestednewton}, in which the constrained transport, the
+induction of $B_z$ and the magnetic energy flux are carried by the defect rather
+than by the inverted operator; what is avoided here is the outer iteration
+between the magnetic field and the pressure, not iteration as such. Every linearisation
+above---in~\eqref{eq:mag_mom}, in the transport of $A$ and in~\eqref{eq:klin}---is
+of the form $H(\mathbf y^{n},\mathbf y^{n+1})$ with
+$H(\mathbf y,\mathbf y)$ equal to the original nonlinear term, which is the
+structure required by the partitioned IMEX Runge--Kutta schemes of
+Section~\ref{sec:time}; no accuracy is lost with respect to an iterated
+treatment. The predictor $\tilde\Bb$ and the field $\Bb^{n+1}$ are two consistent
+discretisations of the same induction equation: they differ through the
+pressure level in the advecting velocity and, in two dimensions, through the
+discretisation of the in-plane field, which for $\Bb^{n+1}$ is the constrained
+transport of Section~\ref{sec:CT}. Both differences are of truncation order,
+so that the Lorentz force in~\eqref{eq:mag_inter} is consistent to the order of
+the scheme.
+
+
+\subsubsection{Enforcement of pressure positivity}
+\label{sec:nestednewton}
+
+After spatial discretisation the pressure equation~\eqref{eq:pwave} has the form
+$\underline{\mathbf V}(\underline{\mathbf p})
++\underline{\underline{\mathbf T}}\,\underline{\mathbf p}=\underline{\mathbf b}$,
+with the cell-local relation $V_i(p)=p/(\gamma-1)$. Positivity of the pressure is
+enforced with the mechanism of~\cite{MHDIMEX}: the relation
+$\underline{\mathbf V}$ is replaced by a modified relation
+$\underline{\mathbf V}_{\mathrm{mod}}$ with a steep slope below a floor
+$p_\varepsilon$, and the resulting system is solved by the nested Newton method.
+That mechanism requires a matrix with non-positive off-diagonal entries, which
+the fourth-order operator $\underline{\underline{\mathbf T}}$ is not. We therefore apply it to a second-order operator $\underline{\mathbf T}_2$
+with that property: the compact five-point discretisation of the acoustic
+term of~\eqref{eq:pwave}, with upwind differences for the convective term
+$-\Delta t\,\mathbf u^{n}\!\cdot\!\nabla p$ arising from the linearised
+kinetic energy. The constrained transport, the induction of $B_z$ and the
+magnetic energy flux are not part of $\underline{\mathbf T}_2$; they enter
+only through the defect. The fourth-order solution is recovered by defect
+correction,
+\begin{equation}
+\label{eq:defect}
+\underline{\mathbf V}_{\mathrm{mod}}\big(\underline{\mathbf p}^{(k+1)}\big)
++\underline{\underline{\mathbf T}}_{2}\,\underline{\mathbf p}^{(k+1)}
+=\underline{\mathbf b}
++\big(\underline{\underline{\mathbf T}}_{2}-\underline{\underline{\mathbf T}}\big)\,
+\underline{\mathbf p}^{(k)},
+\qquad k=0,1,\dots
+\end{equation}
+Every iterate obeys the lower bound $\theta\,p_\varepsilon$, with
+$\theta=0.9$ and $p_\varepsilon=10^{-7}$ in all computations, and the converged pressure satisfies the fourth-order equation wherever the floor is not active. The total energy is
+assembled from~\eqref{eq:Unew} with the physical relation $V(p)$.
+
+% \begin{remark}[Scope]
+% \label{rem:posscope}
+% In~\cite{MHDIMEX} the same nested Newton machinery serves two purposes at once:
+% it accommodates a general nonlinear equation of state, for which
+% $\underline{\mathbf V}$ is genuinely nonlinear, and it enforces positivity. Here
+% the thermodynamic closure is the ideal gas law, so $\underline{\mathbf V}$ is
+% linear and the elliptic system would be linear; the iteration is present
+% \emph{solely} because of the positivity modification~\eqref{eq:Vmod}. The extension
+% to a general equation of state requires no further machinery and follows
+% directly~\cite{MHDIMEX}.
+% \end{remark}
+
+% \begin{remark}[Operator-family pairing]
+% \label{rem:composed}
+% The elliptic operator of~\eqref{eq:pwave} is not assembled independently: it is
+% \emph{derived} by inserting the momentum update~\eqref{eq:p_mom} into the energy
+% balance~\eqref{eq:energy_imp}. At the discrete level this means that the three
+% ingredients---the elliptic left-hand side, the enthalpy-divergence right-hand side,
+% and the momentum update---must be drawn from one and the same operator family, with
+% $\epsM$ evaluated at faces throughout; the fourth-order family used in this work is
+% given in Section~\ref{sec:highorder}. Violating the pairing breaks the discrete
+% energy--momentum consistency even when every ingredient is individually of the
+% nominal order. In our experiments, replacing the divergence-form momentum update by
+% an independent fourth-order cell-centred pressure gradient produced a systematic
+% spurious compression plateau ($\rho\approx1.23$) precisely in the $\epsM$
+% transition zone of the Brio--Wu rarefaction, where the
+% $\mathcal O(\Delta t\,\Delta x^{2})$ mismatch between the two gradient
+% discretisations accumulates. Componentwise convergence tests cannot detect this
+% failure mode, since they probe each formula in isolation rather than the
+% consistency of the pair. The same principle fixes the compact three-point stencil at
+% second order: with spatially varying $\epsM$ the compact form is no longer the
+% composition of the first-order building blocks, and the composed operator must be
+% used instead.
+% \end{remark}
+
+% \subsection{Enforcement of the divergence-free constraint}
+% \label{sec:CT}
+
+% Preserving $\nabla\!\cdot\!\mathbf B=0$ at the discrete level is essential:
+% divergence errors generate spurious forces and unphysical states that are
+% particularly damaging in the low-Mach/low-Alfv\'en regimes targeted here. In
+% this work we implement two fourth-order adaptations of the constrained-transport
+% (CT) methodology: a staggered adaptation in the spirit of Gardiner and
+% Stone~\cite{gardiner2005}, and an unstaggered, potential-based adaptation of the
+% technique introduced by Rossmanith~\cite{rossmanith2006MPACT}. Both share the
+% same fourth-order electric-field construction, which we describe first.
+
+% \paragraph{Fourth-order interpolation operators.}
+% Let $\mathcal I^x_4$ denote the fourth-order face-interpolation operator,
+% \begin{equation}
+% \label{eq:I4}
+% \mathcal I^x_4[q]_{i+\frac12,j}
+%  =\tfrac{1}{16}\left(-q_{i-1,j}+9\,q_{i,j}+9\,q_{i+1,j}-q_{i+2,j}\right),
+% \end{equation}
+% with $\mathcal I^y_4$ defined analogously. For the dissipative part we use
+% \emph{biased} fourth-order interface values, e.g.\ in $x$,
+% \begin{equation}
+% \label{eq:biased4}
+% q^{L}_{i+\frac12,j}=\tfrac{1}{16}\!\left(q_{i-2,j}-5q_{i-1,j}+15q_{i,j}+5q_{i+1,j}\right),
+% \qquad
+% q^{R}_{i+\frac12,j}=\tfrac{1}{16}\!\left(q_{i+3,j}-5q_{i+2,j}+15q_{i+1,j}+5q_{i,j}\right),
+% \end{equation}
+% so that the jump $q^R-q^L$ is $\mathcal O(\Delta x^4)$ for smooth data but
+% $\mathcal O(1)$ on grid-scale (odd--even) modes.
+
+% \paragraph{Fourth-order face electric field.}
+% With the cell-centred electric field
+% $\widetilde E_{z,i,j}=v_{i,j}(B_x)_{i,j}-u_{i,j}(B_y)_{i,j}$, the face values
+% read
+% \begin{equation}
+% \label{eq:Ezface}
+% (E_z)_{i+\frac12,j}=\mathcal I^x_4[\widetilde E_z]_{i+\frac12,j}
+%  +\tfrac12\,s^{x}_{i+\frac12,j}\!\left(B_y^{R}-B_y^{L}\right),
+% \qquad
+% (E_z)_{i,j+\frac12}=\mathcal I^y_4[\widetilde E_z]_{i,j+\frac12}
+%  -\tfrac12\,s^{y}_{i,j+\frac12}\!\left(B_x^{R}-B_x^{L}\right),
+% \end{equation}
+% where the transverse-field jumps are evaluated with~\eqref{eq:biased4} and the
+% dissipation speeds are
+% \begin{equation}
+% \label{eq:ctspeed}
+% s^{x}_{i+\frac12,j}=\max_{k\in\{i,i+1\}}
+% \left(|u_{k,j}|+\frac{|(B_x)_{k,j}|}{\sqrt{\rho_{k,j}}}\right),
+% \end{equation}
+% and analogously in $y$. Two design choices deserve comment. First, the
+% dissipation speed~\eqref{eq:ctspeed} includes the normal Alfv\'en speed and not
+% merely the material velocity: the characteristic speeds of the induction
+% equation are $v_n\pm c_a$, so a purely material coefficient vanishes in regions
+% where $\mathbf v=0$ but $\mathbf B\neq 0$, leaving the face-field update as an
+% undamped central difference whose odd--even modes grow slowly into large-scale
+% spurious structures. Second, because the dissipation acts on the biased
+% fourth-order jumps~\eqref{eq:biased4}, it is $\mathcal O(\Delta x^4)$ on smooth
+% solutions---the electric field construction is genuinely fourth-order
+% accurate---while retaining an $\mathcal O(1)$ damping rate on grid-scale
+% decoupling modes, the same mechanism by which the WENO-based Riemann solver of
+% Section~\ref{sec:hllem} combines high order with robustness.
+
+% The corner electric field is obtained by fourth-order transverse interpolation
+% of the face values, averaged over the two available constructions,
+% \begin{equation}
+% \label{eq:Ezcorner}
+% (E_z)_{i+\frac12,j+\frac12}
+%  =\tfrac12\Big(\mathcal I^y_4\big[(E_z)_{i+\frac12,\cdot}\big]_{j+\frac12}
+%               +\mathcal I^x_4\big[(E_z)_{\cdot,j+\frac12}\big]_{i+\frac12}\Big),
+% \end{equation}
+% which supersedes the second-order gradient-correction of Gardiner and
+% Stone~\cite{gardiner2005}.
+
+% \subsubsection{Staggered adaptation of the constrained-transport method}
+% \label{sec:CTstag}
+% Staggered magnetic-field components $(B_x)_{i+\frac12,j}$ and
+% $(B_y)_{i,j+\frac12}$ are stored at the cell faces, initialised there at $t=0$,
+% and evolved by a discrete Faraday law using the corner electric
+% field~\eqref{eq:Ezcorner},
+% \begin{equation}
+% \label{eq:faraday}
+% \begin{aligned}
+% (B_x)^{n+1}_{i+\frac12,j}&=(B_x)^{n}_{i+\frac12,j}
+%  +\frac{\Delta t}{\Delta y}\Big[(E_z)_{i+\frac12,j+\frac12}-(E_z)_{i+\frac12,j-\frac12}\Big],\\
+% (B_y)^{n+1}_{i,j+\frac12}&=(B_y)^{n}_{i,j+\frac12}
+%  -\frac{\Delta t}{\Delta x}\Big[(E_z)_{i+\frac12,j+\frac12}-(E_z)_{i-\frac12,j+\frac12}\Big].
+% \end{aligned}
+% \end{equation}
+% Equation~\eqref{eq:faraday} is a discrete Stokes identity: the staggered
+% divergence
+% \begin{equation}
+% \label{eq:divstag}
+% [\nabla\!\cdot\!\mathbf B]_{i,j}
+% =\frac{(B_x)_{i+\frac12,j}-(B_x)_{i-\frac12,j}}{\Delta x}
+% +\frac{(B_y)_{i,j+\frac12}-(B_y)_{i,j-\frac12}}{\Delta y}=0
+% \end{equation}
+% is preserved \emph{exactly}, independently of the accuracy of the electric
+% field, so the fourth-order construction~\eqref{eq:Ezface}--\eqref{eq:Ezcorner}
+% raises the accuracy of the field evolution without touching the constraint.
+% The magnetic field returned by the implicit magnetic sub-system of
+% Section~\ref{sec:implicit} serves only as a predictor for the momentum update
+% and is then replaced at cell centres by the fourth-order face-to-centre
+% average of the staggered field,
+% \begin{equation}
+% \label{eq:face2cell}
+% (B_x)^{n+1}_{i,j}=\tfrac{1}{16}\Big(\!-(B_x)_{i-\frac32,j}+9(B_x)_{i-\frac12,j}
+%  +9(B_x)_{i+\frac12,j}-(B_x)_{i+\frac32,j}\Big),
+% \end{equation}
+% and analogously for $B_y$; the two-point average of~\cite{gardiner2005} would
+% cap the two-dimensional accuracy of the magnetic field at second order.
+
+% \subsubsection{Unstaggered adaptation of the constrained-transport method}
+% \label{sec:CTunstag}
+% The staggered formulation requires a dual representation of the magnetic field
+% at faces and centres. To avoid it we also implement a fully cell-centred,
+% potential-based adaptation following Rossmanith~\cite{rossmanith2006MPACT}: in
+% two dimensions only the $z$-component $A$ of the vector potential is tracked,
+% stored at cell centres, and never overwritten by the predictor field. Using
+% $\partial_t A=-E_z$ (equivalent to the advection form
+% $\partial_t A+\mathbf{u}\!\cdot\!\nabla A=0$ since $E_z=-(\mathbf{u}\times\mathbf B)_z$ and
+% $\mathbf B=\nabla\times A\hat{\mathbf z}$), the potential is advanced with the
+% cell-centred electric field obtained from the corner
+% values~\eqref{eq:Ezcorner} by tensor-product fourth-order interpolation,
+% \begin{equation}
+% \label{eq:Aupdate}
+% A^{n+1}_{i,j}=A^{n}_{i,j}-\Delta t\,
+% \mathcal I^x_4\mathcal I^y_4\big[(E_z)_{\cdot+\frac12,\cdot+\frac12}\big]_{i,j}
+% +\Delta t\,\mathcal D^x\!\big[\tfrac12 s^x (A^R\!-\!A^L)\big]_{i,j}
+% +\Delta t\,\mathcal D^y\!\big[\tfrac12 s^y (A^R\!-\!A^L)\big]_{i,j},
+% \end{equation}
+% so that the potential inherits the fourth-order accuracy and the built-in
+% grid-scale damping of the electric-field construction. The magnetic field is
+% recovered by the \emph{fourth-order} discrete curl
+% \begin{equation}
+% \label{eq:curl4}
+% (B_x)^{n+1}_{i,j}=\frac{-A^{n+1}_{i,j+2}+8A^{n+1}_{i,j+1}-8A^{n+1}_{i,j-1}+A^{n+1}_{i,j-2}}{12\,\Delta y},
+% \qquad
+% (B_y)^{n+1}_{i,j}=-\frac{-A^{n+1}_{i+2,j}+8A^{n+1}_{i+1,j}-8A^{n+1}_{i-1,j}+A^{n+1}_{i-2,j}}{12\,\Delta x},
+% \end{equation}
+% which satisfies the \emph{matching} fourth-order central divergence identically,
+% \begin{equation}
+% \label{eq:div4}
+% [\nabla\!\cdot\!\mathbf B]^{(4)}_{i,j}
+% =\mathcal D^x_4[B_x]_{i,j}+\mathcal D^y_4[B_y]_{i,j}=0,
+% \end{equation}
+% with $\mathcal D_4$ the five-point fourth-order central difference, since the
+% mixed fourth-order differences of $A$ commute and cancel exactly. We stress
+% that the divergence-free property is tied to the pair of operators: measuring
+% the field~\eqref{eq:curl4} with a second-order divergence returns the
+% $\mathcal O(\Delta x^2)$ truncation difference between the two difference
+% operators, which reflects the measuring stick rather than the field. If the
+% initial data are given in terms of $\mathbf B$ alone, the initial potential is
+% obtained by solving a Poisson problem as in~\cite{rossmanith2006MPACT}, and the
+% initial cell-centred field is re-initialised through~\eqref{eq:curl4} so that
+% the discrete constraint holds from $t=0$. Boundary conditions for $A$ follow
+% those of the magnetic field: periodic where $\mathbf B$ is periodic, and
+% first-order extrapolated where a zeroth-order extrapolated field is used.
+
+
+
+% ============================================================================
+%  Sec.\ref{sec:CT} -- revised against the standard-IMEX version.
+%
+%  IMPORTED from standard-IMEX:
+%   (a) the literature survey (Powell / Brackbill-Barnes / Dedner / Evans-Hawley);
+%   (b) the "two aspects worth stating explicitly" framing -- the involution is
+%       enforced after all sub-systems, the cell-centred field is a predictor,
+%       and rho^{n+1}, v^{n+1} are already available so E sits at the new level;
+%   (c) the initialisation requirement for the staggered field;
+%   (d) the Toth cell-centred divergence eq:CT-div-toth.
+%
+%  STRENGTHENED (these are the parts that differ from standard-IMEX):
+%   (e) the flux-dual paragraph now states EXPLICITLY that the standard-IMEX
+%       simplification -- induction rows of the advective and pressure fluxes
+%       vanish identically -- FAILS under the eps-splitting.  That is the new
+%       difficulty and it deserves to be named as such;
+%   (f) the post-CT energy re-assembly is promoted from a trailing sentence to
+%       a Remark stating a structural requirement.
+%
+%  LABELS REPAIRED:  eq:splitflux -> eq:Fc_explicit ; eq:magsys -> eq:mag_sys ;
+%                    sec:flattener -> sec:stabilisation ; eq:stagger4 -> the
+%                    operator family of sec:highorder.
+%  CITATION KEYS: standard-IMEX uses GardinerStone2005 / Rossmanith2006 /
+%                 Dematte2024 ; this draft uses gardiner2005 / rossmanith2006MPACT.
+%                 Unify before submission -- below the standard-IMEX keys are used.
+% ============================================================================
+
+
+% \subsection{Enforcement of the divergence-free constraint}
+% \label{sec:CT}
+ 
+% As anticipated in Section~\ref{sec:governing}, the solenoidal condition
+% $\nabla\!\cdot\!\Bb=0$ is an involution of the ideal MHD system: if it holds for
+% the initial data, the evolution preserves it for all later times at the continuous
+% level. At the discrete level this property is not inherited automatically, and the
+% divergence errors generated by a generic discretisation are known to produce
+% spurious oscillations, incorrect shock speeds and unphysical
+% states~\cite{BrackbillBarnes1980,Toth2000}---all of which are particularly damaging
+% in the low-Mach and low-Alfv\'en regimes targeted here, where the magnetic pressure
+% $\half\|\Bb\|^{2}$ can exceed the gas pressure by orders of magnitude, so that a
+% small error in $\Bb$ translates into a large spurious force. Several strategies
+% have been devised to control or eliminate these errors. The eight-wave formulation
+% of Powell et al.~\cite{Powell1999} augments the system with source terms
+% proportional to the divergence error, at the price of losing strict conservation.
+% In the projection method of Brackbill and Barnes~\cite{BrackbillBarnes1980} the
+% magnetic field produced by the base scheme is projected onto the space of
+% solenoidal fields through an auxiliary Poisson problem. Hyperbolic divergence
+% cleaning~\cite{Dedner2002} couples the constraint to the conservation laws through
+% a generalised Lagrange multiplier, which damps and advects the divergence error
+% towards the boundaries. The most widely adopted alternative is the constrained
+% transport (CT) approach originally introduced by Evans and
+% Hawley~\cite{EvansHawley1988}, in which the magnetic field is represented on the
+% cell interfaces and the electric field at the cell corners; a discrete Faraday law
+% then preserves a face-based divergence operator down to machine accuracy. We refer
+% to the review of T\'oth~\cite{Toth2000} and
+% to~\cite{BalsaraSpicer1999,GardinerStone2005,Rossmanith2006} for a detailed
+% comparison of these families.
+ 
+% In the present work we implement two constrained transport adaptations: a staggered
+% one following Gardiner and Stone~\cite{GardinerStone2005}, used as the default, and
+% an unstaggered potential-based one following Rossmanith~\cite{Rossmanith2006}. Two
+% aspects of their use within the present algorithm are worth stating explicitly.
+% First, since $\nabla\!\cdot\!\Bb=0$ is an involution rather than a member of any of
+% the three flux sub-systems of Section~\ref{sec:3split}, it is enforced after all
+% sub-systems have been solved, and the correction acts on the magnetic field alone:
+% the cell-centred field $\tilde\Bb^{n+1}$ delivered by the implicit magnetic
+% sub-system of Section~\ref{sec:magnetic} is regarded as a \emph{predictor}, used to
+% advance the momentum and the energy, and is subsequently replaced. Second, because
+% the correction is applied at the end of the step, the density $\rho^{n+1}$ and the
+% velocity $\mathbf{u}^{n+1}$ resulting from the pressure sub-system are already available,
+% so that the transport step is driven by data at the new time level. The two
+% adaptations differ in how the induction is discretised: the staggered variant
+% performs a discrete Stokes update on the cell faces, driven by an electromotive
+% force which, as shown next, must be taken as the dual of the numerical fluxes; the
+% unstaggered variant advances the vector potential by the equivalent scalar
+% advection equation, for which that construction does not arise.
+ 
+% \subsubsection{Staggered adaptation}
+% \label{sec:CTstag}
+ 
+% \paragraph{Why the electric field must be the flux dual.}
+% In a fully explicit Godunov scheme the induction rows of the numerical flux
+% \emph{are} the electromotive force, and a CT step built from them reproduces
+% exactly the magnetic field the scheme would have produced, while additionally
+% enforcing~\eqref{eq:divstag}; this is the duality exploited in~\cite{Dematte2024}.
+% In the single-parameter three-way splitting the same simplification is available
+% for a different reason: the induction rows of the advective and of the pressure
+% flux vanish identically, so the entire numerical flux of the magnetic field is
+% carried by the implicit magnetic sub-system and no contribution has to be
+% accumulated from elsewhere.
+ 
+% \emph{Under the $\eps$-splitting this is no longer true.} The explicit sub-system
+% $\tilde\FF^{c}$ of~\eqref{eq:Fc_explicit} contains the share $\epsB\FF^{B}$, whose
+% induction rows are non-zero, so that $\Bb$ is now advanced in three separate
+% places:
+% \begin{enumerate}
+% \item explicitly, through the share $\epsB\FF^{B}$ carried by $\tilde\FF^{c}$ and
+%       evaluated by the AP-HLLEM solver of Section~\ref{sec:hllem};
+% \item implicitly, through the right-hand side $\Bb^{\ast}$ of the magnetic wave
+%       system~\eqref{eq:mag_sys}, weighted by $(1-\epsB)$ at each face;
+% \item implicitly, through the operator itself---the magnetic wave term, which
+%       carries $(1-\epsB)^{2}$ because the momentum update and the induction
+%       equation each contribute one factor, and the shock-activated Laplacian of
+%       Section~\ref{sec:stabilisation}, which carries $(1-\epsB)$.
+% \end{enumerate}
+% A CT step driven by any proper subset of these overwrites $\Bb$ with a field
+% inconsistent with the momentum and the energy that were built from the predictor.
+% We therefore assemble the face electromotive force from the \emph{total}
+% increment. Writing $\mathcal F^{\,\mathrm{exp}}$, $\mathcal F^{\,\mathrm{rhs}}$ and
+% $\mathcal F^{\,\mathrm{imp}}$ for the three face fluxes of the induction rows, and
+% using the sign convention $E_z=vB_x-uB_y$, for which the $x$-flux of $B_y$ equals
+% $-E_z$ and the $y$-flux of $B_x$ equals $+E_z$,
+% \begin{equation}
+% \label{eq:emfdual}
+% (E_z)_{i+\frac12,j}=-\Big(\mathcal F^{\,\mathrm{exp}}
+% +\mathcal F^{\,\mathrm{rhs}}+\mathcal F^{\,\mathrm{imp}}\Big)_{i+\frac12,j},
+% \qquad
+% (E_z)_{i,j+\frac12}=+\Big(\mathcal G^{\,\mathrm{exp}}
+% +\mathcal G^{\,\mathrm{rhs}}+\mathcal G^{\,\mathrm{imp}}\Big)_{i,j+\frac12}.
+% \end{equation}
+% No dissipation is added to~\eqref{eq:emfdual}: the upwind dissipation of the
+% explicit share already resides in the HLLEM flux, and that of the implicit share in
+% the Laplacian of Section~\ref{sec:stabilisation}. In particular the concern that
+% motivates a separate dissipation speed in classical CT---that a purely material
+% coefficient vanishes where $\mathbf{u}=\mathbf 0$ but $\Bb\neq\mathbf 0$, leaving the
+% face-field update as an undamped central difference---does not arise here, because
+% both the Einfeldt speeds of the HLLEM solver and the coefficient of the implicit
+% Laplacian contain the Alfv\'en speed.
+ 
+% \begin{remark}[Three fluxes, three divergence operators]
+% \label{rem:ctoperators}
+% The three shares in~\eqref{eq:emfdual} are \emph{not} differenced by the same
+% operator in the scheme itself. The explicit share is a finite-volume flux, for which
+% the two-point difference is exact; the right-hand side $\Bb^{\ast}$ uses the
+% fourth-order staggered divergence $\mathcal D_4$ of Section~\ref{sec:highorder},
+% since it carries a single power of $\Delta t$ and therefore requires
+% $\mathcal O(\Delta x^{3})$ or better; the operator share uses the compact two-point
+% form, which suffices because it carries $\Delta t^{2}$. A single corner
+% electromotive force cannot carry three different difference operators. Two
+% consistent resolutions are available: perform one Stokes update per operator, each
+% of which preserves~\eqref{eq:divstag} separately so that their sum does as well; or
+% accept a single two-point update and regard CT as \emph{replacing} rather than
+% reproducing the predictor, in which case the two discretisations of the
+% $\Bb^{\ast}$ share differ by $\mathcal O(\Delta x^{4})$ on smooth data. We adopt the
+% second option, whose structural consequence is stated in Remark~\ref{rem:ctenergy}.
+% Note that the explicit share must in either case be differenced with the two-point
+% operator: replacing it by $\mathcal D_4$ would introduce an
+% $\mathcal O(\Delta t\,\Delta x^{2})=\mathcal O(\Delta x^{3})$ error and cap the
+% scheme at second order.
+% \end{remark}
+ 
+% \paragraph{Corner electric field.}
+% The corner value is obtained by fourth-order transverse interpolation of the face
+% values~\eqref{eq:emfdual}, averaged over the two available constructions,
+% \begin{equation}
+% \label{eq:Ezcorner}
+% (E_z)_{i+\frac12,j+\frac12}
+%  =\half\Big(\mathcal I^y_4\big[(E_z)_{i+\frac12,\cdot}\big]_{j+\frac12}
+%               +\mathcal I^x_4\big[(E_z)_{\cdot,j+\frac12}\big]_{i+\frac12}\Big),
+% \qquad
+% \mathcal I^x_4[q]_{i+\frac12}=\tfrac{1}{16}\big(-q_{i-1}+9q_{i}+9q_{i+1}-q_{i+2}\big),
+% \end{equation}
+% which replaces the gradient-corrected four-point average of Gardiner and
+% Stone~\cite{GardinerStone2005}, for the reason given in Remark~\ref{rem:ctaccuracy}.
+ 
+% \paragraph{Faraday update.}
+% Staggered components $(B_x)_{i+\frac12,j}$ and $(B_y)_{i,j+\frac12}$ are stored at
+% the cell faces and evolved from the stage base state by a discrete Faraday law
+% using the corner field~\eqref{eq:Ezcorner},
+% \begin{equation}
+% \label{eq:faraday}
+% \begin{aligned}
+% (B_x)^{n+1}_{i+\frac12,j}&=(B_x)^{s}_{i+\frac12,j}
+%  -\frac{\Delta t}{\Delta y}\Big[(E_z)_{i+\frac12,j+\frac12}-(E_z)_{i+\frac12,j-\frac12}\Big],\\
+% (B_y)^{n+1}_{i,j+\frac12}&=(B_y)^{s}_{i,j+\frac12}
+%  +\frac{\Delta t}{\Delta x}\Big[(E_z)_{i+\frac12,j+\frac12}-(E_z)_{i-\frac12,j+\frac12}\Big],
+% \end{aligned}
+% \end{equation}
+% consistent with $\partial_t B_x=-\partial_y E_z$ and $\partial_t B_y=+\partial_x E_z$
+% for $E_z=vB_x-uB_y$. Equation~\eqref{eq:faraday} is a discrete Stokes identity: the
+% staggered divergence
+% \begin{equation}
+% \label{eq:divstag}
+% [\nabla\!\cdot\!\Bb]_{i,j}
+% =\frac{(B_x)_{i+\frac12,j}-(B_x)_{i-\frac12,j}}{\Delta x}
+% +\frac{(B_y)_{i,j+\frac12}-(B_y)_{i,j-\frac12}}{\Delta y}
+% \end{equation}
+% is preserved exactly, at machine accuracy and at every time level, provided it
+% vanishes initially, since the four corner contributions entering the two increments
+% cancel in pairs. It is therefore essential that the staggered field be initialised
+% compatibly with~\eqref{eq:divstag}, which is achieved by evaluating the initial
+% condition for each component at the corresponding face centre at $t=0$. The
+% staggered components are the primary representation of the magnetic field: they are
+% stored and evolved for the entire simulation and are never reset from cell-centred
+% data, since doing so would reintroduce divergence errors.
+ 
+% \begin{remark}[Where the accuracy resides]
+% \label{rem:ctaccuracy}
+% The two-point difference in~\eqref{eq:faraday} is not an approximation: for the
+% face-averaged $B_x$ it is the exact line integral of Faraday's law over the face.
+% Raising its order would therefore buy no accuracy, and would destroy the cancellation
+% in~\eqref{eq:divstag}, which holds only when the difference operator of the Faraday
+% update and that of the divergence coincide. All of the accuracy of the CT step
+% resides in the corner construction~\eqref{eq:Ezcorner}. Measuring the error of
+% $\mathrm dB_x/\mathrm dt$ against exact corner values on a smooth manufactured
+% electric field confirms this: the four-point interpolation~\eqref{eq:Ezcorner}
+% converges at order $4.00$, whereas the gradient-corrected corner average of Gardiner
+% and Stone~\cite{GardinerStone2005} converges at order $2.00$ and would cap the scheme
+% at second order.
+% \end{remark}
+ 
+% \begin{remark}[Flux-consistency diagnostic]
+% \label{rem:ctselfcheck}
+% Because~\eqref{eq:emfdual} is assembled from the same face fluxes that the scheme
+% uses, the construction admits a direct verification: differencing the collected
+% fluxes with the operators listed in Remark~\ref{rem:ctoperators} must reproduce the
+% cell-centred $\Bb$ that the predictor produced, up to the components of the implicit
+% Laplacian that are not expressible as an electromotive force (the $x$-diffusion of
+% $B_x$ and the $y$-diffusion of $B_y$). A residual of the order of the explicit share
+% instead of that floor indicates a missing or mis-weighted term, and we use this as a
+% standing check.
+% \end{remark}
+ 
+% Once the staggered components have been evolved through~\eqref{eq:faraday}, the
+% cell-centred field is recovered by the fourth-order face-to-centre average
+% \begin{equation}
+% \label{eq:face2cell}
+% (B_x)^{n+1}_{i,j}=\tfrac{1}{16}\Big(\!-(B_x)_{i-\frac32,j}+9(B_x)_{i-\frac12,j}
+%  +9(B_x)_{i+\frac12,j}-(B_x)_{i+\frac32,j}\Big),
+% \end{equation}
+% and analogously for $B_y$, which overwrites the predictor; the two-point average
+% of~\cite{GardinerStone2005} would cap the two-dimensional accuracy of the magnetic
+% field at second order. In two space dimensions the out-of-plane component is left
+% unchanged, $(B_z)^{n+1}_{i,j}=(\tilde B_z)^{n+1}_{i,j}$. As discussed by
+% Rossmanith~\cite{Rossmanith2006} and T\'oth~\cite{Toth2000}, the cell-centred field
+% so obtained satisfies, in addition to the face-based constraint~\eqref{eq:divstag},
+% the corner-based discrete divergence-free condition
+% \begin{equation}
+% \label{eq:divtoth}
+% [\nabla\!\cdot\!\Bb]_{i+\frac12,j+\frac12}
+% =\frac{(B_x)_{i+1,j}+(B_x)_{i+1,j+1}-(B_x)_{i,j}-(B_x)_{i,j+1}}{2\Delta x}
+% +\frac{(B_y)_{i,j+1}+(B_y)_{i+1,j+1}-(B_y)_{i,j}-(B_y)_{i+1,j}}{2\Delta y}=0 .
+% \end{equation}
+ 
+% \begin{remark}[The energy must be re-assembled after the transport step]
+% \label{rem:ctenergy}
+% Because Remark~\ref{rem:ctoperators} adopts the second option---a single two-point
+% Stokes update, with the transport step \emph{replacing} rather than reproducing the
+% predictor---the re-assembly of the total energy is not a matter of ordering but a
+% structural requirement. The energy delivered by the implicit stage is built from the
+% pressure returned by the solve of Section~\ref{sec:pressure} together with the
+% predictor field $\tilde\Bb^{n+1}$; the transport step then overwrites $\Bb$
+% through~\eqref{eq:face2cell}, and every correction $\delta\Bb$ shifts the internal
+% energy by $-\half\,\delta(\|\Bb\|^{2})$ without the pressure being informed. In the
+% low-$\beta$ interior of the blast-wave problem of Section~\ref{sec:result}, where
+% $\half\|\Bb\|^{2}\sim10^{3}p$, this alone is enough to render the internal energy
+% negative. We therefore re-assemble
+% \begin{equation}
+% \label{eq:energy_reassembly}
+% U^{n+1}_{i,j}=\frac{p^{n+1}_{i,j}}{\gamma-1}
+% +\frac{\|(\rho\mathbf{u})^{n+1}_{i,j}\|^{2}}{2\rho^{n+1}_{i,j}}
+% +\half\big\|\Bb^{n+1}_{i,j}\big\|^{2}
+% \end{equation}
+% from the \emph{same} pressure and the post-transport divergence-free field, so that
+% $\rho e=p^{n+1}/(\gamma-1)>0$ by construction. With the re-assembly omitted we
+% observe internal energies of order $-10^{-2}$ within the first few steps, amplifying
+% from stage to stage; with it in place the same computation runs to the final time
+% with a strictly positive internal energy throughout. The same applies to the
+% unstaggered variant below, which likewise replaces the predictor field.
+% \end{remark}
+
+
+% \subsection{Enforcement of the divergence-free constraint}
+% \label{sec:CT}
+
+% As anticipated in Section~\ref{sec:governing}, the solenoidal condition
+% $\nabla\!\cdot\!\Bb=0$ is an involution of the ideal MHD system: if it holds for
+% the initial data, the evolution preserves it for all later times at the continuous
+% level. At the discrete level this property is not inherited automatically, and the
+% divergence errors generated by a generic discretisation are known to produce
+% spurious oscillations, incorrect shock speeds and unphysical
+% states~\cite{BrackbillBarnes1980,Toth2000}---all of which are particularly damaging
+% in the low-Mach and low-Alfv\'en regimes targeted here, where the magnetic pressure
+% $\frac{1}{2}\|\Bb\|^{2}$ can exceed the gas pressure by orders of magnitude, so that
+% a small error in $\Bb$ translates into a large spurious force. Several strategies
+% have been devised to control or eliminate these errors. The eight-wave formulation
+% of Powell et al.~\cite{Powell1999} augments the system with source terms
+% proportional to the divergence error, at the price of losing strict conservation.
+% In the projection method of Brackbill and Barnes~\cite{BrackbillBarnes1980} the
+% magnetic field produced by the base scheme is projected onto the space of
+% solenoidal fields through an auxiliary Poisson problem. Hyperbolic divergence
+% cleaning~\cite{Dedner2002} couples the constraint to the conservation laws through
+% a generalised Lagrange multiplier, which damps and advects the divergence error
+% towards the boundaries. Among these alternatives, the constrained transport (CT)
+% approach originally introduced by Evans and Hawley~\cite{EvansHawley1988} has
+% emerged as one of the most widely adopted. In the present work we implement the
+% unstaggered potential-based variant of CT following
+% Rossmanith~\cite{Rossmanith2006}. The magnetic field is represented through a
+% vector potential $\mathbf{A}$, such that $\Bb = \nabla\times\mathbf{A}$, which
+% guarantees $\nabla\!\cdot\!\Bb=0$ identically at the discrete level. The induction
+% equation is then replaced by an evolution equation for $\mathbf{A}$, discretised on
+% the cell corners, so that no additional projection or cleaning step is required.
+% Because the correction is applied at the end of the step, the density
+% $\rho^{n+1}$ and the velocity $\mathbf{u}^{n+1}$ resulting from the pressure
+% sub-system are already available, so that the transport step is driven by data at
+% the new time level.
+
+
+% \subsubsection{Unstaggered potential-based adaptation}
+% \label{sec:CTunstag}
+ 
+% The staggered formulation requires a dual representation of the magnetic field at
+% faces and centres, which is cumbersome under adaptive mesh refinement and awkward to
+% extend to multi-material settings~\cite{Rossmanith2006}. To avoid it we also
+% implement a fully cell-centred, potential-based variant: in two dimensions only the
+% $z$-component $A$ of the vector potential is tracked, stored at cell centres, and
+% never overwritten by the predictor field. With $B_x=\partial_yA$ and
+% $B_y=-\partial_xA$, the induction equation reduces to the scalar advection equation
+% \begin{equation}
+% \label{eq:Aadvect}
+% \frac{\partial A}{\partial t}
+% +u\,\frac{\partial A}{\partial x}
+% +v\,\frac{\partial A}{\partial y}=0 ,
+% \end{equation}
+% which is nothing other than $\partial_tA=-E_z$ rewritten, since
+% $E_z=vB_x-uB_y=u\,\partial_xA+v\,\partial_yA$.
+ 
+% We advance~\eqref{eq:Aadvect} \emph{directly}, in advective form, with an upwind
+% high-resolution method---the face values of $A$ are reconstructed by the same
+% WENO3-Z procedure used in Section~\ref{sec:reconstruction} and selected by the sign
+% of the face velocity---rather than by assembling an electric field and interpolating
+% it to the cell centre. The distinction is not cosmetic. The face-to-corner-to-cell
+% chain of the staggered construction is central at every stage, so its transfer
+% function vanishes at the Nyquist frequency: no upwind dissipation would reach $A$,
+% and its grid-scale modes would be undamped. Rossmanith advances the potential with a
+% wave-propagation method for precisely this reason. In advective form the upwinding,
+% and the limiter, act on $A$ itself. We stress that~\eqref{eq:Aadvect} is
+% \emph{not} written in conservation form: $A$ is not a density, and the two forms
+% differ by $A\,\nabla\!\cdot\!\mathbf{u}$, which does not vanish in compressible MHD.
+ 
+% The magnetic field is then recovered by the fourth-order discrete curl
+% \begin{equation}
+% \label{eq:curl4}
+% (B_x)^{n+1}_{i,j}=\frac{-A^{n+1}_{i,j+2}+8A^{n+1}_{i,j+1}-8A^{n+1}_{i,j-1}+A^{n+1}_{i,j-2}}{12\,\Delta y},
+% \qquad
+% (B_y)^{n+1}_{i,j}=-\frac{-A^{n+1}_{i+2,j}+8A^{n+1}_{i+1,j}-8A^{n+1}_{i-1,j}+A^{n+1}_{i-2,j}}{12\,\Delta x},
+% \end{equation}
+% which satisfies the \emph{matching} fourth-order central divergence identically,
+% since the mixed fourth-order differences of $A$ commute and cancel exactly. As in the
+% staggered case the divergence-free property is tied to the pair of operators:
+% measuring~\eqref{eq:curl4} with a second-order divergence returns the
+% $\mathcal O(\Delta x^{2})$ truncation difference between the two operators, which
+% reflects the measuring stick rather than the field.
+ 
+% If the initial data are given in terms of $\Bb$ alone, the initial potential is
+% obtained by solving a Poisson problem as in~\cite{Rossmanith2006}. In either case the
+% initial cell-centred field is re-initialised through~\eqref{eq:curl4} at $t=0$; were
+% it left at its analytic value it would not satisfy the fourth-order divergence that
+% the curl satisfies identically, and the mismatch would persist as a fixed
+% $\mathcal O(\Delta x^{4})$ divergence floor for the whole computation. Boundary
+% conditions for $A$ follow those of the magnetic field, with the caveat noted
+% in~\cite{Rossmanith2006} that a zeroth-order extrapolation of $\Bb$ requires a
+% first-order extrapolation of $A$.
+ 
+% \begin{remark}[The unstaggered variant needs no flux-dual bookkeeping]
+% \label{rem:unstag_advantage}
+% Under the $\eps$-splitting this variant has a structural advantage over the
+% staggered one. The construction~\eqref{eq:emfdual}, together with the
+% share-dependent choice of difference operator discussed in
+% Remark~\ref{rem:ctoperators}, is needed because the staggered Stokes update must be
+% driven by an electromotive force consistent with the three separate numerical
+% contributions by which $\Bb$ is advanced. Equation~\eqref{eq:Aadvect}, by contrast,
+% is the \emph{physical} induction equation, and $\mathbf{u}^{n+1}$ is the velocity of the
+% final state, obtained after the explicit advective update and both implicit
+% sub-systems. All three shares are therefore carried automatically, without any of
+% them having to be identified or weighted individually.
+% \end{remark}
+
+
+
+
+
+
+% ============================================================================
+%  Sec.\ref{sec:highorder} -- rewritten following the structure of
+%  \cite{BoscheriPareschi2021}: compact form -> high order in time -> high order
+%  in space.  Corrections and additions relative to the previous draft:
+%
+%   FIXED   the third-order pair was quoted with delta = 1 - 1/sqrt(2) = 0.2929;
+%           the implemented value is delta = 0.435866.  Both tableaux are now
+%           given in full and match the implementation coefficient by
+%           coefficient.
+%   ADDED   the second-order pair actually implemented is the three-stage
+%           SA SSP(3,3,2) of \cite{BoscheriPareschi2021}, not only LSDIRK2.
+%   ADDED   the defect-correction solution of the fourth-order elliptic system,
+%           absent from the draft although it is what makes the fourth-order
+%           operator compatible with the positivity mechanism.
+%   QUALIFIED  the spatial implicit discretisation is a staggered face family,
+%           not the cell-centred finite differences of \cite{BoscheriPareschi2021}.
+% ============================================================================
+
+\subsection{High-order discretisation}
+\label{sec:highorder}
+
+The semi-discrete scheme of the preceding sections is made third-order accurate
+in time by a semi-implicit IMEX Runge--Kutta
+method~\cite{RKIMEX,BoscheriPareschi2021} and in space by the
+reconstruction of Section~\ref{sec:reconstruction} for the explicit terms and by a
+fourth-order finite volume operator family for the implicit ones.
+
+\subsubsection{Time discretisation}
+\label{sec:time}
+Following~\cite{BoscheriPareschi2021}, the spatially discretised system is written
+as $\partial_t\mathbf{U}=\mathcal H(\mathbf{U}_E,\mathbf{U}_I)$, where the first
+argument is treated explicitly and the second implicitly. In the notation of
+Sections~\ref{sec:hllem}--\ref{sec:implicit}, every quantity carrying the
+superscript $n$ belongs to $\mathbf{U}_E$ and every quantity carrying $n+1$ to
+$\mathbf{U}_I$: the explicit argument enters the advective flux, the explicit
+shares $\epsM\FF^{p}$, $\epsB\FF^{B}$, the splitting parameters, and all the
+coefficients and linearisation points of the implicit sub-systems (the enthalpy
+$h^{n}$, the field $\Bb^{n}$ and the momentum $(\rho\mathbf{u})^{n}$ in the linearised
+terms, the potential $A^{n}$ in the transport term), while the implicit argument
+enters linearly. By construction $\mathcal H(\mathbf{U},\mathbf{U})$ is a
+consistent discretisation of the flux divergence of the full system.
+
+The system is integrated with an $s$-stage IMEX Runge--Kutta scheme with explicit
+and implicit tableaux $(\tilde{\mathbf A},\tilde{\mathbf b})$ and
+$(\mathbf A,\mathbf b)$, $\tilde{\mathbf b}=\mathbf b$. With
+$\mathbf{U}_E^{1}=\mathbf{U}^{n}$,
+\begin{align}
+\label{eq:stage_E}
+\mathbf{U}_E^{i}&=\mathbf{U}^{n}+\Delta t\sum_{j=1}^{i-1}\tilde a_{ij}\,\mathbf k_j,
+\qquad
+\tilde{\mathbf{U}}_I^{i}=\mathbf{U}^{n}+\Delta t\sum_{j=1}^{i-1}a_{ij}\,\mathbf k_j,\\
+\label{eq:stage_k}
+\mathbf k_i&=\mathcal H\big(\mathbf{U}_E^{i},\ \tilde{\mathbf{U}}_I^{i}+\Delta t\,a_{ii}\,\mathbf k_i\big),
+\qquad 1\le i\le s,
+\end{align}
+and $\mathbf{U}^{n+1}=\mathbf{U}^{n}+\Delta t\sum_ib_i\mathbf k_i$. The implicit
+relation~\eqref{eq:stage_k} is the step described in
+Section~\ref{sec:implicit}, with $\Delta t\,a_{ii}$ in place of $\Delta t$,
+$\tilde{\mathbf{U}}_I^{i}$ as the state to be updated and $\mathbf{U}_E^{i}$ as
+the old time level: the magnetic predictor is solved for first and the pressure
+second. The vector potential is advanced with the same tableaux. We use the
+stiffly accurate third-order pair SA~DIRK$(3,4,3)$ of~\cite{BoscheriPareschi2021}, since stiff accuracy is required for consistency with the limit model as
+$\epsM,\epsB\to0$,
+\begin{equation}
+\label{eq:sadirk343}
+\begin{array}{c|cccc}
+0        & 0        & 0         & 0         & 0\\
+\delta   & \delta   & 0         & 0         & 0\\
+c_3      & \tilde a_{31} & \tilde a_{32} & 0  & 0\\
+1        & \tilde a_{41} & 1/2  & \tilde a_{43} & 0\\\hline
+         & 0        & b_2  & b_3 & \delta
+\end{array}
+\qquad
+\begin{array}{c|cccc}
+\delta   & \delta & 0        & 0         & 0\\
+\delta   & 0      & \delta   & 0         & 0\\
+c_3      & 0      & c_3-\delta & \delta    & 0\\
+1        & 0      & b_2 & b_3 & \delta\\\hline
+         & 0      & b_2 & b_3 & \delta
+\end{array},
+\end{equation}
+where $\delta\approx0.4358665215$ is the middle root of
+$x^{3}-3x^{2}+\tfrac32x-\tfrac16=0$, $c_3=(1+\delta)/2$,
+$b_2=-(6\delta^{2}-16\delta+1)/4$, $b_3=(6\delta^{2}-20\delta+5)/4$, and
+$\tilde a_{31}\approx1.4377449738$, $\tilde a_{32}=c_3-\tilde a_{31}$,
+$\tilde a_{41}\approx0.9169932984$, $\tilde a_{43}=\tfrac12-\tilde a_{41}$.
+
+
+
+\subsubsection{Finite volume operators}
+\label{sec:fv_ops}
+All discrete unknowns are cell averages. Cell averages $\bar q$ and point values
+$q$ at the cell centre are related, to fourth order, by
+\begin{equation}
+\label{eq:convdeconv}
+q_{i,j}=\bar q_{i,j}-\tfrac1{24}\big(\delta_x^{2}+\delta_y^{2}\big)\bar q_{i,j},
+\qquad
+\bar q_{i,j}=q_{i,j}+\tfrac1{24}\big(\delta_x^{2}+\delta_y^{2}\big)q_{i,j},
+\end{equation}
+with $\delta_x^{2}q_{i,j}=q_{i+1,j}-2q_{i,j}+q_{i-1,j}$; the same relations with
+the transverse second difference alone convert between face averages and
+face-midpoint values. Every nonlinear function of the unknowns is evaluated on
+point values and converted back. The implicit sub-systems are discretised with
+the face average and the face-normal gradient of a cell-averaged quantity,
+\begin{equation}
+\label{eq:family4}
+\mathcal I[\bar q]_{i+\frac12}=\tfrac{1}{12}\big(-\bar q_{i-1}+7\bar q_i+7\bar q_{i+1}-\bar q_{i+2}\big),
+\qquad
+\mathcal G[\bar q]_{i+\frac12}=\frac{\bar q_{i-1}-15\bar q_i+15\bar q_{i+1}-\bar q_{i+2}}{12\,\Delta x},
+\end{equation}
+both fourth-order accurate for the average over the face, and with the exact
+divergence $\mathcal D[F]_i=(F_{i+\frac12}-F_{i-\frac12})/\Delta x$ of face-averaged
+fluxes. The face average of a product is obtained from the product of the face
+averages plus the transverse covariance,
+\begin{equation}
+\label{eq:covariance}
+\overline{fg}=\bar f\,\bar g+\tfrac{\Delta y^{2}}{12}\,\partial_y\bar f\,\partial_y\bar g
++\mathcal O(\Delta y^{4})
+\end{equation}
+on an $x$-face. The elliptic term of~\eqref{eq:pwave} is the composition
+\begin{equation}
+\label{eq:composed4}
+\mathcal D^{x}\Big[(1-\eps^{x}_{M})\Big((1-\eps^{x}_{M})\,
+\overline{\mathcal I^{x}[h^{n}]\;\mathcal G^{x}[p]}
+\;-\;\mathcal I^{x}[h^{n}]\;\mathcal I^{x}[p]\;\partial_x\eps^{x}_{M}\Big)\Big]+(x\to y),
+\end{equation}
+where $\partial_x\eps^{x}_{M}$ is the fourth-order central difference of the face values,
+$(\partial_x\eps^{x}_{M})_{i+\frac12}=\big(-\eps^{x}_{M,i+\frac52}+8\eps^{x}_{M,i+\frac32}
+-8\eps^{x}_{M,i-\frac12}+\eps^{x}_{M,i-\frac32}\big)/(12\Delta x)$.
+with the splitting parameter taken at the faces; the same operators discretise
+the enthalpy-flux divergence on the right-hand side, the momentum
+update~\eqref{eq:p_mom}, the magnetic system~\eqref{eq:mag_sys} and the
+terms~\eqref{eq:Bz},~\eqref{eq:Umag}.
+
+The explicit terms are third-order accurate through the reconstruction of
+Section~\ref{sec:reconstruction} at the stage state $\mathbf{U}_E^{i}$; the
+numerical fluxes are evaluated at the face midpoints and converted to face
+averages by~\eqref{eq:convdeconv}.
+ 
+% \paragraph{Cell averages versus point values.}
+% A finite volume scheme evolves cell averages, whereas the reconstruction returns
+% face values and the Riemann solver returns a flux at a single point of the face.
+% Every conversion between the two representations is only second-order accurate
+% unless it is corrected, and each such conversion therefore caps the scheme at
+% second order in two space dimensions, however accurate the reconstruction. Two
+% appear in the present algorithm. The initial condition is sampled at the cell
+% centre, whereas $\bar q_{i,j}$ must be the average of $q$ over the cell; and the
+% differenced quantity in~\eqref{eq:adv_update} must be the face-averaged flux
+% $\bar{\mathcal F}_{i+\frac12,j}
+% =\Delta y^{-1}\!\int \mathcal F(x_{i+\frac12},y)\,\mathrm dy$, whereas the AP-HLLEM
+% solver returns $\mathcal F$ at the face midpoint. Both are corrected by the
+% convolution pair
+% \begin{equation}
+% \label{eq:convolution}
+% \bar q = q+\tfrac{1}{24}\big(\delta^2_x+\delta^2_y\big)q+\mathcal O(h^{4}),
+% \qquad
+% q = \bar q-\tfrac{1}{24}\big(\delta^2_x+\delta^2_y\big)\bar q+\mathcal O(h^{4}),
+% \end{equation}
+% with $\delta^2$ the undivided second difference, applied in both directions to the
+% initial data and in the transverse direction alone to the face fluxes. In one space
+% dimension the transverse difference vanishes identically, so the face correction is
+% inactive and the scheme attains its design order without it; this is why a
+% one-dimensional convergence study does not reveal the effect. Because $\delta^2$ is
+% $\mathcal O(1)$ at a discontinuity, both corrections are applied only to smooth
+% data and are disabled in the shock-dominated tests of
+% Section~\ref{sec:result}, where the formal order is in any case one.
+
+
+ 
+\subsection{Fully discrete scheme in two dimensions}
+\label{sec:fully_discrete}
+
+We use the operators of Section~\ref{sec:fv_ops}: the face average
+$\mathcal I^{x}$, the face-normal gradient $\mathcal G^{x}$ and the divergence
+$\mathcal D^{x}[F]_{i,j}=(F_{i+\frac12,j}-F_{i-\frac12,j})/\Delta x$, with their
+$y$-analogues, and write $\overline{f\,g}$ for the face average of a
+product~\eqref{eq:covariance}. One stage of the IMEX Runge--Kutta scheme of
+Section~\ref{sec:time}, with $\Delta t$ standing for the stage time step
+$\Delta t\,a_{ii}$, the superscript $n$ for the explicit stage state
+$\mathbf{U}_E^{i}$ and a star for the state obtained from the implicit base
+state $\tilde{\mathbf{U}}_I^{i}$ by the explicit update, proceeds as follows.
+
+\begin{enumerate}[leftmargin=2.2em]
+
+\item \textbf{Splitting parameters.}
+Compute $\epsM,\epsB$ from~\eqref{eq:eps_def} in every cell and the interface
+values $\eps^{x}_{i+\frac12,j}$, $\eps^{y}_{i,j+\frac12}$ from~\eqref{eq:eps_face}.
+
+\item \textbf{Explicit update.}
+With the face states of Section~\ref{sec:reconstruction} and the AP-HLLEM
+fluxes~\eqref{eq:hllem}, converted to face averages,
+\begin{equation}\label{eq:step_adv}
+\mathbf{U}^{*}_{i,j}=\tilde{\mathbf{U}}_{I,i,j}
+-\Delta t\,\big(\mathcal D^{x}[\tilde\FF^{\eps}]+\mathcal D^{y}[\tilde\GG^{\eps}]\big)_{i,j},
+\end{equation}
+which gives the density $\rho^{n+1}=\rho^{*}$.
+
+\item \textbf{Magnetic predictor.}
+Solve the linear system~\eqref{eq:mag_sys} for $\tilde\Bb$, with the
+stress divergence of~\eqref{eq:mag_mom} and the induction operator
+of~\eqref{eq:induction} discretised as $\mathcal D[(1-\epsB)\,\mathcal I[\,\cdot\,]]$
+and with the pressure gradient of~\eqref{eq:mag_mom} as in~\eqref{eq:step_mom}
+below.
+
+\item \textbf{Lorentz force.}
+\begin{equation}\label{eq:step_mag_mom}
+(\rho\mathbf{u})^{\ast\ast}_{i,j}=(\rho\mathbf{u})^{\ast}_{i,j}
+-\Delta t\,\Big(\mathcal D^{x}\big[(1-\eps^{x}_{B})\,\mathcal I^{x}[\FF^{B}_{\rho\mathbf{u}}(\tilde\Bb)]\big]
++\mathcal D^{y}\big[(1-\eps^{y}_{B})\,\mathcal I^{y}[\GG^{B}_{\rho\mathbf{u}}(\tilde\Bb)]\big]\Big)_{i,j},
+\qquad
+\FF^{B}_{\rho\mathbf{u}}(\Bb)=\half\|\Bb\|^{2}\mathbf e_x-B_x\Bb .
+\end{equation}
+
+\item \textbf{Pressure solve.}
+For a trial pressure $p$, the momentum is
+\begin{equation}\label{eq:step_mom}
+(\rho u)_{i,j}=(\rho u)^{\ast\ast}_{i,j}
+-\Delta t\,\mathcal D^{x}\big[(1-\eps^{x}_{M})\,\mathcal I^{x}[p]\big]_{i,j},
+\qquad
+(\rho v)_{i,j}=(\rho v)^{\ast\ast}_{i,j}
+-\Delta t\,\mathcal D^{y}\big[(1-\eps^{y}_{M})\,\mathcal I^{y}[p]\big]_{i,j},
+\end{equation}
+the in-plane field follows from~\eqref{eq:Aupdate} and~\eqref{eq:curl4}, and
+\begin{align}
+\label{eq:step_Bz}
+B_{z,i,j}&=B^{\ast}_{z,i,j}
+-\Delta t\,\mathcal D^{x}\big[(1-\eps^{x}_{B})\,\mathcal I^{x}[u\,B_z^{n}-w\,B_x^{n}]\big]_{i,j}
+-\Delta t\,\mathcal D^{y}\big[(1-\eps^{y}_{B})\,\mathcal I^{y}[v\,B_z^{n}-w\,B_y^{n}]\big]_{i,j},\\
+\label{eq:step_Umag}
+E^{\ast\ast}_{i,j}&=E^{\ast}_{i,j}
+-\Delta t\,\mathcal D^{x}\big[(1-\eps^{x}_{B})\,\mathcal I^{x}[\|\Bb^{n}\|^{2}u-(\mathbf{u}\!\cdot\!\Bb^{n})B_x^{n}]\big]_{i,j}
+-\Delta t\,\mathcal D^{y}\big[(1-\eps^{y}_{B})\,\mathcal I^{y}[\|\Bb^{n}\|^{2}v-(\mathbf{u}\!\cdot\!\Bb^{n})B_y^{n}]\big]_{i,j},
+\end{align}
+with $\mathbf{u}=(\rho\mathbf{u})/\rho^{n+1}$ and all products formed on point values. The
+pressure $p^{n+1}$ is the solution of
+\begin{equation}\label{eq:step_p1}
+\frac{p_{i,j}}{\gamma-1}+k_{i,j} + m_{i,j}
++\Delta t\,\Big(\mathcal D^{x}\big[(1-\eps^{x}_{M})\,\overline{\mathcal I^{x}[h^{n}]\;(\rho u)_{f}}\big]
++\mathcal D^{y}\big[(1-\eps^{y}_{M})\,\overline{\mathcal I^{y}[h^{n}]\;(\rho v)_{f}}\big]\Big)_{i,j}
+=E^{\ast\ast}_{i,j},
+\end{equation}
+where $k$ and $m$ are the cell average of~\eqref{eq:klin} and the face momentum is
+\begin{equation}\label{eq:step_mf}
+(\rho u)_{f}=\mathcal I^{x}[(\rho u)^{\ast\ast}]
+-\Delta t\,\Big((1-\eps^{x}_{M})\,\mathcal G^{x}[p]-\mathcal I^{x}[p]\,\partial_x\eps^{x}_{M}\Big),
+\end{equation}
+that is, the face average of the momentum~\eqref{eq:step_mom} with the pressure
+gradient evaluated at the face. Equation~\eqref{eq:step_p1} is linear in $p$ and
+is solved by the defect correction~\eqref{eq:defect}.
+
+\item \textbf{Update.}
+With the converged pressure, $(\rho\mathbf{u})^{n+1}$ is given by~\eqref{eq:step_mom},
+$\Bb^{n+1}$ by~\eqref{eq:Aupdate}, \eqref{eq:curl4} and~\eqref{eq:step_Bz}, and the
+total energy by
+\begin{equation}
+\label{eq:step_energy}
+E^{n+1}_{i,j}=\frac{p^{n+1}_{i,j}}{\gamma-1}
++\frac{(\rho\mathbf{u})^{n}_{i,j}\!\cdot\!(\rho\mathbf{u})^{n+1}_{i,j}-\half\|(\rho\mathbf{u})^{n}_{i,j}\|^{2}}{\rho^{n+1}_{i,j}}
++\Bb^{n}_{i,j}\!\cdot\!\Bb^{n+1}_{i,j}-\half\|\Bb^{n}_{i,j}\|^{2},
+\end{equation}
+that is, with the kinetic and magnetic energies linearised as
+in~\eqref{eq:klin}. This is the energy for which the pressure
+system~\eqref{eq:energy_imp} was derived, so that the update is conservative.
+
+\end{enumerate}
+
+Each stage thus solves for the magnetic predictor and then for the pressure,
+with no iteration between the sub-systems. The scheme is
+third-order accurate in space and time, the magnetic field is divergence-free
+with respect to the fourth-order central divergence, and mass, momentum and
+total energy are conserved, the latter exactly wherever the pressure floor is
+inactive.
+
+
+
+
+ 
+\section{Numerical Results}\label{sec:result}
+
+In this section the proposed scheme is validated on a set of standard test
+problems. We first measure the experimental order of convergence on a smooth
+solution, decreasing the background density over five orders of magnitude so
+that the magnetic sub-system becomes progressively stiffer. One-dimensional
+Riemann problems then exercise the HLLEM flux and the characteristic
+reconstruction on the individual wave families. The remaining tests are
+two-dimensional: a stationary vortex, three benchmarks with shocks, and two
+problems dominated by the advection and the shear of the magnetic field.
+
+Unless otherwise stated, the ideal gas equation of state is used with
+$\gamma=5/3$, and the time step is given by~\eqref{eq:cfl} with
+$\mathrm{CFL}=0.8$.
+In two space dimensions the magnetic field is advanced by the unstaggered
+constrained transport of Section~\ref{sec:CT},
+and the discrete divergence remains at the level of round-off in all tests; in
+one space dimension $B_x$ is constant and constrained transport is not needed.
+
+\subsection{Accuracy of the numerical scheme}
+\label{sec:accuracy}
+The order of accuracy of the scheme is verified on the smooth magnetised
+vortex of~\cite{accuracyvortex, BoscheriThomann2024}, set on the periodic-free
+square $\Omega=[-5,5]^2$. The initial condition consists of a homogeneous state
+$\mathbf{q}_0=(\rho_0,\mathbf{u}_0,p_0,\mathbf{0})$ to which a localised,
+rotationally symmetric perturbation $\delta\mathbf{q}$ is added; the density is
+left unperturbed. Let $r=\sqrt{x^2+y^2}$ and $\theta$ denote polar coordinates
+centred at the origin, and introduce the Gaussian profile
+%
+\begin{equation}
+\varphi(r)=\exp\!\left(\frac{1-r^{2}}{2}\right).
+\label{eq:vortex_profile}
+\end{equation}
+%
+Both the velocity and the magnetic field are purely azimuthal, with
+%
+\begin{equation}
+\delta v_\theta=\frac{\tilde{v}}{2\pi}\,r\,\varphi(r),
+\qquad
+\delta B_\theta=\frac{\tilde{B}}{2\pi}\,r\,\varphi(r),
+\label{eq:vortex_theta}
+\end{equation}
+%
+so that in Cartesian components
+%
+\begin{align}
+(\delta u,\,\delta v)&=\delta v_\theta\,(-\sin\theta,\ \cos\theta),
+\label{eq:vortex_vel}\\[2pt]
+(\delta B_x,\,\delta B_y)&=\delta B_\theta\,(-\sin\theta,\ \cos\theta).
+\label{eq:vortex_mag}
+\end{align}
+%
+The amplitudes are fixed to $\tilde{v}=\sqrt{2\pi}$ and $\tilde{B}=1$. The
+magnetic field derives from the vector potential
+%
+\begin{equation}
+\delta A_z=\frac{\tilde{B}}{2\pi}\,\varphi(r),
+\label{eq:vortex_Az}
+\end{equation}
+%
+and is therefore solenoidal by construction. A stationary configuration in the
+co-moving frame requires the radial pressure gradient to compensate the
+centrifugal force together with the Lorentz force, the latter split into
+magnetic tension and magnetic pressure:
+%
+\begin{equation}
+\frac{\mathrm{d}\,\delta p}{\mathrm{d}r}
+ =\frac{\rho_0\,\delta v_\theta^{2}}{r}
+ -\frac{\delta B_\theta^{2}}{r}
+ -\frac{1}{2}\,\frac{\mathrm{d}\bigl(\delta B_\theta^{2}\bigr)}{\mathrm{d}r}.
+\label{eq:vortex_equil}
+\end{equation}
+%
+Requiring $\delta p\to 0$ as $r\to\infty$, the integration
+of~\eqref{eq:vortex_equil} can be carried out exactly and gives
+%
+\begin{equation}
+\delta p=\frac{\varphi(r)^{2}}{2}
+ \left[\left(\frac{\tilde{B}}{2\pi}\right)^{\!2}\bigl(1-r^{2}\bigr)
+ -\rho_0\left(\frac{\tilde{v}}{2\pi}\right)^{\!2}\right].
+\label{eq:vortex_dp}
+\end{equation}
+%
+We choose $p_0=1$ and $\mathbf{u}_0=(1,1,0)$, so that the structure is
+transported along the diagonal of the domain without change of shape.
+
+The time step of the present method is restricted by a CFL condition based on
+the material velocity alone, with no dependence on the acoustic or Alfv\'en
+speeds. The convergence study is therefore repeated over a range of
+magnetosonic regimes. Superimposing a uniform magnetic field would destroy the
+exact solution, so the regime is controlled through the background density
+instead: because the Alfv\'en speed scales as $\rho^{-1/2}$, reducing $\rho_0$
+makes the Alfv\'en waves faster and the flow increasingly sub-Alfv\'enic. The
+same reduction raises the sound speed and weakens the kinetic term
+in~\eqref{eq:vortex_dp}, while the magnetic term is unaffected. Since the
+unperturbed state carries no magnetic field, a global Alfv\'en Mach number
+cannot be assigned; we characterise each case by the maximum acoustic Mach
+number $M_c$, which scales as $\rho_0^{1/2}$, and by the Alfv\'en speed
+$c_a$, which scales as $\rho_0^{-1/2}$, for $\rho_0=10^{-k}$, $k=0,\dots,5$.
+% MISSING FLOAT: the table of M_c and c_a per rho_0 was referenced here but is
+% not in the source.  Re-insert it and restore "listed in Table~\ref{...}".
+
+All simulations are run to $t_f=1$ on a sequence of uniformly refined meshes.
+The $L^2$ errors of $\rho$, $u$, $p$, $B_x$ and $A_z$ and the corresponding
+experimental orders of convergence (EOC) are collected in
+Table~\ref{tab:vortex_eoc_o3}. At least the formal third order of accuracy is
+attained for all variables and across all regimes considered. To illustrate the benefit of a
+stability restriction that does not depend on the fast scales: in the low
+acoustic and Alfv\'en Mach number cases the time step permitted by the present
+scheme exceeds that of a fully explicit discretisation, which is bounded by the
+fastest characteristic speed, by several orders of magnitude, with third-order
+accuracy in space and time retained throughout. The same ratio is quantified
+for the Kelvin--Helmholtz test in Fig.~\ref{fig:kh_dtratio}.
+% MISSING FLOAT: a figure of dt / dt_explicit for this test was referenced here
+% but is not in the source.  Re-insert it and restore the forward reference.
+
+
+\begin{table}[pos=htbp]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{MHD traveling vortex: $L^2$ errors and EOC of the proposed third-order
+scheme for varying background density $\rho_0$ at $t_f=1$, computed with CFL $=0.2$.
+All computations are carried out on the domain $[-5,5]^2$ with $N$ cells per
+direction.}
+\label{tab:vortex_eoc_o3}
+\begin{tabular}{ll*{5}{rc}}
+\toprule
+$\rho_0$ & $N$ & \multicolumn{2}{c}{$\rho$} & \multicolumn{2}{c}{$u$} & \multicolumn{2}{c}{$p$} & \multicolumn{2}{c}{$B_x$} & \multicolumn{2}{c}{$A_z$} \\
+ & & \multicolumn{1}{c}{$L^2$} & EOC & \multicolumn{1}{c}{$L^2$} & EOC & \multicolumn{1}{c}{$L^2$} & EOC & \multicolumn{1}{c}{$L^2$} & EOC & \multicolumn{1}{c}{$L^2$} & EOC \\
+\midrule
+$10^{0}$  & 32   & 3.06e-03 & --   & 1.98e-02 & --   & 1.01e-02 & --   & 1.68e-03 & --   & 7.94e-04 & --   \\
+          & 64   & 4.67e-04 & 2.71 & 2.72e-03 & 2.86 & 1.40e-03 & 2.85 & 1.26e-04 & 3.73 & 5.43e-05 & 3.87 \\
+          & 128  & 6.23e-05 & 2.91 & 3.46e-04 & 2.97 & 1.78e-04 & 2.98 & 1.46e-05 & 3.11 & 6.62e-06 & 3.04 \\
+          & 256  & 7.92e-06 & 2.98 & 4.35e-05 & 2.99 & 2.23e-05 & 3.00 & 2.03e-06 & 2.85 & 8.34e-07 & 2.99 \\
+$10^{-1}$ & 32   & 2.22e-04 & --   & 4.63e-02 & --   & 2.59e-03 & --   & 2.36e-03 & --   & 1.09e-03 & --   \\
+          & 64   & 3.41e-05 & 2.70 & 6.74e-03 & 2.78 & 4.12e-04 & 2.65 & 3.15e-04 & 2.91 & 1.25e-04 & 3.14 \\
+          & 128  & 4.45e-06 & 2.94 & 8.66e-04 & 2.96 & 5.28e-05 & 2.96 & 4.17e-05 & 2.91 & 1.55e-05 & 3.01 \\
+          & 256  & 5.61e-07 & 2.99 & 1.09e-04 & 3.00 & 6.60e-06 & 3.00 & 5.37e-06 & 2.96 & 1.94e-06 & 3.00 \\
+$10^{-2}$ & 32   & 9.94e-05 & --   & 2.26e-02 & --   & 4.30e-04 & --   & 2.91e-03 & --   & 1.44e-03 & --   \\
+          & 64   & 8.98e-06 & 3.47 & 2.89e-03 & 2.97 & 5.58e-05 & 2.94 & 3.38e-04 & 3.10 & 1.56e-04 & 3.21 \\
+          & 128  & 9.75e-07 & 3.20 & 3.67e-04 & 2.98 & 6.81e-06 & 3.04 & 4.22e-05 & 3.00 & 1.91e-05 & 3.03 \\
+          & 256  & 1.20e-07 & 3.03 & 4.61e-05 & 2.99 & 8.40e-07 & 3.02 & 5.37e-06 & 2.97 & 2.38e-06 & 3.01 \\
+$10^{-3}$ & 32   & 2.14e-05 & --   & 2.50e-02 & --   & 3.53e-04 & --   & 2.71e-03 & --   & 1.38e-03 & --   \\
+          & 64   & 1.40e-06 & 3.94 & 4.11e-03 & 2.61 & 3.26e-05 & 3.43 & 2.32e-04 & 3.55 & 1.10e-04 & 3.65 \\
+          & 128  & 8.38e-08 & 4.06 & 5.96e-04 & 2.79 & 3.63e-06 & 3.17 & 2.50e-05 & 3.21 & 1.26e-05 & 3.13 \\
+          & 256  & 8.47e-09 & 3.31 & 7.77e-05 & 2.94 & 4.32e-07 & 3.07 & 3.15e-06 & 2.99 & 1.55e-06 & 3.02 \\
+$10^{-4}$ & 32   & 9.13e-06 & --   & 5.90e-02 & --   & 1.29e-03 & --   & 7.20e-03 & --   & 3.72e-03 & --   \\
+          & 64   & 5.64e-07 & 4.02 & 5.24e-03 & 3.49 & 9.06e-05 & 3.83 & 4.65e-04 & 3.95 & 1.86e-04 & 4.32 \\
+          & 128  & 2.70e-08 & 4.38 & 7.46e-04 & 2.81 & 4.30e-06 & 4.40 & 2.21e-05 & 4.40 & 8.93e-06 & 4.38 \\
+          & 256  & 1.76e-09 & 3.94 & 1.05e-04 & 2.83 & 1.95e-07 & 4.46 & 1.45e-06 & 3.93 & 6.32e-07 & 3.82 \\
+$10^{-5}$ & 32   & 5.27e-06 & --   & 5.37e-01 & --   & 5.96e-03 & --   & 3.43e-02 & --   & 2.26e-02 & --   \\
+          & 64   & 5.34e-07 & 3.30 & 2.15e-02 & 4.64 & 5.94e-04 & 3.33 & 2.93e-03 & 3.55 & 1.36e-03 & 4.06 \\
+          & 128  & 1.81e-08 & 4.88 & 1.50e-03 & 3.84 & 2.75e-05 & 4.43 & 1.36e-04 & 4.43 & 5.25e-05 & 4.69 \\
+          & 256  & 7.53e-10 & 4.59 & 1.42e-04 & 3.39 & 1.13e-06 & 4.60 & 5.63e-06 & 4.60 & 2.32e-06 & 4.50 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{One-dimension MHD Riemann Tests}
+\label{sec:MHD_1d}
+
+Having established the convergence order in Section~\ref{sec:accuracy}, we
+now turn to the shock-capturing behaviour of the scheme, which is examined on a
+set of classical one-dimensional Riemann problems for the ideal MHD equations.
+These problems give rise to fast and slow shocks and rarefactions, contact and
+rotational discontinuities and, in RP1, a compound wave. Each problem is
+initialised with two uniform
+states $\mathbf{W}_L=[\rho_L,\mathbf{u}_L,p_L,\mathbf{B}_L]$ and
+$\mathbf{W}_R=[\rho_R,\mathbf{u}_R,p_R,\mathbf{B}_R]$ that meet at $x=x_0$.
+The seven configurations RP1--RP7, with the location of the initial jump and the
+output time, are listed in Table~\ref{tab:mhd_riemann}. RP1 is the shock tube
+of Brio and Wu~\cite{BrioWu1988}. RP2 is the Ryu--Jones
+problem~\cite{RyuJones1995}, whose solution contains all seven MHD waves. RP3
+and RP4 were adopted in~\cite{Dumbser2019},~\cite{Fambri2021} and~\cite{Dematte2024} to
+validate semi-implicit schemes. RP5 and RP6 are head-on collisions of
+hypersonic streams, with acoustic Mach numbers of about 12 and 20 in RP5 and
+29 in RP6, and RP7 is an isolated rotational discontinuity, which is
+stationary since $u+c_a=0$. % CHECK: cite the sources of RP5--RP7
+All computations are carried out on the
+interval $[-0.5,0.5]$ using $2000$ cells and transmissive boundary conditions.
+Since $B_x$ is constant in one space dimension, constrained transport is not
+applied and the transverse field is updated in flux form.
+
+\begin{table}[pos=htbp]
+\centering
+\caption{Initial left (L) and right (R) states for the MHD Riemann test
+problems. The discontinuity is located at $x_0$. }
+\label{tab:mhd_riemann}
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llllllllllll}   % 12 列: ll + 8数据 + p_gas + x0 + t_out
+\toprule
+Test & & $\rho$ & $u$ & $v$ & $w$ & $B_x$ & $B_y$ & $B_z$ & $p$ & $x_0$ & $t_{\mathrm{out}}$ \\
+\midrule
+\multirow{2}{*}{RP1}
+ & L: & $1.0$   & $0.0$ & $0.0$ & $0.0$ & $0.75$ & $1.0$  & $0.0$ & $1.0$ & \multirow{2}{*}{$0.0$} & \multirow{2}{*}{$0.1$} \\
+ & R: & $0.125$ & $0.0$ & $0.0$ & $0.0$ & $0.75$ & $-1.0$ & $0.0$ & $0.1$ & & \\
+\addlinespace
+\multirow{2}{*}{RP2}
+ & L: & $1.08$   & $1.2$     & $0.01$   & $0.5$      & $0.564190$ & $1.015541$ & $0.564190$ & $0.95$    & \multirow{2}{*}{$-0.1$} & \multirow{2}{*}{$0.2$} \\
+ & R: & $0.9891$ & $-0.0131$ & $0.0269$ & $0.010037$ & $0.564190$ & $1.135262$ & $0.564923$ & $0.97159$ & & \\
+\addlinespace
+\multirow{2}{*}{RP3}
+ & L: & $1.7$ & $0.0$ & $0.0$ & $0.0$       & $1.1$ & $1.0$      & $0.0$      & $1.7$ & \multirow{2}{*}{$-0.1$} & \multirow{2}{*}{$0.15$} \\
+ & R: & $0.2$ & $0.0$ & $0.0$ & $-1.496891$ & $1.1$ & $0.785887$ & $0.618370$ & $0.2$ & & \\
+\addlinespace
+\multirow{2}{*}{RP4}
+ & L: & $1.0$ & $0.0$ & $0.0$ & $0.0$ & $1.3$ & $1.0$  & $0.0$ & $1.0$ & \multirow{2}{*}{$0.0$} & \multirow{2}{*}{$0.16$} \\
+ & R: & $0.4$ & $0.0$ & $0.0$ & $0.0$ & $1.3$ & $-1.0$ & $0.0$ & $0.4$ & & \\
+\multirow{2}{*}{RP5}
+ & L: & $0.15$ & $21.55$  & $1.0$ & $1.0$ & $0.05/\sqrt{4\pi}$ & $-2.0/\sqrt{4\pi}$ & $-1.0/\sqrt{4\pi}$ & $0.28$ & \multirow{2}{*}{$0.0$} & \multirow{2}{*}{$0.04$} \\
+ & R: & $0.1$  & $-26.45$ & $0.0$ & $0.0$ & $0.05/\sqrt{4\pi}$ & $2.0/\sqrt{4\pi}$  & $1.0/\sqrt{4\pi}$  & $0.1$  & & \\
+\addlinespace
+\multirow{2}{*}{RP6}
+ & L: & $1.0$ & $36.87$  & $-0.115$ & $-0.0386$ & $4/\sqrt{4\pi}$ & $4/\sqrt{4\pi}$ & $1/\sqrt{4\pi}$ & $1.0$ & \multirow{2}{*}{$0.0$} & \multirow{2}{*}{$0.03$} \\
+ & R: & $1.0$ & $-36.87$ & $0.0$    & $0.0$     & $4/\sqrt{4\pi}$ & $4/\sqrt{4\pi}$ & $1/\sqrt{4\pi}$ & $1.0$ & & \\
+\addlinespace
+\multirow{2}{*}{RP7}
+ & L: & $1/(4\pi)$ & $-1.0$ & $1.0$  & $-1.0$ & $1/\sqrt{4\pi}$ & $-1/\sqrt{4\pi}$ & $1/\sqrt{4\pi}$ & $1.0$ & \multirow{2}{*}{$0.0$} & \multirow{2}{*}{$0.25$} \\
+ & R: & $1/(4\pi)$ & $-1.0$ & $-1.0$ & $-1.0$ & $1/\sqrt{4\pi}$ & $1/\sqrt{4\pi}$  & $1/\sqrt{4\pi}$ & $1.0$ & & \\
+\bottomrule
+\end{tabular}}
+
+\vspace{2pt}
+\end{table}
+
+\begin{figure}[pos=htbp]
+    \centering
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP1_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP1_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP1_By.png}
+    \end{minipage}
+    \vspace{0.5em}
+
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP2_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP2_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP2_By.png}
+    \end{minipage}
+    \vspace{0.5em}
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP3_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP3_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP3_By.png}
+    \end{minipage}
+    
+    \vspace{0.5em}
+
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP4_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP4_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP4_By.png}
+    \end{minipage}
+
+
+    \caption{Numerical results for the Riemann problems RP1, RP2, RP3 and RP4 (from top to bottom) obtained using the new semi-implicit scheme compared to exact Riemann solutions (black line). The black symbols indicate results obtained by proposed IMEX scheme.
+    The fluid density (left), the fluid pressure (middle) and the component of the magnetic field (right) are depicted at the chosen output time for each test.}
+    \label{fig:MHDRPs1}
+\end{figure}
+\clearpage
+
+\begin{figure}[pos=htbp]
+    \centering
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP5_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP5_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP5_By.png}
+    \end{minipage}
+    \vspace{0.5em}
+
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP6_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP6_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP6_By.png}
+    \end{minipage}
+    \vspace{0.5em}
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP7_rho.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP7_p.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.32\linewidth}
+        \includegraphics[width=\linewidth]{figs/RP7_By.png}
+    \end{minipage}
+    
+    \caption{Numerical results for the Riemann problems RP5, RP6 and RP7 (from top to bottom) obtained using the new semi-implicit scheme compared to exact Riemann solutions (black line). The black symbols indicate results obtained by proposed IMEX scheme.
+    The fluid density (left), the fluid pressure (middle) and the component of the magnetic field (right) are depicted at the chosen output time for each test.}
+    \label{fig:MHDRPs2}
+\end{figure}
+The numerical profiles of density, pressure and transverse magnetic field
+$B_y$ are shown in Figs.~\ref{fig:MHDRPs1} and~\ref{fig:MHDRPs2}. Two numerical
+solutions are reported: the proposed scheme, and the standard IMEX scheme
+obtained with the fixed choice $\epsM=\epsB\equiv0$, for which the explicit
+sub-system is only weakly hyperbolic and is closed with the Rusanov
+flux~\eqref{eq:rusanov}. % CHECK: order and reconstruction of the baseline
+Both are compared with the exact solution of the Riemann problem, obtained
+with the solver of Falle and Komissarov~\cite{exact1,exact2}.
+
+In all seven cases the proposed scheme recovers the wave structure, with the
+discontinuities at the correct positions and the intermediate states at the
+exact levels. % CHECK against the exact solution
+% CHECK (after the baseline runs): keep only what the figures show
+Compared with the standard IMEX scheme, the contact and rotational
+discontinuities are resolved over fewer cells, as a consequence of the
+anti-diffusive terms of the HLLEM flux~\eqref{eq:hllem} and of the
+reconstruction in the split characteristic variables.
+For RP1 the computed solution displays the familiar compound wave, with an
+accompanying overshoot in density and pressure; this feature is shared by
+standard finite volume methods for ideal MHD and is found with the
+HLLEM~\cite{HLLEM}, Osher-type~\cite{DumbserToro} and Rusanov fluxes
+alike.
+
+\subsection{Smooth stationary MHD vortex}\label{sec:stationary_vortex}
+
+We now consider a stationary, isodensity variant of the vortex of Section~\ref{sec:accuracy},
+run to long times following Fambri~\cite{Fambri2021}. The initial data are
+\eqref{eq:vortex_profile}--\eqref{eq:vortex_dp} with $\rho_0=1$, $p_0=1$, $\tilde v=\tilde B=1$ and
+$\mathbf u_0=\mathbf 0$, so that the configuration is an exact steady state of~\eqref{eq:ideal_MHD}.
+The computational domain is the periodic square $[-10,10]^2$, discretised with
+$200\times200$ cells, and the computation is run up to $t=1000$ with $\mathrm{CFL}=0.2$.
+The flow is acoustically stiff throughout, so that the time step is set by the fluid and
+Alfv\'en velocities only.
+
+\begin{equation}\label{eq:sv_ic}
+\begin{bmatrix} \rho_0 \\ u_0 \\ v_0 \\ (B_x)_0 \\ (B_y)_0 \\ p_0 \end{bmatrix}
+=
+\begin{bmatrix}
+1 \\[2pt]
+-\dfrac{\varepsilon}{2\pi}\, e^{\frac{1}{2}(1-r^2)}\, y \\[8pt]
+\dfrac{\varepsilon}{2\pi}\, e^{\frac{1}{2}(1-r^2)}\, x \\[8pt]
+-\dfrac{1}{2\pi}\, e^{\frac{1}{2}(1-r^2)}\, y \\[8pt]
+\dfrac{1}{2\pi}\, e^{\frac{1}{2}(1-r^2)}\, x \\[8pt]
+1 + \dfrac{1}{8\pi}\Bigl(\dfrac{\tilde\mu}{2\pi}\Bigr)^{2}(1-r^2)\, e^{(1-r^2)}
+  - \dfrac{1}{2}\Bigl(\dfrac{\varepsilon}{2\pi}\Bigr)^{2} e^{(1-r^2)}
+\end{bmatrix},
+\end{equation}
+with $\varepsilon=1$ and $\tilde\mu=\sqrt{4\pi}$.
+
+Fig.~\ref{fig:MHDvortex} shows the normalised magnetic field
+$\mathbf b=\mathbf B/\max\|\mathbf B_0\|$ at $t=500$ and $t=1000$, and Fig.~\ref{fig:vortex_lineout}
+a cut along the $x$-axis at $t=1000$ compared with the initial (exact) profile.
+The scheme preserves the stationarity of the vortex over the whole run with little
+numerical dissipation, and the discrete divergence of the magnetic field remains at the
+level of round-off. The results are in good agreement with those of~\cite{Fambri2021,Dematte2024}.
+
+\begin{figure}[pos=htbp]
+    \centering
+    \begin{minipage}{0.48\linewidth}
+        \includegraphics[width=\linewidth]{figs/MHD_500.png}
+    \end{minipage}
+    \hspace{0.01\linewidth}%
+    \begin{minipage}{0.48\linewidth}
+        \includegraphics[width=\linewidth]{figs/MHD_1000.png}
+    \end{minipage}
+    \caption{Long-time simulation of a smooth stationary MHD vortex. Contour plots of $\log_{10}\|\mathbf{b}\|$, overlaid with 20 equidistant contour lines between $-6.5$ and $0$, obtained with the proposed semi-implicit scheme using the unstaggered adaptation of the CT method, shown at times $t=500$ (left) and $t=1000$ (right).}
+    \label{fig:MHDvortex}
+\end{figure}
+
+\begin{figure}[pos=htbp]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figs/MHDvortex_lineout.png}
+    \caption{Long-time simulation of a smooth stationary MHD vortex at time $t=1000$. One-dimensional line-out along the $x$-axis of the normalised magnetic field $\mathbf{b}$, obtained with the proposed semi-implicit algorithm using the unstaggered adaptation of the CT method described in Section~\ref{sec:CT} to enforce the divergence-free condition of the magnetic field. The solution is compared with the reference (initial) solution.}
+    \label{fig:vortex_lineout}
+\end{figure}
+
+\subsection{Ideal MHD rotor problem}
+\label{sec:rotor}
+
+The rotor problem of Balsara and Spicer~\cite{BalsaraSpicer1999} combines, in
+a single computation, a fast flow and a fluid at rest. A disc of heavy fluid
+of radius $0.1$ spins rigidly at the centre of the domain, surrounded by a
+light fluid that is initially motionless; the magnetic field threading both
+is wound up by the rotation, and torsional Alfv\'en waves travel outwards and
+slow the disc down. The pressure and the magnetic field are uniform at the
+initial time,
+%
+\begin{equation}
+\label{eq:rotor_ic1}
+p_0 = 1, \qquad
+\mathbf{B}_0 = \left(\frac{2.5}{\sqrt{4\pi}},\,0,\,0\right)^{\!\top},
+\qquad w_0 = 0,
+\end{equation}
+%
+while the density and the in-plane velocity are
+%
+\begin{equation}
+\label{eq:rotor_ic2}
+(\rho_0,\, u_0,\, v_0) =
+\begin{cases}
+(10,\ -10\,y,\ 10\,x), & r \le 0.1, \\[4pt]
+(1,\ 0,\ 0), & r > 0.1,
+\end{cases}
+\qquad r = \sqrt{x^2 + y^2}.
+\end{equation}
+%
+The computation is carried out on $[-0.5,0.5]^2$ with transmissive boundary
+conditions on a uniform mesh of $1024 \times 1024$ cells, up to $t=0.25$.
+
+The density $\rho$, the pressure $p$ and the magnetic energy $m$ at the final
+time are displayed in Fig.~\ref{fig:rotor}. The flow pattern is the one
+reported in the
+literature~\cite{Dumbser2019,BoscheriADER,BoscheriThomann2024}.
+% CHECK after the production run
+The bottom row of the same figure shows the corresponding distributions of
+the two splitting parameters. Inside the rotating disc the flow is supersonic
+and super-Alfv\'enic, $\epsM=\epsB=1$, and the whole flux is handled by the
+explicit HLLEM solver; in the undisturbed outer fluid both parameters vanish
+and the acoustic and the magnetic flux are implicit. In the region swept by
+the Alfv\'en waves the acoustic and the Alfv\'en Mach number differ, and so do
+$\epsM$ and $\epsB$: this is the situation that a single splitting parameter
+cannot represent.
+% CHECK against the computed maps of eps_M, eps_B
+Throughout the computation the discrete divergence of the magnetic field stays
+at the level of round-off.
+
+
+\begin{figure}[pos=p]
+\centering
+\includegraphics[height=0.849\textheight]{figs/rotor.png}
+\caption{Ideal MHD rotor problem at $t=0.25$ on a $1024\times1024$ mesh,
+obtained with the proposed semi-implicit scheme. Top: density $\rho$ (left) and
+gas pressure $p$ (right). Middle: squared velocity magnitude $\|\mathbf u\|^2$
+(left) and magnetic energy $m=\tfrac12\|\mathbf B\|^2$ (right). Bottom: the
+splitting parameters $\epsM$ (left) and $\epsB$ (right).}
+\label{fig:rotor}
+\end{figure}
+
+
+\subsection{Ideal Orszag–Tang vortex}
+\label{sec:ot}
+
+The vortex system of Orszag and Tang~\cite{orszag1979} starts from smooth,
+periodic data and develops, within a fraction of a turnover time, a set of
+shocks of different strengths that cross one another and eventually leave a
+field of small-scale structures typical of two-dimensional MHD turbulence; the
+physics of the problem is discussed in detail
+in~\cite{orszag1979,dahlburg1989,picone1991}. It therefore tests a scheme on
+the formation and the interaction of shocks rather than on prescribed
+discontinuities. On the periodic unit square $[0,1]^2$ the initial state is
+%
+\begin{align}
+\label{eq:ot_ic}
+\rho_0 &= \gamma^{2}, \qquad p_0 = \gamma, \qquad
+\mathbf{u}_0 = \bigl(-\sin(2\pi y),\ \sin(2\pi x),\ 0\bigr)^{\!\top}, \\[4pt]
+\mathbf{B}_0 &= \bigl(-\sin(2\pi y),\ \sin(4\pi x),\ 0\bigr)^{\!\top},
+\end{align}
+%
+with $\gamma = 5/3$, and the mesh consists of $1000 \times 1000$ cells.
+
+The gas pressure and the magnitude of the magnetic field are shown in
+Fig.~\ref{fig:ot_vortex} at the times $t=0.5/2\pi$, $2/2\pi$, $3/2\pi$ and
+$5/2\pi$. The position and the shape of the shocks, as well as the structures
+formed after their interaction, are those found in the
+literature~\cite{Dumbser2019,dumbser2008,Fambri2021,balsara2015}.
+With these data the sound speed is unity and the acoustic and the Alfv\'en
+Mach number are of order one over most of the domain, so that the scheme
+operates mainly in its explicit regime, the splitting parameters departing
+from one only in the neighbourhood of the stagnation points and of the current
+sheets. The magnetic field is advanced by the unstaggered constrained
+transport and its discrete divergence remains at the level of round-off.
+
+\begin{figure}[pos=p]
+\centering
+\includegraphics[height=0.849\textheight]{figs/OT_grid.png}
+\caption{Numerical solution for the pressure (left) and the magnetic field
+magnitude (right) obtained with the proposed semi-implicit scheme for the ideal
+Orszag--Tang vortex at times $t=0.5/2\pi$, $t=2.0/2\pi$, $t=3/2\pi$ and
+$t=5/2\pi$ (from top to bottom).}
+\label{fig:ot_vortex}
+\end{figure}
+
+
+\subsection{Ideal MHD blast wave problem}
+\label{sec:blast}
+
+In the blast wave problem of Balsara and Spicer~\cite{BalsaraSpicer1999} a
+small region of very high pressure is released into a fluid at rest that
+carries a strong uniform magnetic field. Outside the initial pocket the plasma
+beta is of order $10^{-4}$, so that the internal energy is a small fraction of
+the total energy, and errors in the magnetic field or in the momentum readily
+produce negative pressures; the test is therefore a severe check of the
+admissibility of the computed states. The data are
+%
+\begin{equation}
+\label{eq:blast_ic1}
+\rho_0 = 1, \qquad \mathbf{u}_0 = \mathbf{0},
+\qquad
+\mathbf{B}_0 = \frac{1}{\sqrt{4\pi}}\,(100,\,0,\,0)^{\!\top},
+\end{equation}
+%
+\begin{equation}
+\label{eq:blast_ic2}
+p_0 =
+\begin{cases}
+1000, & r \le R, \\[2pt]
+0.1, & r > R,
+\end{cases}
+\qquad r = \sqrt{x^2 + y^2},\quad R=0.1,
+\end{equation}
+%
+on the square $[-0.5,0.5]^2$ with transmissive boundary conditions, and the
+mesh consists of $1000 \times 1000$ cells.
+
+Fig.~\ref{fig:blast} shows the density, the magnitude of the velocity, the gas
+pressure and the magnetic pressure at $t=0.01$. The fast shock is elongated
+along the direction of the field and the solution agrees with the one
+of~\cite{BalsaraSpicer1999}.
+% CHECK after the production run
+Density and pressure remain positive throughout the computation.
+The splitting parameters at the final time are reported in the bottom row of
+the same figure, and this test separates them more sharply than any other
+considered here. The ambient gas is at rest and strongly magnetised, so both
+parameters vanish there. Inside the expanding bubble the flow is supersonic and
+$\epsM$ saturates at one, while $\epsB$ stays near zero over most of the same
+region, the Alfv\'en speed built on $B_0=100/\sqrt{4\pi}$ exceeding the flow
+speed almost everywhere. The two therefore disagree over a wide annulus
+straddling the fast shock: measured on the computed maps, $\epsM$ and $\epsB$
+differ by more than one half over about two fifths of the domain, with
+$\epsM\approx1$ and $\epsB\approx0$ there. A single parameter driven by either
+Mach number alone would be wrong over that whole annulus --- by the acoustic
+Mach number it would leave the magnetic flux explicit and the time step tied to
+the Alfv\'en speed, and by the Alfv\'en Mach number it would send the
+supersonic acoustic flux to the central-type implicit operator.
+% NOTE: the two-fifths figure and the eps statistics were measured on a 256^2
+% run at CFL 0.2 (eps_M = 0 on 46.0% and = 1 on 38.5% of the cells; eps_B = 0 on
+% 77.7% and = 1 on 2.6%; |eps_M - eps_B| > 0.5 on 41.3%).  Refresh them from the
+% 1000^2 production run before submission.
+The magnetic field is advanced by the unstaggered constrained transport and
+its discrete divergence remains at the level of round-off.
+
+\begin{figure}[pos=p]
+\centering
+\includegraphics[height=0.849\textheight]{figs/blast.png}
+\caption{Ideal MHD blast wave problem at $t=0.01$ on a $1000\times1000$ mesh,
+obtained with the proposed semi-implicit scheme. Top: $\log_{10}\rho$ (left) and
+$\log_{10}p$ (right). Middle: squared velocity magnitude $\|\mathbf u\|^2$
+(left) and magnetic energy $m=\tfrac12\|\mathbf B\|^2$ (right). Bottom: the
+splitting parameters $\epsM$ (left) and $\epsB$ (right).}
+\label{fig:blast}
+\end{figure}
+
+\subsection{Field loop advection}
+\label{sec:fieldloop}
+
+The advection of a weak magnetic field loop, proposed by Gardiner and
+Stone~\cite{GardinerStone2005}, is run here in the low Mach number setting
+of~\cite{BoscheriThomann2024}. A fluid of density $\rho=1$ and pressure
+$p=10^{5}$ moves with the uniform velocity $(u,v,w)=(2,1,0)$ across the
+periodic domain $\Omega=[-1,1]\times[-0.5,0.5]$, which is discretised with
+$512\times256$ cells. The magnetic field is the curl of the vector potential
+%
+\begin{equation}
+\label{eq:loop_ic}
+A_z =
+\begin{cases}
+\dfrac{A_0}{\sqrt{4\pi}}\,(R-r), & r \le R,\\[2mm]
+0, & r > R,
+\end{cases}
+\qquad r=\sqrt{x^2+y^2},\quad R=0.3,
+\end{equation}
+%
+
+
+so that $\|\Bb\|=A_0/\sqrt{4\pi}$ is constant inside the loop and vanishes
+outside; the field is discontinuous at $r=R$ and its direction is undefined at
+the centre. Four amplitudes are considered, $A_0\in\{10^{-3},10^{-2},10^{-1},1\}$, and the
+final time is $t_f=1$, after one period in $x$ and in $y$.
+
+The acoustic Mach number is $M\approx5.5\times10^{-3}$ in all four runs,
+whereas the Alfv\'en Mach number decreases from $M_A\approx7.9\times10^{3}$ to
+$M_A\approx7.9$ as the amplitude is increased. The flow is thus acoustically
+stiff and magnetically non-stiff, one of the two mixed regimes identified in
+Section~\ref{sec:eps_strategy}: the splitting returns $\epsM\approx0$ and
+$\epsB=1$, so that the acoustic flux is implicit while the magnetic flux is
+advanced explicitly by the HLLEM flux of Section~\ref{sec:hllem} instead of
+being carried, together with the acoustics, by the central-type implicit
+operator. In two dimensions this concerns the Lorentz force of the momentum
+equation, the magnetic energy flux and $B_z$; the in-plane field is advanced by
+the constrained transport of Section~\ref{sec:CT} at either value of $\epsB$.
+The computed maps confirm the two parameters at the ends of their ranges, with
+$\epsM$ at zero and $\epsB$ at one over the whole domain.
+
+The magnitude of the magnetic field at the final time is shown in
+Fig.~\ref{fig:fieldloop}. The loop keeps its shape over the whole range of
+amplitudes. % CHECK after the runs
+The discrete divergence of the magnetic field, measured in the maximum norm at
+every time step, remains at the level of round-off in all four runs.
+% MISSING FLOAT: a figure of ||div B||_inf against time was referenced here but
+% is not in the source.  Re-insert it and restore "is reported in Fig.~\ref{...}".
+
+
+\begin{figure}[pos=htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figs/Field_Bmag.png}
+    \caption{Magnetic field loop advection at $t_f=1$. Magnitude of the magnetic
+field $\|\mathbf{B}\|$ obtained with the proposed semi-implicit scheme for four
+increasing loop amplitudes, from $A_0=10^{-3}$ (top) to $A_0=1$ (bottom).}
+    \label{fig:fieldloop}
+\end{figure}
+
+
+\subsection{Magnetized Kelvin–Helmholtz instability}
+The last test follows the low Mach number Kelvin--Helmholtz configuration
+of~\cite{BoscheriThomann2024}, in which a weak magnetic field is aligned with a
+double shear layer and the flow speed is controlled by a single parameter
+$M_x$, the acoustic Mach number of the horizontal stream. On the periodic
+domain $\Omega=[0,2]\times[-0.5,0.5]$, discretised with $512\times256$ cells,
+the density and the pressure are uniform, $\rho=\gamma=1.4$ and $p=1$, so that
+the sound speed is unity, and the velocity is
+%
+\begin{equation}
+\label{eq:kh_vel}
+u = M_x\,\bigl(1 - 2\,\eta(y)\bigr), \qquad
+v = 0.1\,M_x\,\sin(2\pi x), \qquad w=0,
+\end{equation}
+%
+with the shear profile
+%
+\begin{equation}
+\label{eq:kh_eta}
+\eta(y) =
+\begin{cases}
+\tfrac12\bigl(1 + \sin(16\pi(y+0.25))\bigr), & -\tfrac{9}{32} \le y < -\tfrac{7}{32}, \\[4pt]
+1, & -\tfrac{7}{32} \le y < \tfrac{7}{32}, \\[4pt]
+\tfrac12\bigl(1 - \sin(16\pi(y-0.25))\bigr), & \tfrac{7}{32} \le y < \tfrac{9}{32}, \\[4pt]
+0, & \text{otherwise}.
+\end{cases}
+\end{equation}
+%
+The magnetic field is uniform, $\Bb=(0.1\,M_x,0,0)^{\mathsf T}$, which gives
+an Alfv\'en Mach number $M_A\approx11.8$ in the free streams, independently of
+$M_x$. The values $M_x=10^{-1},10^{-2},10^{-3},10^{-4}$ are considered, each
+computation being stopped at $t_f=0.8/M_x$, i.e.\ at one sixth of the time
+$4.8/M_x$ used in~\cite{BoscheriThomann2024}; up to this time the roll-up of
+the shear layer is smooth and well resolved.
+
+In this configuration the two splitting parameters fall on opposite sides of
+the switch~\eqref{eq:switch}: since $M\le M_x\le0.1<M_0$, one has
+$\epsM\approx0$ and the acoustic flux is implicit, whereas $M_A>M_1$ in the
+streams gives $\epsB=1$, so that the magnetic flux is advanced by the explicit
+HLLEM solver. The explicit sub-system then propagates signals at speeds
+proportional to $M_x$, and so does the numerical dissipation of the HLLEM
+flux. Fig.~\ref{fig:kh_mach} shows the local Mach number at the final time
+divided by $M_x$; the four profiles coincide. % CHECK after the runs
+This is the behaviour expected from an asymptotic-preserving scheme: an
+explicit discretisation with a dissipation set by the sound speed would damp
+the vortical structures increasingly as $M_x$ decreases, as reported
+in~\cite{BoscheriThomann2024}.
+
+The ratio between the time step of the scheme and that of a fully explicit
+discretisation, $\Delta t_{\mathrm{MHD}}$, computed with the fast
+magnetosonic speed, is shown in Fig.~\ref{fig:kh_dtratio}. It grows in
+inverse proportion to $M_x$ and exceeds four orders of magnitude for
+$M_x=10^{-4}$. % CHECK the values over the whole run
+
+\begin{figure}[pos=htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figs/KH_Mach.png}
+    \caption{Magnetized Kelvin--Helmholtz instability at $t_f = t_{\max}/6$.
+    Acoustic Mach number rescaled by the prescribed value $M_x$, for increasing
+    $M_x$ from top left to bottom right. The rescaled profiles are almost
+    identical across the whole range, showing that the proposed scheme avoids
+    excessive numerical dissipation at low acoustic Mach number.}
+    \label{fig:kh_mach}
+\end{figure}
+
+\begin{figure}[pos=htbp]
+    \centering
+    \includegraphics[width=0.6\linewidth]{figs/dt_ratio_KH.png}
+    \caption{Magnetized Kelvin--Helmholtz instability. Time evolution of the
+    ratio between the material time step of the proposed semi-implicit scheme and
+    the magnetosonic time step of a fully explicit method, for the different
+    values of $M_x$. The ratio reaches up to four orders of magnitude as $M_x$
+    decreases.}
+    \label{fig:kh_dtratio}
+\end{figure}
+
+
+
+\FloatBarrier % all Section 4 floats are output before the conclusions
+\section{Conclusions}
+\label{sec:Conclusion}
+
+We have presented an implicit--explicit finite volume scheme for the ideal MHD
+equations that is accurate and efficient across all Mach and Alfv\'en number
+regimes. It is built on the three-way flux splitting of
+Fambri~\cite{Fambri2021}, but departs from it in how the parts of the splitting
+are assigned: the fractions of the acoustic and of the magnetic flux that are
+treated explicitly are governed by two independent local parameters, $\epsM$ and
+$\epsB$, driven by the acoustic and the Alfv\'en Mach number. Since the two
+stiffness mechanisms of compressible MHD are controlled by distinct
+dimensionless numbers, each is thereby transferred to the implicit solver
+independently of the other.
+
+The first contribution is the characteristic structure of this splitting, and it
+has two halves that serve different parts of the scheme. Whenever $\epsM>0$ the
+explicit sub-system is strongly hyperbolic---the Alfv\'en speeds follow from a
+quadratic in $\epsB$ alone and the magnetosonic speeds from a quartic in both
+parameters---and this is what allows the characteristic reconstruction to be
+carried out in the split basis. Independently of it, and at every value of the
+parameters, an exact block decomposition confines the singular limits of the
+eigenvectors to sub-blocks treated in closed form: the divergence mode is
+decoupled, and the Alfv\'en fields span a two-dimensional invariant subspace
+whose dual functionals annihilate every other wave family. It is this second half
+that makes a wave-resolving Riemann solver possible in the stiff limit, where the
+complete basis is lost and where the standard three-way splitting, whose explicit
+spectrum collapses onto $\{0,u\}$, retains no trace of the rotational
+discontinuities at all. We use HLLEM in a $\delta_k$-driven form whose wave-speed
+envelope is built from the split spectrum itself.
+
+The second contribution concerns the implicit step. The kinetic and magnetic
+energies are linearised about the explicit argument of the partitioned IMEX
+Runge--Kutta scheme, and the unstaggered, potential-based constrained transport
+is written as a linear map of the momentum; both are embedded in the pressure
+operator. Each stage then solves for a magnetic predictor and then for the
+pressure, without iterating between the two, the latter being balanced with a
+divergence-free field throughout its solution. The total energy is conserved without a second pressure
+solve, and the third order of the time integrator is retained. Positivity of the
+pressure is enforced with the mechanism of~\cite{MHDIMEX}, extended to the
+fourth-order operator by defect correction.
+
+% CHECK every sentence of this paragraph against Section 4 and delete what the
+% experiments do not show.
+The scheme has been assessed on one- and two-dimensional benchmarks ranging from
+the near-incompressible regime to supersonic and strongly magnetised flows.
+Convergence studies on a travelling MHD vortex confirm at least third-order accuracy for
+all variables, that is, in the
+low-Mach and in the low-Alfv\'en limit alike.            % CHECK: all rho_0, all variables
+The time step is governed by the material velocity wherever the corresponding
+Mach number is small, independently for the two channels: the admissible step
+exceeds the explicit one by a factor of $2.3\times10^{2}$ in the field-loop
+advection, which is acoustically stiff at $M\approx5.5\times10^{-3}$, and by
+only $1.08$ in the blast wave, where the flow is transonic over most of the
+region of interest. The gain of the second parameter over a single one is
+likewise regime-dependent, and lies with the strongly magnetised rather than
+with the high-$\beta$ mixed regime.
+Shock-dominated problems are computed without tuning of the parameters, and the
+magnetic field remains divergence-free to machine precision in the discrete
+sense of Section~\ref{sec:CT}.                            % CHECK: non-periodic tests, interior stencil
+
+Several directions follow. The argument advanced here, that independent
+stiffness mechanisms call for independent splitting parameters, is not specific
+to two: Hall MHD supplies a natural third instance, its whistler branch
+introducing a time-step restriction that scales as $\Delta x^{2}$ and is governed
+by its own dimensionless number. A second direction concerns the switching
+function. Both $\eps$ and the shock indicator are driven by the velocity field
+and are therefore blind to a large pressure jump in a fluid at rest, as at the
+initial interface of the blast wave; coupling the parameters to a measure of
+departure from equilibrium is a question we intend to pursue. On the analytical
+side, the convergence of the defect correction and the stability of the scheme
+at large Alfv\'en CFL numbers are supported here by numerical evidence only.
+Finally, the extension to three space dimensions is not a transcription: the
+scalar potential $A_z$ of Section~\ref{sec:CT} becomes a vector potential, with
+the gauge freedom that entails, and the linear map of the momentum has to be
+rebuilt accordingly. Combining the discrete divergence-free property with the
+positivity framework of Wu and Shu~\cite{WuShu2018,WuShu2019} may allow the constructive
+admissibility mechanisms of Section~\ref{sec:zslimiter} to be replaced by a
+provable bound on the evolved cell averages.
+% Numbered list
+% Use the style of numbering in square brackets.
+% If nothing is used, default style will be taken.
+%\begin{enumerate}[a)]
+%\item 
+%\item 
+%\item 
+%\end{enumerate}  
+
+% Unnumbered list
+%\begin{itemize}
+%\item 
+%\item 
+%\item 
+%\end{itemize}  
+
+% Description list
+%\begin{description}
+%\item[]
+%\item[] 
+%\item[] 
+%\end{description}  
+
+
+
+% Uncomment and use as the case may be
+%\begin{theorem} 
+%\end{theorem}
+
+% Uncomment and use as the case may be
+%\begin{lemma} 
+%\end{lemma}
+
+%% The Appendices part is started with the command \appendix;
+%% appendix sections are then done as normal sections
+%% \appendix
+
+
+
+% To print the credit authorship contribution details
+
+
+%% Loading bibliography style file
+%\bibliographystyle{model1-num-names}
+
+% Loading bibliography database
+\bibliographystyle{elsarticle-num}
+% Loading bibliography database
+\bibliography{cas-refs-capitalised}
+
+% Biography
+%\bio{}
+% Here goes the biography details.
+%\endbio
+
+%\bio{pic1}
+% Here goes the biography details.
+%\endbio
+
+\end{document}
+

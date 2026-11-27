@@ -136,7 +136,83 @@ $\tfrac12-\tilde a_{41}<0$。显式表带负元不影响相容性与三阶，但
 （这正是 fix G 的 IDP 构造必须把低阶通量从 **stage 的 cell averages** 重算、
 而不能依赖凸组合系数的原因。）
 
-## 10. 待核
+## 10. E1 / E2：两个决定性实验（2026-11-27）
+
+Field loop，$A_0=1$，$128\times64$，CFL 0.2，senv=2，跑满一个周期 $t_f=1$。
+精确解 = 初值（周期域、$u=(2,1)$、域 $2\times1$，正好一周期）。
+脚本 `blastwave_debug/e2cmp.py`，驱动 `blastwave_debug/loop2.sh`。
+
+实测 $\varepsilon_M\equiv0$、$\varepsilon_B\equiv1$（VTK 输出场），
+与论文 §Field loop advection 所述一致（$M\approx5.5\times10^{-3}$、$M_A\approx7.9$）。
+
+| | base ($\varepsilon_B=1$，$\delta_k$ 开) | noad ($\delta_k$ 全关) | epsB0 ($\varepsilon_B\equiv0$) |
+|---|---|---|---|
+| 步数 | 1155 | 1155 | **976** |
+| $\Delta t/\Delta t_{\rm expl}$ 中位 | 229.69 | 229.69 | **272.75** |
+| 墙钟 | 10.4 min | 10.4 min | **8.9 min** |
+| $E_{\rm mag}(1)/E_{\rm mag}(0)$ | 0.922029 | 0.922029 | 0.922105 |
+| $\max\lvert B_\perp\rvert$ 保留 | 0.960036 | 0.960036 | 0.960384 |
+| $L_1$ 误差 $B_x$ | 8.8176e-03 | 8.8176e-03 | 8.8215e-03 |
+| $L_1$ 误差 $B_y$ | 9.4006e-03 | 9.4006e-03 | 9.3868e-03 |
+
+逐点差（舍入量级为 $10^{-14}$）：
+
+| | $\max\lvert\Delta\rvert/\max\lvert{\rm base}\rvert$ $B_x$ | $B_y$ | $u$ | $v$ |
+|---|---|---|---|---|
+| noad vs base | 1.21e-06 | 1.43e-06 | 1.31e-07 | 2.48e-07 |
+| epsB0 vs base | 2.67e-03 | 2.53e-03 | 4.36e-04 | 9.96e-04 |
+
+### E2 判定（HLLEM 反扩散到不到得了 2D 面内场）
+
+**到得了，但 $10^{-6}$，比离散误差低四个数量级。** 不是舍入（$10^{-6}\gg10^{-14}$），
+所以间接通路 $\delta_k\to$ 动量 $\to u\to A\to B_\perp$ 真实存在；但质量指标逐位相同。
+→ **改措辞，不改设计。** 论文不能声称 Alfvén 反扩散锐化 2D 面内场的旋转结构；
+该声称 1D（$B_y,B_z$ 本身是有限体积行，RP7 即孤立旋转间断）、2D 的 $B_z$、动量/能量行。
+已写入 §sec:CT。
+
+限制：这个 field loop 是纯输运，**本来没有旋转间断**，所以它测的是"到不到得了"，
+不是"真有旋转间断时能锐化多少"。后者由结构论证封死（面内通量被丢弃，唯一通路是 $u$）。
+
+### E1 判定（单参数 vs 双参数）
+
+**单参数（安全选择）在这里步长大 19%、墙钟快 14%、精度不可区分**
+（四个误差指标里两个单参数更好，差异都在第四位）。
+所以论文原来那句「the admissible time step is the same ... what the second
+parameter buys there is *resolution*」**不成立**。
+
+原因是定义的后果，不是偶然：
+
+$$\varepsilon_M\to0\Rightarrow\lvert u\rvert\ll a,\qquad
+\varepsilon_B\to1\Rightarrow c_B\lesssim\lvert u\rvert
+\;\Longrightarrow\; c_B\ll a\;\Longrightarrow\;\beta\gg1.$$
+
+**只要分裂把磁通量设显式而声学设隐式，磁场必然是高 $\beta$ 弱扰动**
+（此例 $\beta=2.5\times10^6$，$\lvert B\rvert^2/2=0.04$ 对 $p=10^5$）。
+再加上 2D 面内场不走有限体积通量，$\varepsilon_B$ 对 $B_\perp$ 的影响只能经由 $u$，
+而 $u$ 在高 $\beta$ 下由声学主导。
+
+反向区 $\varepsilon_M\to1,\varepsilon_B\to0$ 必然 $\beta\ll1$，磁通量主导——
+**这才是 $\varepsilon_B$ 值钱的地方**，而且 blast wave 里这个环带占 41% 的网格
+（$\varepsilon_M\approx1$、$\varepsilon_B\approx0$，$r\in[0.139,0.463]$，
+快激波在 $r=0.288$）。
+
+→ 导言已改成**不对称**的故事：$\varepsilon_B$ 的收益在强磁化区（步长，数量级），
+在高 $\beta$ 区反而要付约 19% 的步长，上界为因子 2。
+
+## 11. blast wave 的 $\varepsilon$ 分布（256², $\kappa_1=0.4$, $t=0.01$）
+
+| | $\varepsilon_M$ | $\varepsilon_B$ |
+|---|---|---|
+| 恰为 0 | 45.95% | 77.66% |
+| 恰为 1 | 38.45% | 2.56% |
+| 均值 | 0.4603 | 0.0450 |
+| 两者相等 | 47.60% | |
+| $\lvert\varepsilon_M-\varepsilon_B\rvert>0.5$ | **41.26%**（该处 $\varepsilon_M$ 均值 0.988、$\varepsilon_B$ 均值 0.013） | |
+
+已写入 §Ideal MHD blast wave（替掉 `% CHECK: describe eps_M and eps_B`），
+并在 .tex 里留了注释说明这些数来自 256²，投稿前需用 1000² 生产运行刷新。
+
+## 12. 待核
 
 - ○ §Eigenstructure of the explicit sub-system（已在 `REVIEW_IMEX_MHD-3.md` 逐式推过）
 - ○ §Time discretisation（`eq:88` 表已核；其余未核）
