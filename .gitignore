@@ -19,3 +19,4 @@ paper/*.log
 paper/*.out
 paper/*.spl
 paper/main.pdf
+blastwave_debug/patch/*.bak
