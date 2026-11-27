@@ -113,3 +113,46 @@ field loop 的 $A_0$ 目前是编译期常量 `LOOP_A0`，论文要四个振幅 
 **不进**：`idp`（诊断）、`hllemoff`（诊断）、`chisplit`（**已证伪**：OT 全 NaN）、
 `jguard`（开关去掉，代码被 fix L 吸收）、`rhoscale`/`rhothr`（写死）、
 `epsmax3`（实验）、`pswitch`（默认关）、`betafloor`（默认关）
+
+
+---
+
+## 干净版：三步全部逐位验证通过
+
+`make_clean.py` 输入**补丁版**（机器齐全），输出 `Final_emb_omp_clean.cpp`。
+每步的检验方式相同：两边各跑 128² blast 618 步，终态 VTK 逐字节比。
+
+| 步 | 内容 | 删除 | 验证 |
+|---|---|---|---|
+| 1 | 死代码 | 2406 字符 | **BIT-IDENTICAL ✓** |
+| 2 | fix I（已证伪）+ 探针开关，fix J 写死 | 1191 字符 | 含在下面 |
+| 3 | flattener 写死为 L5 级 | 735 字符 | **BIT-IDENTICAL ✓** 对 `flat1=4 hllemcap=0 rhoscale=1` |
+
+共 4332 字符 / 69 行。具名常数：`RHO_PT_FLOOR = 0.5`、`J0_FLAT = 0.5, J1_FLAT = 1.0`。
+
+### 更正一处计数
+
+L5 跑的时候 `hllemflat=2` 是默认值，而 `g_face_chi` 取自 `hchi`，后者在
+`hllemflat>=2` 时是 $\max(\chi,s_p)$ —— $s_p$ 是 fix C 的单元级压力跳传感器，
+自带一个 0.5。所以 L5 的 $\sigma_\delta=\max(\chi,\ s_p,\ \Theta(J_\rho))$，
+**压力传感器仍在**，经由 `g_face_chi` 进来。
+
+我先前说"L5 删掉压力跳"只对 $\sigma$ 层面的 $\Theta(J_p)$ 成立，对 $s_p$ 不成立。
+准确计数是 **3 个常数**（$s_p$ 的 0.5，$\Theta$ 的 0.5 和 1），不是 2 个。
+L7（`hllemflat=1`，只留 $\chi$）与 L8（`hllemflat=0`，连 $\chi$ 也去掉）正在测，
+结果决定最终是 3 个还是 2 个。
+
+### 第四步：尚未做
+
+剩余开关全局量与它们的使用点：
+
+| | 行 | 处理 |
+|---|---|---|
+| `g_hllemflat` | 1226, 1777, 1779, 1804, 1833 | `hchi` 机器变无条件；1779 的 $s_p$ 块按 L7/L8 结果决定 |
+| `g_hllemcap` | 1227 + 键 + banner | 用它的代码已删，去掉全局量 |
+| `g_hllemoff` | 1226 + banner | 诊断 |
+| `g_idp` | 1223, 1815, 1844, 1884 + banner | fix G 整块，连 `g_hllem_lo`、`Ulo`、`FxL/FyL`、计数器 |
+| `g_epsmax3` | 3552, 3657 + 键 + banner | 实验，默认关 |
+| `g_pswitch` | 3553, 3641 + 键 + banner | 实验（fix B），默认关 |
+| `g_betafloor` | 328, 6538, 6545 + 键 + banner | 默认关，不进 |
+| `kappa1`/`swm0,m1,alpha`/`plap` 的键 | 6594 | 值烘死，键删 |
