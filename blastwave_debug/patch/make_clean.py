@@ -333,6 +333,18 @@ def step4e_senv(s):
 
     Paper: eq:einfeldt carries the bound, eq:umaxface defines it, and the AP
     paragraph derives the stiff limit from it (eq:aplimit).
+
+    BIT-IDENTITY: this step is semantically a no-op at senv=2 -- the branch that
+    ran there becomes unconditional with the same arithmetic, and the deleted
+    g_senv_u writes were never read -- but it is NOT bit-identical under
+    -O3 -march=native.  Removing the branch lets the compiler contract the
+    fmax/fabs chain into FMAs it did not use before, so the last bits move
+    (measured after 4 steps of the 128^2 blast: rho 5e-12 relative, eps_M still
+    exact; after 618 steps that has grown to 5e-4, which is ordinary chaotic
+    amplification, not a semantic change).  Verified instead with
+    -ffp-contract=off, under which the clean source and the patched source run
+    with senv=2 agree bit for bit over the whole run.  Same family as the const
+    note in step 4c: do not try to "fix" this by reintroducing a branch.
     """
     n0 = len(s)
     old = ('\tif(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E] global |u| floor\n'

@@ -156,3 +156,40 @@ L7（`hllemflat=1`，只留 $\chi$）与 L8（`hllemflat=0`，连 $\chi$ 也去�
 | `g_pswitch` | 3553, 3641 + 键 + banner | 实验（fix B），默认关 |
 | `g_betafloor` | 328, 6538, 6545 + 键 + banner | 默认关，不进 |
 | `kappa1`/`swm0,m1,alpha`/`plap` 的键 | 6594 | 值烘死，键删 |
+
+---
+
+## step 4e:包络下界固定为面局部(2026-11-27)
+
+`make_clean.py` 新增的第十步。它把三路 `g_senv` 开关换成无条件的面局部界,并删掉
+`senv` 运行时键、banner 字段、`g_senv` 声明,以及 `g_senv_u`(全局 max,只被已删的
+全局分支读过)。生成的干净版运行时键降到:
+
+```
+b0 cfl gamma novtk pin rho0 tag tend
+```
+
+方法层面只剩 `cfl`,其余全是各 test 自己的数据。
+
+### 为什么这一步要单独验证
+
+这是**唯一一个不与上一级逐位相同**的步骤 —— 旧默认是 `senv=2`,新代码无条件走同一段
+算术,语义上在 `senv=2` 下是 no-op(生成源的 diff 确认:只有分支外壳、死写入、注释和键
+的变化),但 `-O3 -march=native` 下**不**逐位相同:
+
+| | 128² blast |
+|---|---|
+| 4 步后 | ρ 相对 5.2e-12,p 3.9e-11,B_X 1.9e-14,**`eps_M` 逐位相同** |
+| 618 步后 | ρ 相对 4.5e-4 |
+
+4 步就有 1e-12、618 步长到 1e-4,是混沌放大,不是语义差。诊断确认:
+
+```
+g++ -O3 -march=native -ffp-contract=off ...
+```
+
+下干净版与 patched 跑 `senv=2` **逐位一致**。所以差异来自去掉分支后编译器把
+`fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)))` 这条链收缩成了原先没用的 FMA。
+
+**与 step 4c 的 `const` 注记同一类问题。** 不要靠"加回一个分支"去消除它 ——
+验证方式改成 `-ffp-contract=off`,不要改代码。
