@@ -193,3 +193,6 @@ g++ -O3 -march=native -ffp-contract=off ...
 
 **与 step 4c 的 `const` 注记同一类问题。** 不要靠"加回一个分支"去消除它 ——
 验证方式改成 `-ffp-contract=off`,不要改代码。
+
+**完整验证已通过**:`-ffp-contract=off` 下 128² blast 跑完全部 618 步,干净版与
+patched `senv=2` 的最终 VTK **逐位一致**(2026-11-27 19:01)。
