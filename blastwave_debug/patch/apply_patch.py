@@ -452,7 +452,7 @@ double g_betafloor = 0.0;""")
     rep("""int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""",
         """int g_idp = 0;                               // [fix G] 0 off / 1 compute-only (inert)
 static thread_local int g_hllem_lo = 0;      // [fix G] 1: plain HLL, for the low-order flux
-long g_idp_ulbad = 0;                        // [fix G] cells whose U^L is itself inadmissible
+long g_idp_ulbad_r = 0, g_idp_ulbad_p = 0;   // [fix G] cells whose U^L is itself inadmissible, split by rho / p
 int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""")
 
     rep("""			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }""",
@@ -508,8 +508,8 @@ int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""")
 		}
 	}
 	if(g_idp){   // [fix G] the first-order update U^L, and how often it is itself inadmissible
-		long nbad = 0;
-#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbad)
+		long nbadr = 0, nbadp = 0;
+#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbadr,nbadp)
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 				for(int k = 0; k < NUM_VARS; k++){
@@ -520,10 +520,11 @@ int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""")
 				const double r = Ulo(i,j,0);
 				const double ke = 0.5*(Ulo(i,j,1)*Ulo(i,j,1) + Ulo(i,j,2)*Ulo(i,j,2) + Ulo(i,j,3)*Ulo(i,j,3));
 				const double mb = 0.5*(Ulo(i,j,5)*Ulo(i,j,5) + Ulo(i,j,6)*Ulo(i,j,6) + Ulo(i,j,7)*Ulo(i,j,7));
-				if(!(r > 0.0 && Ulo(i,j,4) - ke/r - mb > 0.0)) nbad++;
+				if(!(r > 0.0)) nbadr++;                                      // density: the one backed by a lemma
+				else if(!(Ulo(i,j,4) - ke/r - mb > 0.0)) nbadp++;             // pressure: expected to fail, see g7
 			}
 		}
-		g_idp_ulbad += nbad;
+		g_idp_ulbad_r += nbadr; g_idp_ulbad_p += nbadp;
 	}
 }""")
 
@@ -569,7 +570,7 @@ double g_blast_B0 = 100.0;""")
         """	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp""")
 
     rep(""" << ", density point-value guard applied " << g_rho_guard""",
-        """ << ", U^L inadmissible in " << g_idp_ulbad << " cells, density point-value guard applied " << g_rho_guard""")
+        """ << ", U^L inadmissible: rho in " << g_idp_ulbad_r << " cells, p in " << g_idp_ulbad_p << " cells, density point-value guard applied " << g_rho_guard""")
 
     s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     header = '''// ============================================================================

@@ -1234,7 +1234,7 @@ inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
 int g_idp = 0;                               // [fix G] 0 off / 1 compute-only (inert)
 static thread_local int g_hllem_lo = 0;      // [fix G] 1: plain HLL, for the low-order flux
-long g_idp_ulbad = 0;                        // [fix G] cells whose U^L is itself inadmissible
+long g_idp_ulbad_r = 0, g_idp_ulbad_p = 0;   // [fix G] cells whose U^L is itself inadmissible, split by rho / p
 int g_hllemflat = 2, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)
 double g_hllemcap = 0.25;   // [fix C] delta_k <= 1 - g_hllemcap: fraction of the HLL dissipation kept on the LD waves
 static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
@@ -1879,8 +1879,8 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		}
 	}
 	if(g_idp){   // [fix G] the first-order update U^L, and how often it is itself inadmissible
-		long nbad = 0;
-#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbad)
+		long nbadr = 0, nbadp = 0;
+#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbadr,nbadp)
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 				for(int k = 0; k < NUM_VARS; k++){
@@ -1891,10 +1891,11 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				const double r = Ulo(i,j,0);
 				const double ke = 0.5*(Ulo(i,j,1)*Ulo(i,j,1) + Ulo(i,j,2)*Ulo(i,j,2) + Ulo(i,j,3)*Ulo(i,j,3));
 				const double mb = 0.5*(Ulo(i,j,5)*Ulo(i,j,5) + Ulo(i,j,6)*Ulo(i,j,6) + Ulo(i,j,7)*Ulo(i,j,7));
-				if(!(r > 0.0 && Ulo(i,j,4) - ke/r - mb > 0.0)) nbad++;
+				if(!(r > 0.0)) nbadr++;                                      // density: the one backed by a lemma
+				else if(!(Ulo(i,j,4) - ke/r - mb > 0.0)) nbadp++;             // pressure: expected to fail, see g7
 			}
 		}
-		g_idp_ulbad += nbad;
+		g_idp_ulbad_r += nbadr; g_idp_ulbad_p += nbadp;
 	}
 }
 
@@ -7104,7 +7105,7 @@ int main(int argc, char *argv[]){
 	}while(t < time_stop);
 	fclose(steplog);
 	std::cout << "pressure solves " << g_emb_solves << ", defect-correction sweeps " << g_emb_sweeps << ", not converged " << g_emb_nc
-	          << ", U^L inadmissible in " << g_idp_ulbad << " cells, density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, envelope widened at " << g_env_wide << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
+	          << ", U^L inadmissible: rho in " << g_idp_ulbad_r << " cells, p in " << g_idp_ulbad_p << " cells, density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, envelope widened at " << g_env_wide << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
 	if(test == testVortex){   // paper Table 2: L2 errors of rho, u, p, Bx, Az against the exact (translated) cell averages
 		const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)}; const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
 		double l2[5] = {0,0,0,0,0}, li[5] = {0,0,0,0,0};
