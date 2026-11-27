@@ -1389,7 +1389,8 @@ touch only in the degenerate limit $\epsB B_x\to0$, where the Alfv\'en pair
 collapses onto $\{u,\epsB u\}$; the lower bound in~\eqref{eq:einfeldt} only
 widens $[s_{L},s_{R}]$ and so cannot invalidate the inclusion. The anti-diffusion coefficients
 $\delta_k$ of~\eqref{eq:deltak} therefore lie in $[0,1]$ for all three linearly
-degenerate fields without further clipping.
+degenerate fields without being clipped there; the shock sensor
+of~\eqref{eq:flattener} is the only further modification they receive.
 
 Writing the quartic~\eqref{eq:ms_disp} in monic form,
 $\lambda^4+c_3\lambda^3+c_2\lambda^2+c_1\lambda+c_0=0$, all its roots are
@@ -1531,6 +1532,63 @@ asymptotic-preserving property is thus continuous in $\epsM,\epsB$ and needs no
 solver switching: the $\eps$-split does not discard the Rusanov
 flux~\eqref{eq:rusanov}, it recovers it as the stiff limit and sharpens the
 three linearly degenerate fields on top of it.
+
+\paragraph{Shock stabilisation of the anti-diffusion.}
+The coefficients~\eqref{eq:deltak} measure each linearly degenerate speed
+against the envelope, and near a strong shock that construction fails in one
+specific place. On an interface whose normal is \emph{transverse} to the shock
+--- an interface lying along the front rather than across it --- the normal
+velocity is small, so the entropy speed $\tilde\lambda_{\mathrm{ent}}=\tilde u$
+sits far from both ends of $[s_L,s_R]$ and~\eqref{eq:deltak} returns
+$\delta_{\mathrm{ent}}\to1$: the entropy anti-diffusion along the front is left
+undamped, and the same holds for the two Alfv\'en coefficients. The front is
+then free to develop a transverse modulation that feeds on the missing
+dissipation, which is the grid-aligned shock instability familiar as the
+carbuncle. This is the mechanism that the linear perturbation analysis
+of~\cite{SimonMandal2019} identifies for HLLEM, attributing the instability to
+the spurious activation of the anti-diffusive terms on the interfaces transverse
+to the shock.
+
+We therefore damp all three coefficients with a single dimensionless sensor
+built from the pressure,
+\begin{equation}
+\label{eq:flattener}
+\delta_k \longleftarrow \bigl(1-\sigma_{i+\frac12,j}\bigr)\,\delta_k,
+\qquad
+\sigma_{i+\frac12,j}=\max\bigl(s^{p}_{i,j},\,s^{p}_{i+1,j}\bigr),
+\end{equation}
+\begin{equation}
+\label{eq:sp}
+s^{p}_{i,j}=\min\!\left(1,\;\frac{1}{\varsigma}
+\max_{(k,l)\in\mathcal N(i,j)}
+\frac{\bigl|p_{k,l}-p_{i,j}\bigr|}{\min\bigl(p_{k,l},p_{i,j}\bigr)}\right),
+\qquad \varsigma=\tfrac12,
+\end{equation}
+where $\mathcal N(i,j)$ are the four face neighbours of the cell. Three
+properties make this the minimal choice for the present solver.
+
+First, the sensor is blind to exactly the structures the anti-diffusion exists
+to sharpen. A contact discontinuity and a rotational discontinuity are both
+pressure-continuous, so $s^{p}$ does not respond to either, however large the
+jump in density or in the transverse field; it responds to a shock, where the
+pressure jump is the defining feature. Damping is therefore applied where the
+anti-diffusion is harmful and withheld where it is the point of the scheme.
+
+Second, $\varsigma$ is a saturation scale rather than a threshold. The sensor
+rises linearly from zero and reaches one at a relative pressure jump of
+$50\%$, so there is no dead zone and no discontinuous switch between solvers;
+where it saturates the flux is the plain HLL flux~\eqref{eq:hll}, which in the
+stiff limit is the Rusanov baseline~\eqref{eq:aplimit}, so the scheme never
+falls below the flux that weak hyperbolicity would have forced anyway.
+
+Third, the design order is untouched. In smooth flow the relative pressure jump
+across a face is $\mathcal O(h)$, so $\sigma=\mathcal O(h)$, and it multiplies
+an anti-diffusive term whose own jump is $\mathcal O(h^{3})$ after the
+reconstruction of Section~\ref{sec:reconstruction}; the perturbation of the
+flux is $\mathcal O(h^{4})$. Measured on the low-Mach vortex of
+Section~\ref{sec:stationary_vortex} at $\rho_0=10^{-2}$, the convergence rates
+with the sensor active are $3.52$, $2.89$, $3.29$, $3.52$ and $3.64$ for
+$\rho$, $u$, $p$, $B_x$ and $A_z$.
 
 
 \subsection{Characteristic WENO3-Z reconstruction}

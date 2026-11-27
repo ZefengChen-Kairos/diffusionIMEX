@@ -6,8 +6,8 @@
 
 | # | 代码里有 | 论文 | 处理 |
 |---|---|---|---|
-| **1** | flattener：$\delta_k\leftarrow(1-\max(\chi,s_p))\,\delta_k$ | **完全没有** | **必须写**——这是 L9 在 HLLEM 之上唯一加的东西 |
-| **2** | $s_p$：面邻域的相对压力跳，$\min(1,\max_{\rm nbr}\lvert\Delta p\rvert/\min p\,/\,0.5)$ | 没有 | 随 1 一起写 |
+| ~~1~~ | flattener：$\delta_k\leftarrow(1-\sigma)\,\delta_k$ | ~~完全没有~~ | **已写**：新 `eq:flattener`，见下节 |
+| ~~2~~ | $s_p$：面邻域的相对压力跳，$\min(1,\max_{\rm nbr}\lvert\Delta p\rvert/\min p\,/\,0.5)$ | ~~没有~~ | **已写**：新 `eq:sp` |
 | ~~3~~ | `senv`：HLL 包络的物质速度地板 | ~~`eq:einfeldt` 是裸的 Einfeldt 包络，无地板~~ | **已解决**：论文改了（commit `6b37333`），见下节。代码固定为全局版、删开关 |
 | **4** | 单元均值↔点值的转换有**两族**：未限制的 $d_2/24$（`fv_cell`，3 处）与限制版（`fv_cell_lim_to` 等，3 处）。限制版 = 三候选 minmod + 门 $\kappa hS$（**$\kappa=0.5$**）+ 按 $\varepsilon_M$ 混合 $d_2=\varepsilon_M d_2^{\rm lim}+(1-\varepsilon_M)d_2^{\rm lin}$ | §`sec:fv_ops` 只写了 covariance（`eq:covariance`），这三样都没有 | **比"一句话"大**：三个机制 + 一个常数 |
 | 5 | 完备性**数值**自检：固定探针向量的 $\lVert RL\,\text{probe}-\text{probe}\rVert>10^{-6}$ 时**把特征基底整个换成单位矩阵**（重构退化为分量式） | 911 行的 "criterion for completeness"（`eq:criterion`）是双曲性证明里的**解析**判据，不是这个 | 要写或说明 |
@@ -248,3 +248,43 @@ Rusanov 耗散**不作用在 $\mathbf B$ 上**。paper 2 的 `eq:rusanov` 没写
    双根使 $P$ 在 $\lvert\lambda-\lambda^\pm_f\rvert<\sqrt{\epsilon_{\rm mach}}$ 时成为纯噪声,
    循环靠**符号守卫**退出而非容差。论文已改为实测值,并指出这在该极限下无关紧要 ——
    因为 `eq:einfeldt` 的下界正好在那里把两个速度整个替换掉。
+
+
+---
+
+## 第 1、2 项:已写进论文(2026-11-27)
+
+新增 `\paragraph{Shock stabilisation of the anti-diffusion.}`,在 AP 标度段之后,含两个新式子
+`eq:flattener` 与 `eq:sp`。内容:
+
+1. **机制** —— 与激波**横向**的界面(沿激波面而非跨过它)上法向速度小,熵波速度
+   $\tilde\lambda_{\rm ent}=\tilde u$ 离 $[s_L,s_R]$ 两端都远,`eq:deltak` 给出
+   $\delta_{\rm ent}\to1$,沿激波面的反扩散完全没被衰减 → 网格对齐激波不稳定(carbuncle)。
+   两个 Alfvén 系数同理。
+2. **做法** —— $\delta_k\leftarrow(1-\sigma)\delta_k$,$\sigma$ 取两侧单元 $s^p$ 的 max。
+3. **三条性质**:
+   - $s^p$ 对接触面和旋转间断**完全不响应**(两者压力连续),所以衰减只打激波,
+     恰好放过反扩散存在的理由;
+   - $\varsigma=1/2$ 是**饱和尺度不是阈值**:线性上升、无死区、无求解器间的跳变;
+     饱和处就是裸 HLL,而刚性极限下那正是 `eq:aplimit` 的 Rusanov 基线,所以永不低于
+     弱双曲性本来就会强迫的那个通量;
+   - **不破坏阶**:光滑流里 $\sigma=O(h)$,乘的是重构后 $O(h^3)$ 的反扩散跳变,
+     扰动 $O(h^4)$。低马赫涡($\rho_0=10^{-2}$)实测 3.52/2.89/3.29/3.52/3.64。
+4. **$\chi$ 不在里面** —— 实测它可删(见下节),所以论文里 $\sigma=s^p$,只有一个传感器、
+   一个常数。
+
+同时把 `eq:einfeldt` 之后那句 "lie in $[0,1]$ ... without further clipping" 改成
+"without being clipped there; the shock sensor of eq:flattener is the only further
+modification they receive" —— 原句会被读成"没有别的东西碰 $\delta_k$"。
+
+### 一条待核的引用
+
+`\cite{SimonMandal2019}` = Simon & Mandal, *Strategies to cure numerical shock instability
+in the HLLEM Riemann solver*。它是**对这个机制的已发表线性扰动分析**,把不稳定归因于
+"数值激波区内横向界面上反扩散项的虚假激活",正是我们处理的东西。
+
+**但它的出版信息我没能核实**:`arxiv.org`、`doi.org`、`api.crossref.org` 都被本会话的
+网络策略挡住,两个第三方目录给的信息还互相矛盾(一个给 IJNMF 89(12) 533–569 (2019),
+另一个把 DOI `10.1016/j.jcp.2018.11.022` 挂在同一个 preprint 上,后者更可能是同作者的
+HLLC 姊妹篇)。bib 条目已加入,**并在 .bib 里用显著注释标出投稿前必须核对**
+journal / volume / issue / pages / DOI。
