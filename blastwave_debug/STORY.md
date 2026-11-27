@@ -268,3 +268,77 @@ Lorentz 力、磁能通量、$B_z$ 和时间步；Riemann 求解器的 Alfvén �
 | W3 | 认 defect correction 是迭代；软化 3D 那句（第 3 条） | 无 |
 | W4 | 引 Chen–Wu–Xiong 2023，三阶降格为规格（第 5 条） | 无 |
 | W5 | 2D 面内场由 CT 承担那句话（第 4 条） | **必须等 E2** |
+
+---
+
+## 10. 第 4 条批评的代码级判定（2026-11-27）
+
+用户的批评 4 原话：「两个贡献在 2D 里部分抵消，因为 CT 覆盖了面内场」。
+**方向对，机制说错了，而且改对之后对论文更有利。** 以下每条都在
+`blastwave_debug/patch/Final_emb_omp_patched.cpp` 里核过，给行号。
+
+### 10.1 已核实的代码事实
+
+1. **`Unstaggered_CT` (4163–4308)** 把矢势 z 分量 $A$ 按**纯输运方程**推进
+   $$\partial_t A + u\,\partial_x A + v\,\partial_y A = 0,$$
+   用 HJ-WENO5-Z 对 $\nabla A$ 做上风重构，**显式**处理。源码注释 4195–4199
+   自己写明了理由：*"A is advected at the MATERIAL speed, so an explicit
+   treatment costs nothing: the Alfven stiffness sits in the Lorentz force,
+   not here."*
+
+2. 紧接着 **赋值** $B_x,B_y=\mathrm{curl}_4 A$（4300–4306，四阶中心差）：
+   ```cpp
+   u_con(i,j,5) =  ( -A(i,j+2,2) + 8.0*A(i,j+1,2) - 8.0*A(i,j-1,2) + A(i,j-2,2) ) / (12.0*dy);
+   u_con(i,j,6) = -( -A(i+2,j,2) + 8.0*A(i+1,j,2) - 8.0*A(i-1,j,2) + A(i-2,j,2) ) / (12.0*dx);
+   ```
+   是赋值不是累加，于是 $\mathrm{div}_4(\mathrm{curl}_4 A)\equiv 0$ 逐点成立。
+
+3. **`Magnetic_Sweep_FV` (6007+)** 打开 CT 时**只**更新能量行 (4) 和 $B_z$ 行 (7)。
+   面内感应通量和第 5、6 行的更新被 `if(!g_use_ct)` 守卫（6023、6031），
+   即**只有 1D 才算、才施加**：
+   ```cpp
+   if(!g_use_ct){ FY(i,j,1) = v*b5 - u*b6; FX(i,j,2) = u*b6 - v*b5; }
+   if(!g_use_ct && g_Bx_st){ u_con(i,j,5) = ...; u_con(i,j,6) = ...; }
+   ```
+
+4. `ct_now()` 在 6158（star 态）、6395（每个 Picard/embedded 迭代）、6539（最终）
+   都调用，`emb_eval` 内部也调用——**每一次状态成形，$B_\perp$ 都被 $A$ 重新赋值一遍**。
+
+结论：2D 里 $B_x,B_y$ 的有限体积磁通量**整条被丢弃**，不是"部分抵消"。
+
+### 10.2 这对 $\varepsilon_B$ 的 claim 意味着什么
+
+$\varepsilon_B$ 加权 $F^B$ 的显式份额。$F^B$ 出现在：
+
+| 行 | 2D 里是否被 $\varepsilon_B$ 分裂 |
+|---|---|
+| 动量（Lorentz 力 $-\nabla\!\cdot\!(BB)+\nabla(\lvert B\rvert^2/2)$） | 是 |
+| 能量 | 是（`eps_B_grid_x/y` 是 `Magnetic_Sweep_FV` 的实参） |
+| $B_z$ | 是 |
+| 面内感应 $B_x,B_y$ | **2D 里根本不存在这一项** |
+
+所以正确的说法不是"少分裂了一块"，而是：
+
+> **$\varepsilon_B$ 作用在 Alfvén 刚性真正出现的每一行上。** 势函数形式下的面内感应
+> 方程特征速度只有 $\lvert u\rvert$，**本身不含 Alfvén 刚性**，因此无需分裂，
+> 全程显式推进即可。
+
+这把第 4 条从"设计缺陷"翻成了**一致性论证**，而且读者能自己验证——
+$\partial_t A+u\cdot\nabla A=0$ 的特征速度就是 $\lvert u\rvert$，一眼可见。
+顺带也解释了为什么势函数 CT 在这个 IMEX 框架里是**必需**的而不是可选的：
+交错 CT 要把面 $E_z$ 拆成三个 $\varepsilon$ 份额做通量对偶记账（源码注释
+4180–4184 明确提到 "the flux-dual bookkeeping needed by the staggered variant
+does not arise here"），势函数形式把这个记账问题整个消掉。
+
+### 10.3 这对 HLLEM 反扩散的 claim 意味着什么
+
+$\delta_A$ 反扩散只活在**显式** HLLEM 通量里。于是
+
+* **1D**：直接作用在 $B_y,B_z$ 上。
+* **2D**：作用在动量、能量、$B_z$ 上；到面内场只能**经由 $u$**
+  （$\delta_A$ 改动量 → $u$ → HJ-WENO5 输运 $A$ → $B_\perp=\mathrm{curl}_4A$）。
+
+因此论文**不能**直说"Alfvén 反扩散锐化 2D 面内场的旋转间断"。必须写成：
+锐化 Riemann 解算器所推进的那些行里的 Alfvén 波；面内场经由速度场继承这一效果。
+E2（`hllemoff=1` vs 默认）量化的就是这条间接通路的强度——
+若 $B_x,B_y$ 逐点相同到舍入，措辞必须限定在 1D 与 $B_z$。
