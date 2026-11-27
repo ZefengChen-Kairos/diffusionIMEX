@@ -3323,13 +3323,24 @@ literature~\cite{Dumbser2019,BoscheriADER,BoscheriThomann2024}.
 % CHECK after the production run
 The bottom row of the same figure shows the corresponding distributions of
 the two splitting parameters. Inside the rotating disc the flow is supersonic
-and super-Alfv\'enic, $\epsM=\epsB=1$, and the whole flux is handled by the
-explicit HLLEM solver; in the undisturbed outer fluid both parameters vanish
-and the acoustic and the magnetic flux are implicit. In the region swept by
-the Alfv\'en waves the acoustic and the Alfv\'en Mach number differ, and so do
-$\epsM$ and $\epsB$: this is the situation that a single splitting parameter
-cannot represent.
-% CHECK against the computed maps of eps_M, eps_B
+and super-Alfv\'enic and both parameters approach one, so that the whole flux
+is handled by the explicit HLLEM solver; in the undisturbed outer fluid
+$\epsM$ vanishes identically and $\epsB$ is small, and the acoustic flux is
+implicit. In the region swept by the Alfv\'en waves the acoustic and the
+Alfv\'en Mach number differ, and so do $\epsM$ and $\epsB$: this is the
+situation that a single splitting parameter cannot represent. It is, moreover,
+the mirror image of the blast wave of Section~\ref{sec:blast}. There the
+disagreement is $\epsM\approx1$ with $\epsB\approx0$, a strongly magnetised
+low-$\beta$ plasma at moderate Mach number; here it is the opposite, an
+acoustically stiff but magnetically non-stiff annulus in which $\epsM$ is
+near zero while $\epsB$ is close to one. The two tests therefore exercise the
+two mixed regimes of Section~\ref{sec:eps_strategy} from opposite sides, and a
+single parameter would misrepresent a different channel in each.
+% NOTE: measured on a 256^2 run at CFL 0.2, t = 0.25: eps_M = 0.943 and
+% eps_B = 0.963 on average inside r < 0.1; eps_M = 0 exactly on 80.5% of the
+% cells and eps_B = 0 on 48.0%; |eps_M - eps_B| > 0.5 on 6.1% of the cells, at
+% r in [0.062, 0.396], where eps_M = 0.093 and eps_B = 0.857 on average.
+% Refresh from the 1024^2 production run before submission.
 Throughout the computation the discrete divergence of the magnetic field stays
 at the level of round-off.
 
