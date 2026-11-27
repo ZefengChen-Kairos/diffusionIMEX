@@ -1345,20 +1345,26 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	// {L, Roe, R}, capped by the speed that sets the time step (the split spectral radius of this direction): the time step
 	// is unchanged, and in a low-Mach flow the cap is O(|u|), so the dissipation keeps the asymptotic scaling.  Where
 	// eps = 1 the split envelope already is the unsplit one and nothing changes.
-	double g_sigma_face = 0.0;   // [fix L] the one flattener, 0 when fix L is off
+	double g_sigma_face = 0.0, g_sigma_env = 0.0;   // [fix L] 0 when fix L is off
 	if(g_flat1){
 		const double Jr = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
 		const double pLx = a2L*rhoL, pRx = a2R*rhoR;             // gamma cancels in the ratio
 		const double Jp = (fmin(pLx, pRx) > 0.0) ? fabs(pRx - pLx)/fmin(pLx, pRx) : 0.0;
 		auto ramp = [](double J){ return fmin(1.0, fmax(0.0, 2.0*J - 1.0)); };   // J0 = 1/2, J1 = 1
-		// flat1=1: chi + the density AND pressure jumps.  flat1=2: chi + the
-		// density jump only, i.e. drop the pressure sensor as well.  The ladder
-		// is measured in blastwave_debug/PATCHES.md.
-		g_sigma_face = (g_flat1 >= 2) ? fmax(g_face_chi, ramp(Jr))
-		                             : fmax(g_face_chi, fmax(ramp(Jr), ramp(Jp)));
+		// The jump part of the sensor.  Modes 2 and 4 drop the pressure jump.
+		const double sj = (g_flat1 == 2 || g_flat1 == 4) ? ramp(Jr) : fmax(ramp(Jr), ramp(Jp));
+		// delta_k always carries chi as well -- that is Balsara's flattener, which
+		// the code applied to delta_k already.  The ENVELOPE is different: it is
+		// reverted because the split envelope VANISHES at an under-resolved jump,
+		// which is what the jump sensor detects; riding it on chi as well adds
+		// dissipation at every compression and measurably smears the blast wave
+		// (modes 1/2: max|grad rho| down 8%, rms(div u) down 2.4x).  Modes 3/4
+		// therefore gate the envelope on the jump sensor alone.
+		g_sigma_face = fmax(g_face_chi, sj);
+		g_sigma_env  = (g_flat1 >= 3) ? sj : g_sigma_face;
 	}
 	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
-		const double th = g_flat1 ? g_sigma_face : fmin(1.0, (Jw - 0.5)/0.5);
+		const double th = g_flat1 ? g_sigma_env : fmin(1.0, (Jw - 0.5)/0.5);
 		if((g_flat1 ? (th > 0.0) : (g_jguard && Jw > 0.5)) && g_env_cap > 0.0){   // [fix L]
 			auto cfast = [](double a2, double bn2, double bp2){ const double s2 = a2 + bn2 + bp2; return sqrt(0.5*(s2 + sqrt(fmax(s2*s2 - 4.0*a2*bn2, 0.0)))); };
 			const double cT = cfast(a2_t, bx2_t, bp2_t), cL = cfast(fmax(a2L,0.0), bx2L, bp2L), cR = cfast(fmax(a2R,0.0), bx2R, bp2R);

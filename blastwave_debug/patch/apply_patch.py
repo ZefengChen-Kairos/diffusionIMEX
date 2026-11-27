@@ -722,20 +722,26 @@ int g_jguard = 1;      // [fix K]""")
     rep("""	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
 		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]
 			const double th = fmin(1.0, (Jw - 0.5)/0.5);""",
-        """	double g_sigma_face = 0.0;   // [fix L] the one flattener, 0 when fix L is off
+        """	double g_sigma_face = 0.0, g_sigma_env = 0.0;   // [fix L] 0 when fix L is off
 	if(g_flat1){
 		const double Jr = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
 		const double pLx = a2L*rhoL, pRx = a2R*rhoR;             // gamma cancels in the ratio
 		const double Jp = (fmin(pLx, pRx) > 0.0) ? fabs(pRx - pLx)/fmin(pLx, pRx) : 0.0;
 		auto ramp = [](double J){ return fmin(1.0, fmax(0.0, 2.0*J - 1.0)); };   // J0 = 1/2, J1 = 1
-		// flat1=1: chi + the density AND pressure jumps.  flat1=2: chi + the
-		// density jump only, i.e. drop the pressure sensor as well.  The ladder
-		// is measured in blastwave_debug/PATCHES.md.
-		g_sigma_face = (g_flat1 >= 2) ? fmax(g_face_chi, ramp(Jr))
-		                             : fmax(g_face_chi, fmax(ramp(Jr), ramp(Jp)));
+		// The jump part of the sensor.  Modes 2 and 4 drop the pressure jump.
+		const double sj = (g_flat1 == 2 || g_flat1 == 4) ? ramp(Jr) : fmax(ramp(Jr), ramp(Jp));
+		// delta_k always carries chi as well -- that is Balsara's flattener, which
+		// the code applied to delta_k already.  The ENVELOPE is different: it is
+		// reverted because the split envelope VANISHES at an under-resolved jump,
+		// which is what the jump sensor detects; riding it on chi as well adds
+		// dissipation at every compression and measurably smears the blast wave
+		// (modes 1/2: max|grad rho| down 8%, rms(div u) down 2.4x).  Modes 3/4
+		// therefore gate the envelope on the jump sensor alone.
+		g_sigma_face = fmax(g_face_chi, sj);
+		g_sigma_env  = (g_flat1 >= 3) ? sj : g_sigma_face;
 	}
 	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
-		const double th = g_flat1 ? g_sigma_face : fmin(1.0, (Jw - 0.5)/0.5);
+		const double th = g_flat1 ? g_sigma_env : fmin(1.0, (Jw - 0.5)/0.5);
 		if((g_flat1 ? (th > 0.0) : (g_jguard && Jw > 0.5)) && g_env_cap > 0.0){   // [fix L]""")
     rep("""			if(g_jguard){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]""",
         """			if(g_jguard && !g_flat1){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]""")
