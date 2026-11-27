@@ -108,31 +108,47 @@ def step2_probes(s):
 
 
 def step3_flattener(s):
-    """Write in rung L5: one face flattener, no cap, no pressure sensor."""
+    """Write in rung L9: HLLEM plus exactly ONE added term.
+
+        delta_k <- (1 - sigma) delta_k,    sigma = max(chi, s_p)
+
+    chi is Balsara's compression flattener (paper eq:chi) and s_p the relative
+    pressure jump over the face neighbours.  That is the whole addition: revert
+    the low-dissipation anti-diffusion to plain HLL where a strong shock is
+    detected, which is Quirk's construction with a pressure-based switch.
+
+    DELETED, both measured to contribute nothing and one of them actively
+    harmful (blastwave_debug/PATCHES.md):
+      - the J-keyed entropy limiter, delta_C *= (1 - Theta(|drho|/min rho)).
+        Its own comment says it gives "plain HLL across strong contacts", and a
+        contact is exactly what HLLEM's anti-diffusion is for: it fired 4540
+        times on RP5, i.e. at the contact on essentially every stage of every
+        step, blunting the feature the paper reports.  The pressure sensor does
+        not have this defect, since a contact and a rotational discontinuity are
+        both pressure-continuous.
+      - the envelope widening keyed on the same jump: it never fired at all on
+        the blast wave at 128^2 or 256^2 for any senv.
+      - the delta_k cap: no measurable effect in any pair that isolated it.
+      - my own unified sigma (fix L) and the re-gated chi (fix I, falsified).
+
+    Verified: L9 reproduces the four-mechanism form on all seven metrics at
+    128^2 (rho max 3.0056 vs 3.0058, max|grad rho| 1.0540 both, shock radius
+    0.2938 both, striping power 1.0% both).
+    """
     n0 = len(s)
+    # --- fix L's sigma block: out ---
     old_sigma = s[s.index('\tdouble g_sigma_face = 0.0, g_sigma_env = 0.0;'):
                   s.index('\t{\tconst double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);')]
     s = cut(s, old_sigma, 'fix L sigma block')
-    s = sub1(s, '\t{\tconst double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);\n'
-                '\t\tconst double th = g_flat1 ? g_sigma_env : fmin(1.0, (Jw - 0.5)/0.5);\n'
-                '\t\tif((g_flat1 ? (th > 0.0) : (g_jguard && Jw > 0.5)) && g_env_cap > 0.0){   // [fix L]',
-             '\t// ---- Flattener: revert the AP-HLLEM flux to HLLE across an under-resolved jump ----\n'
-             '\t// J_flat is the relative density jump across the face: dimensionless and\n'
-             '\t// scale-free, so J = O(h) in smooth flow and the whole mechanism deactivates\n'
-             '\t// under refinement, while J = O(1) only across a contact the mesh does not\n'
-             '\t// resolve.  theta_flat ramps over [J0_FLAT, J1_FLAT].  Two actions, both of\n'
-             '\t// them the same statement -- revert to HLLE:\n'
-             '\t//   delta_k  <- (1 - max(chi, theta)) delta_k   anti-diffusion off, which is\n'
-             '\t//               the carbuncle cure of Dumbser & Balsara;\n'
-             '\t//   (sL, sR) <- widened by theta towards the CLASSICAL Einfeldt envelope of\n'
-             '\t//               eq. (52), capped by the speed that sets the time step, so the\n'
-             '\t//               time step is unchanged and the asymptotic scaling is kept.\n'
-             '\t// chi is Balsara\'s shock flattener and enters the anti-diffusion only: gating\n'
-             '\t// the envelope on chi as well costs 8% of the shock sharpness for nothing.\n'
-             '\tconst double J_flat = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);\n'
-             '\tconst double theta_flat = fmin(1.0, fmax(0.0, (J_flat - J0_FLAT)/(J1_FLAT - J0_FLAT)));\n'
-             '\t{\tconst double th = theta_flat;\n'
-             '\t\tif(th > 0.0 && g_env_cap > 0.0){', 'envelope block')
+    # --- guard 3, the envelope widening: the whole block out ---
+    start = s.index('\t{\tconst double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);')
+    # the block runs to the line that closes it, two levels of brace after the assignment
+    endmark = '\t\t\tsL = fmin(sL, th*sL1); sR = fmax(sR, th*sR1);\n\t\t}\n\t}\n'
+    end = s.index(endmark, start) + len(endmark)
+    # keep the explanatory comment that precedes it out of the way: it belongs to the block
+    cstart = s.rindex('\t// [W] ', 0, start) if '\t// [W] ' in s[:start] else start
+    s = s[:cstart] + s[end:]
+    # --- the delta block: one flattener, unconditional ---
     s = sub1(s, '\t\t\tif(g_jguard && !g_flat1){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]\n'
                 '#pragma omp atomic\n'
                 '\t\t\t\tg_ent_lim++; } }\n'
@@ -142,12 +158,23 @@ def step3_flattener(s):
                 '\t\t\t\tg_ent_lim += (g_sigma_face > 0.0); }\n'
                 '\t\t\telse if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener\n'
                 '\t\t\tif(g_hllemcap > 0.0){ const double cp = 1.0 - g_hllemcap; delta_C = fmin(delta_C, cp); delta_Ap = fmin(delta_Ap, cp); delta_Am = fmin(delta_Am, cp); }   // [fix C] cap\n',
+             '\t\t\t// Revert the anti-diffusion to plain HLL where a strong shock is detected:\n'
+             '\t\t\t// sigma = max(chi, s_p), chi the compression flattener of eq.(72) and s_p the\n'
+             '\t\t\t// relative pressure jump over the face neighbours.  A contact and a rotational\n'
+             '\t\t\t// discontinuity are both pressure-continuous, so this leaves exactly the fields\n'
+             '\t\t\t// the anti-diffusion is there to sharpen.\n'
              '\t\t\tif(g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }\n'
-             '\t\t\telse { const double fl = fmax(0.0, 1.0 - fmax(g_face_chi, theta_flat));   // revert to HLLE\n'
+             '\t\t\telse { const double fl = fmax(0.0, 1.0 - g_face_chi);\n'
              '\t\t\t\tdelta_C *= fl; delta_Ap *= fl; delta_Am *= fl;\n'
              '#pragma omp atomic\n'
              '\t\t\t\tg_ent_lim += (fl < 1.0); }\n', 'delta block')
-    print('  step 3 flattener: %d chars removed' % (n0 - len(s)))
+    # the sigma, the guard and the widening are gone from the flux; g_env_cap and
+    # g_env_wide are now dead (declaration and assignments only) and go in 4b
+    for v in ('g_sigma_face', 'g_sigma_env', 'g_flat1', 'g_jguard'):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    assert 'g_env_wide++' not in s, 'envelope widening counter still incremented'
+    assert '-g_env_cap' not in s, 'envelope clamp still present'
+    print('  step 3 flattener (L9): %d chars removed' % (n0 - len(s)))
     return s
 
 
@@ -257,10 +284,113 @@ def step4c_bake_method_params(s):
     return s
 
 
+def step4d_dead_envelope(s):
+    """g_env_cap and g_env_wide served only the envelope widening, which step 3
+    deleted.  They are now written and never read."""
+    n0 = len(s)
+    s = cut(s, 'double g_env_cap = 0.0;   // [W] time-step speed of the current sweep direction (a_max_x / a_max_y), set by HLLEM_Update\n'
+               'long g_env_wide = 0;      // [W] counter: faces whose envelope was widened\n', 'env globals')
+    assert s.count('\tg_env_cap = a_max_x;   // [W]\n') == 1 and s.count('\tg_env_cap = a_max_y;   // [W]\n') == 1, 'env_cap assignments'
+    s = s.replace('\tg_env_cap = a_max_x;   // [W]\n', '').replace('\tg_env_cap = a_max_y;   // [W]\n', '')
+    s = sub1(s, ' << " faces, envelope widened at " << g_env_wide << " faces,', ' << " faces,', 'env_wide report')
+    m = re.search(r'//[^\n]*the local \[W\] widening below is capped by g_env_cap and\n[^\n]*\n', s)
+    if m: s = s[:m.start()] + s[m.end():]
+    for v in ('g_env_cap', 'g_env_wide'):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    print('  step 4d dead envelope vars: %d chars removed' % (n0 - len(s)))
+    return s
+
+
+def step5_comments(s):
+    """Prune the development archaeology from the comments.
+
+    Deleting a comment cannot change behaviour, so this step is checked the same
+    way as the others and the check is a check of the SCRIPT, not of the code:
+    if a replacement reaches into code by accident, the build or the bit-identity
+    check fails.
+
+    Removed: the patch log at the top of the file (those fixes are now simply the
+    code), the bracketed development tags, references to files a reader does not
+    have, and an empty if-block with a TODO in it.  KEPT: every comment that
+    explains why the code is as it is, every equation reference, and every
+    warning about what breaks if it is changed.
+    """
+    n0 = len(s)
+    # --- the patch log: from the first separator to just before the real header ---
+    hdr = '// ============================================================================\n' \
+          '// Dual-parameter (eps_M, eps_B) IMEX finite volume scheme for ideal MHD'
+    i = s.index(hdr)
+    assert s[:i].count('// PATCHED VERSION') == 1, 'patch log not where expected'
+    s = s[i:]
+    # --- development tags, stripped from the comment text only ---
+    tagpat = re.compile(r'\[(?:fix|o3)[^\]]{0,24}\]\s*|\[(?:W|emb|1d|2d|vtk)\]\s*')
+    out = []
+    for line in s.split('\n'):
+        k = line.find('//')
+        if k >= 0:
+            head, tail = line[:k], line[k:]
+            tail = tagpat.sub('', tail)
+            tail = re.sub(r'//\s+(?=\w)', '// ', tail)
+            line = head + tail
+        out.append(line)
+    s = '\n'.join(out)
+    # --- a changelog opening on an otherwise useful explanation ---
+    s = sub1(s, 'The three switches are GONE: the corrections are always on,\n',
+                'The corrections are always on,\n', 'switches-gone wording')
+    # --- references to files the reader does not have ---
+    s = re.sub(r'[ \t]*(?://)?[^\n]*\b(?:REPORT\.md|apply_patch\.py|blastwave_debug/)[^\n]*\n',
+               lambda m: '' if m.group(0).lstrip().startswith('//') else m.group(0), s)
+    # --- an empty if-block holding only a TODO ---
+    m = re.search(r'[\t ]*if\(nyCells != 1 && nxCells != 1\)\{\n[\t ]*// TODO-2D[^\n]*\n[\t ]*\}\n', s)
+    if m: s = s[:m.start()] + s[m.end():]
+    # --- the method header now names the flattener as well ---
+    s = sub1(s, '// SHOCKS shock-indicator-gated Laplacian (1 - eps_B) |lambda_B| dx in the magnetic predictor.',
+                '// SHOCKS shock-indicator-gated Laplacian (1 - eps_B) |lambda_B| dx in the magnetic predictor;\n'
+                '//        the HLLEM anti-diffusion is reverted to plain HLL where a strong shock is detected,\n'
+                '//        delta_k <- (1 - max(chi, s_p)) delta_k with s_p the relative pressure jump.',
+             'SHOCKS header')
+    assert '[fix' not in s and '[o3' not in s, 'tags remain'
+    print('  step 5 comments: %d chars removed' % (n0 - len(s)))
+    return s
+
+
+def step6_junk_comments(s):
+    """Commented-out code and archaeology framing.  Keeps every comment that
+    explains the numerics; removes the ones that carry no information."""
+    n0 = len(s)
+    # --- the dead dissipation-selection switch, commented out wholesale ---
+    m = re.search(r'[\t ]*//[\t ]*\n(?:[\t ]*//[^\n]*\n)*?[\t ]*//[\t ]*//Laplacian Operator\n'
+                  r'(?:[\t ]*//[^\n]*\n)*?(?=[\t ]*auto henthA)', s)
+    assert m, 'dead flux_diss block not found'
+    s = s[:m.start()] + s[m.end():]
+    # --- runs of empty comment lines (two or more): pure noise ---
+    s = re.sub(r'(?:[\t ]*//[\t ]*\n){2,}', '', s)
+    # --- archaeology framing on otherwise useful blocks ---
+    s = sub1(s, '// ==================== RESTORED FROM ARCHIVE (positivity core) ====================\n', '',
+             'restored-from-archive')
+    s = sub1(s, 'BLOCK-STRUCTURED SPLIT CHARACTERISTIC BASIS  (replaces compute_LR_prim_x/y and\n'
+                '\t\t// its cond>1e4 -> IDENTITY fallback, which silently disabled characteristic\n'
+                '\t\t// reconstruction wherever the 8x8 R was ill-conditioned -- i.e. over the whole\n'
+                '\t\t// Bperp~0 region, e.g. the entire blast-wave centre.)',
+                'BLOCK-STRUCTURED SPLIT CHARACTERISTIC BASIS.  A numerical 8x8 inverse is\n'
+                '\t\t// ill-conditioned wherever Bperp -> 0, e.g. over the whole blast-wave centre,\n'
+                '\t\t// so the basis is built block by block instead, analytically where possible.',
+             'basis archaeology')
+    # --- references to internal documents the reader does not have ---
+    s = re.sub(r'[ \t]*//[^\n]*\bDocument [123]\b[^\n]*\n', '', s)
+    s = re.sub(r'\(Document [123][^)]*\)\s*', '', s)
+    s = re.sub(r'（?设计\(ROUTE A-analytic, \d{4}-\d\d\)', '设计', s)
+    # --- rejected-alternative narrative that documents nothing about THIS code ---
+    m = re.search(r'[\t ]*// Previously the faces were built from A_s:.*?\n(?=[\t ]*(?:void|auto|static|const|double|int|//\s*-|\n))', s, re.S)
+    if m: s = s[:m.start()] + s[m.end():]
+    print('  step 6 junk comments: %d chars removed' % (n0 - len(s)))
+    return s
+
+
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
-    upto = sys.argv[3] if len(sys.argv) > 3 else '4c'
-    order = ['1', '2', '3', '4a', '4b', '4c']
+    upto = sys.argv[3] if len(sys.argv) > 3 else '6'
+    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '5', '6']
     want = order[:order.index(upto) + 1]
     s = open(src).read()
     if '1' in want:  s = step1_dead_code(s)
@@ -269,5 +399,8 @@ if __name__ == '__main__':
     if '4a' in want: s = step4a_off_switches(s)
     if '4b' in want: s = step4b_probe_machinery(s)
     if '4c' in want: s = step4c_bake_method_params(s)
+    if '4d' in want: s = step4d_dead_envelope(s)
+    if '5' in want:  s = step5_comments(s)
+    if '6' in want:  s = step6_junk_comments(s)
     open(dst, 'w').write(s)
     print('wrote', dst)

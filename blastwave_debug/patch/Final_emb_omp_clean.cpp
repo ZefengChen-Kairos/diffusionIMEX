@@ -1,114 +1,34 @@
 // ============================================================================
-// PATCHED VERSION (blastwave_debug/patch/apply_patch.py, 2026-11-03).  Changes to the original Final_emb_omp.cpp:
-//   fix A  [plap=1, default ON]     shock-activated pressure Laplacian of paper 1 (eq. 45/85), (1-eps_M)-weighted,
-//                                   in the implicit pressure operators L2 (matrix-free + assembled stencil) and L4.
-//                                   Identically zero where the shock indicator chi = 0 (smooth flow): no change there.
-//   fix C  [hllemflat=2, hllemcap=0.25, default ON]
-//                                   HLLEM anti-diffusion of the entropy/Alfven waves: delta_k *= (1 - chi_face)
-//                                   (chi_face = max over the two cells of max(chi, pressure-jump sensor)) and
-//                                   delta_k <= 1 - hllemcap.  Removes the odd-even density/pressure streaks behind
-//                                   the strong oblique fast shock.
-//   fix B  [pswitch=1, default OFF] pressure-fluctuation-aware switching function (not adopted; kept for comparison).
-//   fix F  [default ON]             blast wave taken from the paper's section 4.6: B0 = 100/sqrt(4 pi) (eq.106), the SHARP
-//                                   jump of eq.(107), gamma = 5/3 and CFL = 0.8.  Run-time options b0= pin= tend=
-//                                   bsmooth= gamma= restore any of the old values; "Blast wave test II" of the same
-//                                   section is  b0=1000 pin=1e4 tend=0.001.
-//   fix E  [senv=2, default ON]    HLL wave-speed envelope: union of the split Einfeldt estimates of eq.(52) with
-//                                   the GLOBAL MAXIMUM MATERIAL speed max|u| of the sweep direction.  The split
-//                                   envelope is O(|u| + eps c) and collapses to zero where eps -> 0 and u -> 0, which
-//                                   leaves the HLL flux with no dissipation and makes the scheme converge to the WRONG
-//                                   post-shock state on RP5/RP6 (RP6: rho 3.884 vs 3.982 exact, shock -0.383 vs -0.371,
-//                                   unchanged from 250 to 2000 cells).  senv=1 restores convergence (at 1000 cells:
-//                                   rho -0.10%, shock -0.3715) and, being a material speed, leaves the AP scaling and
-//                                   the low-Mach vortex untouched.  See REPORT.md section 10.
-//                                   senv=2 is the LOCAL version of the same floor, max|u_n| over {L, Roe, R} of each
-//                                   face.  The global floor is only correct where max|u| IS the local scale, i.e. on
-//                                   single-scale problems (1D RPs, the low-Mach vortex).  On the b0=100 blast wave
-//                                   (|u| ~ 30 in the hot interior, ~0 in the ambient) it widens EVERY face to the
-//                                   interior value, which amplifies the HLLEM delta_k anti-diffusion on the linearly
-//                                   degenerate waves in the quiet ambient.  Measured at 256^2, CFL 0.2, t = 0.01,
-//                                   fraction of cells that are a local extremum of amplitude > 1%:
-//                                       2D blast, rho    senv=1  8.18%    senv=0  1.21%
-//                                       2D blast, p      senv=1 10.33%    senv=0  4.67%
-//                                       1D RP5,   rho    senv=1  0.00%    senv=0 32.21%
-//                                       1D RP6,   rho    senv=1  0.00%    senv=0  3.63%
-//                                       1D RP7,   rho    senv=1  0.00%    senv=0  0.00%  (identical to 1e-16)
-//                                   so NEITHER global setting is right for both, and the 2D figure of the paper's
-//                                   section 4.6 is the senv=1 one.  Note also that a global O(max|u|) floor does not
-//                                   vanish as M -> 0 in the quiet part of a multi-scale domain, i.e. senv=1 is in
-//                                   tension with the AP claim; the local [W] widening below is capped by g_env_cap and
-//                                   does keep the asymptotic scaling.
-//                                   MEASURED senv=2 (same metric, > 1% local extrema):
-//                                       2D blast, rho    senv=2  0.73%   (senv=1 8.18%, senv=0 1.21%)  -> best of the three
-//                                       2D blast, p      senv=2  3.85%   (senv=1 10.33%, senv=0 4.67%)
-//                                       1D RP5,   rho    senv=2  2.63%   (senv=1 0.00%, senv=0 32.21%), L1 vs senv=1 0.33%
-//                                       1D RP6,   rho    senv=2  1.13%   (senv=1 0.00%, senv=0  3.63%), L1 vs senv=1 0.19%
-//                                       1D RP7           identical to senv=1 to 1e-16
-//                                   and the 1D residual is LOCALIZED: 19 of the 21 oscillating cells of RP5 sit in the one
-//                                   0.05-wide bin that holds the contact discontinuity at x = -0.0006 (median amplitude
-//                                   1.68%), 7 of 9 likewise for RP6 -- i.e. post-contact ringing of the entropy wave, not
-//                                   the quarter-of-the-domain failure senv=0 shows.  Cost +0.45% steps vs senv=1 (RP5
-//                                   4839 vs 4817, RP6 4996 vs 4976).  DEFAULT CHANGED 1 -> 2 on this evidence; senv=1
-//                                   remains available and is what the 1D figures of paper 1 were produced with.
-//   fix D  [betafloor=BETA, default OFF]
-//                                   minimum plasma beta: p >= betafloor * |B|^2/2 on the conservative state at the
-//                                   end of every stage, instead of the absolute floor p_floor = 1e-7.  It is a
-//                                   positivity limiter, not a cure for the underlying CT-vs-flux mis-phasing at the
-//                                   shock foot; see REPORT.md.
-//                                   CHOOSE betafloor << beta_ambient OF THE TEST, or the floor rewrites the initial
-//                                   condition.  beta_amb = 2 p_amb / |B|^2: 5.13e-4 for b0=70 but only 2.51e-4 for the
-//                                   paper's b0=100, so the older recommendation betafloor=5e-4 is now ABOVE ambient and
-//                                   fires in every ambient cell (measured at 256^2, b0=100: p_amb 0.1 -> 0.3227, i.e.
-//                                   3.2x the test's ambient pressure; the shock radius is unchanged, so it is easy to
-//                                   miss).  betafloor=2.5e-5 (= 0.1 beta_amb, p >= 9.95e-3) leaves p_amb at 0.10000 and
-//                                   still clips the low-beta jet on the y axis, where senv=0/b0=100 reaches p = 1.1e-4
-//                                   (beta = 2.8e-7) in 54 cells at t = 0.01.
-//                                   KNOWN BUG, unfixed: where the floor fires in a steady region it RATCHETS to
-//                                   p_floor + (gamma-1)*Delta(|B|^2/2) instead of p_floor, because the block runs where
-//                                   u_con holds Btilde while the solution carries B.  E = p_floor/(gamma-1) + ke + mb
-//                                   has mb ~ 1300x the p_floor/(gamma-1) term at b0=100, so |Btilde|/|B| - 1 = 2.3e-4
-//                                   becomes a 62% error in p (predicted 0.19894 + 0.12378 = 0.32272, measured 0.32272).
-//                                   This is the catastrophic cancellation the three-way split exists to avoid, re-entered
-//                                   at exactly the low beta where the floor is used.  Fix: apply the floor as an
-//                                   increment, p_cur = (gamma-1)(E - ke - mb); if(p_cur < pmin) E += (pmin - p_cur)/(gamma-1),
-//                                   at a point where B is final -- then ke and mb cancel exactly.
-//   runtime options (no recompilation): cfl= epsMmin= epsMmax= epsBmin= epsBmax= plap= pswitch= hllemflat=
-//                                   hllemcap= hllemoff= kappa1= swm0= swm1= swalpha= epsmax3= betafloor= senv= b0= pin= tend= bsmooth= gamma= tag=
-//   e.g.  OMP_NUM_THREADS=32 ./mhd                                            (paper's blast wave, 1000^2, t = 0.01)
-//         OMP_NUM_THREADS=32 ./mhd b0=1000 pin=1e4 tend=0.001 tag=blast2       (blast wave test II)
-//         OMP_NUM_THREADS=32 ./mhd cfl=0.4 plap=0 hllemflat=0 hllemcap=0 tag=orig   (original behaviour)
-// Validated against an independent explicit HLL reference on the blast wave at 128^2/256^2 and on the
-// travelling vortex (third order unchanged); see blastwave_debug/REPORT.md.
-// ============================================================================
-// ============================================================================
 // Dual-parameter (eps_M, eps_B) IMEX finite volume scheme for ideal MHD, third order in space and time.
 // Final_emb_omp.cpp: OpenMP version (compile with -fopenmp).  Final_emb_serial.cpp is the same code
 // without the OpenMP pragmas.
 //
 // USAGE  Edit the RUN SETTINGS block below (test, mesh, CFL), compile, run in the output directory:
-//          g++ -O3 -march=native -fopenmp -std=c++17 -I/usr/include/eigen3 Final_emb_omp.cpp -o mhd
-//          OMP_NUM_THREADS=32 ./mhd
-//        All output goes to ./plot/<test>/ (created if needed):
-//          steplog_<test>.csv     one line per time step: step, t, dt, dt_MHD (fully explicit step from the
-//                                 fast magnetosonic speed, same CFL), max|B|, max|B|/max|B_0|,
+// g++ -O3 -march=native -fopenmp -std=c++17 -I/usr/include/eigen3 Final_emb_omp.cpp -o mhd
+// OMP_NUM_THREADS=32 ./mhd
+// All output goes to ./plot/<test>/ (created if needed):
+// steplog_<test>.csv     one line per time step: step, t, dt, dt_MHD (fully explicit step from the
+// fast magnetosonic speed, same CFL), max|B|, max|B|/max|B_0|,
 //                                 ||div B||_L2, ||div B||_inf
-//          plt_<test>_<step>.vtk  at t = 0, at the output times of output_times() and at t = T
-//          state_<test>_<step>.dat  interior cell averages (i j rho mx my mz E Bx By Bz) at the output times and at T
-//        Output times: T/4, T/2, 3T/4 (Orszag-Tang: 0.5, 2, 3 / 2pi, with T = 5/2pi); the time step is shortened
-//        to land on them exactly.
-//        The divergence is the 4th-order central divergence of the cell-average field (the operator for which
-//        div curl4 A = 0 holds exactly); for non-periodic boundaries the two cells next to the boundary are
-//        excluded from the norms.
+// plt_<test>_<step>.vtk  at t = 0, at the output times of output_times() and at t = T
+// state_<test>_<step>.dat  interior cell averages (i j rho mx my mz E Bx By Bz) at the output times and at T
+// Output times: T/4, T/2, 3T/4 (Orszag-Tang: 0.5, 2, 3 / 2pi, with T = 5/2pi); the time step is shortened
+// to land on them exactly.
+// The divergence is the 4th-order central divergence of the cell-average field (the operator for which
+// div curl4 A = 0 holds exactly); for non-periodic boundaries the two cells next to the boundary are
+// excluded from the norms.
 //
 // TIME   SA-DIRK(3,4,3), stiffly accurate, partitioned evaluation of the implicit terms.  Per stage:
-//          1. magnetic predictor (one GMRES solve), Newton-linearised Lorentz force and induction;
-//          2. one pressure system with the constrained transport embedded in the operator, solved by defect
-//             correction on the 2nd-order M-matrix operator with the nested Newton pressure floor;
-//          3. momentum update; E = p/(g-1) + linearised kinetic and magnetic energy.
-//        Time step from the eps-weighted explicit spectrum; first step fully explicit, growth <= 1.5 per step.
+// 1. magnetic predictor (one GMRES solve), Newton-linearised Lorentz force and induction;
+// 2. one pressure system with the constrained transport embedded in the operator, solved by defect
+// correction on the 2nd-order M-matrix operator with the nested Newton pressure floor;
+// 3. momentum update; E = p/(g-1) + linearised kinetic and magnetic energy.
+// Time step from the eps-weighted explicit spectrum; first step fully explicit, growth <= 1.5 per step.
 // SPACE  explicit: characteristic WENO3-Z + MP3 in the split basis, HLLEM flux; implicit: 4th-order FV
-//        operators on cell averages; CT: A_z with HJ-WENO5-Z, B = curl4 A.  In 1D no CT (B_x constant).
-// SHOCKS shock-indicator-gated Laplacian (1 - eps_B) |lambda_B| dx in the magnetic predictor.
+// operators on cell averages; CT: A_z with HJ-WENO5-Z, B = curl4 A.  In 1D no CT (B_x constant).
+// SHOCKS shock-indicator-gated Laplacian (1 - eps_B) |lambda_B| dx in the magnetic predictor;
+//        the HLLEM anti-diffusion is reverted to plain HLL where a strong shock is detected,
+//        delta_k <- (1 - max(chi, s_p)) delta_k with s_p the relative pressure jump.
 // EPS    eps_M = 1 - s(M), eps_B = 1 - s(M_A), M0 = 0.15, M1 = 0.4, alpha = 14; face value = max of neighbours.
 // ============================================================================
 #include <iostream>
@@ -182,7 +102,7 @@ int    g_gmres_outmax = 50;    // GMRES restart budget (x 25 Krylov vectors); lo
 bool   g_gmres_conv = false;   // set by GMRES_Solver: true if the tolerance was reached
 int    g_gmres_iters = 0;      // set by GMRES_Solver: Krylov iterations of the last call
 long   g_lu_builds = 0; double g_lu_time = 0.0;   // pressure preconditioner factorisations and their wall time
-double GMRES_rtol = 1e-12;   // [o3s] relative tolerance: stop when |M^{-1}(b-Ax)| <= GMRES_rtol*|M^{-1}b|
+double GMRES_rtol = 1e-12;   // relative tolerance: stop when |M^{-1}(b-Ax)| <= GMRES_rtol*|M^{-1}b|
 double GMRESiter = 1e32;
 int GMRESrest = 30;
 
@@ -216,7 +136,7 @@ bool g_bc_prim = false;   // true while bound_cond_u is applied to a PRIMITIVE g
 
 // ===================== 压力保正:Casulli 嵌套 Newton(piecewise-linear V) =====================
 // 思路:把 pressure subsystem 的对角项 V(p)=p/(gamma-1) 在 p<p_floor 处改成大斜率 Mbig 的直线,
-//       于是 V 全局非线性 -> 用 Newton 外层 + GMRES 内层求解;大斜率把 p 弹回 p_floor 之上。
+// 于是 V 全局非线性 -> 用 Newton 外层 + GMRES 内层求解;大斜率把 p 弹回 p_floor 之上。
 long   g_stage_stamp = 0;   // incremented once per fused-step stage; the AX operators cache
                              // ShockDetector/ucon2upri per stamp (Qe is constant within a stage --
                              // recomputing a full-domain shock detector on every matrix-vector
@@ -233,8 +153,8 @@ double Pnewton_tol = 1e-10;        // Newton 残差容差
 Eigen::VectorXd p_freeze;          // 当前 Newton 迭代值,供 Jacobian(=AX)读取斜率
 
 // ---------------- eps-split CT: three face-flux groups ----------------
-//   x-face (i,j) == (i+1/2,j) : By-row flux  -> E_z = -F
-//   y-face (i,j) == (i,j+1/2) : Bx-row flux  -> E_z = +G
+// x-face (i,j) == (i+1/2,j) : By-row flux  -> E_z = -F
+// y-face (i,j) == (i,j+1/2) : Bx-row flux  -> E_z = +G
 // _rhs  : B* share, (1-eps_B) per face, 4th order, differenced with stagger4
 // _imp  : AX wave (1-eps_B)^2 + viscosity (1-eps_B), 2-point
 // _expl : explicit eps_B share out of HLLEM_Update, 2-point (finite volume)
@@ -246,17 +166,17 @@ struct Grid;
 
 // ---- WENO3 characteristic basis: no component-wise fallback ----
 // true  : ALWAYS use the blocked split characteristic basis; only a genuinely
-//         non-finite result (NaN/Inf) is guarded. The one unresolved degeneracy
+// non-finite result (NaN/Inf) is guarded. The one unresolved degeneracy
 //         (normal field ->0 with a LARGE transverse field) has a completeness
-//         error of at most ~2e-6, far below the WENO truncation error at any
-//         practical resolution, so falling back there was over-conservative.
+// error of at most ~2e-6, far below the WENO truncation error at any
+// practical resolution, so falling back there was over-conservative.
 // false : also fall back to component-wise when the completeness self-check
-//         exceeds g_char_fallback_tol.
+// exceeds g_char_fallback_tol.
                                       // the completeness self-check is counted AND replaced
 // eps_M floor used ONLY inside build_split_char_x (the characteristic basis).
 // Measured completeness of the blocked basis vs eps_M (loop / KH / generic states):
-//   1e-2: err ~1e-13, |L5| ~ 1e2..1e3    1e-4: err ~1e-11, |L5| ~ 1e3..6e4
-//   1e-6: err ~1e-7,  |L5| ~ 1e7..6e8    <=1e-10: err O(1), |L5| ~ 1e15..1e19 (dead)
+// 1e-2: err ~1e-13, |L5| ~ 1e2..1e3    1e-4: err ~1e-11, |L5| ~ 1e3..6e4
+// 1e-6: err ~1e-7,  |L5| ~ 1e7..6e8    <=1e-10: err O(1), |L5| ~ 1e15..1e19 (dead)
 // The flux, the HLL envelope and the time step keep the physical eps_M, so the
 // AP time step is unaffected; only the (arbitrary) reconstruction basis is floored.
 double g_eps_basis_min = 1.0e-2;
@@ -267,35 +187,35 @@ double g_eps_basis_min = 1.0e-2;
 // Every conversion between the two is only second-order accurate unless it is
 // corrected, so a third-order reconstruction is capped at second order in 2D.
 // The corrections below are the standard convolution/deconvolution pair
-//        qbar = q + (1/24) (d2x + d2y) q ,   q = qbar - (1/24)(d2x + d2y) qbar,
+// qbar = q + (1/24) (d2x + d2y) q ,   q = qbar - (1/24)(d2x + d2y) qbar,
 // with d2 the UNDIVIDED second difference; each is exact to O(h^4).
 //
 // g_ic_cell_average : convert the initial condition from the point values that
-//        u_initialization writes into genuine cell averages.  MANDATORY for any
-//        convergence study -- without it an O(h^2) error is injected at t=0 and
-//        the measured order can never exceed 2.  Must be OFF for discontinuous
-//        initial data, where the second difference is O(1).
+// u_initialization writes into genuine cell averages.  MANDATORY for any
+// convergence study -- without it an O(h^2) error is injected at t=0 and
+// the measured order can never exceed 2.  Must be OFF for discontinuous
+// initial data, where the second difference is O(1).
 // g_fv_face_quadrature : apply the transverse pair around the Riemann solve, so
-//        that the differenced flux is the FACE AVERAGE rather than the flux at
-//        the face midpoint.  Needed only for smooth 2D convergence studies; in
-//        1D the face is a point and the correction vanishes identically.
-//        Must be OFF at discontinuities, for the same reason.
-// [o3 2026-09-26] The three switches are GONE: the corrections are always on,
+// that the differenced flux is the FACE AVERAGE rather than the flux at
+// the face midpoint.  Needed only for smooth 2D convergence studies; in
+// 1D the face is a point and the correction vanishes identically.
+// Must be OFF at discontinuities, for the same reason.
+// The corrections are always on,
 // with the second difference LIMITED by minmod(d2_{i-1}, d2_i, d2_{i+1}).  In smooth
 // regions the limited value equals d2 to O(h^3), which keeps third order; across a
 // jump the three candidates have different signs and the correction vanishes, so
 // no per-test switching is needed (at a discontinuity no scheme exceeds first
 // order anyway).  The initial condition is a genuine 3x3 Gauss cell average.
 // g_fv_variable_conversion : the reconstruction is carried out in primitive
-//        variables, but the stored cell values are averages of the CONSERVATIVE
-//        ones, and W(Qbar) is not the cell average of W -- the two differ by
-//        O(h^2), which is the third of the conversions that cap the scheme at
-//        second order.  With this flag the conversion is routed through the
-//        point values,
-//              Qbar -> (deconvolve) -> Q_pt -> W(Q_pt) -> (convolve) -> Wbar,
-//        each step being exact to O(h^4), and the inverse pair is applied to the
-//        reconstructed face values before they enter the Riemann solver.  As
-//        for the other two, OFF at discontinuities.
+// variables, but the stored cell values are averages of the CONSERVATIVE
+// ones, and W(Qbar) is not the cell average of W -- the two differ by
+// O(h^2), which is the third of the conversions that cap the scheme at
+// second order.  With this flag the conversion is routed through the
+// point values,
+// Qbar -> (deconvolve) -> Q_pt -> W(Q_pt) -> (convolve) -> Wbar,
+// each step being exact to O(h^4), and the inverse pair is applied to the
+// reconstructed face values before they enter the Riemann solver.  As
+// for the other two, OFF at discontinuities.
 double g_char_fallback_tol = 1.0e-6;
 
 // counts how often the block characteristic basis had to fall back to component-wise
@@ -303,12 +223,12 @@ double g_char_fallback_tol = 1.0e-6;
 // tiny or zero. The OLD cond>1e4 identity fallback fired over the whole Bperp~0 region.
 // Quasi-periodic vector potential (fix (2)): with a net mean field the potential
 // is A_z = <Bx> y - <By> x + (periodic part), so the periodic ghost fill must add
-//   A_z(x, y + L_y) = A_z(x, y) + <Bx> L_y,   A_z(x + L_x, y) = A_z(x, y) - <By> L_x.
+// A_z(x, y + L_y) = A_z(x, y) + <Bx> L_y,   A_z(x + L_x, y) = A_z(x, y) - <By> L_x.
 // Both jumps are set once from the initial mean field (exactly conserved).
 double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
 double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
-// [fix E] HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
+// HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
 // 1 = their union with the GLOBAL maximum MATERIAL speed of the sweep direction, which keeps
 // the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points;
 // 2 = their union with the LOCAL max|u_n| over {L, Roe, R} of each face.  senv=1 is correct on
@@ -320,23 +240,23 @@ double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time:
 int g_senv = 2;
 double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
-double g_gamma_set = 0.0;          // [fix F] gamma= 的值; 0 = 用各算例自己的默认
-double g_blast_B0 = 100.0;         // [fix F] B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
-double g_blast_pin = 1000.0;       // [fix F] central pressure; paper eq.(107)
-double g_blast_tend = 0.01;        // [fix F] final time
-int    g_blast_smooth = 1;         // [fix F] 1 = erf-smoothed jump (DEFAULT, = the original code), 0 = sharp (paper eq.(107))
+double g_gamma_set = 0.0;          // gamma= 的值; 0 = 用各算例自己的默认
+double g_blast_B0 = 100.0;         // B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
+double g_blast_pin = 1000.0;       // central pressure; paper eq.(107)
+double g_blast_tend = 0.01;        // final time
+int    g_blast_smooth = 1;         // 1 = erf-smoothed jump (DEFAULT, = the original code), 0 = sharp (paper eq.(107))
 double g_vortex_Bt = VORTEX_BT;
-// [o3d] face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),
+// face-average PRODUCTS in the implicit fluxes: avg(f g) = avg(f) avg(g) + (dt^2/12) f_t g_t + O(h^4),
 // t = transverse direction along the face.  Without the covariance term every product of two face
 // averages (enthalpy x momentum in the energy RHS, enthalpy x pressure gradient in the elliptic
 // operator) is only 2nd-order consistent in 2D -- measured: low-Mach vortex rho0 = 1e-2 gave EOC 1.95
 // for p (u, B ~3) with the products uncorrected.
 const bool g_use_ct = (nxCells != 1 && nyCells != 1);   // 1D runs: no constrained transport (B_n is constant, the transverse field obeys the induction equation, treated like B_z)
-const int g_npicard = 3;            // [o3i] pressure solves per stage (momentum re-updated and CT after each): 3 = third order in time
-Grid  *g_emb_Qe = nullptr;   // [emb] explicit stage state: fixes the upwind direction of the A transport
+const int g_npicard = 3;            // pressure solves per stage (momentum re-updated and CT after each): 3 = third order in time
+Grid  *g_emb_Qe = nullptr;   // explicit stage state: fixes the upwind direction of the A transport
 long   g_emb_iters = 0, g_emb_solves = 0, g_emb_floor = 0, g_emb_sweeps = 0, g_emb_nc = 0;
 bool   g_emb_L2c = false;   // set while the embedded defect correction is running
-Grid  *g_ct_A = nullptr, *g_ct_As = nullptr, *g_ct_Ae = nullptr;   // [o3m] main's A, A_s, A_e for the in-Picard CT
+Grid  *g_ct_A = nullptr, *g_ct_As = nullptr, *g_ct_Ae = nullptr;   // main's A, A_s, A_e for the in-Picard CT
 
 using Vec4 = Eigen::Vector4d;
 using Vec8 = Eigen::Matrix<double, 8, 1>;
@@ -957,9 +877,9 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 		for (int i = ghost_cells; i < nxCells + ghost_cells; i++) {
 			
 			// 3x3 邻域内的快磁声速 c_f = sqrt(a^2 + c_A^2),取最小值
-			//   a   = sqrt(gamma p / rho)        (声速)
-			//   c_A = |B| / sqrt(rho)            (Alfven 速)
-			//   u_pri: 0=rho, 4=p, 5=Bx, 6=By, 7=Bz
+			// a   = sqrt(gamma p / rho)        (声速)
+			// c_A = |B| / sqrt(rho)            (Alfven 速)
+			// u_pri: 0=rho, 4=p, 5=Bx, 6=By, 7=Bz
 			double cf_min_nbr = 1.0e300;
 			for (int di = -1; di <= 1; di++) {
 				for (int dj = -1; dj <= 1; dj++) {
@@ -978,12 +898,12 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 			}
 			
 			// 速度散度 div.u = du/dx + dv/dy (中心差分; w/vz 不进 2D 散度)
-			//   u_pri(.,.,1)=u, u_pri(.,.,2)=v
+			// u_pri(.,.,1)=u, u_pri(.,.,2)=v
 			double div_u = (u_pri(i + 1, j, 1) - u_pri(i - 1, j, 1)) / (2.0 * dx)
 			+ (u_pri(i, j + 1, 2) - u_pri(i, j - 1, 2)) / (2.0 * dy);
 			
 			// 公式 (4.40):
-			//   chi_tilde = min[1, max(0, -(h*div.u + k1*cf_min) / (k1*cf_min))]
+			// chi_tilde = min[1, max(0, -(h*div.u + k1*cf_min) / (k1*cf_min))]
 			double h           = std::min(dx, dy);
 			double numerator   = h * div_u + shock_kappa1 * cf_min_nbr;
 			double denominator = shock_kappa1 * cf_min_nbr;
@@ -997,7 +917,7 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 	bound_cond_array(shock_eta_tilde);
 	
 	// ---- 第二步:邻居扩展 (公式 4.41) ----
-	//   chi_{i,j} = max over 3x3 of chi_tilde
+	// chi_{i,j} = max over 3x3 of chi_tilde
 #pragma omp parallel for collapse(2) schedule(static)
 	for (int j = ghost_cells; j < nyCells + ghost_cells; j++) {
 		for (int i = ghost_cells; i < nxCells + ghost_cells; i++) {
@@ -1026,7 +946,6 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 
 
 // ============================================================
-// 分裂特征结构的公共构件 (Document 1 §3 / Document 3 §2.2.1)
 // HLLEM 和 compute_eigenvalues_x/y 共用,不再各写一份、容易走样。
 // ============================================================
 
@@ -1039,7 +958,6 @@ inline void SplitAlfvenEigenvalues(double vn, double epsB, double bn2, double &l
 	lamAp = 0.5*((1.0+epsB)*vn + sA);
 }
 
-// 磁声波四次方程系数 (Document 1 eq.7 / Document 3 eq.18)。
 // bn2=法向 Alfven 速度平方,bperp2=横向(垂直法向)Alfven 速度平方。
 inline void SplitMagnetosonicCoeffs(double vn, double epsM, double epsB, double a2, double bn2, double bperp2,
 	double &c3, double &c2, double &c1, double &c0){
@@ -1116,29 +1034,28 @@ inline void compute_eigenvalues_y(const double* U, double eps_M, double eps_B, V
 
 // ================================================================================
 // epsilon-HLLEM: delta_k-driven asymptotic-preserving Riemann solver
-//   (dual-parameter epsM/epsB MHD -- Document 1 sec.8 / Document 3 sec.3.2 design)
 //
-// 设计(ROUTE A-analytic, 2026-07): 反耗散在真正的 SPLIT 基上做,但用 ANALYTIC
+// 设计: 反耗散在真正的 SPLIT 基上做,但用 ANALYTIC
 // 投影,不做 8x8 数值求逆 —— 因此没有条件数悬崖,B_perp->0 干净。
 //
 // 推导(已数值验证):
-//  1) 令 beta_y=B_y/B_perp, beta_z=B_z/B_perp。原始变量 split 矩阵 A_p 的二维子空间
-//     是 A_p 的不变子空间(数值:出 S 分量 3.7e-14),其上作用为
-//         A_2 = [[u, -k],[-m, epsB*u]],  k = epsB*Bx/rho,  m = epsB*Bx
-//     特征值即 lambda_A^{+-}(SplitAlfvenEigenvalues)。
-//  2) 右/左特征对没有任何分母:  r_+- = (k, alpha_+-),  l_+- = (m, alpha_+-),
-//     alpha_+- = u - lambda_A^{+-},  l.r = m*k + alpha^2 = epsB^2*Bx^2/rho + alpha^2。
-//  3) 泛函 dv_perp = bz*dv - by*dw, dB*_perp = bz*dBy - by*dBz 湮灭所有非 Alfven 波
+// 1) 令 beta_y=B_y/B_perp, beta_z=B_z/B_perp。原始变量 split 矩阵 A_p 的二维子空间
+// 是 A_p 的不变子空间(数值:出 S 分量 3.7e-14),其上作用为
+// A_2 = [[u, -k],[-m, epsB*u]],  k = epsB*Bx/rho,  m = epsB*Bx
+// 特征值即 lambda_A^{+-}(SplitAlfvenEigenvalues)。
+// 2) 右/左特征对没有任何分母:  r_+- = (k, alpha_+-),  l_+- = (m, alpha_+-),
+// alpha_+- = u - lambda_A^{+-},  l.r = m*k + alpha^2 = epsB^2*Bx^2/rho + alpha^2。
+// 3) 泛函 dv_perp = bz*dv - by*dw, dB*_perp = bz*dBy - by*dBz 湮灭所有非 Alfven 波
 //     (数值:2.4e-16) —— 磁声波的 (v,w),(By,Bz) 都平行于 (by,bz),entropy 是纯 rho,
-//     div 模是 Bx。所以投影是直接的,不需要知道另外六个波。
-//  4) 右向量取 R_A = k*e_v + alpha*e_B,等于论文 eq.(22) 乘以 (-alpha/B_perp):
-//     同一个特征向量,但 1/alpha 和 B_perp 两个奇异因子都被乘掉了。
-//     分母 m*k+alpha^2 只在 epsB*Bx=0 且 alpha=0 时为零;由 alpha_+*alpha_- =
+// div 模是 Bx。所以投影是直接的,不需要知道另外六个波。
+// 4) 右向量取 R_A = k*e_v + alpha*e_B,等于论文 eq.(22) 乘以 (-alpha/B_perp):
+// 同一个特征向量,但 1/alpha 和 B_perp 两个奇异因子都被乘掉了。
+// 分母 m*k+alpha^2 只在 epsB*Bx=0 且 alpha=0 时为零;由 alpha_+*alpha_- =
 //     -epsB^2*c_a^2 知这仅发生在 Bx->0(Alfven 与 entropy 真简并),此时关掉该波。
-//  5) entropy 右向量与 eps 无关(论文 eq.21),振幅用正则部分 dRho - dP/a^2。
-//     严格的 split entropy 左向量含 (1-epsM)/epsM^2 项(论文自述 eta~1/epsM^2,
-//     已数值确认),在 epsM->0 无良定极限(那时显式系统退化为弱双曲,严格双正交本身
-//     失去意义),故只保留正则部分:epsM=1 时精确,且无奇异。
+// 5) entropy 右向量与 eps 无关(论文 eq.21),振幅用正则部分 dRho - dP/a^2。
+// 严格的 split entropy 左向量含 (1-epsM)/epsM^2 项(论文自述 eta~1/epsM^2,
+// 已数值确认),在 epsM->0 无良定极限(那时显式系统退化为弱双曲,严格双正交本身
+// 失去意义),故只保留正则部分:epsM=1 时精确,且无奇异。
 //
 // 验证:与数值 L=R^{-1} 在良态态上的贡献 reldiff 6.1e-12(23392 态);eps=1 时约化
 // 到 Roe-Balsara。magnetosonic 仍交给 HLL 包络(不参与反耗散),故不需要四次方程根。
@@ -1215,15 +1132,13 @@ inline double HLLEM_lam_minus(double lam){ return 0.5 * (lam - fabs(lam)); }
 inline double HLLEM_lam_plus (double lam){ return 0.5 * (lam + fabs(lam)); }
 inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 
-// [o3l] HLL base-flux weights of the last HLLEM_x call (w_L F(Q_L) + w_R F(Q_R) is the HLL average; the
+// HLL base-flux weights of the last HLLEM_x call (w_L F(Q_L) + w_R F(Q_R) is the HLL average; the
 // rest of the numerical flux is dissipation + anti-diffusion).  HLLEM_Update needs them to split the
 // numerical flux into its F^c, F^p, F^B parts BEFORE the transverse convolution.
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
 static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
 Grid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator
 extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter
-double g_env_cap = 0.0;   // [W] time-step speed of the current sweep direction (a_max_x / a_max_y), set by HLLEM_Update
-long g_env_wide = 0;      // [W] counter: faces whose envelope was widened
 void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	double priL[NUM_VARS], priR[NUM_VARS];
 	ini_con2pri(priL, QL);
@@ -1233,12 +1148,10 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	double rhoR=priR[0], vxR=priR[1], vyR=priR[2], vzR=priR[3], pR=priR[4];
 	double BxR=priR[5], ByR=priR[6], BzR=priR[7];
 	
-	// 显式分裂通量(构造 HLL 底通量,Document 3 eq.32)
 	double FcL[NUM_VARS], FcR[NUM_VARS];
 	SplitExplicitFlux_x(QL, epsM, epsB, FcL);
 	SplitExplicitFlux_x(QR, epsM, epsB, FcR);
 	
-	// ---- Cargo-Gallice Roe 平均 (Document 3 eq.30) ----
 	double sqrtL = sqrt(rhoL), sqrtR = sqrt(rhoR), sqsum = sqrtL + sqrtR;
 	double rho_t = sqrtL * sqrtR;
 	double vx_t = (sqrtL*vxL + sqrtR*vxR) / sqsum;
@@ -1296,48 +1209,12 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 		sL = fmin(fmin(loL, loT), loR);
 		sR = fmax(fmax(hiL, hiT), hiR);
 	}
-	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E] global |u| floor
-	else if(g_senv == 2){   // [fix E2] LOCAL material-speed floor: max|u_n| over {L, Roe, R} of THIS face
+	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // global |u| floor
+	else if(g_senv == 2){   // LOCAL material-speed floor: max|u_n| over {L, Roe, R} of THIS face
 		const double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));
 		if(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }
 	}
-	// [W] Strong density jump, J = |drho|/min(rho) > 1/2 (the J of the entropy anti-diffusion limiter below).  The split
-	// envelope is O(|u| + eps c): at a stagnation point of a low-Mach region it vanishes, and so does the dissipation of the
-	// plain HLL flux the limiter falls back to (measured: Orszag-Tang X-point, eps_M = 0, density holes grow until the point
-	// values fail).  From J = 1/2 to J = 1 the envelope is widened linearly to the unsplit (eps = 1) Einfeldt envelope over
-	// {L, Roe, R}, capped by the speed that sets the time step (the split spectral radius of this direction): the time step
-	// is unchanged, and in a low-Mach flow the cap is O(|u|), so the dissipation keeps the asymptotic scaling.  Where
-	// eps = 1 the split envelope already is the unsplit one and nothing changes.
-	// ---- Flattener: revert the AP-HLLEM flux to HLLE across an under-resolved jump ----
-	// J_flat is the relative density jump across the face: dimensionless and
-	// scale-free, so J = O(h) in smooth flow and the whole mechanism deactivates
-	// under refinement, while J = O(1) only across a contact the mesh does not
-	// resolve.  theta_flat ramps over [J0_FLAT, J1_FLAT].  Two actions, both of
-	// them the same statement -- revert to HLLE:
-	//   delta_k  <- (1 - max(chi, theta)) delta_k   anti-diffusion off, which is
-	//               the carbuncle cure of Dumbser & Balsara;
-	//   (sL, sR) <- widened by theta towards the CLASSICAL Einfeldt envelope of
-	//               eq. (52), capped by the speed that sets the time step, so the
-	//               time step is unchanged and the asymptotic scaling is kept.
-	// chi is Balsara's shock flattener and enters the anti-diffusion only: gating
-	// the envelope on chi as well costs 8% of the shock sharpness for nothing.
-	const double J_flat = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
-	const double theta_flat = fmin(1.0, fmax(0.0, (J_flat - J0_FLAT)/(J1_FLAT - J0_FLAT)));
-	{	const double th = theta_flat;
-		if(th > 0.0 && g_env_cap > 0.0){
-			auto cfast = [](double a2, double bn2, double bp2){ const double s2 = a2 + bn2 + bp2; return sqrt(0.5*(s2 + sqrt(fmax(s2*s2 - 4.0*a2*bn2, 0.0)))); };
-			const double cT = cfast(a2_t, bx2_t, bp2_t), cL = cfast(fmax(a2L,0.0), bx2L, bp2L), cR = cfast(fmax(a2R,0.0), bx2R, bp2R);
-			const double sL1 = fmax(fmin(fmin(vxL - cL, vx_t - cT), vxR - cR), -g_env_cap);
-			const double sR1 = fmin(fmax(fmax(vxL + cL, vx_t + cT), vxR + cR),  g_env_cap);
-			if(th*sL1 < sL || th*sR1 > sR){
-#pragma omp atomic
-				g_env_wide++;
-			}
-			sL = fmin(sL, th*sL1); sR = fmax(sR, th*sR1);
-		}
-	}
 	
-	// 完全单侧的情况直接退化成分裂通量的迎风值(Document 3 eq.32)
 	if(sL >= 0.0){ g_hll_wL = 1.0; g_hll_wR = 0.0; for(int k=0;k<NUM_VARS;k++) flux[k]=FcL[k]; return; }
 		if(sR <= 0.0){ g_hll_wL = 0.0; g_hll_wR = 1.0; for(int k=0;k<NUM_VARS;k++) flux[k]=FcR[k]; return; }
 			g_hll_wL = sR/(sR - sL); g_hll_wR = -sL/(sR - sL);
@@ -1370,10 +1247,10 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			// (Dumbser-Balsara 2016),而精确 split entropy 振幅的那些大项在 COMPLETE
 			// 8 波分解里是被磁声波精确抵消的。实测(rho=1, a=26.46, Bx=19.75,
 			// dRho=0, dP=-999.9):
-			//     epsM      1.0     0.5     0.2     0.1
-			//     alpha_ent 1.43    2.86    7.14   14.28   <- 精确 split,~1/epsM
-			//     all-8 sum 0.000   0.000   0.000   0.000  <- 完整分解恒等于 dRho
-			//     classical 1.43    1.43    1.43    1.43
+			// epsM      1.0     0.5     0.2     0.1
+			// alpha_ent 1.43    2.86    7.14   14.28   <- 精确 split,~1/epsM
+			// all-8 sum 0.000   0.000   0.000   0.000  <- 完整分解恒等于 dRho
+			// classical 1.43    1.43    1.43    1.43
 			// LD-only 截断后 1/epsM 无人抵消,而 R_ent[0]=1 使它直接进密度通量 ->
 			// blast 在 ts=2~3 出现 rho_min = -11 ... -30(与 14.28 同量级)。
 			// Alfven 没有这个问题:它的二维子空间真不变、对偶泛函湮灭所有其他波,
@@ -1471,8 +1348,13 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			// a grid-scale density structure then grows from t ~ 0.3 (rho 0.9 next to 10 at 1024^2) until the point values
 			// of rho fail.  The anti-diffusion is therefore reduced linearly from a relative jump |drho|/min(rho) of 1/2
 			// and switched off from 1 on: never active in smooth flow (|drho|/rho = O(h)), plain HLL across strong contacts,
-			// with the envelope widened by [W] above.
-			{ const double fl = fmax(0.0, 1.0 - fmax(g_face_chi, theta_flat));   // revert to HLLE
+			// with the envelope widened by above.
+			// Revert the anti-diffusion to plain HLL where a strong shock is detected:
+			// sigma = max(chi, s_p), chi the compression flattener of eq.(72) and s_p the
+			// relative pressure jump over the face neighbours.  A contact and a rotational
+			// discontinuity are both pressure-continuous, so this leaves exactly the fields
+			// the anti-diffusion is there to sharpen.
+			{ const double fl = fmax(0.0, 1.0 - g_face_chi);
 				delta_C *= fl; delta_Ap *= fl; delta_Am *= fl;
 #pragma omp atomic
 				g_ent_lim += (fl < 1.0); }
@@ -1505,8 +1387,8 @@ void HLLEM_y(double *QL, double *QR, double epsM, double epsB, double *flux){
 // state is what MagSubsystem_UpdateB's implicit B-solve reads as input.
 // ================================================================================
 // Whole-grid convolution / deconvolution between point values and cell averages.
-//   sgn = +1 : point value  -> cell average
-//   sgn = -1 : cell average -> point value
+// sgn = +1 : point value  -> cell average
+// sgn = -1 : cell average -> point value
 static inline double mm3(double a, double b, double c){
 	if(a > 0.0 && b > 0.0 && c > 0.0) return std::min(a, std::min(b, c));
 	if(a < 0.0 && b < 0.0 && c < 0.0) return std::max(a, std::max(b, c));
@@ -1529,13 +1411,13 @@ static void grid_absmax(const Grid& G, int i0, int i1, int j0, int j1, double* S
 	}
 }
 // limited undivided second difference at the centre point of a 5-point line
-// [o3b] The minmod gate is only allowed to fire when at least one candidate second
+// The minmod gate is only allowed to fire when at least one candidate second
 // difference is large on the scale of the variable (|d2| >= kappa*h*S): a genuine jump
 // has |d2| ~ S, smooth data |d2| ~ h^2 S, grid-scale noise |d2| ~ delta << h S.  With the
 // gate always armed (mm3 on everything) the on/off switching between neighbouring faces
 // turned grid-scale density noise into a growing drift on the low-Mach KH (measured:
 // 2.8e-3 -> 2.8e-4 at t=81, 64x32, once the conversions are linear there).
-// [o3b] eps_M blend of the conversions: limited where the flow is explicit (shocks live at
+// eps_M blend of the conversions: limited where the flow is explicit (shocks live at
 // M >= 1, eps_M = 1), LINEAR in the implicit (low-Mach) share.  A minmod that fires on an
 // unresolved low-Mach shear layer (2-cell KH layer: |d2 F| ~ S_F) switches on and off between
 // neighbouring faces and injects grid-scale momentum; measured on the KH 64x32, t=81: limited
@@ -1571,14 +1453,14 @@ static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 					d2 += w * d2lim(tmp(i,j-2,k),tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k),tmp(i,j+2,k), kappa*dy*S[k]) + (1.0 - w) * d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k));
 					out(i,j,k) = tmp(i,j,k) + sgn * d2 / 24.0;
 				}
-				// [o3b] positivity guard (eps_M is blind to a pressure jump in a fluid at rest, e.g. the
+				// positivity guard (eps_M is blind to a pressure jump in a fluid at rest, e.g. the
 				// blast wave at t=0): if the linear branch takes more than half of rho or p away, redo
 				// this cell fully limited.  Only meaningful for conservative states (sgn = -1).
 				if(sgn < 0.0){
 					double r0 = tmp(i,j,0), p0 = pres(tmp,i,j), r1 = out(i,j,0), p1 = pres(out,i,j);
 					if(r1 < 0.5*r0 || p1 < 0.5*p0){
 						if(pass == 0 && w < 1.0){ w = 1.0; continue; }
-						// [o3q] still inadmissible fully limited (low-beta cell: p is a small difference of
+						// still inadmissible fully limited (low-beta cell: p is a small difference of
 						// large deconvolved terms): keep the cell average as the point value there (2nd-order
 						// locally, admissible) -- a negative point p otherwise reached the Riemann solver.
 						for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k);
@@ -1611,12 +1493,12 @@ static void fv_cell_lim(Grid &Q, double sgn){
 	std::swap(Q.data, out.data);
 }
 // face midpoint value <-> face average along the face (transverse direction), limited
-// [o3e] FINITE-VOLUME 4th-order face operators on CELL AVERAGES (the face4/stagger4 family above is the
+// FINITE-VOLUME 4th-order face operators on CELL AVERAGES (the face4/stagger4 family above is the
 // finite-DIFFERENCE family: exact for point values, O(h^2) off when fed cell averages -- measured on the
 // low-Mach vortex as a 2nd-order pressure error while u, B were 3rd order).
-//   facefv : face value (transverse average inherited) from cell averages, (-1,7,7,-1)/12
-//   gradfv : face value of the normal derivative from cell averages, (1,-15,15,-1)/(12h)
-//   the divergence of face-averaged fluxes is the plain two-point difference (F_{i+1/2}-F_{i-1/2})/h
+// facefv : face value (transverse average inherited) from cell averages, (-1,7,7,-1)/12
+// gradfv : face value of the normal derivative from cell averages, (1,-15,15,-1)/(12h)
+// the divergence of face-averaged fluxes is the plain two-point difference (F_{i+1/2}-F_{i-1/2})/h
 template<typename Fn>
 inline double facefvx(Fn get, int i, int j){ return (-get(i-1,j) + 7.0*get(i,j) + 7.0*get(i+1,j) - get(i+2,j)) / 12.0; }
 template<typename Fn>
@@ -1626,7 +1508,7 @@ inline double gradfvx(Fn get, int i, int j, double invh){ return (get(i-1,j) - 1
 template<typename Fn>
 inline double gradfvy(Fn get, int i, int j, double invh){ return (get(i,j-1) - 15.0*get(i,j) + 15.0*get(i,j+1) - get(i,j+2)) * invh / 12.0; }
 
-// [o3n] derivative of the face splitting weight along the face normal, 4th-order central on the face array.
+// derivative of the face splitting weight along the face normal, 4th-order central on the face array.
 // The implicit momentum update is conservative, m = m** - h D[(1-eps_f) p_f]; the face value of that update is
 // I_f D[(1-eps_f) p_f] = (1-eps_f) d_n p - p_f d_n eps_f + O(h^4).  The projected face momentum of the energy
 // equation must carry the second term: without it the implicit enthalpy flux is off by h (1-eps) H p_f d_n eps,
@@ -1646,7 +1528,7 @@ static void fv_transverse_lim(Grid &F, char dir, double sgn, int off = 0, Grid* 
 		for(int i = 0; i < NX; i++){
 			if(i < 2 || i >= NX-2 || j < 2 || j >= NY-2){ for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k); continue; }   // outer rings unchanged
 			Array* ef = (dir == 'x') ? g_epsM_fx : g_epsM_fy;
-			const int fi = (dir == 'x') ? i - off : i, fj = (dir == 'y') ? j - off : j;   // [o3q] eps of the face this state belongs to
+			const int fi = (dir == 'x') ? i - off : i, fj = (dir == 'y') ? j - off : j;   // eps of the face this state belongs to
 			const double w = ef ? fmin(1.0, fmax(0.0, (*ef)(std::max(ghost_cells-1,std::min(nxCells+ghost_cells-1,fi)), std::max(ghost_cells-1,std::min(nyCells+ghost_cells-1,fj))))) : 1.0;
 			for(int k = 0; k < NUM_VARS; k++){
 				const double thr = kappa * ((dir == 'x') ? dy : dx) * S[k];
@@ -1743,8 +1625,8 @@ static void fv_cell(Grid &Q, double sgn){
 }
 
 // Transverse convolution / deconvolution of a face-indexed quantity.
-//   sgn = +1 : point value  -> face average      (convolution)
-//   sgn = -1 : face average -> point value       (deconvolution)
+// sgn = +1 : point value  -> face average      (convolution)
+// sgn = -1 : face average -> point value       (deconvolution)
 // dir = 'x' : the face normal is x, so the transverse direction is y.
 
 void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Grid &w_yR,
@@ -1753,7 +1635,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 	// face is then solved ONCE instead of twice, and the transverse quadrature
 	// correction below needs the flux as a function along the face.
 	static Grid Fx(nxCells, nyCells), Fy(nxCells, nyCells);
-	// [o3l] EPSILON-CONSISTENT TRANSVERSE CONVOLUTION.  The face flux is eps-weighted PER FACE,
+	// EPSILON-CONSISTENT TRANSVERSE CONVOLUTION.  The face flux is eps-weighted PER FACE,
 	// F = P^c + eps_M,f P^p + eps_B,f P^B + R.  Convolving the weighted sum along the face mixes the
 	// weights of the neighbouring faces into the second difference: where eps switches between
 	// adjacent faces (M_A ~ 1 ring of the low-Alfven vortex) that adds (Delta eps) F^B / 24 = O(1)
@@ -1767,7 +1649,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 
 	static Array hchi(nxCells, nyCells);
 	if(g_hllem_Qe){
-		ShockDetector(hchi, *g_hllem_Qe);   // [fix C] chi of the explicit stage state (ghosts filled by bound_cond_array)
+		ShockDetector(hchi, *g_hllem_Qe);   // chi of the explicit stage state (ghosts filled by bound_cond_array)
 		{   // pressure-jump sensor: s_p = min(1, max_nbr |dp| / min(p) / 0.5), cell := max(chi, s_p)
 			static Array pc(nxCells, nyCells), sp(nxCells, nyCells);
 			const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
@@ -1786,16 +1668,15 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
 		}
 	}
-	g_env_cap = a_max_x;   // [W]
-	g_senv_u  = vx_max;    // [fix E]
+	g_senv_u  = vx_max;    // 
 #pragma omp parallel for collapse(2) schedule(static)
-	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // [o3] x-faces on +-2 extra rows
+	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // x-faces on +-2 extra rows
 		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
 			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
 			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_xR(i,j,k); QR[k] = w_xL(i+1,j,k); }
 			{ const int jc = std::max(1, std::min(nyCells + 2*ghost_cells - 2, j)); g_face_chi = fmax(hchi(i,jc), hchi(i+1,jc)); }
 			HLLEM_x(QL, QR, eps_M_grid_x(i,j), eps_B_grid_x(i,j), f);
-			{	// [o3l] parts of the numerical flux
+			{	// parts of the numerical flux
 				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
 				f_convective(cL, QL); f_convective(cR, QR); f_pressure(pL, QL); f_pressure(pR, QR); f_magnetic(bL, QL); f_magnetic(bR, QR);
 				const double wL = g_hll_wL, wR = g_hll_wR, eM = eps_M_grid_x(i,j), eB = eps_B_grid_x(i,j);
@@ -1806,16 +1687,15 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			}   // (Fx is assembled from the convolved parts below)
 		}
 	}
-	g_env_cap = a_max_y;   // [W]
-	g_senv_u  = vy_max;    // [fix E]
+	g_senv_u  = vy_max;    // 
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
-		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // [o3] y-faces on +-2 extra columns
+		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // y-faces on +-2 extra columns
 			double QL[NUM_VARS], QR[NUM_VARS], f[NUM_VARS];
 			for(int k = 0; k < NUM_VARS; k++){ QL[k] = w_yR(i,j,k); QR[k] = w_yL(i,j+1,k); }
 			{ const int ic = std::max(1, std::min(nxCells + 2*ghost_cells - 2, i)); g_face_chi = fmax(hchi(ic,j), hchi(ic,j+1)); }
 			HLLEM_y(QL, QR, eps_M_grid_y(i,j), eps_B_grid_y(i,j), f);
-			{	// [o3l] parts of the numerical flux
+			{	// parts of the numerical flux
 				double cL[NUM_VARS], cR[NUM_VARS], pL[NUM_VARS], pR[NUM_VARS], bL[NUM_VARS], bR[NUM_VARS];
 				g_convective(cL, QL); g_convective(cR, QR); g_pressure(pL, QL); g_pressure(pR, QR); g_magnetic(bL, QL); g_magnetic(bR, QR);
 				const double wL = g_hll_wL, wR = g_hll_wR, eM = eps_M_grid_y(i,j), eB = eps_B_grid_y(i,j);
@@ -1826,8 +1706,8 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			}   // (Fy is assembled from the convolved parts below)
 		}
 	}
-	// [o3] midpoint flux -> face-averaged flux (limited transverse second difference); always on
-	{	// [o3l] convolve the parts, recombine with the weights of each face
+	// midpoint flux -> face-averaged flux (limited transverse second difference); always on
+	{	// convolve the parts, recombine with the weights of each face
 		fv_transverse_lim(FxC, 'x', +1.0); fv_transverse_lim(FxP, 'x', +1.0); fv_transverse_lim(FxB, 'x', +1.0); fv_transverse_lim(FxR, 'x', +1.0);
 		fv_transverse_lim(FyC, 'y', +1.0); fv_transverse_lim(FyP, 'y', +1.0); fv_transverse_lim(FyB, 'y', +1.0); fv_transverse_lim(FyR, 'y', +1.0);
 		const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
@@ -2045,45 +1925,44 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		}
 		
 		// ================================================================================
-		// BLOCK-STRUCTURED SPLIT CHARACTERISTIC BASIS  (replaces compute_LR_prim_x/y and
-		// its cond>1e4 -> IDENTITY fallback, which silently disabled characteristic
-		// reconstruction wherever the 8x8 R was ill-conditioned -- i.e. over the whole
-		// Bperp~0 region, e.g. the entire blast-wave centre.)
+		// BLOCK-STRUCTURED SPLIT CHARACTERISTIC BASIS.  A numerical 8x8 inverse is
+		// ill-conditioned wherever Bperp -> 0, e.g. over the whole blast-wave centre,
+		// so the basis is built block by block instead, analytically where possible.
 		//
 		// A~_p decomposes into FOUR blocks, three of them analytic:
 		//   (1) Bx        1D, trivial: row 5 AND column 5 of A~_p are identically zero,
-		//                 so dBx is its own characteristic variable (lambda = 0).
+		// so dBx is its own characteristic variable (lambda = 0).
 		//   (2) Alfven    2D, span{e_v,e_B} with the beta rotation. Invariant (verified
-		//                 out-of-S 3.7e-14) and its dual functionals dv_perp, dB*_perp
-		//                 annihilate every other wave (2.4e-16) -> analytic projection,
-		//                 no inverse. Eigenpairs have NO denominators:
-		//                   r_+- = (k, alpha_+-),  l_+- = (m, alpha_+-),
-		//                   k = epsB*Bx/rho,  m = epsB*Bx,  alpha_+- = u - lamA_+-,
-		//                   l.r = epsB^2*Bx^2/rho + alpha^2.
+		// out-of-S 3.7e-14) and its dual functionals dv_perp, dB*_perp
+		// annihilate every other wave (2.4e-16) -> analytic projection,
+		// no inverse. Eigenpairs have NO denominators:
+		// r_+- = (k, alpha_+-),  l_+- = (m, alpha_+-),
+		// k = epsB*Bx/rho,  m = epsB*Bx,  alpha_+- = u - lamA_+-,
+		// l.r = epsB^2*Bx^2/rho + alpha^2.
 		//   (3) entropy   1D, ANALYTIC left eigenvector. Solving l.A~_p = u*l in the
-		//                 aligned sector with l_rho = 1 gives
-		//                   l_u    = -rho*u*(1-epsM)/(epsM^2 a^2)
-		//                   l_p    = -1/(epsM a^2)
-		//                   l_vpar = l_u * Bperp/Bx
-		//                 Verified DIRECTLY: ||l.A~_p - u*l|| = 5.3e-13 over 40000 states.
-		//                 NOTE this is exactly the amplitude that must NOT be used in
-		//                 HLLEM, where the LD-only truncation leaves its 1/epsM part
-		//                 uncancelled and it floods the density flux. HERE the
-		//                 decomposition is COMPLETE (all 8 waves), so the magnetosonic
-		//                 waves cancel that part exactly -- verified: all-8 sum == dq.
+		// aligned sector with l_rho = 1 gives
+		// l_u    = -rho*u*(1-epsM)/(epsM^2 a^2)
+		// l_p    = -1/(epsM a^2)
+		// l_vpar = l_u * Bperp/Bx
+		// Verified DIRECTLY: ||l.A~_p - u*l|| = 5.3e-13 over 40000 states.
+		// NOTE this is exactly the amplitude that must NOT be used in
+		// HLLEM, where the LD-only truncation leaves its 1/epsM part
+		// uncancelled and it floods the density flux. HERE the
+		// decomposition is COMPLETE (all 8 waves), so the magnetosonic
+		// waves cancel that part exactly -- verified: all-8 sum == dq.
 		//   (4) magnetosonic 4D remainder inside the 5D aligned sector
 		//                 (rho,u,v_par,p,B_par), itself invariant under A~_p (leak 2.2e-16).
-		//                 Solved by a 5x4 least-squares.
+		// Solved by a 5x4 least-squares.
 		//
 		// WHY THIS MATTERS (all measured):
-		//   cond(R_8x8)         = O(epsM^-4) AND blows up as Bperp->0:
-		//                         884 -> 2.1e5 -> 4.4e8 -> 2.2e9 at Bperp = 1,1e-2,1e-4,1e-8
-		//   cond(R_5x5 aligned) = O(epsM^-2), COMPLETELY INSENSITIVE to Bperp (66,66,66,66)
-		//   cond(R_ms 5x4, entropy analytically peeled) -> 1:
-		//                         epsM 1 / 0.1 / 0.01 / 0.005 -> 1.41 / 2.47 / 1.12 / 1.06
-		//   The whole Bperp degeneracy lives in the Alfven block (now analytic); the whole
-		//   epsM ceiling is the entropy normalisation (now analytic). What remains is a
-		//   4-wave solve with O(1) conditioning for every epsM and Bperp.
+		// cond(R_8x8)         = O(epsM^-4) AND blows up as Bperp->0:
+		// 884 -> 2.1e5 -> 4.4e8 -> 2.2e9 at Bperp = 1,1e-2,1e-4,1e-8
+		// cond(R_5x5 aligned) = O(epsM^-2), COMPLETELY INSENSITIVE to Bperp (66,66,66,66)
+		// cond(R_ms 5x4, entropy analytically peeled) -> 1:
+		// epsM 1 / 0.1 / 0.01 / 0.005 -> 1.41 / 2.47 / 1.12 / 1.06
+		// The whole Bperp degeneracy lives in the Alfven block (now analytic); the whole
+		// epsM ceiling is the entropy normalisation (now analytic). What remains is a
+		// 4-wave solve with O(1) conditioning for every epsM and Bperp.
 		//   => no fallback, no ceiling; eps_M_min becomes a physics choice, not a numerics one.
 		//
 		// The 5x5 aligned eigenproblem uses EigenSolver rather than the closed form of
@@ -2168,8 +2047,8 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			// limit the 2x2 becomes DIAGONAL, [[vn,0],[0,epsB*vn]]: v_perp and B*_perp
 			// decouple exactly, with eigenvalues vn and epsB*vn. Use that analytically.
 			// (This is the same Alfven-entropy coalescence at Bn=0 as in full MHD, and it is
-			//  not a corner case here: the blast wave has By == 0 everywhere at t=0, so the
-			//  Y-direction reconstruction sits exactly on it.)
+			// not a corner case here: the blast wave has By == 0 everywhere at t=0, so the
+			// Y-direction reconstruction sits exactly on it.)
 			const double ca_eff = eB*std::fabs(Bx)/std::sqrt(rho);
 			S.decoupA = !(ca_eff > 1.0e-8*spd);
 			if(!S.decoupA){
@@ -2219,9 +2098,9 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			// the entropy mode coincide) and EigenSolver returns a nearly parallel pair.
 			// Verified reach of the construction (max rel error of
 			// reconstruct(project(dq)) over 600 random states each):
-			//     Bn = O(1)          : 6e-14 (epsM=1) ... 3e-12 (epsM=0.01)   <- exact
-			//     Bn = O(1), Bperp->0: 3e-15 ... 3e-12                        <- exact
-            //     Bn ~ 1e-6          : 5e-10 ... 2e-6                         <- degrades
+			// Bn = O(1)          : 6e-14 (epsM=1) ... 3e-12 (epsM=0.01)   <- exact
+			// Bn = O(1), Bperp->0: 3e-15 ... 3e-12                        <- exact
+            // Bn ~ 1e-6          : 5e-10 ... 2e-6                         <- degrades
             // so the fallback below is needed only when the normal field is ~6 orders
             // below the transverse one. Contrast the OLD cond>1e4 identity fallback,
             // which fired over the ENTIRE Bperp~0 region (all of the blast-wave centre)
@@ -2242,7 +2121,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				bool bad = !std::isfinite(err)
 				        || (err > g_char_fallback_tol);
 				if(bad){ S.degenerate = true;
-					// [o3q] component-wise fallback: identity basis.  R must be set (not bypassed): the y-sweep
+					// component-wise fallback: identity basis.  R must be set (not bypassed): the y-sweep
 					// rotates R back to the (x,y,z) frame; bypassing it returned the ROTATED increments
 					// (u got v's increment, Bx got By's, ...).
 					for(int m = 0; m < 8; m++){ S.R[m].setZero(); S.R[m](m) = 1.0; }
@@ -2366,7 +2245,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 		{
 			SpaceOrder = 3;
 			static Grid u_pri(nxCells, nyCells);
-			{	// [o3] cell average -> point value -> primitive -> cell average (limited).
+			{	// cell average -> point value -> primitive -> cell average (limited).
 				// W(Qbar) differs from the cell average of W at O(h^2).
 				static Grid Qpt(nxCells, nyCells);
 				fv_cell_lim_to(Qpt, u_con, -1.0);
@@ -2374,7 +2253,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				fv_cell_lim(u_pri, +1.0);
 				bound_cond_u(u_pri);
 			}
-			// [o3] WENO-Z epsilon = (h * S_m)^2 with S_m the scale of the m-th CHARACTERISTIC
+			// WENO-Z epsilon = (h * S_m)^2 with S_m the scale of the m-th CHARACTERISTIC
 			// variable (from the domain-wide scales of the primitives, mapped through the local
 			// left eigenvectors).  Measured on the smooth 2D wave: eps=1e-40 gives L1 EOC 2.0
 			// (the 3-point Z weights are O(1) off ideal in the h-wide bands around critical
@@ -2396,7 +2275,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			
 			// ==================== X-direction ====================
 #pragma omp parallel for collapse(2) schedule(static)
-			for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){   // [o3] +-2 rows: transverse stencils
+			for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){   // +-2 rows: transverse stencils
 				for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
 					double Uavg[NUM_VARS];
 					for(int m = 0; m < NUM_VARS; m++)
@@ -2465,7 +2344,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			// ==================== Y-direction ====================
 #pragma omp parallel for collapse(2) schedule(static)
 			for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
-				for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){   // [o3] +-2 columns
+				for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){   // +-2 columns
 					double Uavg[NUM_VARS];
 					for(int m = 0; m < NUM_VARS; m++)
 						Uavg[m] = 0.5*(u_con(i,j,m) + u_con(i,j+1,m));
@@ -2528,7 +2407,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				}
 			}
 			
-			{	// [o3] The 1D reconstruction returns (x-point, y-average) face values of the
+			{	// The 1D reconstruction returns (x-point, y-average) face values of the
 				// primitives; the Riemann solver needs the MIDPOINT value.  Deconvolve
 				// transversally (limited), floor-check, convert pointwise -- and hand the
 				// POINT states to HLLEM.  (The old flag path convolved the states back to
@@ -2542,7 +2421,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 #pragma omp parallel for schedule(static)
 					for(int jj = 0; jj < NYc; jj++) for(int ii = 0; ii < NXc; ii++){
 						Grid& W = *ws[q]; Grid& V = *sv[q];
-						// [o3b] positivity guard: the deconvolution may not take more than half of rho or p
+						// positivity guard: the deconvolution may not take more than half of rho or p
 						// (blast wave at rest: eps_M = 0 makes the branch linear across a 1000:0.1 jump)
 						if(!(W(ii,jj,0) > 0.5*V(ii,jj,0)) || !(W(ii,jj,4) > 0.5*V(ii,jj,4)) || !(W(ii,jj,0) > 1e-13) || !(W(ii,jj,4) > 1e-13)){
 							for(int m = 0; m < NUM_VARS; m++) W(ii,jj,m) = V(ii,jj,m);   // keep the (MP3-limited) face average
@@ -2698,7 +2577,7 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 	const double a = 1.0 / std::sqrt(3.0);
 	double xG[2];double yG[2];double xg;double yg;
 	double Mx;
-	// [o3] point-value initial condition (primitive) ...
+	// point-value initial condition (primitive) ...
 	auto ic_point = [&](double x, double y, double* q){
 		for(int k = 0; k < NUM_VARS; k++) q[k] = 0.0;
 		switch (test) {
@@ -3029,7 +2908,7 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 				q[6] = sin(4 * M_PI * x);
 				q[7] = 0;
 				break;
-			case testblastwave: {   // [fix F] paper section 4.6, eq.(106)-(107)
+			case testblastwave: {   // paper section 4.6, eq.(106)-(107)
 				double rad = sqrt(x*x + y*y);
 				double rD = 0.1;
 				double prsL = g_blast_pin, prsR = 0.1;
@@ -3134,7 +3013,7 @@ void u_initialization(Grid &u, Array &Bx_p0, Array &By_0p){
 				q[6] = 0.0;                           // By = 0
 				q[7] = 0.0;   
 				break;
-			case testSmooth2D:   // [o3] entropy wave: rho advected by uniform (u,v)=(1,1), uniform p, B -> exact solution known
+			case testSmooth2D:   // entropy wave: rho advected by uniform (u,v)=(1,1), uniform p, B -> exact solution known
 				q[0] = 1.0 + 0.2*sin(2.0*M_PI*(x + y)); q[1] = 1.0; q[2] = 1.0; q[3] = 0.0; q[4] = 0.1;
 				q[5] = 0.1; q[6] = 0.1; q[7] = 0.0;
 				break;
@@ -3455,27 +3334,24 @@ void bound_cond_A(Grid &A) {
 }
 
 // ============================================================
-// Dual-parameter epsilon computation (Document 3 sec.3.1), ported from
 // your single-parameter epsilon-Euler version. Differences from the
 // Euler original, and why:
 //
-//   1. calMach includes vz (con[3]): MHD carries a genuine 3rd (out-of-
-//      plane) velocity component; M=||v||/a (Document 1 eq.6) uses the
-//      full velocity, not just the in-plane vx,vy the Euler-only file has.
-//   2. New calAlfvenMach / getTotalAlfvenSpeed: the existing getAlfvenSpeed()
-//      in this file returns Bx/sqrt(rho) (the NORMAL/x-direction Alfven
-//      speed -- used elsewhere for directional CFL), not the TOTAL
-//      v_A=|B|/sqrt(rho) that M_A=||v||/v_A (Document 1 eq.6) needs. Wrote
-//      a separate helper rather than repurpose getAlfvenSpeed, since other
-//      code may depend on its existing (directional) meaning.
-//   4. bound_cond_array(Array&) only has the single-arg form here (unlike
-//      epsilon-Euler's overload with xbc/ybc override params), and its
-//      x_Reflective/y_Reflective branches NEGATE the value. Epsilon is a
-//      positive weight, not a signed physical quantity -- negating it at
-//      a reflective wall would be wrong. Added bound_cond_epsilon() as a
-//      separate function (copy-based padding for Transmissive/Dirichlet/
-//      Reflective, wrap-around for Periodic) rather than touch the shared
-//      bound_cond_array used throughout the rest of the file.
+// 1. calMach includes vz (con[3]): MHD carries a genuine 3rd (out-of-
+// full velocity, not just the in-plane vx,vy the Euler-only file has.
+// 2. New calAlfvenMach / getTotalAlfvenSpeed: the existing getAlfvenSpeed()
+// in this file returns Bx/sqrt(rho) (the NORMAL/x-direction Alfven
+// speed -- used elsewhere for directional CFL), not the TOTAL
+// a separate helper rather than repurpose getAlfvenSpeed, since other
+// code may depend on its existing (directional) meaning.
+// 4. bound_cond_array(Array&) only has the single-arg form here (unlike
+// epsilon-Euler's overload with xbc/ybc override params), and its
+// x_Reflective/y_Reflective branches NEGATE the value. Epsilon is a
+// positive weight, not a signed physical quantity -- negating it at
+// a reflective wall would be wrong. Added bound_cond_epsilon() as a
+// separate function (copy-based padding for Transmissive/Dirichlet/
+// Reflective, wrap-around for Periodic) rather than touch the shared
+// bound_cond_array used throughout the rest of the file.
 // ============================================================
 
 
@@ -3678,7 +3554,7 @@ void calch(Grid &u_pri){
 			
 			double cf = sqrt(0.5 * (((gamma_plasma * p + B2)/(rho)) + sqrt(fmax( ((gamma_plasma * p + B2) / rho) * ((gamma_plasma * p + B2) / rho) - 4 * ((gamma_plasma * p * B * B)/(rho * rho)), 0.0))));
 			
-			if(ch_grid_x < fabs(u_pri(i,j,1)) + cf_x){   // [o3q] |u| (was signed u: flows moving in -x/-y underestimated)
+			if(ch_grid_x < fabs(u_pri(i,j,1)) + cf_x){   // |u| (was signed u: flows moving in -x/-y underestimated)
 				ch_grid_x = fabs(u_pri(i,j,1)) + cf_x;
 			}
 			if(ch_grid_y < fabs(u_pri(i,j,2)) + cf_y){
@@ -3842,9 +3718,9 @@ void EnergyEigenvalues(Grid &u_pri){
 }
 
 // CT-consistent BC for a staggered NORMAL-face field.
-//   axis=0 -> Bx_p0 (face at i+1/2, normal = x);  axis=1 -> By_0p (face at j+1/2, normal = y).
+// axis=0 -> Bx_p0 (face at i+1/2, normal = x);  axis=1 -> By_0p (face at j+1/2, normal = y).
 // 法向(normal):边界法向面 index ghost_cells-1 / N+ghost-1 是 CT 的真实 DOF,必须保留;
-//               只把外侧 ghost 面由边界面零阶外推(否则破坏边界 cell 的 div-free)。
+// 只把外侧 ghost 面由边界面零阶外推(否则破坏边界 cell 的 div-free)。
 // 切向(tangential):普通 transmissive 复制。Periodic 方向:周期复制。
 // 通用 bound_cond_array(cell-centered transmissive)会把边界法向面也冲掉 -> 边界 divB 指数增长。
 
@@ -3992,7 +3868,7 @@ void A_initial(Grid &A){
 				break;
 			
 			case testblastwave:
-				Az_val = (1.0/sqrt(4.0*M_PI) * g_blast_B0) * y;   // [fix F] eq.(106); 运算顺序与原始一致, 保证 bsmooth=1 b0=70 逐位复现
+				Az_val = (1.0/sqrt(4.0*M_PI) * g_blast_B0) * y;   // eq.(106); 运算顺序与原始一致, 保证 bsmooth=1 b0=70 逐位复现
 				break;
 			
 			case testRotor:
@@ -4015,7 +3891,7 @@ void A_initial(Grid &A){
 				break;
 		}
 	};
-	// [o3] cell averages of the potential (3x3 Gauss): curl4 of cell averages is the
+	// cell averages of the potential (3x3 Gauss): curl4 of cell averages is the
 	// cell average of B to 4th order (linear operators commute with averaging)
 	const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)};
 	const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
@@ -4055,12 +3931,12 @@ static void rho_pt_guard(Grid& Qpt, Grid& Qbar){   // (also available inside fv_
 		if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = RHO_PT_FLOOR*Qbar(i,j,0); n++; }
 	g_rho_guard += n;
 }
-// [o3j] CELL AVERAGES of the velocity u = m/rho via point values (ubar != mbar/rhobar at O(h^2) when rho varies):
+// CELL AVERAGES of the velocity u = m/rho via point values (ubar != mbar/rhobar at O(h^2) when rho varies):
 // Qbar -> Q_pt (deconvolve, limited) -> u_pt = m_pt/rho_pt -> ubar (convolve).  Used by the A transport.
 static void cellavg_velocity(Grid& u, Array& ub, Array& vb){
 	static FieldN<3> Qpt; static Array Tu(nxCells, nyCells), Tv(nxCells, nyCells);   // point values of rho, m_x, m_y
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	fvN_to<3>(Qpt, GridSlots{u, 0}, -1.0, true);   // [emb] linear in the momentum; density point-value guard
+	fvN_to<3>(Qpt, GridSlots{u, 0}, -1.0, true);   // linear in the momentum; density point-value guard
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++){
 		double r = fmax(Qpt(i,j,0), 1e-300);
@@ -4075,9 +3951,9 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 	//
 	// The z-component A of the vector potential obeys the pure ADVECTION
 	// equation
-	//        dA/dt + u dA/dx + v dA/dy = 0.
+	// dA/dt + u dA/dx + v dA/dy = 0.
 	// This is exactly dA/dt = -Ez rewritten: with Bx = dA/dy and By = -dA/dx,
-	//        Ez = v Bx - u By = u dA/dx + v dA/dy.
+	// Ez = v Bx - u By = u dA/dx + v dA/dy.
 	// Solving it directly in advective form -- rather than assembling a face
 	// Ez and interpolating it down to the cell centre -- is what MPACT does,
 	// and it is the right discretisation here.  The face->corner->cell chain
@@ -4095,26 +3971,14 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 	// here, because the advection equation is the physical one.
 	//
 	// RK PLACEMENT (fix (1), 2026-09-25).  The stage derivative stored in HsA is
-	//        k_i = (A_i - A_s^i)/(a_ii dt) = -u_i . grad(A_e^i),
+	// k_i = (A_i - A_s^i)/(a_ii dt) = -u_i . grad(A_e^i),
 	// i.e. the transport term is evaluated on the EXPLICIT stage combination
 	// A_e^i = A^n + dt sum_{j<i} ae_ij k_j, with the velocity of the stage
 	// solution.  The update base stays the implicit combination A_s^i, so the
 	// stiffly-accurate last stage still returns A^{n+1} = A^n + dt sum_i b_i k_i,
 	// which is now the 3rd-order explicit method (Ae,b) of the IMEX pair.
 	// (A is advected at the MATERIAL speed, so an explicit treatment costs
-	//  nothing: the Alfven stiffness sits in the Lorentz force, not here.)
-	// Previously the faces were built from A_s: with no implicit solve that is
-	// forward Euler on the implicit base, whose effective tableau is the
-	// strictly-lower part of Ai -- first order (sum b_i c_i = 0.064) and with
-	// stability polynomial 1 + z + 0.064 z^2 - 0.079 z^3, unstable for
-	// advection.  The field loop then GAINS magnetic energy (+19% at 256x128,
-	// +75% at 512x256 by t=1) and develops the ring/striation pattern.
-	//
-	// B = curl A with 4th-order central differences, so that div(curl) is an
-	// exact identity under the MATCHING 4th-order central divergence; a
-	// 2nd-order divergence diagnostic reads O(dx^2) -- that is the measuring
-	// stick, not the field.
-	// ================================================================
+	// nothing: the Alfven stiffness sits in the Lorentz force, not here.)
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
 
 	auto As = [&](int ii,int jj)->double{           // faces from the EXPLICIT combination A_e (fix (1))
@@ -4132,12 +3996,12 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 	// Non-conservative form: A is not a density, so the update is
 	// u dA/dx + v dA/dy and NOT d(uA)/dx + d(vA)/dy; the two differ by
 	// A div(v), which does not vanish in compressible MHD.
-	// [o3] (i) upwind derivatives of A by HJ-WENO5-Z (Jiang-Peng 2000 stencils, Borges Z-weights,
-	//          eps = 1e-40): the 3-point WENO3 was anisotropic on the cone (interior lobes) and
-	//          2nd order with strong dissipation at the kink (field loop rim ~5 cells);
+	// (i) upwind derivatives of A by HJ-WENO5-Z (Jiang-Peng 2000 stencils, Borges Z-weights,
+	// eps = 1e-40): the 3-point WENO3 was anisotropic on the cone (interior lobes) and
+	// 2nd order with strong dissipation at the kink (field loop rim ~5 cells);
 	//      (ii) the cell average of the product u.grad(A) is NOT ubar.gradAbar: the
-	//          covariance (h^2/12) grad(u).grad(G) is added with minmod-limited slopes,
-	//          which is O(h^3)-exact in smooth regions and vanishes across a jump.
+	// covariance (h^2/12) grad(u).grad(G) is added with minmod-limited slopes,
+	// which is O(h^3)-exact in smooth regions and vanishes across a jump.
 	auto wz5 = [&](double v1, double v2, double v3, double v4, double v5)->double{
 		const double ew5 = 1e-40;
 		double b1 = 13.0/12.0*(v1-2*v2+v3)*(v1-2*v2+v3) + 0.25*(v1-4*v2+3*v3)*(v1-4*v2+3*v3);
@@ -4150,12 +4014,12 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 	auto Dx = [&](int i,int j,int off)->double{ return (As(i+off+1,j) - As(i+off,j))/dx; };   // D_{i+off+1/2}
 	auto Dy = [&](int i,int j,int off)->double{ return (As(i,j+off+1) - As(i,j+off))/dy; };
 	auto Gx_at = [&](int i,int j)->double{
-		double u = (g_emb_Qe) ? (*g_emb_Qe)(i,j,1)/(*g_emb_Qe)(i,j,0) : u_con(i,j,1)/u_con(i,j,0);   // [emb]
+		double u = (g_emb_Qe) ? (*g_emb_Qe)(i,j,1)/(*g_emb_Qe)(i,j,0) : u_con(i,j,1)/u_con(i,j,0);   // 
 		return (u >= 0.0) ? wz5(Dx(i,j,-3),Dx(i,j,-2),Dx(i,j,-1),Dx(i,j,0),Dx(i,j,1))
 		                  : wz5(Dx(i,j,2),Dx(i,j,1),Dx(i,j,0),Dx(i,j,-1),Dx(i,j,-2));
 	};
 	auto Gy_at = [&](int i,int j)->double{
-		double v = (g_emb_Qe) ? (*g_emb_Qe)(i,j,2)/(*g_emb_Qe)(i,j,0) : u_con(i,j,2)/u_con(i,j,0);   // [emb]
+		double v = (g_emb_Qe) ? (*g_emb_Qe)(i,j,2)/(*g_emb_Qe)(i,j,0) : u_con(i,j,2)/u_con(i,j,0);   // 
 		return (v >= 0.0) ? wz5(Dy(i,j,-3),Dy(i,j,-2),Dy(i,j,-1),Dy(i,j,0),Dy(i,j,1))
 		                  : wz5(Dy(i,j,2),Dy(i,j,1),Dy(i,j,0),Dy(i,j,-1),Dy(i,j,-2));
 	};
@@ -4180,7 +4044,7 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 				double wq = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(i,j))) : 1.0;
 				auto sl = [&](double a, double b, double thr)->double{ return wq * mm2g(a, b, thr) + (1.0 - wq) * 0.5*(a+b); };
-				// [o3t] the slopes of G = grad A use the SAME eps_M-blended, threshold-gated limiter as the slopes of u:
+				// the slopes of G = grad A use the SAME eps_M-blended, threshold-gated limiter as the slopes of u:
 				// the unconditional minmod zeroed them at every smooth extremum of G (O(h^2) in h-wide bands, B residual
 				// ~2.5th order on the stationary vortex); the gate still limits across a jump (|dG| > S_G/2).
 				Sxx(i,j) = sl(Gx(i+1,j)-Gx(i,j), Gx(i,j)-Gx(i-1,j), 0.5*S_gx)/dx; Sxy(i,j) = sl(Gx(i,j+1)-Gx(i,j), Gx(i,j)-Gx(i,j-1), 0.5*S_gx)/dy;
@@ -4189,7 +4053,7 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 		if(cacheable){ G_stamp = g_stage_stamp; for(int q = 0; q < 3; q++) G_key[q] = key[q]; } else G_stamp = -1;
 	}
 	static Array Ubar(nxCells, nyCells), Vbar(nxCells, nyCells);
-	cellavg_velocity(u_con, Ubar, Vbar);   // [o3j] cell-average velocity (was mbar/rhobar: O(h^2) off where rho varies)
+	cellavg_velocity(u_con, Ubar, Vbar);   // cell-average velocity (was mbar/rhobar: O(h^2) off where rho varies)
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++)
 		for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
@@ -4492,8 +4356,8 @@ inline double FluxBzy4(const MagAX4Fields &F, int i, int jc){
 // ===================== 嵌套 Newton:保正压力求解 =====================
 // 解非线性系统  g(p) = V_mod(p) + T p - b = 0,  其中 T = 焓 Laplacian + 黏性(线性,Qe 冻结)。
 // 复用 Pressure_Subsystem_AX:
-//   floor_on=false 时它返回线性算子 L p = (1/(gamma-1)) p + T p;
-//   floor_on=true  时它返回 Newton Jacobian  J x = V_slope(p_freeze) x + T x。
+// floor_on=false 时它返回线性算子 L p = (1/(gamma-1)) p + T p;
+// floor_on=true  时它返回 Newton Jacobian  J x = V_slope(p_freeze) x + T x。
 // 故残差 g = L(p) - (1/(gamma-1)) p + V_mod(p) - b(仅内部 cell 做对角修正;Dirichlet 行保持 p-b)。
 
 // ====================================================================
@@ -4560,7 +4424,7 @@ void GMRES_Solver(
 		gam[0] = omp_nrm(r0);
 
 		if (gam[0] <= GMREStol) {
-//			std::cout << "GMRES converged: outer=" << outer
+// std::cout << "GMRES converged: outer=" << outer
 			return;
 		}
 
@@ -4617,7 +4481,7 @@ void GMRES_Solver(
 					alpha[i] /= H[i][i];
 				}
 				omp_axpy_sum(x, alpha, v, j + 1);
-//				std::cout << "GMRES converged: outer=" << outer
+// std::cout << "GMRES converged: outer=" << outer
 //				<< " inner=" << j + 1
 				return;
 			}
@@ -4635,7 +4499,7 @@ void GMRES_Solver(
 		omp_axpy_sum(x, alpha, v, JMAX);
 		
 		if (outer % 10 == 0 || outer < 3) {
-//			std::cout << "GMRES restart " << outer
+// std::cout << "GMRES restart " << outer
 		}
 	}
 	
@@ -4656,7 +4520,6 @@ void GMRES_Solver(
 
 // ============================================================
 // Was forward-declared but never defined or called anywhere in the
-// baseline file (Document 3 eq.47, step 4: explicit magnetic
 // momentum/energy update using the newly-solved B). Called from
 // the end of MagSubsystem_UpdateB above.
 // ============================================================
@@ -4851,7 +4714,7 @@ void printVTKVariable(std::ofstream& outFile, Grid& u_con, Grid& u_pri, Array&ep
 	
 	for(int jj = 0; jj < nyCells; jj++){
 		for(int ii = 0; ii < nxCells; ii++){
-			// [vtk] interior cells only: the old loop printed indices 0..N-1, i.e. the low-side GHOST layer
+			// interior cells only: the old loop printed indices 0..N-1, i.e. the low-side GHOST layer
 			// (ghost_cells = 4 cells: every plotted field was shifted by 4 cells, and eps_M/eps_B, which
 			// are only filled in the interior, showed a ring of zeros at the left and bottom edges).
 			const int i = ii + ghost_cells, j = jj + ghost_cells;
@@ -4920,18 +4783,17 @@ void printAllVariablesToVTK(Grid& u_con,Grid& u_pri, Array&eps_M, Array&eps_B,st
 // where the sequential-splitting pipeline kept going wrong.
 // ============================================================
 
-// ==================== RESTORED FROM ARCHIVE (positivity core) ====================
 // 2nd-order compact M-MATRIX elliptic operator + nested-Newton positivity solver.
 // Used as the SOLVER CORE of the defect-correction loop below: every inner solve
 // is an M-matrix system (positivity mechanism applies), while the converged
 // pressure satisfies the 4th-order composed discretization.
 // =================================================================================
-// [o3f] CELL-AVERAGE ENTHALPY for the implicit energy flux.  The naive h = g/(g-1) p(Qbar)/rho(Qbar)
+// CELL-AVERAGE ENTHALPY for the implicit energy flux.  The naive h = g/(g-1) p(Qbar)/rho(Qbar)
 // carries the O(h^2) nonlinear-map error p(Qbar) - pbar = -(g-1)(h^2/24)(rho|grad u|^2 + |grad B|^2 + ...),
 // which at low Mach is DIVIDED BY rho in h and drives an O(h^2) error of the enthalpy flux
 // (measured: low-Mach hydro vortex rho0 = 1e-2, EOC 2.0 for rho and 1.3-2.6 for p while the fully
 // explicit path gives 2.9 for both).  Route through point values instead, as the explicit path does:
-//   Qbar -> Q_pt (deconvolve) -> h_pt = g/(g-1) p(Q_pt)/rho(Q_pt) -> hbar (convolve),
+// Qbar -> Q_pt (deconvolve) -> h_pt = g/(g-1) p(Q_pt)/rho(Q_pt) -> hbar (convolve),
 // with p from Qe and rho from u_con (the operator-family convention of this file).
 static Array g_Hbar(nxCells, nyCells);
 static long  g_Hbar_stamp = -1;
@@ -4952,12 +4814,12 @@ static void build_Hbar(Grid& Qe, Grid& u_con){
 	bound_cond_array(g_Hbar);
 }
 
-// [o3g] CELL AVERAGES of the internal energy and of KE + magnetic energy, via point values.
+// CELL AVERAGES of the internal energy and of KE + magnetic energy, via point values.
 // the difference (h^2/24)(rho|grad u|^2 + |grad B|^2 + ...) is an O(h^2) pressure offset which, fed to the
 // momentum update as grad p, produced an O(h^2) COMPRESSIVE velocity error (Helmholtz decomposition of the
 // momentum error on the low-Mach vortex: solenoidal part 3rd order, curl-free part 2nd order).  The explicit
 // path already routes W(Q) through point values; this does the same for the implicit energy balance.
-// [o3s] avg(f(Q)) = f(Qbar) + [C(f(DQbar)) - f(C(DQbar))]: O(h^4) like C(f(DQbar)), but exact for the
+// avg(f(Q)) = f(Qbar) + [C(f(DQbar)) - f(C(DQbar))]: O(h^4) like C(f(DQbar)), but exact for the
 // linear/quadratic bookkeeping at every wavenumber in the sense that the correction vanishes when C∘D = I
 // is replaced by its actual discrete action. This removes the Nyquist mismatch (C∘D ≈ 0.89 at k=pi/h)
 // between E and avg(KE+MB) that made the Picard sweep diverge at large Alfven CFL / low beta.
@@ -4981,8 +4843,8 @@ static void cellavg_e_kemb(Grid& u, Array& ebar, Array& kembar){
 	}
 }
 
-// [emb] NEWTON-LINEARISED kinetic + magnetic energy about the explicit stage state Q_E:
-//     kl(Q_E, Q) = (m_E.m - 1/2|m_E|^2)/rho + B_E.B - 1/2|B_E|^2     ( = KE + MB when Q_E = Q )
+// NEWTON-LINEARISED kinetic + magnetic energy about the explicit stage state Q_E:
+// kl(Q_E, Q) = (m_E.m - 1/2|m_E|^2)/rho + B_E.B - 1/2|B_E|^2     ( = KE + MB when Q_E = Q )
 // as a CELL AVERAGE, with the same structure as cellavg_e_kemb: kl(Qbar) + [C kl(D Qbar) - kl(C D Qbar)],
 // all conversions unlimited, so the result is affine in (m, B).
 static inline double kl_of(const Grid& E, const Grid& Q, int i, int j){
@@ -5018,7 +4880,6 @@ static void Pressure_Subsystem_AX_ref(Eigen::VectorXd& Ax, Eigen::VectorXd& x, G
 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
 		for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 			// 4th-order composed gradient-then-divergence operator with (1-epsM)^2
-			// weighting per Document 3's Remark 3.3 principle (confirmed for the
 			// magnetic operator earlier): a compact single-formula stencil like
 			// eq.82 is only consistent when epsM is spatially uniform. For a
 			// genuinely varying epsM, need face-level gradients weighted BEFORE
@@ -5105,7 +4966,7 @@ static void Pressure_Subsystem_AX_ref(Eigen::VectorXd& Ax, Eigen::VectorXd& x, G
 			double ydiv = ( wPy_p*hface_yp*(getp(i,j+1) - pii) - wPy_m*hface_ym*(pii - getp(i,j-1)) ) / (dy*dy);
 
 			Ax(M_P(i,j)) = Vdiag * pii - h * h * (xdiv + ydiv);
-			{	// [o3q] 2nd-order counterpart of L4's [o3n] term  -h^2 div[-w H p_f d_n eps_f]  (without it the
+			{	// 2nd-order counterpart of L4's term  -h^2 div[-w H p_f d_n eps_f]  (without it the
 				// defect correction L2 p_{k+1} = b + (L2 - L4) p_k diverges where eps_M switches within ~1 cell at
 				// large implicit acoustic CFL: rho(G) = 1.25 measured in a 1D model).  UPWIND face pressure:
 				// p_f = p_R if c_f < 0 else p_L, c_f = w H d eps, keeps every off-diagonal <= 0 (M-matrix) and
@@ -5138,11 +4999,11 @@ static void Pressure_Subsystem_AX_ref(Eigen::VectorXd& Ax, Eigen::VectorXd& x, G
 			
 			double lap_p;
 			{	// shock-activated pressure Laplacian, chi-gated at the faces, kappa = |u|_max dx (paper: chi |u| dx)
-				nu_x = vx_max * dx;   // [o3s] kappa = chi |u|_max dx (paper eq. 84; dimensionally L^2/T)
+				nu_x = vx_max * dx;   // kappa = chi |u|_max dx (paper eq. 84; dimensionally L^2/T)
 				nu_y = vy_max * dy;
 				lap_p =  nu_x/(dx * dx) * ( 0.5 * (shock_eta(i + 1,j) + shock_eta(i,j)) * (getp(i+1,j) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i - 1,j)) * (pii - getp(i - 1,j))) + nu_y/(dy * dy) * ( 0.5 * (shock_eta(i,j + 1) + shock_eta(i,j)) * (getp(i,j + 1) - pii) - 0.5 * (shock_eta(i,j) + shock_eta(i,j - 1)) * (pii - getp(i,j-1)));
 			}
-			if(g_plap){   // [fix] paper-1 eq.(45)/(85): V'(p) * dt * div(chi |u|_max dx grad p), (1-eps_M) per face, compact (M-matrix)
+			if(g_plap){   // paper-1 eq.(45)/(85): V'(p) * dt * div(chi |u|_max dx grad p), (1-eps_M) per face, compact (M-matrix)
 				const double a_ = 1.0/(gamma_plasma - 1.0);
 				const double gxp = 0.5*(shock_eta(i+1,j)+shock_eta(i,j))*(1.0-eps_M_grid_x(i,j)),   gxm = 0.5*(shock_eta(i,j)+shock_eta(i-1,j))*(1.0-eps_M_grid_x(i-1,j));
 				const double gyp = 0.5*(shock_eta(i,j+1)+shock_eta(i,j))*(1.0-eps_M_grid_y(i,j)),   gym = 0.5*(shock_eta(i,j)+shock_eta(i,j-1))*(1.0-eps_M_grid_y(i,j-1));
@@ -5237,7 +5098,7 @@ static void pst_assemble(PStencil& S, Grid& u_con, Grid& Qe, Array& eMx, Array& 
 			const double kxp = hh*wPx_p*hfx_p/(dx*dx), kxm = hh*wPx_m*hfx_m/(dx*dx);
 			const double kyp = hh*wPy_p*hfy_p/(dy*dy), kym = hh*wPy_m*hfy_m/(dy*dy);
 			c0 += kxp + kxm + kyp + kym; cc[0] -= kxp; cc[1] -= kxm; cc[2] -= kyp; cc[3] -= kym;
-			// [o3q] + h^2 div[c p_f] with the upwind face pressure p_f
+			// + h^2 div[c p_f] with the upwind face pressure p_f
 			const double cxp = (1.0-eMx(i,j))  *hfx_p*deps_fx(eMx, i,   j), cxm = (1.0-eMx(i-1,j))*hfx_m*deps_fx(eMx, i-1, j);
 			const double cyp = (1.0-eMy(i,j))  *hfy_p*deps_fy(eMy, i, j  ), cym = (1.0-eMy(i,j-1))*hfy_m*deps_fy(eMy, i, j-1);
 			if(cxp < 0.0) cc[0] += hh*cxp/dx; else c0 += hh*cxp/dx;
@@ -5252,7 +5113,7 @@ static void pst_assemble(PStencil& S, Grid& u_con, Grid& Qe, Array& eMx, Array& 
 				cc[0] -= ex*up; c0 += ex*(up - um); cc[1] += ex*um;
 				cc[2] -= ey*vp; c0 += ey*(vp - vm); cc[3] += ey*vm;
 			}
-			if(g_plap){   // [fix] shock-activated pressure Laplacian (same as the matrix-free form)
+			if(g_plap){   // shock-activated pressure Laplacian (same as the matrix-free form)
 				const double nu_x = vx_max*dx, nu_y = vy_max*dy;
 				const double gxp = 0.5*(pst_eta(i+1,j)+pst_eta(i,j))*(1.0-eMx(i,j)),   gxm = 0.5*(pst_eta(i,j)+pst_eta(i-1,j))*(1.0-eMx(i-1,j));
 				const double gyp = 0.5*(pst_eta(i,j+1)+pst_eta(i,j))*(1.0-eMy(i,j)),   gym = 0.5*(pst_eta(i,j)+pst_eta(i,j-1))*(1.0-eMy(i,j-1));
@@ -5368,16 +5229,16 @@ static void pprec_build(PressurePrecond& P, Grid& u_con, Grid& Qe, Grid& Qs, Arr
 
 // Pressure GMRES.
 //  * diagonally dominant operator (Gershgorin radius of the Jacobi-scaled operator below 1/2, i.e. a small implicit
-//    acoustic CFL or eps_M -> 1, e.g. the blast wave and Orszag-Tang): GMRES with the diagonal as preconditioner, which
-//    converges at least like 2^-k and takes the pressure-floor rows (diagonal M ~ 1e9) exactly.  No factorisation;
-//    each iteration is one parallel stencil product.  (Before, the floor rows defeated both the unpreconditioned
-//    solve and any factorisation from an earlier iterate, and the blast wave refactorised every stage.)
+// acoustic CFL or eps_M -> 1, e.g. the blast wave and Orszag-Tang): GMRES with the diagonal as preconditioner, which
+// converges at least like 2^-k and takes the pressure-floor rows (diagonal M ~ 1e9) exactly.  No factorisation;
+// each iteration is one parallel stencil product.  (Before, the floor rows defeated both the unpreconditioned
+// solve and any factorisation from an earlier iterate, and the blast wave refactorised every stage.)
 //  * otherwise, the sparse-LU preconditioner built only when it is needed and kept while it works:
 //  * no factorisation yet: solve with the diagonal preconditioner, budget 50 Krylov iterations; if that fails, factorise.
 //  * a factorisation from an earlier stage or step exists: use it (the operator changes slowly from stage to
-//    stage); if the preconditioned solve does not converge within 100 iterations, refactorise (a serial
-//    factorisation at 1e6 unknowns costs ~30 s, more than 100 preconditioned iterations but far less than a stall)
-//    and continue from the current iterate.
+// stage); if the preconditioned solve does not converge within 100 iterations, refactorise (a serial
+// factorisation at 1e6 unknowns costs ~30 s, more than 100 preconditioned iterations but far less than a stall)
+// and continue from the current iterate.
 // Well-conditioned systems (Mach O(1)) never factorise; stiff ones (low Mach, low beta) factorise rarely instead
 // of once per stage -- the sparse LU is serial and at 1e6 unknowns dominated the step.  Every path solves the same
 // system to the same tolerance; only the iteration count changes.
@@ -5475,7 +5336,7 @@ void Pressure_NestedNewton(Eigen::VectorXd& p, Eigen::VectorXd& b,
 		// them -- Newton "hits max iters" while the solution has long since
 		// converged to the floor. Scale by ||b|| (+1 to avoid the zero-b corner).
 		double res_rel = res / (omp_nrm(b) + 1.0);
-		if((res < Pnewton_tol || res_rel < 1e-12) && omp_min(p_freeze) >= 0.0){   // [o3q] the iterate, not the input guess
+		if((res < Pnewton_tol || res_rel < 1e-12) && omp_min(p_freeze) >= 0.0){   // the iterate, not the input guess
 			break;
 		}
 		// ---- Jacobian 解:J dp = -g(floor_on=true,AX 即 Jacobian) ----
@@ -5496,53 +5357,9 @@ void Pressure_NestedNewton(Eigen::VectorXd& p, Eigen::VectorXd& b,
 }
 
 void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_con, Grid& Qe,Grid& Qs,Array& eps_M_grid_x, Array& eps_M_grid_y,Array& eps_B_grid_x, Array& eps_B_grid_y, double h){
-	build_Hbar(Qe, u_con);   // [o3f] (no-op if already built for this stage)
+	build_Hbar(Qe, u_con);   // (no-op if already built for this stage)
 	static Array hf_eta(nxCells, nyCells); static long hf_eta_stamp = -1;
 	if(g_plap && hf_eta_stamp != g_stage_stamp){ ShockDetector(hf_eta, Qe); hf_eta_stamp = g_stage_stamp; }
-//			
-//			
-//			//Laplacian Operator
-//			
-//			
-//			
-//			switch (flux_diss) {
-//				case Global_Diss:
-//					switch(add_pvisc){
-//						case MaterialSpeedp:
-//							break;
-//						case AlfvenSpeedp:
-//							break;
-//						case Noaddvisp:
-//							break;
-//					break;
-//				case Local_Diss:
-//					switch(add_pvisc){
-//						case MaterialSpeedp:
-//							
-//							break;
-//						case AlfvenSpeedp:
-//							
-//							break;
-//						case Noaddvisp:
-//							break;
-//					break;
-//					
-	// ============================================================
-	// 4TH-ORDER COMPOSED ELLIPTIC OPERATOR (user decision: positivity
-	// M-matrix constraint dropped in favor of 4th order).
-	//   face flux:  (1-epsM)_face^2 * face4(henthalpy) * G4(p)
-	//     G4 = 4th-order staggered face gradient (stagger4 of cell p)
-	//   cell value: stagger4 divergence of the four face fluxes.
-	// PAIRING (the load-bearing property, learned the hard way): the
-	// SAME face4/stagger4 family and the SAME enthalpy lambda are used
-	// by (a) this LHS, (b) the RHS enthalpy divergence, and (c) the
-	// momentum update below in PreMagSubsystem_Pressure_HF. epsM
-	// weights are taken directly at faces (never interpolated).
-	// CONSEQUENCE: this operator is NOT an M-matrix (mixed-sign far
-	// coefficients) -> the nested-Newton positivity theorem premise is
-	// gone. Positivity must come from elsewhere if needed later
-	// (e.g. explicit-side limiting). See archived-nested-newton.cpp.
-	// ============================================================
 	auto henthA = [&](int ii,int jj)->double{
 		// POSITIVITY GUARD on the operator coefficient: the RK stage combination Qe
 		// carries no positivity guarantee (non-SSP DIRK weights), and a negative
@@ -5550,25 +5367,25 @@ void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 		// ill-posed operator, Newton/GMRES stall (observed: hit-max-iters every
 		// solve on the 256^2 blastwave). Clamping to p_floor keeps the operator
 		// well-posed; applied identically in LHS and RHS (operator-pairing law).
-		return g_Hbar(ii,jj);   // [o3f] cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
+		return g_Hbar(ii,jj);   // cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
 	};
 	auto getpA = [&](int ii,int jj)->double{ return x(M_P(ii,jj)); };
-	// [o3e] FV family: face-averaged enthalpy x face gradient (+ transverse covariance), two-point divergence
+	// FV family: face-averaged enthalpy x face gradient (+ transverse covariance), two-point divergence
 	auto Gx = [&](int ic,int jc)->double{ return gradfvx(getpA, ic, jc, 1.0/dx); };
 	auto Gy = [&](int ic,int jc)->double{ return gradfvy(getpA, ic, jc, 1.0/dy); };
 	auto FPx4 = [&](int ic, int j)->double{
 		double w = 1.0 - eps_M_grid_x(ic,j);
 		double prod = facefvx(henthA,ic,j) * Gx(ic,j);
-		// [o3d] covariance of the two face averages along the face (y)
+		// covariance of the two face averages along the face (y)
 		prod += (facefvx(henthA,ic,j+1) - facefvx(henthA,ic,j-1)) * (Gx(ic,j+1) - Gx(ic,j-1)) / 48.0;
-		// [o3n] face momentum of the conservative update: -(1-eps) G p + p_f d_x eps_f
+		// face momentum of the conservative update: -(1-eps) G p + p_f d_x eps_f
 		return w*w * prod - w * facefvx(henthA,ic,j) * facefvx(getpA,ic,j) * deps_fx(eps_M_grid_x, ic, j);
 	};
 	auto FPy4 = [&](int i, int jc)->double{
 		double w = 1.0 - eps_M_grid_y(i,jc);
 		double prod = facefvy(henthA,i,jc) * Gy(i,jc);
 		prod += (facefvy(henthA,i+1,jc) - facefvy(henthA,i-1,jc)) * (Gy(i+1,jc) - Gy(i-1,jc)) / 48.0;
-		return w*w * prod - w * facefvy(henthA,i,jc) * facefvy(getpA,i,jc) * deps_fy(eps_M_grid_y, i, jc);   // [o3n]
+		return w*w * prod - w * facefvy(henthA,i,jc) * facefvy(getpA,i,jc) * deps_fy(eps_M_grid_y, i, jc);   // 
 	};
 	// face fluxes, each evaluated once: FXf(i,j) = face i+1/2 of row j, FYf(i,j) = face j+1/2 of column i
 	static Array FXf(nxCells, nyCells), FYf(nxCells, nyCells);
@@ -5584,7 +5401,7 @@ void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 			double xdivA = (FXf(i,j) - FXf(i-1,j)) / dx;
 			double ydivA = (FYf(i,j) - FYf(i,j-1)) / dy;
 			Ax(M_P(i,j)) = 1/(gamma_plasma - 1) * x(M_P(i,j)) - h * h * (xdivA + ydivA);
-			if(g_plap){   // [fix] shock-activated pressure Laplacian, identical to the inner operator's
+			if(g_plap){   // shock-activated pressure Laplacian, identical to the inner operator's
 				const double a_ = 1.0/(gamma_plasma - 1.0), nu_x = vx_max*dx, nu_y = vy_max*dy, pii = x(M_P(i,j));
 				const double gxp = 0.5*(hf_eta(i+1,j)+hf_eta(i,j))*(1.0-eps_M_grid_x(i,j)),   gxm = 0.5*(hf_eta(i,j)+hf_eta(i-1,j))*(1.0-eps_M_grid_x(i-1,j));
 				const double gyp = 0.5*(hf_eta(i,j+1)+hf_eta(i,j))*(1.0-eps_M_grid_y(i,j)),   gym = 0.5*(hf_eta(i,j)+hf_eta(i,j-1))*(1.0-eps_M_grid_y(i,j-1));
@@ -5596,7 +5413,7 @@ void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 }
 
 // ============================================================================
-// [o3k] 4TH-ORDER FINITE-VOLUME IMPLICIT MAGNETIC PATH (third order in the low-Alfven regime).
+// 4TH-ORDER FINITE-VOLUME IMPLICIT MAGNETIC PATH (third order in the low-Alfven regime).
 // The compact (0.5 / 0.25 average) magnetic operator, its RHS and the face4/stagger4 momentum-energy
 // update are the finite-DIFFERENCE / 2nd-order family on cell averages.  Where eps_B switches between
 // neighbouring faces (M_A ~ 1 ring of the vortex) the implicit share (2nd order) and the explicit HLLEM
@@ -5606,10 +5423,10 @@ void Pressure_Subsystem_AX_HF(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 // Everything here is routed through POINT VALUES (deconvolve -> pointwise product/flux -> convolve),
 // face-averaged with facefv and differenced with the two-point divergence: every product is exact to
 // O(h^4) without hand-written covariance terms, and the operator stays LINEAR in the unknown.
-//   inner:  dm(x)  = -h div[(1-eps_B) F_lin(B_E, x)],   F_lin = 1/2 (B_E.x) I - B_E (x) x   (paper: |B|^2 ~ B^n.B^{n+1})
-//           du     = dm / rho_I                          (point values)
-//   outer:  A x    = x + h div[(1-eps_B) F_ind(du, B_E)] ,   F_ind(u,B) = u (x) B - B (x) u
-//   RHS  :  b      = B*  - h div[(1-eps_B) F_ind(u*, B_E)],  u* = (m** - (1-eps_M) h grad p_E)/rho_I
+// inner:  dm(x)  = -h div[(1-eps_B) F_lin(B_E, x)],   F_lin = 1/2 (B_E.x) I - B_E (x) x   (paper: |B|^2 ~ B^n.B^{n+1})
+// du     = dm / rho_I                          (point values)
+// outer:  A x    = x + h div[(1-eps_B) F_ind(du, B_E)] ,   F_ind(u,B) = u (x) B - B (x) u
+// RHS  :  b      = B*  - h div[(1-eps_B) F_ind(u*, B_E)],  u* = (m** - (1-eps_M) h grad p_E)/rho_I
 // eps_B is the per-face splitting weight of THIS face at every nesting level (the old operator used
 // (1-eps_B)^2 of the OUTER face for both levels).
 // ============================================================================
@@ -5784,7 +5601,7 @@ void Magnetic_Subsystem_AX_FV(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++){
 		const double b5 = Bn3(i,j,0), b6 = Bn3(i,j,1), b7 = Bn3(i,j,2), x5 = X(i,j,0), x6 = X(i,j,1), x7 = X(i,j,2);
-		const double bd = (b5*x5 + b6*x6 + b7*x7);   // [o3p] Newton: 1/2|B|^2 ~ B_E.B - 1/2|B_E|^2 (constant part on the RHS)
+		const double bd = (b5*x5 + b6*x6 + b7*x7);   // Newton: 1/2|B|^2 ~ B_E.B - 1/2|B_E|^2 (constant part on the RHS)
 		FX(i,j,0) = bd - b5*x5;  FX(i,j,1) = -b5*x6;      FX(i,j,2) = -b5*x7;
 		FY(i,j,0) = -b6*x5;      FY(i,j,1) = bd - b6*x6;  FY(i,j,2) = -b6*x7;
 	}
@@ -5812,7 +5629,7 @@ void Magnetic_Subsystem_AX_FV(Eigen::VectorXd& Ax, Eigen::VectorXd& x, Grid& u_c
 			const double eBx_p0 = 1.0 - eps_B_grid_x(i,j), eBx_m0 = 1.0 - eps_B_grid_x(i-1,j), eBy_0p = 1.0 - eps_B_grid_y(i,j), eBy_0m = 1.0 - eps_B_grid_y(i,j-1);
 			const double gxp = 0.5*(shock_eta(i+1,j) + shock_eta(i,j)), gxm = 0.5*(shock_eta(i,j) + shock_eta(i-1,j));
 			const double gyp = 0.5*(shock_eta(i,j+1) + shock_eta(i,j)), gym = 0.5*(shock_eta(i,j) + shock_eta(i,j-1));
-			const double nu_x = B_max_x*dx, nu_y = B_max_y*dy;   // [o3s] kappa = chi |lambda_B| dx (paper eq. 84)
+			const double nu_x = B_max_x*dx, nu_y = B_max_y*dy;   // kappa = chi |lambda_B| dx (paper eq. 84)
 			for(int k = 5; k <= 7; k++){
 				const double xc = x(M_B(i,j,k)), xe = x(M_B(i+1,j,k)), xw = x(M_B(i-1,j,k)), xn = x(M_B(i,j+1,k)), xs = x(M_B(i,j-1,k));
 				const double lap = nu_x/(dx*dx)*(gxp*eBx_p0*(xe - xc) - gxm*eBx_m0*(xc - xw)) + nu_y/(dy*dy)*(gyp*eBy_0p*(xn - xc) - gym*eBy_0m*(xc - xs));
@@ -5828,7 +5645,7 @@ static void Magnetic_RHS_FV(Grid& u_con, Grid& Qe, Grid& Qe_pri, Array& eps_M_gr
 	mfv_prepare(u_con, Qe);
 	Grid& Bn = *g_mfv_Bn; Grid& R = *g_mfv_R;
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	// [o3p] constant part of the Newton-linearised magnetic pressure, -1/2|B_E|^2 I: its momentum increment
+	// constant part of the Newton-linearised magnetic pressure, -1/2|B_E|^2 I: its momentum increment
 	// -h div[(1-eps_B)(-1/2|B_E|^2 I)] belongs to the predictor velocity (the operator keeps the linear part).
 	// With the paper's Picard linearisation |B|^2 ~ B^n.B^{n+1} the magnetic pressure in the predictor has half
 	// the true stiffness while the momentum update applies the full force: the stage derivative of B~ is then
@@ -5889,19 +5706,19 @@ static void MagneticFlux_Update_FV(Grid& u_con, Grid& u_test, Array& eps_B_grid_
 	mfv_div(FX, FY, eps_B_grid_x, eps_B_grid_y, 1, 4, OUT, 1.0);
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++) for(int i = ghost_cells; i < nxCells + ghost_cells; i++)
-		for(int k = 1; k <= 3; k++) u_con(i,j,k) -= adt * OUT(i,j,k);   // [o3r] momentum only; the energy row is applied in the Picard sweep
+		for(int k = 1; k <= 3; k++) u_con(i,j,k) -= adt * OUT(i,j,k);   // momentum only; the energy row is applied in the Picard sweep
 }
-// [o3r] MAGNETIC BOOKKEEPING WITH ONE VELOCITY.  With e = E - KE - MB, the linearised pressure equation of a stage
+// MAGNETIC BOOKKEEPING WITH ONE VELOCITY.  With e = E - KE - MB, the linearised pressure equation of a stage
 // contains  -h B0^2 div(u_flux - u_ind): u_flux = velocity in the implicit magnetic energy flux, u_ind = velocity that
 // evolved B.  Relative to the acoustic terms this is amplified by 1/beta.  The code used three velocities (u_E in the
 // energy flux, the predictor u~ for Bz, the Picard velocity u_k for the CT'd in-plane B): at dt k v_A > ~1.3 and
 // beta = 0.02 this was unstable (growth x4..x17 per step, cold magnetised plasma at rest).  Now, inside every Picard
 // sweep and with the SAME current velocity u_k (and the explicit-stage field B_E, i.e. H(y_E, y_I) form):
-//   in-plane B : CT (A advected with u_k)
-//   Bz         : Bz = Bz* - h div[(1-eps_B) F_ind,z(u_k, B_E)]           (replaces the predictor B~_z)
-//   energy     : E  = E*  - h div[(1-eps_B)(|B_E|^2 u_k - (u_k.B_E) B_E)]  (was applied once with u_E)
+// in-plane B : CT (A advected with u_k)
+// Bz         : Bz = Bz* - h div[(1-eps_B) F_ind,z(u_k, B_E)]           (replaces the predictor B~_z)
+// energy     : E  = E*  - h div[(1-eps_B)(|B_E|^2 u_k - (u_k.B_E) B_E)]  (was applied once with u_E)
 // The predictor B~ keeps only its role in the implicit Lorentz force.
-static Array *g_Bx_st = nullptr, *g_By_st = nullptr;   // [1d] explicit-updated Bx, By of the current stage
+static Array *g_Bx_st = nullptr, *g_By_st = nullptr;   // explicit-updated Bx, By of the current stage
 static void Magnetic_Sweep_FV(Grid& u_con, Array& Bz_star, Array& E_star, Array& eps_B_grid_x, Array& eps_B_grid_y, double h){
 	static FieldN<4> Qp, FX, FY, OUT;   // Qp: point values of slots 0..3 (rho, m); FX, FY, OUT: slots 4..7 (E, B)
 	mfv_compact();
@@ -5918,7 +5735,7 @@ static void Magnetic_Sweep_FV(Grid& u_con, Array& Bz_star, Array& E_star, Array&
 		for(int c = 0; c < 4; c++){ FX(i,j,c) = 0.0; FY(i,j,c) = 0.0; }
 		FX(i,j,0) = b2*u - ub*b5;  FY(i,j,0) = b2*v - ub*b6;
 		FX(i,j,3) = u*b7 - w*b5;   FY(i,j,3) = v*b7 - w*b6;
-		if(!g_use_ct){ FY(i,j,1) = v*b5 - u*b6; FX(i,j,2) = u*b6 - v*b5; }   // [1d] in-plane induction with the same velocity and B_E
+		if(!g_use_ct){ FY(i,j,1) = v*b5 - u*b6; FX(i,j,2) = u*b6 - v*b5; }   // in-plane induction with the same velocity and B_E
 	}
 	fvN<4>(FX, +1.0); fvN<4>(FY, +1.0);
 	mfv_divN<4>(FX, FY, eps_B_grid_x, eps_B_grid_y, OUT, -h);
@@ -5932,8 +5749,8 @@ static void Magnetic_Sweep_FV(Grid& u_con, Array& Bz_star, Array& E_star, Array&
 }
 void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Grid &w_xR,Grid &w_yL, Grid &w_yR, Array &Bx_p0, Array &By_0p, double h, Array& eps_M_grid_x, Array& eps_M_grid_y,Array& eps_B_grid_x, Array& eps_B_grid_y, const int rks){
 	g_stage_stamp++;   // invalidate the per-stage AX caches
-	static Array Bz_st(nxCells, nyCells), E_st(nxCells, nyCells);   // [o3r] explicit-updated Bz and E (before any implicit magnetic term)
-	static Array Bx_st(nxCells, nyCells), By_st(nxCells, nyCells);   // [1d] explicit-updated in-plane field (used when there is no CT)
+	static Array Bz_st(nxCells, nyCells), E_st(nxCells, nyCells);   // explicit-updated Bz and E (before any implicit magnetic term)
+	static Array Bx_st(nxCells, nyCells), By_st(nxCells, nyCells);   // explicit-updated in-plane field (used when there is no CT)
 #pragma omp parallel for schedule(static)
 	for(int j = 0; j < nyCells + 2*ghost_cells; j++) for(int i = 0; i < nxCells + 2*ghost_cells; i++){ Bz_st(i,j) = u_con(i,j,7); E_st(i,j) = u_con(i,j,4); Bx_st(i,j) = u_con(i,j,5); By_st(i,j) = u_con(i,j,6); }
 	g_Bx_st = &Bx_st; g_By_st = &By_st;
@@ -5962,12 +5779,12 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 
 	static Grid Qe_pri(nxCells, nyCells);
 	ucon2upri(Qe_pri, Qe);
-	g_Hbar_stamp = -1;   // [o3f] force a rebuild of the cell-average enthalpy for this stage (u_con changed)
+	g_Hbar_stamp = -1;   // force a rebuild of the cell-average enthalpy for this stage (u_con changed)
 	static Eigen::VectorXd b_p_vect(nxCells*nyCells), b_Bt_vect(3 * nxCells * nyCells), B_vect(3 * nxCells * nyCells), p_vect(nxCells * nyCells);   // every entry is set before use
 
 	typedef Eigen::Triplet<double> T;
 	
-	// [o3k] magnetic predictor B~: 4th-order FV right-hand side and operator, initial guess B_E
+	// magnetic predictor B~: 4th-order FV right-hand side and operator, initial guess B_E
 	Magnetic_RHS_FV(u_con, Qe, Qe_pri, eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y, h, b_Bt_vect);
 #pragma omp parallel for schedule(static)
 	for(int j = ghost_cells; j < nyCells + ghost_cells; j++) for(int i = ghost_cells; i < nxCells + ghost_cells; i++){ B_vect(M_B(i,j,5)) = Qe(i,j,5); B_vect(M_B(i,j,6)) = Qe(i,j,6); B_vect(M_B(i,j,7)) = Qe(i,j,7); }
@@ -6000,7 +5817,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		}
 	}
 	
-	MagneticFlux_Update_FV(u_con, u_test, eps_B_grid_x, eps_B_grid_y);   // [o3k] (1-eps_B) magnetic momentum/energy update with B~
+	MagneticFlux_Update_FV(u_con, u_test, eps_B_grid_x, eps_B_grid_y);   // (1-eps_B) magnetic momentum/energy update with B~
 		
 	bound_cond_u(u_con);
 	
@@ -6020,21 +5837,21 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 	bound_cond_array(rhovx_star);
 	bound_cond_array(rhovy_star);
 	bound_cond_array(rhovz_star);
-	build_Hbar(Qe, u_con);   // [o3f] cell-average enthalpy for the RHS assembly below (stamp was reset above)
+	build_Hbar(Qe, u_con);   // cell-average enthalpy for the RHS assembly below (stamp was reset above)
 	static Array g_ebar(nxCells, nyCells), g_kembar(nxCells, nyCells);
-	// [o3m] Picard sweep = CT (A advected with the current stage velocity, B := curl4 A) -> pressure solve
+	// Picard sweep = CT (A advected with the current stage velocity, B := curl4 A) -> pressure solve
 	// -> momentum update.  Every pressure solve therefore balances the energy with a DIVERGENCE-FREE field
 	// (the predictor B~ only enters the Lorentz force and the magnetic energy flux, which need the implicit
 	// coupling); the CT is idempotent (A rebuilt from A_s), so the last CT after the last momentum update
 	// leaves B consistent with the stored momentum.
-	auto ct_now = [&](){   // [o3r] CT + Bz + magnetic energy flux, all with the current velocity
+	auto ct_now = [&](){   // CT + Bz + magnetic energy flux, all with the current velocity
 		if(g_use_ct && magfield == UnStaggerCT && g_ct_A) Unstaggered_CT(u_con, *g_ct_A, *g_ct_As, *g_ct_Ae, h);
 		Magnetic_Sweep_FV(u_con, Bz_st, E_st, eps_B_grid_x, eps_B_grid_y, h);
 	};
-	// [emb] Phi(m) = E(m) - kl(Q_E; m, B(m)):  E(m) = E* - h div[(1-eps_B) F^B_U(u, B_E)],  B_perp(m) = curl4 A(m),
+	// Phi(m) = E(m) - kl(Q_E; m, B(m)):  E(m) = E* - h div[(1-eps_B) F^B_U(u, B_E)],  B_perp(m) = curl4 A(m),
 	// A(m) = A_s - h u.grad A_E (upwind direction of grad A_E from u_E),  B_z(m) = B_z* - h div[(1-eps_B) F_ind,z(u, B_E)].
 	// Phi is AFFINE in m, and m = m** - h G p, so the stage energy equation
-	//     L4 p - Phi(m** - h G p) = -h div[(1-eps_M) H m**_f]
+	// L4 p - Phi(m** - h G p) = -h div[(1-eps_M) H m**_f]
 	// is LINEAR in p: one GMRES solve of  A p := L4 p + Phi(m**) - Phi(m** - h G p) = b + Phi(m**).
 	static Grid emb_W(nxCells, nyCells), emb_A(nxCells, nyCells);
 	static Array emb_phi0(nxCells, nyCells), emb_phi(nxCells, nyCells), emb_kl(nxCells, nyCells);
@@ -6054,7 +5871,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		for(int j = 0; j < nyCells + 2*ghost_cells; j++) for(int i = 0; i < nxCells + 2*ghost_cells; i++) g_ebar(i,j) = emb_phi0(i,j);
 	}else{
 	ct_now();
-	cellavg_e_kemb(u_con, g_ebar, g_kembar);   // [o3g] e_bar of the star state (E**, m**, B_CT(u**))
+	cellavg_e_kemb(u_con, g_ebar, g_kembar);   // e_bar of the star state (E**, m**, B_CT(u**))
 	}
 
 	if(g_verbose_stages) std::cout << "rk = " <<rks + 1 <<", First Internal: "<<endl;
@@ -6106,12 +5923,12 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 				// ill-posed operator, Newton/GMRES stall (observed: hit-max-iters every
 				// solve on the 256^2 blastwave). Clamping to p_floor keeps the operator
 				// well-posed; applied identically in LHS and RHS (operator-pairing law).
-				return g_Hbar(ii,jj);   // [o3f] cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
+				return g_Hbar(ii,jj);   // cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
 			};
 			auto rvx4 = [&](int ii,int jj)->double{ return rhovx_star(ii,jj); };
 			auto rvy4 = [&](int ii,int jj)->double{ return rhovy_star(ii,jj); };
-			// [o3d] enthalpy flux = product of two face averages + transverse covariance (dt^2/12) h_t (rho u)_t
-			auto HFx = [&](int ic)->double{   // [o3e] FV family
+			// enthalpy flux = product of two face averages + transverse covariance (dt^2/12) h_t (rho u)_t
+			auto HFx = [&](int ic)->double{   // FV family
 				double prod = facefvx(henth4,ic,j)*facefvx(rvx4,ic,j);
 				prod += (facefvx(henth4,ic,j+1) - facefvx(henth4,ic,j-1)) * ((facefvx(rvx4,ic,j+1)) - (facefvx(rvx4,ic,j-1))) / 48.0;
 				return (1.0-eps_M_grid_x(ic,j)) * prod;
@@ -6123,7 +5940,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 			};
 			double xdiv4 = (HFx(i) - HFx(i-1)) / dx;
 			double ydiv4 = (HFy(j) - HFy(j-1)) / dy;
-			RHS = g_ebar(i,j) - h * (xdiv4 + ydiv4);   // [o3g] cell-average internal energy
+			RHS = g_ebar(i,j) - h * (xdiv4 + ydiv4);   // cell-average internal energy
 
 			if(internal < 1e-6){
 				if(g_verbose_stages) std::cout << internal << " ";
@@ -6163,7 +5980,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		g_emb_solves++;
 		{
 			// [emb2] UNIFIED POSITIVITY.  A_emb p = b is solved by defect correction on the M-matrix operator
-			//     L2c p_{k+1} = b + (L2c - A_emb) p_k ,   L2c = L2 + upwind convective term,
+			// L2c p_{k+1} = b + (L2c - A_emb) p_k ,   L2c = L2 + upwind convective term,
 			// every inner solve by the nested Newton with the floor: every iterate is admissible (p >= p_floor),
 			// the converged one satisfies the embedded (4th-order, linearised) system wherever the floor is inactive.
 			static Eigen::VectorXd dAx2(nxCells*nyCells), dAxE(nxCells*nyCells), dbeff(nxCells*nyCells), p_old(nxCells*nyCells);
@@ -6206,7 +6023,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		// correction; the EOS handling lives INSIDE Pressure_NestedNewton only.
 		const int NDC = 3;
 		Eigen::VectorXd dc_Ax2(nxCells*nyCells), dc_Ax4(nxCells*nyCells), dc_beff(nxCells*nyCells);
-		// [o3q] residual-controlled: at least NDC sweeps, continue (up to NDCmax) while the update is not yet
+		// residual-controlled: at least NDC sweeps, continue (up to NDCmax) while the update is not yet
 		// at roundoff, and report non-convergence instead of silently accepting it.
 		const int NDCmax = 12; double dp_prev = 1e300, dp_now = 0.0; int idc = 0;
 		for(idc = 0; idc < NDCmax; idc++){
@@ -6237,8 +6054,8 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		}
 	}
 	std::cout << endl;
-	// [o3i] PICARD ITERATION OF THE (p, rho u) PAIR.  The stage equations are
-	//     m = m** - a dt (1-eps) grad p ,   p/(g-1) + KE(m) = E** - a dt div[(1-eps) H m_f(p)] ,
+	// PICARD ITERATION OF THE (p, rho u) PAIR.  The stage equations are
+	// m = m** - a dt (1-eps) grad p ,   p/(g-1) + KE(m) = E** - a dt div[(1-eps) H m_f(p)] ,
 	// coupled through KE(m).  The paper's steps 5-8 (solve with KE(m**) -> m1 = m** - a dt grad p~ ->
 	// solve with KE(m1) -> E = p2/(g-1) + KE(m1)) keep the momentum of the FIRST solve: m1 - m_I =
 	// -a dt grad(p~ - p_I) = O(dt^2) per stage (curl-free), i.e. FIRST order in time for the compressive
@@ -6254,7 +6071,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 			// ============================================================
 			// MOMENTUM UPDATE: 4TH-ORDER, SAME OPERATOR FAMILY AS THE LHS
 			// (user decision: M-matrix positivity dropped for 4th order).
-			//   rhov^{n+1} = rhov* - h * stagger4( (1-epsM)_face * face4(p) )
+			// rhov^{n+1} = rhov* - h * stagger4( (1-epsM)_face * face4(p) )
 			// This is the 4th-order analogue of the verified 2nd-order
 			// face-difference form -- NOT eq.(81)'s cell-point gradient, which
 			// belongs to no operator family and produced the rho~1.23 plateau
@@ -6263,7 +6080,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 			// weights taken directly at faces.
 			// ============================================================
 			auto pmom = [&](int ii,int jj)->double{ return p_vect(M_P(ii,jj)); };
-			auto FMx4 = [&](int ic)->double{ return (1.0 - eps_M_grid_x(ic,j)) * facefvx(pmom,ic,j); };   // [o3e] FV family
+			auto FMx4 = [&](int ic)->double{ return (1.0 - eps_M_grid_x(ic,j)) * facefvx(pmom,ic,j); };   // FV family
 			auto FMy4 = [&](int jc)->double{ return (1.0 - eps_M_grid_y(i,jc)) * facefvy(pmom,i,jc); };
 			double gpx4 = (FMx4(i) - FMx4(i-1)) / dx;
 			double gpy4 = (FMy4(j) - FMy4(j-1)) / dy;
@@ -6274,13 +6091,13 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 	bound_cond_u(u_con);
 	};   // momentum_update
 	momentum_update();
-	if(emb_on){   // [emb] B, B_z, E(mag) of the solved momentum; E_bar = p/(g-1) + kl is the conservative energy
+	if(emb_on){   // B, B_z, E(mag) of the solved momentum; E_bar = p/(g-1) + kl is the conservative energy
 		emb_eval(u_con, *g_ct_A, emb_phi);
 #pragma omp parallel for schedule(static)
 		for(int j = 0; j < nyCells + 2*ghost_cells; j++) for(int i = 0; i < nxCells + 2*ghost_cells; i++) g_kembar(i,j) = emb_kl(i,j);
 	}
 //				//std::cout << Qe(i,j,k) << " ";
-//				cout << setw(12)              // 每个数字宽度12字符
+// cout << setw(12)              // 每个数字宽度12字符
 //				<< fixed                 	  // 固定小数点形式（非科学计数法）
 //				<< setprecision(6)            // 保留6位小数
 
@@ -6290,8 +6107,8 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 	if(g_verbose_stages) std::cout << "rk = " <<rks + 1<< ", Second Internal: "<<endl;
 	for(int ipic = 1; ipic < (emb_on ? 1 : g_npicard); ipic++)
 	{
-		ct_now();                                  // [o3m] B := curl A(m_{ipic})
-		cellavg_e_kemb(u_con, g_ebar, g_kembar);   // [o3g] e_bar with the UPDATED momentum m_{ipic} (E still E**)
+		ct_now();                                  // B := curl A(m_{ipic})
+		cellavg_e_kemb(u_con, g_ebar, g_kembar);   // e_bar with the UPDATED momentum m_{ipic} (E still E**)
 		vector<T> triplets_p_second;
 		#pragma omp parallel for collapse(2) schedule(static)
 		for(int j = ghost_cells; j < ghost_cells + nyCells; j++){
@@ -6341,12 +6158,12 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 				// ill-posed operator, Newton/GMRES stall (observed: hit-max-iters every
 				// solve on the 256^2 blastwave). Clamping to p_floor keeps the operator
 				// well-posed; applied identically in LHS and RHS (operator-pairing law).
-				return g_Hbar(ii,jj);   // [o3f] cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
+				return g_Hbar(ii,jj);   // cell-average enthalpy (p_Qe / rho_ucon, both floored, via point values)
 				};
 				auto rvx4 = [&](int ii,int jj)->double{ return rhovx_star(ii,jj); };
 				auto rvy4 = [&](int ii,int jj)->double{ return rhovy_star(ii,jj); };
-				// [o3d] enthalpy flux = product of two face averages + transverse covariance (dt^2/12) h_t (rho u)_t
-				auto HFx = [&](int ic)->double{   // [o3e] FV family
+				// enthalpy flux = product of two face averages + transverse covariance (dt^2/12) h_t (rho u)_t
+				auto HFx = [&](int ic)->double{   // FV family
 					double prod = facefvx(henth4,ic,j)*facefvx(rvx4,ic,j);
 					prod += (facefvx(henth4,ic,j+1) - facefvx(henth4,ic,j-1)) * ((facefvx(rvx4,ic,j+1)) - (facefvx(rvx4,ic,j-1))) / 48.0;
 					return (1.0-eps_M_grid_x(ic,j)) * prod;
@@ -6358,7 +6175,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 				};
 				double xdiv4 = (HFx(i) - HFx(i-1)) / dx;
 				double ydiv4 = (HFy(j) - HFy(j-1)) / dy;
-				RHS = g_ebar(i,j) - h * (xdiv4 + ydiv4);   // [o3g] cell-average internal energy (with the updated momentum)
+				RHS = g_ebar(i,j) - h * (xdiv4 + ydiv4);   // cell-average internal energy (with the updated momentum)
 
 				if(internal < 1e-8){
 					if(g_verbose_stages) std::cout << internal << " ";
@@ -6382,7 +6199,7 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 			// correction; the EOS handling lives INSIDE Pressure_NestedNewton only.
 			const int NDC = 3;
 			Eigen::VectorXd dc_Ax2(nxCells*nyCells), dc_Ax4(nxCells*nyCells), dc_beff(nxCells*nyCells);
-			// [o3q] residual-controlled: at least NDC sweeps, continue (up to NDCmax) while the update is not yet
+			// residual-controlled: at least NDC sweeps, continue (up to NDCmax) while the update is not yet
 			// at roundoff, and report non-convergence instead of silently accepting it.
 			const int NDCmax = 12; double dp_prev = 1e300, dp_now = 0.0; int idc = 0;
 			for(idc = 0; idc < NDCmax; idc++){
@@ -6414,27 +6231,9 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 		}
 		std::cout << endl;
 		
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-//				
-		momentum_update();   // [o3i] m_{ipic+1} = m** - a dt (1-eps) grad p_{ipic+1}
+		momentum_update();   // m_{ipic+1} = m** - a dt (1-eps) grad p_{ipic+1}
 	}
-	ct_now();   // [o3m] final CT: B consistent with the stored momentum m_K
+	ct_now();   // final CT: B consistent with the stored momentum m_K
 	
 	bound_cond_u(u_con);
 
@@ -6462,9 +6261,6 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 
 	bound_cond_u(u_con);
 	
-	if(nyCells != 1 && nxCells != 1){
-		// TODO-2D: adapt to our 6-arg Staggered_CT(u_con,Bx_p0,By_0p,Bx_p0_Qs,By_0p_Qs,h) before running 2D
-	}
 	
 	bound_cond_u(u_con);
 }
@@ -6474,10 +6270,10 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 // viscosity, evaluated on the CONVERGED B (u_con holds Btilde^{n+1}; the
 // momenta are still the star values, since MagneticFlux_Update_Pressure_HF
 // runs later). Signs read off the AX assembly:
-//     Ax(...,6) = x(...,6) + (h*h/dx)*( eBx_p0^2*(By_1+By_2) - ... )
-//     Ax(...,6) = Ax(...,6) - h*lap_By
+// Ax(...,6) = x(...,6) + (h*h/dx)*( eBx_p0^2*(By_1+By_2) - ... )
+// Ax(...,6) = Ax(...,6) - h*lap_By
 // so with By^{n+1} = ... - (h/dx)*(F_p0 - F_m0):
-//     F_p0 = +h*eBx_p0^2*(By_1+By_2) - nu_x/dx*eBx_p0*(By_{i+1}-By_i)
+// F_p0 = +h*eBx_p0^2*(By_1+By_2) - nu_x/dx*eBx_p0*(By_{i+1}-By_i)
 // The WAVE operator carries (1-eps_B)^2 -- the momentum update and the
 // induction equation contribute one factor each -- while the VISCOSITY, being
 // a single application, carries (1-eps_B)^1.
@@ -6493,8 +6289,8 @@ void PreMagSubsystem_Pressure_HF(Grid &u_con, Grid &Qs, Grid &Qe,Grid &w_xL, Gri
 
 // ============================================================================
 // CT_EpsSplit -- two Stokes updates, one per difference operator.
-//   group A: B* share      -> stagger4
-//   group B: explicit+imp  -> 2-point
+// group A: B* share      -> stagger4
+// group B: explicit+imp  -> 2-point
 // Each is the curl of its own corner EMF with matched operators, so each
 // preserves the staggered divergence separately; the sum does too.
 // ============================================================================
@@ -6608,8 +6404,8 @@ int main(int argc, char *argv[]){
 			break;
 		case testblastwave:
 			x_0 = -0.5, x_1 = 0.5, y_0 = -0.5, y_1 = 0.5,z_0 = -1, z_1 = 1;
-			time_stop = g_blast_tend;        // [fix F]
-			gamma_plasma = 5.0/3.0;          // [fix F] section 4: "unless otherwise stated, gamma = 5/3"
+			time_stop = g_blast_tend;        // 
+			gamma_plasma = 5.0/3.0;          // section 4: "unless otherwise stated, gamma = 5/3"
 			x_bc = x_Transmissive;   // match CASTOR: rho/v/p Dirichlet(ambient) + B transmissive
 			y_bc = y_Transmissive;
 			break;
@@ -6664,7 +6460,7 @@ int main(int argc, char *argv[]){
 
 	}
 	
-	if(g_gamma_set > 0.0) gamma_plasma = g_gamma_set;   // [fix F] 覆盖算例默认, 必须在 switch 之后
+	if(g_gamma_set > 0.0) gamma_plasma = g_gamma_set;   // 覆盖算例默认, 必须在 switch 之后
 	std::cout << "EFFECTIVE gamma=" << gamma_plasma << " time_stop=" << time_stop
 	          << " mesh=" << nxCells << "x" << nyCells << std::endl;
 
@@ -6716,7 +6512,7 @@ int main(int argc, char *argv[]){
 				u_con(i,j,5) =  ( -A(i,j+2,2) + 8.0*A(i,j+1,2) - 8.0*A(i,j-1,2) + A(i,j-2,2) ) / (12.0*dy);
 				u_con(i,j,6) = -( -A(i+2,j,2) + 8.0*A(i+1,j,2) - 8.0*A(i-1,j,2) + A(i-2,j,2) ) / (12.0*dx);
 				double mb_new = 0.5*(u_con(i,j,5)*u_con(i,j,5) + u_con(i,j,6)*u_con(i,j,6));
-				u_con(i,j,4) += mb_new - mb_old;   // [o3] keep the internal energy: E was built with the quadrature B
+				u_con(i,j,4) += mb_new - mb_old;   // keep the internal energy: E was built with the quadrature B
 			}
 		bound_cond_u(u_con);
 		ucon2upri(u_pri, u_con);
@@ -6797,7 +6593,7 @@ int main(int argc, char *argv[]){
 		// SA DIRK(3,4,3) -- Boscheri & Pareschi, JCP 434 (2021) eq.(79).
 		// order-3 conditions verified; b == last row of Ai (stiffly accurate);
 		// singly diagonal: a_ii = d for every stage.
-		// [o3q] FULL-PRECISION coefficients.  The 6-digit values had sum(b) = 1 - 1e-6 and every order condition
+		// FULL-PRECISION coefficients.  The 6-digit values had sum(b) = 1 - 1e-6 and every order condition
 		// off by 1e-7..1e-6: a dt- and h-independent error floor (~1e-7 in L2 on the vortex at T = 0.2).
 		// d = root in (0,1) of x^3 - 3x^2 + 3/2 x - 1/6 (L-stable SDIRK3), c3 = (1+d)/2,
 		// b2 = -(6d^2-16d+1)/4, b3 = (6d^2-20d+5)/4; explicit rows solve row sums c_E = c_I (stages 2..4) and
@@ -6928,7 +6724,7 @@ int main(int argc, char *argv[]){
 			// exactly-paired operators. EnergyFormula keeps the old pipeline.
 			// ============================================================
 			{
-				g_ct_A = &A; g_ct_As = &A_s; g_ct_Ae = &A_e; g_emb_Qe = &Qe;   // [o3m] [emb]
+				g_ct_A = &A; g_ct_As = &A_s; g_ct_Ae = &A_e; g_emb_Qe = &Qe;   // 
 				PreMagSubsystem_Pressure_HF(u_con, Qs, Qe, w_xL, w_xR, w_yL, w_yR, Bx_p0, By_0p, adt,
 				                            eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y, rks);
 				bound_cond_u(u_con);
@@ -6945,7 +6741,7 @@ int main(int argc, char *argv[]){
 			// (legacy EnergyFormula pipeline removed; fused PressureFormula step above is the only maintained path)
 
 			// (the constrained transport is part of the pressure solve of the stage: PreMagSubsystem_Pressure_HF leaves
-			//  B = curl4 A(m^{n+1}) and E = p/(g-1) + kl; nothing is done to B or E here)
+			// B = curl4 A(m^{n+1}) and E = p/(g-1) + kl; nothing is done to B or E here)
 			bound_cond_u(u_con);
 			
 			// Modify Energy
@@ -6989,11 +6785,11 @@ int main(int argc, char *argv[]){
 	}while(t < time_stop);
 	fclose(steplog);
 	std::cout << "pressure solves " << g_emb_solves << ", defect-correction sweeps " << g_emb_sweeps << ", not converged " << g_emb_nc
-	          << ", density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, envelope widened at " << g_env_wide << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
+	          << ", density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
 	if(test == testVortex){   // paper Table 2: L2 errors of rho, u, p, Bx, Az against the exact (translated) cell averages
 		const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)}; const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
 		double l2[5] = {0,0,0,0,0}, li[5] = {0,0,0,0,0};
-		// [o3i] cell averages of the NONLINEAR maps u = m/rho and p = (g-1)(E - KE - MB) via point values:
+		// cell averages of the NONLINEAR maps u = m/rho and p = (g-1)(E - KE - MB) via point values:
 		// u(Qbar), p(Qbar) differ from ubar, pbar at O(h^2) -- the measurement itself would cap them at 2nd order.
 		static Array u_pt(nxCells, nyCells), p_pt(nxCells, nyCells);
 		bound_cond_u(u_con);
@@ -7016,7 +6812,7 @@ int main(int argc, char *argv[]){
 			}
 			double rho = u_con(i,j,0), uu = u_con(i,j,1)/rho, ke = 0.5*(u_con(i,j,1)*u_con(i,j,1)+u_con(i,j,2)*u_con(i,j,2)+u_con(i,j,3)*u_con(i,j,3))/rho;
 			double mb = 0.5*(u_con(i,j,5)*u_con(i,j,5)+u_con(i,j,6)*u_con(i,j,6)+u_con(i,j,7)*u_con(i,j,7));
-			double ubar = u_pt(i,j) + (u_pt(i+1,j) - 2.0*u_pt(i,j) + u_pt(i-1,j) + u_pt(i,j+1) - 2.0*u_pt(i,j) + u_pt(i,j-1))/24.0;   // [o3i]
+			double ubar = u_pt(i,j) + (u_pt(i+1,j) - 2.0*u_pt(i,j) + u_pt(i-1,j) + u_pt(i,j+1) - 2.0*u_pt(i,j) + u_pt(i,j-1))/24.0;   // 
 			double pbar = p_pt(i,j) + (p_pt(i+1,j) - 2.0*p_pt(i,j) + p_pt(i-1,j) + p_pt(i,j+1) - 2.0*p_pt(i,j) + p_pt(i,j-1))/24.0;
 			(void)uu; (void)ke; (void)mb;
 			double num[5] = {rho, ubar, pbar, u_con(i,j,5), A(i,j,2)};
@@ -7067,7 +6863,7 @@ int main(int argc, char *argv[]){
 		          << " L2: rho=" << sqrt(l2[0]) << " u=" << sqrt(l2[1]) << " p=" << sqrt(l2[2]) << " Bx=" << sqrt(l2[3]) << " Az=" << sqrt(l2[4])
 		          << " | Linf: rho=" << li[0] << " u=" << li[1] << " p=" << li[2] << " Bx=" << li[3] << " Az=" << li[4] << std::endl;
 	}
-	if(test == testSmooth2D){   // [o3] L1/Linf error of rho against the exact cell average (3x3 Gauss)
+	if(test == testSmooth2D){   // L1/Linf error of rho against the exact cell average (3x3 Gauss)
 		const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)}; const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
 		double l1 = 0.0, linf = 0.0, l2 = 0.0;
 		for(int i = ghost_cells; i < nxCells + ghost_cells; i++) for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
@@ -7082,7 +6878,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilerho(g_outdir + "RK_rho.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFilerho << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << u_con(i,j,0) << endl;
 		}
@@ -7092,7 +6888,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilevx(g_outdir + "RK_vx.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFilevx << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << u_pri(i,j,1) << endl;
 		}
@@ -7102,7 +6898,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilevy(g_outdir + "RK_vy.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFilevy << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << u_pri(i,j,2) << endl;
 		}
@@ -7112,7 +6908,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileE(g_outdir + "RK_E.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileE << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << u_con(i,j,4) << endl;
 		}
@@ -7122,7 +6918,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilep(g_outdir + "RK_p.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFilep << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << (u_pri(i,j,4)) << endl;
 		}
@@ -7132,7 +6928,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileBx(g_outdir + "RK_Bx.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileBx << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << (u_pri(i,j,5)) << endl;
 		}
@@ -7142,7 +6938,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileBy(g_outdir + "RK_By.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileBy << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << (u_pri(i,j,6)) << endl;
 		}
@@ -7152,7 +6948,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileBz(g_outdir + "RK_Bz.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileBz << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << (u_pri(i,j,7)) << endl;
 		}
@@ -7162,7 +6958,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilev(g_outdir + "RK_v_mag.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFilev << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_pri(i,j,1) * u_pri(i,j,1) + u_pri(i,j,2) * u_pri(i,j,2)) << endl;
 		}
@@ -7187,7 +6983,7 @@ int main(int argc, char *argv[]){
 	ofstream outFilerho_line(g_outdir + "RK_rho_line.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			if(j == j_mid){
 				outFilerho_line << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << u_pri(i,j,0) << endl;
 			}
@@ -7198,7 +6994,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileepsM(g_outdir + "RK_eps_M.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileepsM << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << eps_M(i,j) << endl;
 		}
@@ -7208,7 +7004,7 @@ int main(int argc, char *argv[]){
 	ofstream outFileepsB(g_outdir + "RK_eps_B.dat");
 	for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
-			//			outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
+			// outFile << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << sqrt(u_con(i,j,5) * u_con(i,j,5) + u_con(i,j,6) * u_con(i,j,6))/u_con(i,j,7)<< endl;
 			
 			outFileepsB << x_0 + dx * (i - ghost_cells + 0.5) << " " << y_0 + dy * (j - ghost_cells + 0.5) << " " << eps_B(i,j) << endl;
 		}
