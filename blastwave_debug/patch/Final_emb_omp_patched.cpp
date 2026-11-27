@@ -186,7 +186,7 @@ double GMRES_rtol = 1e-12;   // [o3s] relative tolerance: stop when |M^{-1}(b-Ax
 double GMRESiter = 1e32;
 int GMRESrest = 30;
 
-double shock_kappa1 = 0.05;   // sensor threshold: chi > 0 only if h*div(u) < -k1*c_f (velocity jump > 5% of c_f per cell)
+double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell
 double shock_threshold = 0.9;
 shock_threshold_Left threshold_Left = val_left;
 shock_threshold_Right threshold_Right = zero;

@@ -565,6 +565,18 @@ double g_blast_B0 = 100.0;""")
 
     rep("""double CFL = 0.1;""", """double CFL = 0.8;""")
 
+    # [fix H] kappa_1 of the shock indicator: the paper's eq.(72) says 0.4, the code had
+    # 0.05.  Measured at 256^2 on the b0=100 blast wave (senv=2, betafloor=1e-4, CFL 0.2,
+    # t = 0.01), 0.4 is slightly better on every noise metric and identical on the step:
+    #                        rho sig%   rho p99%   p sig%   dt/dt_MHD median
+    #   kappa1 = 0.05          0.74      1.752      3.89        1.0855
+    #   kappa1 = 0.4           0.70      1.575      3.54        1.0842
+    # It also takes the two J-keyed safeguards to zero (entropy anti-diffusion limited
+    # 137 -> 0 faces, envelope widened 36 -> 0), which is a larger change than a sensor
+    # threshold ought to produce and is not yet understood.
+    rep("""double shock_kappa1 = 0.05;   // sensor threshold: chi > 0 only if h*div(u) < -k1*c_f (velocity jump > 5% of c_f per cell)""",
+        """double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell""")
+
     # [fix G] 这两条必须在上面的横幅/计数器文本被创建之后
     rep("""	          << " senv=" << g_senv << " betafloor=" << g_betafloor""",
         """	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp""")
