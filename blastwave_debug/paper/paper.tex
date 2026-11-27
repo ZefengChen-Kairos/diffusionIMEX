@@ -191,15 +191,19 @@ separately, while in the supersonic and super-Alfv\'enic regime the scheme
 reduces to a fully explicit Godunov-type method. A characteristic analysis gives
 the Alfv\'en speeds from a quadratic in $\epsB$ alone and the magnetosonic speeds
 from a quartic in both parameters, and shows the explicit sub-system to be
-strongly hyperbolic whenever $\epsM>0$. The Alfv\'en fields span a
-two-dimensional invariant subspace whose dual functionals annihilate every other
-wave family, so that their projection is available in closed form at every value
-of the parameters; on this rests an HLLEM Riemann solver that resolves the
-contact and the rotational discontinuities sharply even in the stiff limit, where
-the complete characteristic basis is lost. An exact block decomposition of the split system
-confines the singular limits of its eigenvectors to low-dimensional sub-blocks,
-so that the split characteristic basis can be used in a third-order
-characteristic WENO reconstruction with a monotonicity-preserving limiter. On
+strongly hyperbolic, with a complete set of right eigenvectors, whenever
+$\epsM>0$. That is what licenses the third-order characteristic WENO
+reconstruction with a monotonicity-preserving limiter used for the explicit
+terms, and it licenses only that, and not uniformly: the basis is evaluated
+with $\epsM$ bounded from below by $10^{-2}$, while the flux is not.
+Independently of it, and at every value of the parameters, an exact block
+decomposition of the split system confines the singular limits of its
+eigenvectors to low-dimensional sub-blocks: the Alfv\'en fields span a
+two-dimensional invariant subspace whose dual functionals annihilate every
+other wave family, so that their projection is available in closed form. On
+this rests an HLLEM Riemann solver that resolves the contact and the rotational
+discontinuities sharply even in the stiff limit, where the complete
+characteristic basis is lost. On
 the implicit side, the kinetic and magnetic energies are linearised consistently
 with the partitioned IMEX Runge--Kutta scheme and an unstaggered,
 potential-based constrained transport is written as a linear map of the
@@ -208,8 +212,12 @@ solves for a magnetic predictor and then for the pressure, without iterating
 between the two, with a magnetic field that is divergence-free to machine
 precision and with the total energy conserved without re-solving for the
 pressure. Numerical experiments on standard benchmarks, from the
-near-incompressible to the supersonic regime, confirm at least third-order
-accuracy.
+near-incompressible to the supersonic regime, confirm the design third order of
+the scheme---approached from below at unit background density and exceeded in
+the stiff regime---together with the asymptotic-preserving behaviour, a time
+step larger than the explicit one by four orders of magnitude at the lowest
+Mach number considered, positivity of density and pressure, and a magnetic
+field divergence-free to round-off.
 \end{abstract}
 
 % Use if graphical abstract is present
@@ -220,9 +228,10 @@ accuracy.
 % Research highlights
 \begin{highlights}
 \item Flux splitting with two parameters driven by acoustic and Alfv\'en Mach numbers
-\item Explicit sub-system proved hyperbolic with complete eigenvectors
-\item Constrained transport embedded in the pressure operator, with no iteration between the magnetic and the pressure sub-system
-\item Third-order in space and time; time step freed from the acoustic and Alfvén constraints where they are stiff
+\item Explicit sub-system proved hyperbolic at every parameter value, with complete eigenvectors whenever $\epsM>0$
+\item Exact block decomposition gives the Alfv\'en projection in closed form, so an HLLEM solver resolves the rotational discontinuities even in the stiff limit
+\item Constrained transport embedded in the pressure operator, with no outer iteration between the magnetic and the pressure sub-system
+\item Each stiffness removed independently: the stiff channel leaves the time step, the non-stiff one keeps an upwind Riemann solver; third-order in space and time
 \end{highlights}
 
 
@@ -303,11 +312,14 @@ stencils rather than on upwind shock capturing, unless Rusanov-type dissipation 
 explicitly reintroduced~\cite{DumbserCasulli2016,BoscheriThomann2024,MHDIMEX}. And, with those fluxes assigned
 entirely to the implicit side, the explicit sub-system loses its spectral separation:
 its eigenvalues collapse onto $\{0,u\}$ and the Jacobian admits no complete set of
-eigenvectors, so it is only weakly hyperbolic. This precludes eigenstructure-based
-Riemann solvers such as Roe~\cite{Roe1981} or
-HLLEM~\cite{einfeldt1991godunov,HLLEM}, whose construction relies on the left
-and right eigenvectors for wave projection, and leaves scalar-dissipation fluxes of
-Rusanov type~\cite{Rusanov1962} as the usual choice. The consequence is
+eigenvectors, so it is only weakly hyperbolic. This precludes Riemann solvers built on the
+eigenvectors of the explicit Jacobian---Roe~\cite{Roe1981}, and
+HLLEM~\cite{einfeldt1991godunov,HLLEM} in its standard form, which projects the
+jump onto the intermediate fields of that Jacobian---and leaves
+scalar-dissipation fluxes of Rusanov type~\cite{Rusanov1962} as the usual
+choice. Recovering those fields from a structure that survives the stiff limit,
+rather than from the explicit Jacobian itself, is what Section~\ref{sec:hllem}
+does. The consequence is
 more severe than in gas dynamics: the degenerate spectrum retains no trace of the
 rotational discontinuities either, so the Alfv\'en waves---which carry no acoustic
 stiffness whatsoever---are smeared at the same rate as everything else.
@@ -348,15 +360,20 @@ about two fifths of the cells, with $\epsM\approx1$ and $\epsB\approx0$
 there. Against a single parameter driven by whichever Mach number is the more
 restrictive---the safe choice---the second parameter instead costs a little.
 Both fluxes are implicit under the safe choice, so its admissible step is the
-larger one, by a factor bounded by two, since a non-stiff channel has a wave
-speed below the material speed, and equal to $1.19$ in the field-loop
-advection of Section~\ref{sec:fieldloop}. What is bought in exchange is an
-upwind rather than a central discretisation of the non-stiff flux. In that
-test the exchange does not show in the solution: the retained magnetic energy
-and the error against the exact solution agree to four digits between the two
-choices, the in-plane field being advanced by the constrained transport of
-Section~\ref{sec:CT} in either case, so that $\epsB$ reaches it only through
-the velocity.
+larger one: keeping the non-stiff flux explicit costs an explicit spectral
+radius of at most $\|\mathbf u\|(1+\epsB/M_A)$ by~\eqref{eq:alfven_eig}, or
+$\|\mathbf u\|(1+\epsM/M)$ in the mirror case. That factor is $1.13$ at the
+strongest amplitude of the field-loop advection of Section~\ref{sec:fieldloop}
+($M_A\approx7.9$) and $1.08$ in the Kelvin--Helmholtz test of
+Section~\ref{sec:KH} ($M_A\approx11.8$); over the whole range
+of~\eqref{eq:switch} it is bounded by $3.63$, attained just above the switch at
+$M_A\approx0.38$, where the channel has already been returned to the explicit
+solver while the Alfv\'en speed is still $2.7\|\mathbf u\|$. What is bought in
+exchange is an upwind rather than a central discretisation of the non-stiff
+flux. In two dimensions that exchange reaches the in-plane field only weakly,
+since the in-plane field is advanced by the constrained transport of
+Section~\ref{sec:CT} at either value of $\epsB$, which reaches it only through
+the velocity; the measurement is reported in Section~\ref{sec:CT}.
 
 Two structural results follow, and they serve different parts of the scheme. The
 first is the restoration of strong hyperbolicity: whenever $\epsM>0$ the explicit
@@ -372,10 +389,13 @@ The second result is what makes a wave-resolving Riemann solver possible at
 complete basis is lost. The split system decomposes exactly: the divergence mode
 is trivially decoupled, and the Alfv\'en fields span a two-dimensional invariant
 subspace whose dual functionals annihilate every other wave family. Their
-projection is therefore available in closed form and is regular both as
-$B_\perp\to0$ and as $\epsB B_x\to0$, so the two rotational discontinuities can
-be resolved where the degenerate spectrum of the standard splitting retains no
-trace of them at all. We use this in an HLLEM flux of $\delta_k$-driven
+projection is therefore available in closed form at every value of the
+parameters: the regularised pair is regular as $B_\perp\to0$, and at
+$\epsB B_x=0$, where its normalisation degenerates, the block~\eqref{eq:A2} is
+exactly diagonal and the pair is given by its decoupled limit---a degeneracy of
+the parametrisation, not of the system. The two rotational discontinuities can
+therefore be resolved where the degenerate spectrum of the standard splitting
+retains no trace of them at all. We use this in an HLLEM flux of $\delta_k$-driven
 asymptotic-preserving form, whose wave-speed envelope is built from the split
 spectrum itself and whose entropy strength is taken in the classical form,
 bounded uniformly in $\epsM$. Of the two singular limits of the closed-form
@@ -608,11 +628,15 @@ This sub-system isolates the Alfvén and magnetic-tension stiffness.
 
 In a standard IMEX framework \cite{MHDIMEX}, with the advective sub-system
 treated explicitly and the pressure and magnetic sub-systems treated implicitly,
-the weak hyperbolicity of $\mathbf{F}^c$ becomes a fundamental limitation: without
-a complete set of eigenvectors, neither a complete approximate Riemann solver nor a
-characteristic reconstruction can be built for the explicit step. A Rusanov-type
-flux is then the usual choice, whose scalar dissipation acts on all components
-alike and smears contact and shear waves.
+the weak hyperbolicity of $\mathbf{F}^c$ becomes a fundamental limitation:
+without a complete set of eigenvectors no characteristic reconstruction can be
+built for the explicit step, and no approximate Riemann solver that projects the
+jump onto the eigenvectors of $\mathbf{F}^c$. A Rusanov-type flux is then the
+usual choice, whose scalar dissipation acts on all components alike and smears
+contact and shear waves. What the adaptive splitting of
+Section~\ref{sec:eps_split} changes is that the intermediate fields keep a
+trace in the explicit sub-system, and that trace is enough for a
+wave-resolving flux even where the basis is still incomplete.
  
 % ---------------------------------------------------------------------------
 \subsection{Dual-parameter $\eps$-split form}
@@ -1252,9 +1276,10 @@ contribution and is therefore already fully updated at this stage.
 \paragraph{Standard IMEX baseline: scalar-dissipation fluxes.}
 Existing semi-implicit three-way splittings~\cite{Fambri2021,MHDIMEX}
 correspond to the fixed choice $\epsM=\epsB\equiv0$, for which the convective
-sub-system is only weakly hyperbolic. The absence of a complete set of linearly
-independent eigenvectors precludes the use of characteristic-based Riemann solvers
-and forces a scalar dissipation of Rusanov type~\cite{Rusanov1962},
+sub-system is only weakly hyperbolic. With the whole magnetic flux on the
+implicit side the Alfv\'en fields leave no trace in the explicit spectrum at
+all, so there is nothing for an intermediate-wave correction to act on, and a
+scalar dissipation of Rusanov type~\cite{Rusanov1962} is forced,
 \begin{equation}
 \label{eq:rusanov}
 \tilde\FF^{\eps}_{i+\frac12,j}
@@ -1266,16 +1291,26 @@ s^{\max}_{i+\frac12,j}=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\mathbf{U}^{R}\}}\big
 which smears the entropy, Alfv\'en and magnetosonic fields equally.
 
 \paragraph{$\eps$-IMEX: AP-HLLEM flux.}
-Whenever $\epsM > 0$ the adaptive splitting restores strong hyperbolicity of the
-convective sub-system: the Jacobian~\eqref{eq:prim_jac} admits eight real
-eigenvalues together with a complete set of right eigenvectors. This makes the HLLEM scheme of Einfeldt et al.~\cite{einfeldt1991godunov},
-in the formulation of Dumbser and Balsara~\cite{HLLEM}, applicable.
+The HLLEM scheme of Einfeldt et al.~\cite{einfeldt1991godunov}, in the
+formulation of Dumbser and Balsara~\cite{HLLEM}, needs only the linearly
+degenerate fields and their projections, not a complete eigenvector basis, and
+is therefore available at every value of the parameters---including the limit
+$\epsM=0$ in which the convective sub-system is defective by
+Theorem~\ref{thm:hyp}(iii). The block decomposition of
+Lemma~\ref{lem:blocks} supplies the Alfv\'en pair in the regularised form of
+Corollary~\ref{cor:alfven}, together with the transverse
+functionals~\eqref{eq:alf_jumps} that isolate its content; the entropy field is
+taken with the classical strength~\eqref{eq:went}, bounded uniformly in
+$\epsM$. No bound on $\epsM$ is imposed in the flux: the bound of
+Remark~\ref{rem:nonuniform} is confined to the characteristic reconstruction of
+Section~\ref{sec:reconstruction}, which is what the complete basis of
+Theorem~\ref{thm:hyp}(ii) licenses.
 Starting from the two-wave HLLE solver, HLLEM adds an anti-diffusive correction
 along the linearly degenerate intermediate fields, so that contact and rotational
 discontinuities are resolved sharply while the robustness of HLLE is preserved.
 The construction below is built so that the entire asymptotic-preserving scaling
 resides in the wave coefficients $\delta_k$, while the wave structure is supplied
-by the split basis of Section~\ref{sec:eigenstructure}.
+by the block decomposition of Section~\ref{sec:eigenstructure}.
 
 The averaged state is the Cargo--Gallice MHD Roe mean~\cite{CargoGallice1997},
 \begin{equation}
@@ -2907,8 +2942,11 @@ $10^{-5}$ & $0.0044$ & $50.3292$ & $0.020$ & $79.0$ \\
 All simulations are run to $t_f=1$ on a sequence of uniformly refined meshes.
 The $L^2$ errors of $\rho$, $u$, $p$, $B_x$ and $A_z$ and the corresponding
 experimental orders of convergence (EOC) are collected in
-Table~\ref{tab:vortex_eoc_o3}. At least the formal third order of accuracy is
-attained for all variables and across all regimes considered. To illustrate the benefit of a
+Table~\ref{tab:vortex_eoc_o3}. The design third order is attained for all
+variables and across all regimes considered, approached from below on the
+finest grids at $\rho_0=1$ and $\rho_0=10^{-1}$ and exceeded at the smallest
+background densities, where the coarsest grids do not yet resolve the
+perturbation. To illustrate the benefit of a
 stability restriction that does not depend on the fast scales: in the low
 acoustic and Alfv\'en Mach number cases the time step permitted by the present
 scheme exceeds that of a fully explicit discretisation, which is bounded by the
@@ -3451,6 +3489,7 @@ increasing loop amplitudes, from $A_0=10^{-3}$ (top) to $A_0=1$ (bottom).}
 
 
 \subsection{Magnetized Kelvin–Helmholtz instability}
+\label{sec:KH}
 The last test follows the low Mach number Kelvin--Helmholtz configuration
 of~\cite{BoscheriThomann2024}, in which a weak magnetic field is aligned with a
 double shear layer and the flow speed is controlled by a single parameter
@@ -3574,17 +3613,21 @@ fourth-order operator by defect correction.
 % experiments do not show.
 The scheme has been assessed on one- and two-dimensional benchmarks ranging from
 the near-incompressible regime to supersonic and strongly magnetised flows.
-Convergence studies on a travelling MHD vortex confirm at least third-order accuracy for
-all variables, that is, in the
-low-Mach and in the low-Alfv\'en limit alike.            % CHECK: all rho_0, all variables
+Convergence studies on a travelling MHD vortex confirm the design third order
+for all variables, in the low-Mach and in the low-Alfv\'en limit alike; the
+measured orders approach three from below at unit background density and
+exceed it in the stiffest cases, where the coarse grids are still
+pre-asymptotic.
 The time step is governed by the material velocity wherever the corresponding
-Mach number is small, independently for the two channels: the admissible step
-exceeds the explicit one by a factor of $2.3\times10^{2}$ in the field-loop
-advection, which is acoustically stiff at $M\approx5.5\times10^{-3}$, and by
-only $1.08$ in the blast wave, where the flow is transonic over most of the
-region of interest. The gain of the second parameter over a single one is
-likewise regime-dependent, and lies with the strongly magnetised rather than
-with the high-$\beta$ mixed regime.
+Mach number is small, independently for the two channels: in the
+Kelvin--Helmholtz test the measured ratio to the magnetosonic step of a fully
+explicit discretisation grows in inverse proportion to $M_x$ and exceeds four
+orders of magnitude at $M_x=10^{-4}$ (Fig.~\ref{fig:kh_dtratio}). Where
+neither Mach number is small the gain disappears by construction, as in the
+blast wave, whose global step is set by the supersonic interior of the bubble.
+The gain of the second parameter over a single one is likewise
+regime-dependent, and lies with the strongly magnetised rather than with the
+high-$\beta$ mixed regime.
 Shock-dominated problems are computed without tuning of the parameters, and the
 magnetic field remains divergence-free to machine precision in the discrete
 sense of Section~\ref{sec:CT}. The identity
