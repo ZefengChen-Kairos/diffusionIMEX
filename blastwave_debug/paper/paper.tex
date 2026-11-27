@@ -190,9 +190,10 @@ step is freed from the sound-speed and from the Alfv\'en-speed constraint
 separately, while in the supersonic and super-Alfv\'enic regime the scheme
 reduces to a fully explicit Godunov-type method. A characteristic analysis gives
 the Alfv\'en speeds from a quadratic in $\epsB$ alone and the magnetosonic speeds
-from a quartic in both parameters, and shows the explicit sub-system to be
-strongly hyperbolic, with a complete set of right eigenvectors, whenever
-$\epsM>0$. That is what licenses the third-order characteristic WENO
+from a quartic in both parameters, and shows the explicit sub-system to have real eigenvalues at every value of
+the two parameters---which is what makes the explicit time step and the
+wave-speed envelope of the Riemann solver well defined---and a complete set of
+right eigenvectors whenever $\epsM>0$. The latter is what licenses the third-order characteristic WENO
 reconstruction with a monotonicity-preserving limiter used for the explicit
 terms, and it licenses only that, and not uniformly: the basis is evaluated
 with $\epsM$ bounded from below by $10^{-2}$, while the flux is not.
@@ -208,10 +209,12 @@ the implicit side, the kinetic and magnetic energies are linearised consistently
 with the partitioned IMEX Runge--Kutta scheme and an unstaggered,
 potential-based constrained transport is written as a linear map of the
 momentum; both are embedded in the pressure operator, so that each stage
-solves for a magnetic predictor and then for the pressure, without iterating
-between the two, with a magnetic field that is divergence-free to machine
-precision and with the total energy conserved without re-solving for the
-pressure. Numerical experiments on standard benchmarks, from the
+solves for a magnetic predictor and then for the pressure, without an outer
+iteration between the two, with a magnetic field that is divergence-free to
+machine precision and with the total energy conserved without re-solving for
+the pressure. Pressure positivity is enforced by a nested Newton iteration on
+a second-order M-matrix operator, the fourth-order solution being recovered by
+defect correction. Numerical experiments on standard benchmarks, from the
 near-incompressible to the supersonic regime, confirm the design third order of
 the scheme---approached from below at unit background density and exceeded in
 the stiff regime---together with the asymptotic-preserving behaviour, a time
@@ -375,14 +378,19 @@ since the in-plane field is advanced by the constrained transport of
 Section~\ref{sec:CT} at either value of $\epsB$, which reaches it only through
 the velocity; the measurement is reported in Section~\ref{sec:CT}.
 
-Two structural results follow, and they serve different parts of the scheme. The
-first is the restoration of strong hyperbolicity: whenever $\epsM>0$ the explicit
-Jacobian has eight real eigenvalues and a complete set of right eigenvectors,
-whose closed form we derive. This is what licenses the characteristic
-reconstruction of the explicit terms. It is also all it licenses, and not
-uniformly: the closed-form basis degenerates as $\epsM\to0$, so the
-reconstruction is carried out with the splitting parameter bounded away from
-zero, while the flux itself is not.
+Two structural results follow, and they serve different parts of the scheme.
+The first concerns hyperbolicity, and it has two halves that are worth keeping
+apart. The eight eigenvalues of the explicit Jacobian are real at every value
+of both parameters, the stiff limit included; that is the weaker but
+unconditional half, and it is what makes the explicit CFL
+condition~\eqref{eq:cfl} and the wave-speed envelope of the Riemann solver well
+defined, since both are built from the split spectrum. The stronger half is
+conditional: whenever $\epsM>0$ the Jacobian also has a complete set of right
+eigenvectors, whose closed form we derive, and this is what licenses the
+characteristic reconstruction of the explicit terms. It is also all that the
+complete basis licenses, and not uniformly: it degenerates as $\epsM\to0$, so
+the reconstruction is carried out with the splitting parameter bounded away
+from zero, while the flux itself is not.
 
 The second result is what makes a wave-resolving Riemann solver possible at
 \emph{every} value of the parameters, including the stiff limit in which the
@@ -401,15 +409,21 @@ spectrum itself and whose entropy strength is taken in the classical form,
 bounded uniformly in $\epsM$. Of the two singular limits of the closed-form
 eigenvectors, only the remaining aligned sector requires a numerical inverse.
 
-Third order is a specification here rather than a contribution: high-order,
-asymptotic-preserving, divergence-free discretisations of MHD have been built
-before, among them the finite-difference WENO schemes with constrained transport
-of Chen, Wu and Xiong~\cite{ChenWuXiong2023}. What has to be shown is that the
-splitting and the two structural results above survive at that order. Third-order
-accuracy in space on the explicit terms is obtained with a characteristic
-WENO3-Z reconstruction~\cite{DonBorges2013, BORGES20083191} and a
-monotonicity-preserving limiter~\cite{SureshHuynh1997}, for which we prove that
-the design order survives at smooth extrema. The implicit terms are discretised
+The order of accuracy is, by itself, a specification rather than a
+contribution: high-order, asymptotic-preserving, divergence-free
+discretisations of MHD have been built before, among them the finite-difference
+WENO schemes with constrained transport of Chen, Wu and
+Xiong~\cite{ChenWuXiong2023}. What has to be shown is that the splitting and
+the two structural results above survive at that order. Third-order accuracy in
+space on the explicit terms is obtained with a characteristic WENO3-Z
+reconstruction~\cite{DonBorges2013, BORGES20083191} and a
+monotonicity-preserving limiter~\cite{SureshHuynh1997}. For that limiter we
+prove a result that is not a specification: under a non-degeneracy condition on
+the critical points, it returns the unreconstructed WENO value unchanged on
+every sufficiently fine mesh, so that the design order is retained at smooth
+extrema wherever they fall relative to the mesh
+(Proposition~\ref{prop:mp3}). Monotonicity-preserving limiters are usually
+accepted with order loss at extrema; here they are not. The implicit terms are discretised
 with a fourth-order finite volume operator family, and third-order accuracy in
 time follows from a stiffly accurate IMEX Runge--Kutta
 scheme~\cite{BoscheriPareschi2021}, the stiff accuracy being what guarantees
@@ -428,8 +442,16 @@ momentum. Both enter the pressure operator, so that an implicit stage solves
 for a magnetic predictor and then for the pressure, without iterating between
 the two: the energy is balanced with a divergence-free field throughout the
 solve, the total energy is conserved without a second solve, and the formal
-order of the time integrator is retained. Positivity of the pressure is enforced
-with the mechanism of~\cite{MHDIMEX}, extended to the fourth-order operator by defect correction.
+order of the time integrator is retained. Positivity of the pressure is enforced with the
+mechanism of~\cite{MHDIMEX}: the cell-local pressure relation is replaced by one
+with a steep slope below a floor, which makes the pressure system nonlinear and
+is solved by a nested Newton iteration. Because that mechanism requires an
+operator with non-positive off-diagonal entries, which the fourth-order operator
+does not have, it is applied to a second-order M-matrix operator and the
+fourth-order solution is recovered by defect correction, with the constrained
+transport, the induction of $B_z$ and the magnetic energy flux carried by the
+defect. The nested Newton iteration therefore runs inside every defect step of
+every computation reported here.
 
 The remainder of this paper is organised as follows. Section~\ref{sec:governing}
 introduces the governing equations, the three-way flux splitting and the
@@ -3597,12 +3619,15 @@ dimensionless numbers, each is thereby transferred to the implicit solver
 independently of the other.
 
 The first contribution is the characteristic structure of this splitting, and it
-has two halves that serve different parts of the scheme. Whenever $\epsM>0$ the
-explicit sub-system is strongly hyperbolic---the Alfv\'en speeds follow from a
-quadratic in $\epsB$ alone and the magnetosonic speeds from a quartic in both
-parameters---and this is what allows the characteristic reconstruction to be
-carried out in the split basis. Independently of it, and at every value of the
-parameters, an exact block decomposition confines the singular limits of the
+has two halves that serve different parts of the scheme. The Alfv\'en speeds
+follow from a quadratic in $\epsB$ alone and the magnetosonic speeds from a
+quartic in both parameters, with real roots at every value of the two
+parameters; that is what makes the explicit CFL condition and the wave-speed
+envelope of the Riemann solver well defined. Whenever in addition $\epsM>0$ the
+explicit sub-system is strongly hyperbolic, and the resulting complete basis is
+what allows the characteristic reconstruction to be carried out in the split
+basis---bounded away from $\epsM=0$, where the basis degenerates while the flux
+does not. Independently of both, and at every value of the parameters, an exact block decomposition confines the singular limits of the
 eigenvectors to sub-blocks treated in closed form: the divergence mode is
 decoupled, and the Alfv\'en fields span a two-dimensional invariant subspace
 whose dual functionals annihilate every other wave family. It is this second half
@@ -3617,11 +3642,16 @@ energies are linearised about the explicit argument of the partitioned IMEX
 Runge--Kutta scheme, and the unstaggered, potential-based constrained transport
 is written as a linear map of the momentum; both are embedded in the pressure
 operator. Each stage then solves for a magnetic predictor and then for the
-pressure, without iterating between the two, the latter being balanced with a
-divergence-free field throughout its solution. The total energy is conserved without a second pressure
-solve, and the third order of the time integrator is retained. Positivity of the
-pressure is enforced with the mechanism of~\cite{MHDIMEX}, extended to the
-fourth-order operator by defect correction.
+pressure, without an outer iteration between the two, the latter being balanced
+with a divergence-free field throughout its solution. The total energy is
+conserved without a second pressure solve, and the third order of the time
+integrator is retained. Positivity of the pressure is enforced with the
+mechanism of~\cite{MHDIMEX}, whose modified pressure relation makes the system
+nonlinear and is solved by a nested Newton iteration; since that mechanism needs
+an M-matrix, it is applied to a second-order operator and the fourth-order
+solution is recovered by defect correction, so that the nested Newton iteration
+runs inside every defect step. Iteration is thus not avoided; what is avoided
+is the outer iteration between the magnetic field and the pressure.
 
 % CHECK every sentence of this paragraph against Section 4 and delete what the
 % experiments do not show.
