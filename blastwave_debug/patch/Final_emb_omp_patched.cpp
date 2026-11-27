@@ -187,6 +187,10 @@ double GMRESiter = 1e32;
 int GMRESrest = 30;
 
 double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell
+int g_jguard = 1;      // [fix K] 1: keep the two J-keyed safeguards of HLLEM_x; 0: both off
+int g_chisplit = 0;    // [fix I] 1: gate chi on sqrt(eps_M a^2 + eps_B c_A^2) instead of sqrt(a^2 + c_A^2)
+int g_rho_scale = 0;   // [fix J] 1: scale the deconvolution increment to the threshold instead of discarding it
+double g_rho_thr = 0.5;// [fix J] threshold of the density point-value guard (original: 0.5)
 double shock_threshold = 0.9;
 shock_threshold_Left threshold_Left = val_left;
 shock_threshold_Right threshold_Right = zero;
@@ -945,6 +949,7 @@ void MagneticFlux_Pressure_y(double *Q, double *flux){
 	flux[7] = 0;
 }
 
+double switchS(double M);   // [fix I] defined below; chi needs the split weights
 void ShockDetector(Array &shock_eta, Grid &u_con) {
 	// 转换守恒变量到原始变量 (rho, u, v, w, p, Bx, By, Bz)
 	static Grid u_pri(nxCells, nyCells);
@@ -974,8 +979,18 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 					double a2  = gamma_plasma * p_nbr / rho_nbr;
 					double cA2 = (Bx_nbr * Bx_nbr + By_nbr * By_nbr + Bz_nbr * Bz_nbr)
 					/ rho_nbr;
-					double cf  = std::sqrt(a2 + cA2);
-					
+					double cf;
+					if(g_chisplit){   // [fix I] the speed the explicit operator carries
+						const double un2 = u_pri(i + di, j + dj, 1)*u_pri(i + di, j + dj, 1)
+						                 + u_pri(i + di, j + dj, 2)*u_pri(i + di, j + dj, 2)
+						                 + u_pri(i + di, j + dj, 3)*u_pri(i + di, j + dj, 3);
+						const double un = std::sqrt(un2);
+						const double eM = 1.0 - switchS(un / std::sqrt(std::max(a2, 1.0e-300)));
+						const double eB = (cA2 > 0.0) ? 1.0 - switchS(un / std::sqrt(cA2)) : 0.0;
+						cf = std::sqrt(eM * a2 + eB * cA2);
+					}else{
+						cf = std::sqrt(a2 + cA2);
+					}
 					if (cf < cf_min_nbr) cf_min_nbr = cf;
 				}
 			}
@@ -988,11 +1003,14 @@ void ShockDetector(Array &shock_eta, Grid &u_con) {
 			// 公式 (4.40):
 			//   chi_tilde = min[1, max(0, -(h*div.u + k1*cf_min) / (k1*cf_min))]
 			double h           = std::min(dx, dy);
-			double numerator   = h * div_u + shock_kappa1 * cf_min_nbr;
 			double denominator = shock_kappa1 * cf_min_nbr;
-			
-			shock_eta_tilde(i, j) = std::min(1.0,
-				std::max(0.0, -numerator / denominator));
+			if(!(denominator > 0.0)){   // [fix I] exact limit: no resolved wave speed at all
+				shock_eta_tilde(i, j) = (div_u < 0.0) ? 1.0 : 0.0;
+			}else{
+				double numerator = h * div_u + denominator;
+				shock_eta_tilde(i, j) = std::min(1.0,
+					std::max(0.0, -numerator / denominator));
+			}
 		}
 	}
 	
@@ -1327,7 +1345,7 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	// is unchanged, and in a low-Mach flow the cap is O(|u|), so the dissipation keeps the asymptotic scaling.  Where
 	// eps = 1 the split envelope already is the unsplit one and nothing changes.
 	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
-		if(Jw > 0.5 && g_env_cap > 0.0){
+		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]
 			const double th = fmin(1.0, (Jw - 0.5)/0.5);
 			auto cfast = [](double a2, double bn2, double bp2){ const double s2 = a2 + bn2 + bp2; return sqrt(0.5*(s2 + sqrt(fmax(s2*s2 - 4.0*a2*bn2, 0.0)))); };
 			const double cT = cfast(a2_t, bx2_t, bp2_t), cL = cfast(fmax(a2L,0.0), bx2L, bp2L), cR = cfast(fmax(a2R,0.0), bx2R, bp2R);
@@ -1476,7 +1494,7 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			// of rho fail.  The anti-diffusion is therefore reduced linearly from a relative jump |drho|/min(rho) of 1/2
 			// and switched off from 1 on: never active in smooth flow (|drho|/rho = O(h)), plain HLL across strong contacts,
 			// with the envelope widened by [W] above.
-			{ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);
+			if(g_jguard){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]
 #pragma omp atomic
 				g_ent_lim++; } }
 			if(g_hllemoff || g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
@@ -1683,7 +1701,8 @@ static void fv_cell_to(Grid &out, const Grid &in, double sgn, bool rho_guard = f
 					out(i,j,k) = in(i,j,k) + sgn * d2 / 24.0;
 				}
 		}
-		if(rho_guard) for(int i = 0; i < NX; i++) if(!(out(i,j,0) >= 0.5*in(i,j,0))){ out(i,j,0) = in(i,j,0); ng++; }
+		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = g_rho_thr*in(i,j,0);   // [fix J]
+			if(!(out(i,j,0) >= thr)){ out(i,j,0) = g_rho_scale ? thr : in(i,j,0); ng++; } }
 	}
 	g_rho_guard += ng;
 }
@@ -1716,7 +1735,8 @@ template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, do
 					out(i,j,c) = in(i,j,c) + sgn * d2 / 24.0;
 				}
 		}
-		if(rho_guard) for(int i = 0; i < NX; i++) if(!(out(i,j,0) >= 0.5*in(i,j,0))){ out(i,j,0) = in(i,j,0); ng++; }
+		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = g_rho_thr*in(i,j,0);   // [fix J]
+			if(!(out(i,j,0) >= thr)){ out(i,j,0) = g_rho_scale ? thr : in(i,j,0); ng++; } }
 	}
 	if(rho_guard) g_rho_guard += ng;
 }
@@ -3567,7 +3587,7 @@ double calAlfvenMach(double *con){
 double g_sw_m0 = 0.15, g_sw_m1 = 0.40, g_sw_alpha = 14.0;   // switch parameters (paper: 0.15, 0.4, 14)
 int g_epsmax3 = 0;   // 1: cell eps := max over the 3x3 neighbourhood before the face max
 int g_pswitch = 0;   // 1: switching function driven by max(M, sqrt(|dp|/p)) and max(M_A, sqrt(|dm|/m))
-inline double switchS(double M) {
+double switchS(double M) {
 	double SW_EPS0  = g_sw_m0;
 	double SW_EPS1  = g_sw_m1;
 	double SW_ALPHA = g_sw_alpha;
@@ -4144,7 +4164,7 @@ static void rho_pt_guard(Grid& Qpt, Grid& Qbar){   // (also available inside fv_
 	long n = 0;
 #pragma omp parallel for collapse(2) schedule(static) reduction(+:n)
 	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++)
-		if(!(Qpt(i,j,0) >= 0.5*Qbar(i,j,0))){ Qpt(i,j,0) = Qbar(i,j,0); n++; }
+		if(!(Qpt(i,j,0) >= g_rho_thr*Qbar(i,j,0))){ Qpt(i,j,0) = g_rho_scale ? g_rho_thr*Qbar(i,j,0) : Qbar(i,j,0); n++; }   // [fix J]
 	g_rho_guard += n;
 }
 // [o3j] CELL AVERAGES of the velocity u = m/rho via point values (ubar != mbar/rhobar at O(h^2) when rho varies):
@@ -6620,6 +6640,8 @@ int main(int argc, char *argv[]){
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
 		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;
+		else if(key=="chisplit") g_chisplit = (int)v; else if(key=="rhoscale") g_rho_scale = (int)v; else if(key=="rhothr") g_rho_thr = v;
+		else if(key=="jguard") g_jguard = (int)v;
 		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
 		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") g_gamma_set = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }

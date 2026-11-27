@@ -577,6 +577,116 @@ double g_blast_B0 = 100.0;""")
     rep("""double shock_kappa1 = 0.05;   // sensor threshold: chi > 0 only if h*div(u) < -k1*c_f (velocity jump > 5% of c_f per cell)""",
         """double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell""")
 
+    # ========================================================================
+    # [fix I] Gate the shock indicator chi on the speed the EXPLICIT operator
+    # carries, not on the full MHD fast speed.
+    #
+    #   chi > 0  iff  h div(u) < -kappa1 * c,   c = sqrt(a^2 + c_A^2)   (original)
+    #                                           c = sqrt(eps_M a^2 + eps_B c_A^2)  [fix I]
+    #
+    # Why: in a low-Mach region a >> |u|, so h|div u| ~ |u| can never beat
+    # kappa1*a and chi NEVER fires there.  That is precisely the regime in which
+    # the two J-keyed safeguards of HLLEM_x (the entropy anti-diffusion limiter
+    # and the envelope widening) exist: at a low-Mach stagnation point the split
+    # envelope is O(|u|) -> 0, so neither the high-order flux nor the low-order
+    # HLL flux carries any dissipation, and the implicit operator is central.
+    # Gating chi on the split speed makes kappa1*c ~ 0.4|u|, comparable with
+    # h|div u|, so the paper's own chi-gated Laplacian fires exactly there and
+    # can replace both J-keyed patches and their two tuned constants (0.5, 1).
+    # The indicator then gates on the speed of the operator it stabilises.
+    # chisplit=0 (default) reproduces the original bit for bit.
+    # ========================================================================
+    rep("""void ShockDetector(Array &shock_eta, Grid &u_con) {""",
+        """double switchS(double M);   // [fix I] defined below; chi needs the split weights
+void ShockDetector(Array &shock_eta, Grid &u_con) {""")
+    rep("""inline double switchS(double M) {""", """double switchS(double M) {""")
+    rep("""double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell""",
+        """double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell
+int g_chisplit = 0;    // [fix I] 1: gate chi on sqrt(eps_M a^2 + eps_B c_A^2) instead of sqrt(a^2 + c_A^2)
+int g_rho_scale = 0;   // [fix J] 1: scale the deconvolution increment to the threshold instead of discarding it
+double g_rho_thr = 0.5;// [fix J] threshold of the density point-value guard (original: 0.5)""")
+    rep("""					double cf  = std::sqrt(a2 + cA2);
+					
+					if (cf < cf_min_nbr) cf_min_nbr = cf;""",
+        """					double cf;
+					if(g_chisplit){   // [fix I] the speed the explicit operator carries
+						const double un2 = u_pri(i + di, j + dj, 1)*u_pri(i + di, j + dj, 1)
+						                 + u_pri(i + di, j + dj, 2)*u_pri(i + di, j + dj, 2)
+						                 + u_pri(i + di, j + dj, 3)*u_pri(i + di, j + dj, 3);
+						const double un = std::sqrt(un2);
+						const double eM = 1.0 - switchS(un / std::sqrt(std::max(a2, 1.0e-300)));
+						const double eB = (cA2 > 0.0) ? 1.0 - switchS(un / std::sqrt(cA2)) : 0.0;
+						cf = std::sqrt(eM * a2 + eB * cA2);
+					}else{
+						cf = std::sqrt(a2 + cA2);
+					}
+					if (cf < cf_min_nbr) cf_min_nbr = cf;""")
+    rep("""			double numerator   = h * div_u + shock_kappa1 * cf_min_nbr;
+			double denominator = shock_kappa1 * cf_min_nbr;
+			
+			shock_eta_tilde(i, j) = std::min(1.0,
+				std::max(0.0, -numerator / denominator));""",
+        """			double denominator = shock_kappa1 * cf_min_nbr;
+			if(!(denominator > 0.0)){   // [fix I] exact limit: no resolved wave speed at all
+				shock_eta_tilde(i, j) = (div_u < 0.0) ? 1.0 : 0.0;
+			}else{
+				double numerator = h * div_u + denominator;
+				shock_eta_tilde(i, j) = std::min(1.0,
+					std::max(0.0, -numerator / denominator));
+			}""")
+
+    # ========================================================================
+    # [fix J] The density point-value guard as a SCALING limiter.
+    #
+    # The fourth-order operators convert cell averages to point values with
+    # q_pt = q_bar +- d2 q_bar / 24.  Where rho varies sharply the increment can
+    # drive rho_pt below the threshold, and the original guard then DISCARDS the
+    # whole increment (rho_pt := rho_bar), a 0/1 switch.  Scaling the increment
+    # so that rho_pt lands exactly on the threshold is the same safeguard with
+    # the discontinuity removed: it perturbs only by the excess beyond the
+    # threshold, so it is strictly closer to the unlimited value and preserves
+    # the design order better.  This is the standard scaling (Zhang-Shu) form.
+    #
+    # The threshold itself survives as g_rho_thr because the guard protects the
+    # DERIVED velocity u_pt = m_pt / rho_pt: with rho_pt >= 0.5 rho_bar the point
+    # velocity is at most twice the average one.  Removing the constant entirely
+    # needs either hull-based limiting of the primitive point values (with the
+    # MP machinery of Proposition mp3 to survive smooth extrema) or
+    # deconvolution in primitive variables; both are larger changes.
+    # rhoscale=0 (default) reproduces the original bit for bit.
+    # ========================================================================
+    rep("""		if(rho_guard) for(int i = 0; i < NX; i++) if(!(out(i,j,0) >= 0.5*in(i,j,0))){ out(i,j,0) = in(i,j,0); ng++; }""",
+        """		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = g_rho_thr*in(i,j,0);   // [fix J]
+			if(!(out(i,j,0) >= thr)){ out(i,j,0) = g_rho_scale ? thr : in(i,j,0); ng++; } }""", 2)
+    rep("""		if(!(Qpt(i,j,0) >= 0.5*Qbar(i,j,0))){ Qpt(i,j,0) = Qbar(i,j,0); n++; }""",
+        """		if(!(Qpt(i,j,0) >= g_rho_thr*Qbar(i,j,0))){ Qpt(i,j,0) = g_rho_scale ? g_rho_thr*Qbar(i,j,0) : Qbar(i,j,0); n++; }   // [fix J]""")
+
+    # runtime keys + banner
+    rep("""else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;""",
+        """else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;
+		else if(key=="chisplit") g_chisplit = (int)v; else if(key=="rhoscale") g_rho_scale = (int)v; else if(key=="rhothr") g_rho_thr = v;
+		else if(key=="jguard") g_jguard = (int)v;""")
+
+    # ========================================================================
+    # [fix K] A switch for the two J-keyed safeguards of HLLEM_x, so that the
+    # claim "the re-gated chi of [fix I] replaces them" can be tested:
+    #   jguard=1 (default)  the entropy anti-diffusion limiter AND the envelope
+    #                       widening, both keyed on J = |drho|/min(rho) with the
+    #                       tuned constants 0.5 and 1 -- the original behaviour.
+    #   jguard=0            both off.  With chisplit=0 this is expected to fail
+    #                       the way the source comments describe (Orszag-Tang
+    #                       X-point: a grid-scale density structure grows until
+    #                       the point values of rho fail); with chisplit=1 the
+    #                       paper's own chi-gated Laplacian should take over.
+    # ========================================================================
+    rep("""int g_chisplit = 0;    // [fix I]""",
+        """int g_jguard = 1;      // [fix K] 1: keep the two J-keyed safeguards of HLLEM_x; 0: both off
+int g_chisplit = 0;    // [fix I]""")
+    rep("""			{ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);""",
+        """			if(g_jguard){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]""")
+    rep("""		if(Jw > 0.5 && g_env_cap > 0.0){""",
+        """		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]""")
+
     # [fix G] 这两条必须在上面的横幅/计数器文本被创建之后
     rep("""	          << " senv=" << g_senv << " betafloor=" << g_betafloor""",
         """	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp""")
