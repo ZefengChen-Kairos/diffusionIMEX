@@ -156,7 +156,8 @@ inline double switchS(double M) {
 				sp(i,j) = fmin(1.0, d/0.5);
 			}
 #pragma omp parallel for collapse(2) schedule(static)
-			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++)
+				hchi(i,j) = (g_hllemflat >= 3) ? sp(i,j) : fmax(hchi(i,j), sp(i,j));   // 3: s_p ALONE, to isolate chi's contribution
 		}
 	}
 	g_env_cap = a_max_x;   // [W]
