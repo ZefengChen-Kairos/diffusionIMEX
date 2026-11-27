@@ -4,14 +4,14 @@ from plot_blast import read_vtk
 LAB={'ref':'ref   flat1=0 (现状: 3 传感器+cap)','L1':'L1    flat1=1 (统一, env 挂 chi, cap 开)',
      'L2':'L2    flat1=1 cap=0','L3':'L3    flat1=2 cap=0 (无压力传感器)',
      'L4':'L4    flat1=3 cap=0 (env 只挂跳变)','L5':'L5    flat1=4 cap=0 (最小)',
-     'L6':'L6    flat1=3 (env 只挂跳变, cap 开)','none':'none  完全无 flattener'}
+     'L6':'L6    flat1=3 (env 只挂跳变, cap 开)','L7':'L7    flat1=4 cap=0 hllemflat=1 (无 s_p)','L8':'L8    flat1=4 cap=0 hllemflat=0 (连 chi 也无)','none':'none  完全无 flattener'}
 def noise(a):
     c=a[1:-1,1:-1]
     up=(c>a[:-2,1:-1])&(c>a[2:,1:-1])&(c>a[1:-1,:-2])&(c>a[1:-1,2:])
     dn=(c<a[:-2,1:-1])&(c<a[2:,1:-1])&(c<a[1:-1,:-2])&(c<a[1:-1,2:])
     return 100.0*(up|dn).mean()
 print(f"{'run':40s} {'t':>6s} {'rho max':>8s} {'grad rho':>9s} {'shk r':>7s} {'nz rho%':>8s} {'nz p%':>7s} {'rms divu':>9s} {'<=8格%':>7s}")
-for t in ('ref','L1','L2','L3','L4','L5','L6','none'):
+for t in ('ref','L5','L7','L8','none'):
     g=sorted(glob.glob(f'lad_{t}/plot/*/plt_*.vtk'),key=lambda s:int(s.rsplit('_',1)[1].split('.vtk')[0]))
     if not g or not os.path.exists(f'lad_{t}/DONE'): print(f"{LAB.get(t,t):40s}   —"); continue
     d,nx,ny,tt=read_vtk(g[-1])

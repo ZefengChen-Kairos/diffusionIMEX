@@ -313,3 +313,75 @@ $J$ 无量纲、无尺度：光滑流里 $J=O(h)$ 使整个机制随加密自动
 
 128² 上 `none` 与 `ref` 的 ≤8格 跨度只有 1.0 → 1.5%，而历史上 256² 的跨度是 8% → 41%，
 说明 128² **欠分辨了这个模式**。L5 与 ref 在 256² 上的复核正在跑（ref / L5 / none 三例）。
+
+
+---
+
+# 阶梯到底：每个存活部件各做一件可辨识的事
+
+补完 L6/L7/L8 后的完整表（blast 128², $t=0.01$）：
+
+| | $\sigma_\delta$ | $\sigma_{\rm env}$ | cap | $\rho_{\max}$ | $\lvert\nabla\rho\rvert$ | 激波 $r$ | rms divu | ≤8格% |
+|---|---|---|---|---|---|---|---|---|
+| **ref** | $\max(\chi,s_p)\cdot(1-\Theta)$ 仅 $\delta_C$ | $\Theta$ | 0.25 | 3.0058 | 1.0540 | 0.2938 | 81.137 | **1.0** |
+| **L5** | $\max(\chi,s_p,\Theta)$ | $\Theta$ | 关 | **3.0056** | **1.0540** | **0.2938** | **81.141** | **1.0** |
+| L6 | $\max(\chi,s_p,\Theta_\rho,\Theta_p)$ | $\max(\Theta_\rho,\Theta_p)$ | 0.25 | 2.9484 | 0.9865 | 0.2991 | 77.123 | 0.9 |
+| L7 | $\max(\chi,\Theta)$ （**无 $s_p$**） | $\Theta$ | 关 | 2.9334 | 1.0833 | 0.2701 | 82.659 | **1.5** |
+| L8 | $\Theta$ （**连 $\chi$ 也无**） | $\Theta$ | 关 | 2.9334 | 1.0833 | 0.2701 | 82.659 | **1.5** |
+| none | 无 | 无 | 关 | 3.3174 | 1.2048 | 0.2545 | 82.673 | 1.5 |
+
+## 分解
+
+**L7 = L8 逐位相同** → $\chi$ 对 $\delta_k$ 的 flattening **在 $\kappa_1=0.4$ 下于 blast 上一次都没触发**。
+原因算得出来：$\chi>0$ 要求 $h\lvert\nabla\!\cdot\!\mathbf u\rvert>\kappa_1c_f$，
+而 blast 的 $c_f\approx c_B=28.2$ 使门槛为 11.3，实际 $h\lvert\nabla\!\cdot\!\mathbf u\rvert\sim0.8$。
+这也解释了 $\kappa_1$ 从 0.05 改到 0.4 时那两个计数器 137→0、36→0 的跳变。
+
+**L5 vs L7（唯一差别是 $s_p$）**：≤8格 1.0% → 1.5%，rms divu 81.14 → 82.66（= `none` 的 82.67）。
+→ **$s_p$ 是压制 carbuncle 条纹的唯一有效项。**
+
+**L8 vs none（唯一差别是 $\Theta$ 的两个动作）**：$\rho_{\max}$ 2.9334 vs 3.3174，激波 $r$ 0.2701 vs 0.2545。
+→ **$\Theta(J_\rho)$ 压制的是密度过冲，不是条纹。**
+
+**cap**：L1 vs L2、L4 vs L6 两对都无影响 → 删。
+
+| 部件 | 实测作用 | 判决 |
+|---|---|---|
+| $s_p$（压力跳，fix C） | 压制 carbuncle 条纹（1.5% → 1.0%） | **承重，留** |
+| $\Theta(J_\rho)$（原始码 guard 2+3） | 压制密度过冲（3.32 → 2.93） | **承重，留** |
+| $\chi$（Balsara, `eq:chi`） | 在 $\kappa_1=0.4$ 下于此算例不触发 | **留**（论文已写的那一个；不触发时零成本） |
+| cap（$\delta_k\le1-0.25$） | 无影响 | **删** |
+| $\Theta(J_p)$ 进包络 | 变噪（L6） | **删** |
+
+保留 $\chi$ 的理由不是性能，而是**它是论文已经写了的机制**
+（`eq:chi`、`\cite{Balsara2012}`），而 $s_p$ 是没写的。
+删掉有引用的、留着没引用的，方向是反的。
+
+## 最终最小集 = L5 = 干净版现有配置
+
+$$\sigma_\delta=\max\big(\chi,\ s_p,\ \Theta(J_\rho)\big),\qquad
+\sigma_{\rm env}=\Theta(J_\rho)$$
+
+$$\delta_k\leftarrow(1-\sigma_\delta)\,\delta_k,\qquad
+(s_L,s_R)\ \text{按}\ \sigma_{\rm env}\ \text{退回}\ \texttt{eq:einfeldt}$$
+
+| | 机制 | 可调常数 |
+|---|---|---|
+| 原状 | 4 | 6 |
+| **最小** | **1 个 flattener 对象，3 个输入** | **3**（$s_p$ 的 0.5；$\Theta$ 的 0.5 与 1） |
+
+**阶梯证明再减就掉质量，所以这是下界，不是选择。** 三处引用全部已在论文里。
+
+## 论文里要怎么写
+
+一句话：**在欠分辨跳变处把 AP-HLLEM 连续退回 HLLE。** 三个输入各有依据：
+
+| 输入 | 探测什么 | 依据 |
+|---|---|---|
+| $\chi$ | 相对快速度的压缩 | Balsara flattener，论文 `eq:chi`、`\cite{Balsara2012}` |
+| $s_p$ | 欠分辨的压力跳 | Dumbser–Balsara 治 carbuncle 的做法，论文 `\cite{HLLEM}` |
+| $\Theta(J_\rho)$ | 欠分辨的接触面 | 同上一类；$J$ 无量纲无尺度，光滑流 $J=O(h)$ 自动失活 |
+
+两个动作各有依据：$\delta_k\to$ 退回 HLL（`\cite{HLLEM}`）、
+包络 $\to$ 退回经典 Einfeldt 估计（论文 `eq:einfeldt`、`\cite{einfeldt1991godunov}`）。
+常数是一个无量纲斜坡的两端加一个相对跳阈值，与 MP/WENO 的限制器常数同类。
