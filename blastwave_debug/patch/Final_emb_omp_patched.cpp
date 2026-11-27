@@ -1232,6 +1232,9 @@ inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 // rest of the numerical flux is dissipation + anti-diffusion).  HLLEM_Update needs them to split the
 // numerical flux into its F^c, F^p, F^B parts BEFORE the transverse convolution.
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
+int g_idp = 0;                               // [fix G] 0 off / 1 compute-only (inert)
+static thread_local int g_hllem_lo = 0;      // [fix G] 1: plain HLL, for the low-order flux
+long g_idp_ulbad = 0;                        // [fix G] cells whose U^L is itself inadmissible
 int g_hllemflat = 2, g_hllemoff = 0;   // [fix C] HLLEM anti-diffusion: flattened by (1 - chi_face) (2: + pressure-jump sensor) / switched off (plain HLL)
 double g_hllemcap = 0.25;   // [fix C] delta_k <= 1 - g_hllemcap: fraction of the HLL dissipation kept on the LD waves
 static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
@@ -1476,7 +1479,7 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			{ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);
 #pragma omp atomic
 				g_ent_lim++; } }
-			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
+			if(g_hllemoff || g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
 			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener
 			if(g_hllemcap > 0.0){ const double cp = 1.0 - g_hllemcap; delta_C = fmin(delta_C, cp); delta_Ap = fmin(delta_Ap, cp); delta_Am = fmin(delta_Am, cp); }   // [fix C] cap
 			double coeff = sL*sR/(sR-sL);
@@ -1754,6 +1757,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 	// face is then solved ONCE instead of twice, and the transverse quadrature
 	// correction below needs the flux as a function along the face.
 	static Grid Fx(nxCells, nyCells), Fy(nxCells, nyCells);
+	static Grid FxL(nxCells, nyCells), FyL(nxCells, nyCells), Ulo(nxCells, nyCells);   // [fix G]
 	// [o3l] EPSILON-CONSISTENT TRANSVERSE CONVOLUTION.  The face flux is eps-weighted PER FACE,
 	// F = P^c + eps_M,f P^p + eps_B,f P^B + R.  Convolving the weighted sum along the face mixes the
 	// weights of the neighbouring faces into the second difference: where eps switches between
@@ -1805,6 +1809,15 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 					FxC(i,j,k) = Pc; FxP(i,j,k) = Pp; FxB(i,j,k) = Pb; FxR(i,j,k) = f[k] - (Pc + eM*Pp + eB*Pb);
 				}
 			}   // (Fx is assembled from the convolved parts below)
+			if(g_idp && g_hllem_Qe){   // [fix G] first-order flux from the two CELL AVERAGES
+				const Grid &QC = *g_hllem_Qe;
+				double QLo[NUM_VARS], QRo[NUM_VARS], fl[NUM_VARS];
+				for(int k = 0; k < NUM_VARS; k++){ QLo[k] = QC(i,j,k); QRo[k] = QC(i+1,j,k); }
+				g_hllem_lo = 1;
+				HLLEM_x(QLo, QRo, eps_M_grid_x(i,j), eps_B_grid_x(i,j), fl);
+				g_hllem_lo = 0;
+				for(int k = 0; k < NUM_VARS; k++) FxL(i,j,k) = fl[k];
+			}
 		}
 	}
 	g_env_cap = a_max_y;   // [W]
@@ -1825,6 +1838,15 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 					FyC(i,j,k) = Pc; FyP(i,j,k) = Pp; FyB(i,j,k) = Pb; FyR(i,j,k) = f[k] - (Pc + eM*Pp + eB*Pb);
 				}
 			}   // (Fy is assembled from the convolved parts below)
+			if(g_idp && g_hllem_Qe){   // [fix G] first-order flux from the two CELL AVERAGES
+				const Grid &QC = *g_hllem_Qe;
+				double QLo[NUM_VARS], QRo[NUM_VARS], fl[NUM_VARS];
+				for(int k = 0; k < NUM_VARS; k++){ QLo[k] = QC(i,j,k); QRo[k] = QC(i,j+1,k); }
+				g_hllem_lo = 1;
+				HLLEM_y(QLo, QRo, eps_M_grid_y(i,j), eps_B_grid_y(i,j), fl);
+				g_hllem_lo = 0;
+				for(int k = 0; k < NUM_VARS; k++) FyL(i,j,k) = fl[k];
+			}
 		}
 	}
 	// [o3] midpoint flux -> face-averaged flux (limited transverse second difference); always on
@@ -1855,6 +1877,24 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				             - h / dy * (Fy(i,j,k) - Fy(i,j-1,k));
 			}
 		}
+	}
+	if(g_idp){   // [fix G] the first-order update U^L, and how often it is itself inadmissible
+		long nbad = 0;
+#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbad)
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+				for(int k = 0; k < NUM_VARS; k++){
+					Ulo(i,j,k) = Qs(i,j,k)
+					           - h / dx * (FxL(i,j,k) - FxL(i-1,j,k))
+					           - h / dy * (FyL(i,j,k) - FyL(i,j-1,k));
+				}
+				const double r = Ulo(i,j,0);
+				const double ke = 0.5*(Ulo(i,j,1)*Ulo(i,j,1) + Ulo(i,j,2)*Ulo(i,j,2) + Ulo(i,j,3)*Ulo(i,j,3));
+				const double mb = 0.5*(Ulo(i,j,5)*Ulo(i,j,5) + Ulo(i,j,6)*Ulo(i,j,6) + Ulo(i,j,7)*Ulo(i,j,7));
+				if(!(r > 0.0 && Ulo(i,j,4) - ke/r - mb > 0.0)) nbad++;
+			}
+		}
+		g_idp_ulbad += nbad;
 	}
 }
 
@@ -6578,12 +6618,12 @@ int main(int argc, char *argv[]){
 		else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;
 		else if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v; else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v; else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemoff") g_hllemoff = (int)v; else if(key=="hllemcap") g_hllemcap = v;
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
-		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;
+		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;
 		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
 		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") g_gamma_set = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
 	std::cout << "ARGS cfl=" << CFL << " epsM=[" << eps_M_min << "," << eps_M_max << "] epsB=[" << eps_B_min << "," << eps_B_max << "] plap=" << g_plap << " kappa1=" << shock_kappa1 << " switch(m0,m1,alpha)=" << g_sw_m0 << "," << g_sw_m1 << "," << g_sw_alpha << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap
-	          << " senv=" << g_senv << " betafloor=" << g_betafloor
+	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp
 	          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin
 	          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth << ")" << std::endl;
 	switch (test) {
@@ -7064,7 +7104,7 @@ int main(int argc, char *argv[]){
 	}while(t < time_stop);
 	fclose(steplog);
 	std::cout << "pressure solves " << g_emb_solves << ", defect-correction sweeps " << g_emb_sweeps << ", not converged " << g_emb_nc
-	          << ", density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, envelope widened at " << g_env_wide << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
+	          << ", U^L inadmissible in " << g_idp_ulbad << " cells, density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, envelope widened at " << g_env_wide << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
 	if(test == testVortex){   // paper Table 2: L2 errors of rho, u, p, Bx, Az against the exact (translated) cell averages
 		const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)}; const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
 		double l2[5] = {0,0,0,0,0}, li[5] = {0,0,0,0,0};

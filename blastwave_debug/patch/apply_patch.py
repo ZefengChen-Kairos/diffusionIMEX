@@ -437,6 +437,101 @@ double g_betafloor = 0.0;""")
     # senv on by default, CFL to the paper's 0.8
     rep("""int g_senv = 0;""", """int g_senv = 2;""")
 
+    # ------------------------------------------------------------------ fix G
+    # [fix G] STEP 0 + STEP 1 of the invariant-domain blending.
+    #   idp = 0  old path, bit-identical
+    #   idp = 1  the first-order flux F^L and the first-order update U^L are computed
+    #            and instrumented, but NOTHING is applied  (the inertness test)
+    # F^L is the plain split HLL flux (no delta_k) evaluated on the CELL AVERAGES of
+    # the two adjacent cells, with the same per-face eps and the same senv envelope.
+    # It is deliberately NOT passed through fv_transverse_lim: a first-order flux needs
+    # no midpoint->average correction, and keeping the correction entirely inside
+    # A = F^H - F^L is what makes A the whole high-order content of the face.
+    # The second HLLEM_x/HLLEM_y call MUST come after the parts block, because
+    # g_hll_wL/g_hll_wR are set by the solver and read by that block.
+    rep("""int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""",
+        """int g_idp = 0;                               // [fix G] 0 off / 1 compute-only (inert)
+static thread_local int g_hllem_lo = 0;      // [fix G] 1: plain HLL, for the low-order flux
+long g_idp_ulbad = 0;                        // [fix G] cells whose U^L is itself inadmissible
+int g_hllemflat = HLLEMFLAT_DEFAULT, g_hllemoff = 0;""")
+
+    rep("""			if(g_hllemoff){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }""",
+        """			if(g_hllemoff || g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }""")
+
+    rep("""	static Grid Fx(nxCells, nyCells), Fy(nxCells, nyCells);""",
+        """	static Grid Fx(nxCells, nyCells), Fy(nxCells, nyCells);
+	static Grid FxL(nxCells, nyCells), FyL(nxCells, nyCells), Ulo(nxCells, nyCells);   // [fix G]""")
+
+    rep("""			}   // (Fx is assembled from the convolved parts below)
+		}
+	}""",
+        """			}   // (Fx is assembled from the convolved parts below)
+			if(g_idp && g_hllem_Qe){   // [fix G] first-order flux from the two CELL AVERAGES
+				const Grid &QC = *g_hllem_Qe;
+				double QLo[NUM_VARS], QRo[NUM_VARS], fl[NUM_VARS];
+				for(int k = 0; k < NUM_VARS; k++){ QLo[k] = QC(i,j,k); QRo[k] = QC(i+1,j,k); }
+				g_hllem_lo = 1;
+				HLLEM_x(QLo, QRo, eps_M_grid_x(i,j), eps_B_grid_x(i,j), fl);
+				g_hllem_lo = 0;
+				for(int k = 0; k < NUM_VARS; k++) FxL(i,j,k) = fl[k];
+			}
+		}
+	}""")
+
+    rep("""			}   // (Fy is assembled from the convolved parts below)
+		}
+	}""",
+        """			}   // (Fy is assembled from the convolved parts below)
+			if(g_idp && g_hllem_Qe){   // [fix G] first-order flux from the two CELL AVERAGES
+				const Grid &QC = *g_hllem_Qe;
+				double QLo[NUM_VARS], QRo[NUM_VARS], fl[NUM_VARS];
+				for(int k = 0; k < NUM_VARS; k++){ QLo[k] = QC(i,j,k); QRo[k] = QC(i,j+1,k); }
+				g_hllem_lo = 1;
+				HLLEM_y(QLo, QRo, eps_M_grid_y(i,j), eps_B_grid_y(i,j), fl);
+				g_hllem_lo = 0;
+				for(int k = 0; k < NUM_VARS; k++) FyL(i,j,k) = fl[k];
+			}
+		}
+	}""")
+
+    rep("""				u_con(i,j,k) = Qs(i,j,k)
+				             - h / dx * (Fx(i,j,k) - Fx(i-1,j,k))
+				             - h / dy * (Fy(i,j,k) - Fy(i,j-1,k));
+			}
+		}
+	}
+}""",
+        """				u_con(i,j,k) = Qs(i,j,k)
+				             - h / dx * (Fx(i,j,k) - Fx(i-1,j,k))
+				             - h / dy * (Fy(i,j,k) - Fy(i,j-1,k));
+			}
+		}
+	}
+	if(g_idp){   // [fix G] the first-order update U^L, and how often it is itself inadmissible
+		long nbad = 0;
+#pragma omp parallel for collapse(2) schedule(static) reduction(+:nbad)
+		for(int j = ghost_cells; j < nyCells + ghost_cells; j++){
+			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
+				for(int k = 0; k < NUM_VARS; k++){
+					Ulo(i,j,k) = Qs(i,j,k)
+					           - h / dx * (FxL(i,j,k) - FxL(i-1,j,k))
+					           - h / dy * (FyL(i,j,k) - FyL(i,j-1,k));
+				}
+				const double r = Ulo(i,j,0);
+				const double ke = 0.5*(Ulo(i,j,1)*Ulo(i,j,1) + Ulo(i,j,2)*Ulo(i,j,2) + Ulo(i,j,3)*Ulo(i,j,3));
+				const double mb = 0.5*(Ulo(i,j,5)*Ulo(i,j,5) + Ulo(i,j,6)*Ulo(i,j,6) + Ulo(i,j,7)*Ulo(i,j,7));
+				if(!(r > 0.0 && Ulo(i,j,4) - ke/r - mb > 0.0)) nbad++;
+			}
+		}
+		g_idp_ulbad += nbad;
+	}
+}""")
+
+    rep("""else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v;""",
+        """else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;""")
+
+
+
     # [fix F 修正] gamma= 必须在测试设置 switch 之后生效: switch 里的 gamma_plasma = ...
     # 会把命令行解析的值覆盖掉.  原先 gamma= 看着生效 (横幅打印的是解析值) 其实无效,
     # 实测: bsmooth=1 b0=70 gamma=1.4 复现原始初值时总能 U 差整整 1e3 = 1000/0.4 - 1000/(2/3).
@@ -468,6 +563,13 @@ double g_blast_B0 = 100.0;""")
         '\t          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth << ")" << std::endl;')
 
     rep("""double CFL = 0.1;""", """double CFL = 0.8;""")
+
+    # [fix G] 这两条必须在上面的横幅/计数器文本被创建之后
+    rep("""	          << " senv=" << g_senv << " betafloor=" << g_betafloor""",
+        """	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp""")
+
+    rep(""" << ", density point-value guard applied " << g_rho_guard""",
+        """ << ", U^L inadmissible in " << g_idp_ulbad << " cells, density point-value guard applied " << g_rho_guard""")
 
     s = s.replace('HLLEMFLAT_DEFAULT', str(HLLEMFLAT_DEFAULT)).replace('HLLEMCAP_DEFAULT', repr(HLLEMCAP_DEFAULT))
     header = '''// ============================================================================
