@@ -26,20 +26,40 @@
 | 2100 行附近 | 注释描述一个 `g_weno3_no_fallback` 开关，说那个"过保守"的 `g_char_fallback_tol = 1e-6` 判据已退休、只守 NaN/Inf；**该变量全文零声明**，2106 行的 `err > g_char_fallback_tol` 仍无条件生效 | 改注释以匹配代码（或真加那个开关，二选一） |
 | 6729 行 | `// match CASTOR: rho/v/p Dirichlet(ambient) + B transmissive` 描述的是 `x_Dirichlet` 分支，而 blast 实际选的是 `x_Transmissive`（零阶外推） | 改注释 |
 
-## C. 运行时开关：逐个决定
+## C. 运行时开关：只留两个 + 算例数据
 
-当前 26 个。干净版里应分三类。
+作者规格：**`cfl` 与 `senv` 保留为可选项**（`senv` = 物质速度地板取 global 还是 local，
+确实按算例选）；**其余一切单一路径，写死，不留分支**。
 
-**保留（算例参数，复现论文表格需要）**
-`cfl` `tag` `novtk` `b0` `pin` `tend` `bsmooth` `gamma` `rho0` `vL`
+**保留（两个真正的选项）**
 
-**保留（方法参数，论文里有的）**
-`kappa1`（论文 eq.72 = 0.4） `epsMmin/epsMmax/epsBmin/epsBmax`（论文的 $\varepsilon$ 界）
-`swm0/swm1/swalpha`（论文 $M_0,M_1,\alpha$） `plap`（论文 eq.45/85 的激波激活 Laplacian）
+| 键 | 为什么留 |
+|---|---|
+| `cfl` | 论文各算例用不同 CFL（0.2 / 0.8） |
+| `senv` | global $\max\lvert u\rvert$ 还是 local $\max\lvert u_n\rvert$，按算例选 |
 
-**删除（我的诊断/实验开关，决定一旦写进代码就不需要了）**
-`chisplit` `rhoscale` `rhothr` `jguard` `idp` `hllemoff` `epsmax3` `pswitch`
-`senv` `betafloor` `hllemflat` `hllemcap` —— 后四个取定值后写死
+**保留（算例数据，不是算法分支；论文的参数扫描需要）**
+
+`tag` `novtk` · `rho0` `vL`（Table 1 需要 $\rho_0=10^0\dots10^{-5}$）·
+`b0` `pin` `tend`（blast）· `gamma`（各算例默认不同）
+
+field loop 的 $A_0$ 目前是编译期常量 `LOOP_A0`，论文要四个振幅 → 也应提为算例数据。
+
+**删除（写死为选定值，不留开关）**
+
+| 键 | 写死为 | 依据 |
+|---|---|---|
+| `kappa1` | `0.4` | 论文 eq.(72) |
+| `swm0` `swm1` `swalpha` | `0.15` `0.4` `14` | 论文 eq.(switch)，已核对一致 |
+| `epsMmin` `epsMmax` `epsBmin` `epsBmax` | `0` `1` `0` `1` | 论文的 $\varepsilon\in[0,1]$；`epsBmax=0` 只是我的 E1 实验 |
+| `plap` | `1`（开） | 论文 eq.(45)/(85) 的激波激活 Laplacian |
+| `hllemflat` | 定值 | 取 E16/E17/E18 定下的值 |
+| `hllemcap` | 定值 | 同上 |
+| `betafloor` | 定值 | 取 $\kappa\beta_{\rm amb}$ 研究定下的值 |
+| `epsmax3` | `0` | 实验用 |
+| `pswitch` | `0` | 实验用 |
+| `bsmooth` | 单一路径 | **需你定**：代码默认 erf 平滑，论文 eq.(107) 写锐跳变 |
+| `chisplit` `rhoscale` `rhothr` `jguard` `idp` `hllemoff` | 不留 | 我的诊断开关；决定一旦写进代码就不需要了 |
 
 ## D. 待 Orszag–Tang 结果决定
 
