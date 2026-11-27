@@ -1349,17 +1349,30 @@ $\tilde\lambda^{\mp}_{f}(\mathbf{U})$ the smallest and largest roots of the magn
 quartic~\eqref{eq:ms_disp} at a state $\mathbf{U}$,
 \begin{equation}
 \label{eq:einfeldt}
-s_{L}=\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{-}_{f}(\mathbf{U}),
+s_{L}=\min\Bigl(\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{-}_{f}(\mathbf{U}),\;-u^{\max}\Bigr),
 \qquad
-s_{R}=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}).
+s_{R}=\max\Bigl(\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}),\;+u^{\max}\Bigr),
 \end{equation}
+where $u^{\max}=\max_{\Omega}|u|$ for the $x$ sweep and $\max_{\Omega}|v|$ for the
+$y$ sweep: the same global material speed that already enters the time-step
+bound~\eqref{eq:cfl}. The lower bound closes the envelope where the split
+spectrum degenerates. As $\epsM,\epsB\to0$ the magnetosonic
+quartic~\eqref{eq:ms_disp} tends to $(\lambda-u)^{4}$, so both inner extrema
+in~\eqref{eq:einfeldt} tend to $u$, the interval $[s_{L},s_{R}]$ collapses onto a
+point, and the coefficient $s_{L}s_{R}/(s_{R}-s_{L})$ of~\eqref{eq:hllem} is
+indeterminate wherever the flow stagnates. Since
+$u^{\max}\le\mathrm{CFL}\,\min(\Delta x,\Delta y)/\Delta t$
+by~\eqref{eq:cfl}, the bound costs at most $\mathrm{CFL}$ times the viscosity of
+the classical Lax--Friedrichs flux; it contains no free parameter and is
+inactive at every face whose split fast speeds already bracket $\pm u^{\max}$.
 Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
 on the invariant blocks of Lemma~\ref{lem:blocks} the interval
 $[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
 Alfv\'en speeds~\eqref{eq:alfven_eig}. We have verified this over the whole
 admissible range of states and of $(\epsM,\epsB)\in[0,1]^2$; the two intervals
 touch only in the degenerate limit $\epsB B_x\to0$, where the Alfv\'en pair
-collapses onto $\{u,\epsB u\}$. The anti-diffusion coefficients
+collapses onto $\{u,\epsB u\}$; the lower bound in~\eqref{eq:einfeldt} only
+widens $[s_{L},s_{R}]$ and so cannot invalidate the inclusion. The anti-diffusion coefficients
 $\delta_k$ of~\eqref{eq:deltak} therefore lie in $[0,1]$ for all three linearly
 degenerate fields without further clipping.
 
@@ -1381,7 +1394,9 @@ Newton started outside the root interval of a polynomial with real roots cannot
 leave it, so the envelope is obtained without any such failure.
 For $s_L\ge0$ or $s_R\le0$ the
 flux reduces to the upwind value $\tilde\FF^{c}(\mathbf{U}^{L})$ or
-$\tilde\FF^{c}(\mathbf{U}^{R})$; for $s_L<0<s_R$ the AP-HLLEM flux reads
+$\tilde\FF^{c}(\mathbf{U}^{R})$, which the lower bound
+in~\eqref{eq:einfeldt} precludes unless the flow is globally at rest; for
+$s_L<0<s_R$ the AP-HLLEM flux reads
 \begin{equation}
 \label{eq:hllem}
 \tilde\FF^{\eps}_{i+\frac12,j}
@@ -1460,9 +1475,25 @@ complete Riemann solver. In the stiff limit $\epsM,\epsB\to0$ the split spectrum
 so that $s_L,s_R=\mathcal O(|u|)$: the coefficient $s_Ls_R/(s_R-s_L)$
 of~\eqref{eq:hllem}, and with it both the HLL dissipation and the anti-diffusive
 term, scales with the material velocity rather than with the sound or Alfv\'en
-speed. Where $u$ has one sign across the interface, $s_Ls_R=0$ and the flux
-reduces to the upwind value. The asymptotic-preserving property is thus
-continuous in $\epsM,\epsB$, with no solver switching.
+speed. The lower bound of~\eqref{eq:einfeldt} preserves that scaling, since
+$u^{\max}=\mathcal O(|u|)$ as well, and it fixes the limit uniquely: with
+$s_{L}=-u^{\max}$ and $s_{R}=u^{\max}$ the HLL part~\eqref{eq:hll} becomes
+\begin{equation}
+\label{eq:aplimit}
+\FF^{\mathrm{HLL}}_{i+\frac12,j}
+=\half\!\left[\tilde\FF^{c}(\mathbf{U}^{L})+\tilde\FF^{c}(\mathbf{U}^{R})
+-u^{\max}\big(\mathbf{U}^{R}-\mathbf{U}^{L}\big)\right],
+\end{equation}
+which is exactly the scalar-dissipation flux~\eqref{eq:rusanov} that weak
+hyperbolicity forces on the standard IMEX baseline, with its local speed
+$s^{\max}$ replaced by the global bound $u^{\max}$. In the stiff limit the
+AP-HLLEM flux is therefore that baseline minus the anti-diffusive sum
+of~\eqref{eq:hllem}, whose entropy coefficient is
+$\delta_{\mathrm{ent}}=1-|u|/u^{\max}$ and stays positive wherever the local
+material speed is below the global bound. The asymptotic-preserving property is
+thus continuous in $\epsM,\epsB$ and needs no solver switching: the $\eps$-split
+does not discard the Rusanov flux~\eqref{eq:rusanov}, it recovers it as the
+stiff limit and sharpens the three linearly degenerate fields on top of it.
 
 
 \subsection{Characteristic WENO3-Z reconstruction}
