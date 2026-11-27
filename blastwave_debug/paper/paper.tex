@@ -2019,7 +2019,35 @@ are thus part of the pressure operator: every evaluation of the left-hand side
 computes the divergence-free field associated with the trial pressure, so that
 the energy is balanced with a solenoidal field throughout the solve. The
 operator is not symmetric, because of the first-order terms contributed by
-$\Phi$, and~\eqref{eq:pwave} is solved as described in Section \ref{sec:nestednewton}. Once $p^{n+1}$ is known, the
+$\Phi$, and~\eqref{eq:pwave} is solved as described in Section \ref{sec:nestednewton}.
+
+The central discretisation of the elliptic term in~\eqref{eq:pwave} carries no
+numerical dissipation, exactly as that of $\mathcal D^{n}_{B}$ did, so the same
+shock-activated stabilisation is applied to it. Following~\cite{MHDIMEX},
+\eqref{eq:pwave} is augmented on its left-hand side by
+$-\mathcal S^{p}_{h}[p^{n+1}]$, with
+\begin{equation}
+\label{eq:p_stab}
+\mathcal S^{p}_{h}\big[p^{n+1}\big]
+=\Delta t\sum_{d\in\{x,y\}}\partial_{d}\Big(
+\mathbf V'(p^{n})\,\chi\,(1-\epsM)\,\big|u_{d}\big|_{\max}\,\Delta d\;
+\partial_{d}p^{n+1}\Big),
+\qquad
+\big|u_{d}\big|_{\max}=\max_{\Omega}|u_{d}| ,
+\end{equation}
+where $\chi$ is the indicator~\eqref{eq:chi} already used
+in~\eqref{eq:mag_stab}, and $\mathbf V'(p)=1/(\gamma-1)$ for an ideal gas. Three
+remarks. The coefficient is the largest material speed of that direction over
+the mesh, as in~\eqref{eq:mag_stab}, rather than the local one; it is evaluated
+at the beginning of the time step. The weight $(1-\epsM)$ confines the term to
+the share of the pressure flux that is treated implicitly, so it vanishes with
+the implicit sub-system itself as $\epsM\to1$. Keeping $\mathbf V'$ inside the
+divergence preserves the strict flux form of the dissipation, so that the term
+enters the coupling matrix of Section~\ref{sec:nestednewton} as a conservative
+contribution and does not disturb its M-matrix structure. Because the Laplacian
+is discretised implicitly it imposes no time-step restriction beyond~\eqref{eq:cfl}.
+
+Once $p^{n+1}$ is known, the
 momentum follows from~\eqref{eq:p_mom}, the magnetic field
 from~\eqref{eq:CTmap} and~\eqref{eq:Bz}, and the total energy from
 \begin{equation}

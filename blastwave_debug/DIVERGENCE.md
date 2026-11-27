@@ -218,7 +218,7 @@ Rusanov 耗散**不作用在 $\mathbf B$ 上**。paper 2 的 `eq:rusanov` 没写
 | **9** | 显式通量的"面中点→面均值"转换是**按 ε 份额分别做**的:通量先用 HLL 基权拆成 `Pc/Pp/Pb` + 余项 `FxR = f-(Pc+eM*Pp+eB*Pb)`,各自卷积,再用该面的 ε 重组(:1677–1678 / :1696–1697) | §`sec:fv_ops`(:2717–2720)说的是对**数值通量本身**做一次转换 | blocks-reproduction |
 | **10** | 横向的面均值↔面中点转换是 **minmod 门 + ε_M 混合**的二阶差分(`fv_transverse_lim`, :1518–1541),两个方向都是;外侧两圈**不转换**。门限 `thr = 0.5*h*max_Ω|q_k|` —— 单元级的判断依赖**全域**量 | `eq:convdeconv`(:2690–2700)是无条件的线性式 | misleading(扩展已有第 4 项:新信息是"两个方向"、"外两圈不转换"、"门限含全域 max") |
 | **11** | 喂给 Einfeldt 包络的声速被**地板化**:`a2_t = fmax(a2_t, 1e-12)`(:1172)并把该值传给 Roe 态的 `SplitFastSpeeds`(:1195);左右态用 `fmax(a2L,0.0)` | `eq:einfeldt` 与 $\tilde a^2$ 的定义没有地板;论文的退化条款只覆盖**反扩散项** | misleading |
-| **12** | 压力算子里加了一整个**激波激活 Laplacian**,系数是**全域** $\max_\Omega\lvert u\rvert$(`g_plap` 默认 1) | 论文写了**磁**的那一个(§1798–1802,`eq:mag_stab`,连全域 max 一起写了),但 `eq:pwave`(:1952–1958)**没有任何耗散项** | **blocks-reproduction**(我已复验论文两处) |
+| ~~12~~ | 压力算子里加了一整个**激波激活 Laplacian**,系数是**全域** $\max_\Omega\lvert u\rvert$ | ~~`eq:pwave` 没有任何耗散项~~ | **已写**:新 `eq:p_stab`,见下节 |
 | **13** | CT 里 $\nabla A$ 的斜率限制器由**全域** $\max\lvert\nabla A\rvert$ 开门(`mm2g`, :4023),并按 $\varepsilon_M$ 混合 | 论文只说 "limited differences" | misleading |
 | 14 | $\beta$ 旋转在 $\lvert\tilde B_\perp\rvert\le10^{-12}$ 以下回退到固定向量(:1237–1241);同一个 `eq:beta` 在两处用了**两个不一致**的门限 | 论文未写 | cosmetic |
 
@@ -288,3 +288,45 @@ in the HLLEM Riemann solver*。它是**对这个机制的已发表线性扰动�
 另一个把 DOI `10.1016/j.jcp.2018.11.022` 挂在同一个 preprint 上,后者更可能是同作者的
 HLLC 姊妹篇)。bib 条目已加入,**并在 .bib 里用显著注释标出投稿前必须核对**
 journal / volume / issue / pages / DOI。
+
+
+---
+
+## 七条新分歧的来源分类(2026-11-23 核对原始码)
+
+把每一条都对 `Final_emb_omp_original.cpp` 查了一遍,结论很干脆:
+
+**#8a/#8b/#9/#10a-c/#11/#13/#14,以及分歧表第 5、6 项,全部在原始码里。**
+没有一条是我引入的补丁。它们是作者自己的代码,决定权在作者:写进论文,或改代码。
+只有 `g_plap`(压力 Laplacian 的开关)是我加的 —— 原始码 0 次、patched 8 次:
+原始码**算了** `lap_p` 但从未加进 `Ax`(死代码),我把它接上了。
+
+## 第 12 项:已写进论文(新 `eq:p_stab`)
+
+查 paper 1 得到的确切依据:
+
+| | paper 1 | paper 2(改动前) | 代码 |
+|---|---|---|---|
+| 磁 Laplacian 系数 | eq.(83) $\kappa^{x}_{\mathbf B,ij}=\lvert\lambda^{\mathbf B}_{ij}\rvert\Delta x$,**局部** | `eq:mag_stab` 明写 $\max_\Omega$,**全域** | `B_max_x*dx`,全域 ✓ |
+| 压力 Laplacian 系数 | eq.(45)/(85) $\tilde\kappa^{x}_{ij}=\mathbf V'(p_{ij})\chi_{ij}\lvert u_{ij}\rvert\Delta x$,**局部** | **完全没写** | `vx_max*dx`,全域 |
+| $\kappa_1$ | eq.(43) $k_1=10^{-3}$ | `eq:chi` $\kappa_1=0.4$ | `0.4`(按 paper 2 设) |
+
+所以 paper 2 是**有意**把系数从 paper 1 的局部改成全域的(磁的那条明写了 $\max_\Omega$,
+还写了 "evaluated at the beginning of the time step"),代码对压力做了同样的事,
+只是 paper 2 没把压力那一条写下来。**修法是补写,不是改代码**:新增 `eq:p_stab`,
+与 `eq:mag_stab` 同构,含 $\mathbf V'(p^n)$、$\chi$、$(1-\varepsilon_M)$ 面权、
+全域 $\lvert u_d\rvert_{\max}$,并说明保持通量形式以不破坏耦合矩阵的 M-矩阵结构
+(这条理由取自 paper 1 第 1461–1465 行)。
+
+代码注释里 `(paper eq. 84)` 两处都标错了:paper 1 的 eq.(84) 是动量更新,
+磁的是 eq.(83),压力的是 eq.(45)/(85)。很可能就是这个串号让全域系数从磁的那条
+复制到了压力那条。
+
+### 两条留给作者的决定
+
+1. **$\kappa_1$:paper 1 是 $10^{-3}$,paper 2 是 $0.4$,差 400 倍。**
+   $10^{-3}$ 下几乎任何压缩都触发 $\chi$,$0.4$ 下只有强激波触发。paper 2 自身是
+   自洽的,但同时读两篇的审稿人会注意到。要不要加一句说明改动理由。
+   **注意这条影响 $\chi$ 的删除结论**:我测 $\chi$ 几乎不触发是在 $\kappa_1=0.4$ 下做的。
+2. **两个 Laplacian 系数都从 paper 1 的局部改成了 paper 2 的全域。** 磁的那条论文写了,
+   压力那条现在也写了。要不要在文中点明这是相对 paper 1 的改动。
