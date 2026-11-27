@@ -151,12 +151,123 @@ def step3_flattener(s):
     return s
 
 
+def step4a_off_switches(s):
+    """Three switches that default to OFF.  Removing an off branch must be
+    bit-identical, which is how this sub-step is checked."""
+    n0 = len(s)
+    # --- fix B: pressure-fluctuation-aware switch ---
+    m = re.search(r'[\t ]*if\(g_pswitch\)\{   // \[fix B\].*?\n[\t ]*cM\(i,j\) = fmin\(eps_M_max[^\n]*\n[\t ]*\}\n', s, re.S)
+    assert m, 'pswitch branch not found'
+    s = s[:m.start()] + s[m.end():]
+    s = cut(s, 'int g_pswitch = 0;   // 1: switching function driven by max(M, sqrt(|dp|/p)) and max(M_A, sqrt(|dm|/m))\n', 'pswitch global')
+    # --- the optional 3x3 widening of eps ---
+    m = re.search(r'[\t ]*if\(g_epsmax3\)\{   // optional:.*?\{ cM\(i,j\) = cM3\(i,j\); cB\(i,j\) = cB3\(i,j\); \}\n[\t ]*\}\n', s, re.S)
+    assert m, 'epsmax3 branch not found'
+    s = s[:m.start()] + s[m.end():]
+    s = cut(s, 'int g_epsmax3 = 0;   // 1: cell eps := max over the 3x3 neighbourhood before the face max\n', 'epsmax3 global')
+    # --- fix D: the plasma-beta floor, never switched on in any reference run ---
+    m = re.search(r'[\t ]*if\(g_betafloor > 0\.0\)\{   // \[fix D\].*?\n[\t ]*\}\n[\t ]*\}\n', s, re.S)
+    assert m, 'betafloor block not found'
+    s = s[:m.start()] + s[m.end():]
+    s = cut(s, 'double g_betafloor = 0.0;          // [fix D] minimum plasma beta: p >= betafloor * |B|^2/2 (betafloor=0 -> off)\n', 'betafloor global')
+    # --- their runtime keys and the ARGS banner ---
+    s = sub1(s, ' else if(key=="epsmax3") g_epsmax3 = (int)v; else if(key=="pswitch") g_pswitch = (int)v;', '', 'epsmax3/pswitch keys')
+    s = sub1(s, 'else if(key=="betafloor") g_betafloor = v; ', '', 'betafloor key')
+    s = sub1(s, ' << " epsmax3=" << g_epsmax3 << " pswitch=" << g_pswitch', '', 'epsmax3/pswitch banner')
+    s = sub1(s, ' << " betafloor=" << g_betafloor', '', 'betafloor banner')
+    for v in ('g_pswitch', 'g_epsmax3', 'g_betafloor'):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    print('  step 4a off switches: %d chars removed' % (n0 - len(s)))
+    return s
+
+
+def step4b_probe_machinery(s):
+    """fix G (the IDP probe) out entirely, and the flattener machinery made
+    unconditional: hllemflat / hllemcap / hllemoff were switches over code that
+    is now the only path."""
+    n0 = len(s)
+    # --- fix G: declarations, grids, both second-solver calls, the U^L block ---
+    s = cut(s, 'int g_idp = 0;                               // [fix G] 0 off / 1 compute-only (inert)\n'
+               'static thread_local int g_hllem_lo = 0;      // [fix G] 1: plain HLL, for the low-order flux\n'
+               'long g_idp_ulbad_r = 0, g_idp_ulbad_p = 0;   // [fix G] cells whose U^L is itself inadmissible, split by rho / p\n',
+            'fix G globals')
+    s = cut(s, '\tstatic Grid FxL(nxCells, nyCells), FyL(nxCells, nyCells), Ulo(nxCells, nyCells);   // [fix G]\n', 'fix G grids')
+    pat = re.compile(r'[\t ]*if\(g_idp && g_hllem_Qe\)\{   // \[fix G\][^\n]*\n(?:[^\n]*\n)*?[\t ]*for\(int k = 0; k < NUM_VARS; k\+\+\) F[xy]L\(i,j,k\) = fl\[k\];\n[\t ]*\}\n')
+    assert len(pat.findall(s)) == 2, 'fix G solver blocks: found %d' % len(pat.findall(s))
+    s = pat.sub('', s)
+    m = re.search(r'[\t ]*if\(g_idp\)\{   // \[fix G\] the first-order update.*?\n[\t ]*g_idp_ulbad_r \+= nbadr; g_idp_ulbad_p \+= nbadp;\n[\t ]*\}\n', s, re.S)
+    assert m, 'fix G U^L block not found'
+    s = s[:m.start()] + s[m.end():]
+    s = sub1(s, '\t\t\tif(g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }\n\t\t\telse { const double fl',
+                '\t\t\t{ const double fl', 'hllem_lo branch')
+    s = sub1(s, '", U^L inadmissible: rho in " << g_idp_ulbad_r << " cells, p in " << g_idp_ulbad_p << " cells, density point-value guard applied "',
+                '", density point-value guard applied "', 'U^L report')
+    s = sub1(s, ' << " idp=" << g_idp', '', 'idp banner')
+    # --- the flattener machinery is now the only path ---
+    m = re.search(r'int g_hllemflat = [^\n]*g_hllemoff = 0;[^\n]*\n', s)
+    assert m, 'hllemflat global not found'
+    s = s[:m.start()] + s[m.end():]
+    s = sub1(s, 'if(g_hllemflat && g_hllem_Qe){', 'if(g_hllem_Qe){', 'hchi guard')
+    s = sub1(s, 'if(g_hllemflat >= 2){   // + pressure-jump sensor',
+                '{   // pressure-jump sensor', 'sp guard')
+    assert s.count('if(g_hllemflat){ const int ') == 2, 'face chi guards'
+    s = s.replace('if(g_hllemflat){ const int ', '{ const int ')
+    s = sub1(s, ' else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemcap") g_hllemcap = v;', '', 'hllemflat/cap keys')
+    s = sub1(s, ' << " hllemflat=" << g_hllemflat << " hllemoff=" << g_hllemoff << " hllemcap=" << g_hllemcap', '', 'hllemflat banner')
+    m = re.search(r'double g_hllemcap = [^\n]*\n', s)
+    assert m, 'hllemcap global not found'
+    s = s[:m.start()] + s[m.end():]
+    for v in ('g_idp', 'g_hllem_lo', 'g_idp_ulbad', 'FxL', 'FyL', 'Ulo', 'g_hllemflat', 'g_hllemcap', 'g_hllemoff'):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    print('  step 4b probe machinery: %d chars removed' % (n0 - len(s)))
+    return s
+
+
+def step4c_bake_method_params(s):
+    """The method parameters the paper states.  Writing them in leaves one path;
+    the defaults already are the chosen values, so this must be bit-identical.
+
+      kappa1 = 0.4            paper eq.(72)
+      M0, M1, alpha           paper eq:switch, 0.15 / 0.4 / 14
+      plap = 1                the shock-activated pressure Laplacian, eq.(45)/(85)
+      bsmooth = 1             the erf-smoothed blast jump, which is what is run
+    """
+    n0 = len(s)
+    s = sub1(s, 'else if(key=="plap") g_plap = (int)v; else if(key=="tag") g_tag = k.substr(eq+1); else if(key=="kappa1") shock_kappa1 = v;',
+                'else if(key=="tag") g_tag = k.substr(eq+1);', 'plap/kappa1 keys')
+    s = sub1(s, '\t\telse if(key=="swm0") g_sw_m0 = v; else if(key=="swm1") g_sw_m1 = v; else if(key=="swalpha") g_sw_alpha = v;\n', '', 'switch keys')
+    s = sub1(s, 'else if(key=="bsmooth") g_blast_smooth = (int)v; ', '', 'bsmooth key')
+    # Deliberately NOT const.  Marking them const lets -O2 -march=native fold
+    # the literal into the expression, which enables FMA contraction the
+    # runtime-loaded double did not get, and the last bits of the solution move.
+    # Removing the key already leaves one path; const would only be cosmetic and
+    # would cost the bit-identity check.  Measured: with const, the 128^2 blast
+    # diverges from step 2 on.
+    s = sub1(s, 'double shock_kappa1 = 0.4;    // [fix H] paper eq.(72);',
+                'double shock_kappa1 = 0.4;    // paper eq.(72);', 'kappa1 comment')
+    s = sub1(s, '// switch parameters (paper: 0.15, 0.4, 14)', '// paper eq:switch', 'switch comment')
+    s = sub1(s, 'int g_plap = 1;      // [fix] 1 = shock-activated pressure Laplacian of paper 1 (eq. 45/85), (1-eps_M)-weighted, in L2 and L4',
+                'int g_plap = 1;      // shock-activated pressure Laplacian, eq.(45)/(85), (1-eps_M)-weighted, in L2 and L4',
+             'plap comment')
+    # the ARGS banner now only echoes what can still be chosen
+    m = re.search(r'\tstd::cout << "ARGS cfl=" << CFL[^\n]*\n[^\n]*\n', s)
+    assert m, 'ARGS banner not found'
+    s = s[:m.start()] + '\tstd::cout << "ARGS cfl=" << CFL << " senv=" << g_senv\n' + s[m.end():]
+    print('  step 4c method params: %d chars removed' % (n0 - len(s)))
+    return s
+
+
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
-    upto = int(sys.argv[3]) if len(sys.argv) > 3 else 3
+    upto = sys.argv[3] if len(sys.argv) > 3 else '4c'
+    order = ['1', '2', '3', '4a', '4b', '4c']
+    want = order[:order.index(upto) + 1]
     s = open(src).read()
-    if upto >= 1: s = step1_dead_code(s)
-    if upto >= 2: s = step2_probes(s)
-    if upto >= 3: s = step3_flattener(s)
+    if '1' in want:  s = step1_dead_code(s)
+    if '2' in want:  s = step2_probes(s)
+    if '3' in want:  s = step3_flattener(s)
+    if '4a' in want: s = step4a_off_switches(s)
+    if '4b' in want: s = step4b_probe_machinery(s)
+    if '4c' in want: s = step4c_bake_method_params(s)
     open(dst, 'w').write(s)
     print('wrote', dst)
