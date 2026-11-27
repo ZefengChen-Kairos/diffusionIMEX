@@ -2923,18 +2923,25 @@ $\|\Bb\|$ does not depend on $\rho_0$, the speed $c_a$ follows
 $\rho_0^{-1/2}$ exactly; $M_c$ follows $\rho_0^{1/2}$ to within $0.4\%$ from
 $\rho_0=10^{-1}$ on and to $4\%$ at $\rho_0=1$, the residual being the
 variation of the pressure minimum through the kinetic term
-of~\eqref{eq:vortex_dp}.}
+of~\eqref{eq:vortex_dp}. The last two columns give the ratio of the admissible
+step to that of a fully explicit discretisation,
+$\max_\Omega|\lambda_{\max}|/\max_\Omega|\tilde\lambda^{c}_{\max}|$, evaluated on
+the initial data for the two-parameter splitting and for the single-parameter
+choice $\epsB\equiv0$.}
 \label{tab:vortex_regimes}
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrrr}
 \toprule
-$\rho_0$ & $M_c$ & $c_a$ & $\min M_A$ & $\min\beta$ \\
+$\rho_0$ & $M_c$ & $c_a$ & $\min M_A$ & $\min\beta$ &
+\multicolumn{2}{c}{$\Delta t/\Delta t_{\mathrm{MHD}}$} \\
+\cmidrule(l){6-7}
+ & & & & & two parameters & $\epsB\equiv0$ \\
 \midrule
-$10^{0}$  & $1.4732$ & $0.1592$ & $6.379$ & $72.5$ \\
-$10^{-1}$ & $0.4459$ & $0.5033$ & $2.017$ & $78.3$ \\
-$10^{-2}$ & $0.1405$ & $1.5915$ & $0.638$ & $78.9$ \\
-$10^{-3}$ & $0.0444$ & $5.0329$ & $0.202$ & $78.9$ \\
-$10^{-4}$ & $0.0141$ & $15.9155$ & $0.064$ & $78.9$ \\
-$10^{-5}$ & $0.0044$ & $50.3292$ & $0.020$ & $79.0$ \\
+$10^{0}$  & $1.4732$ & $0.1592$ & $6.379$ & $72.5$ & $1.00$  & $1.00$ \\
+$10^{-1}$ & $0.4459$ & $0.5033$ & $2.017$ & $78.3$ & $1.00$  & $1.00$ \\
+$10^{-2}$ & $0.1405$ & $1.5915$ & $0.638$ & $78.9$ & $4.79$  & $10.2$ \\
+$10^{-3}$ & $0.0444$ & $5.0329$ & $0.202$ & $78.9$ & $7.10$  & $30.5$ \\
+$10^{-4}$ & $0.0141$ & $15.9155$ & $0.064$ & $78.9$ & $26.2$  & $94.6$ \\
+$10^{-5}$ & $0.0044$ & $50.3292$ & $0.020$ & $79.0$ & $86.5$  & $298$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2946,15 +2953,22 @@ Table~\ref{tab:vortex_eoc_o3}. The design third order is attained for all
 variables and across all regimes considered, approached from below on the
 finest grids at $\rho_0=1$ and $\rho_0=10^{-1}$ and exceeded at the smallest
 background densities, where the coarsest grids do not yet resolve the
-perturbation. To illustrate the benefit of a
-stability restriction that does not depend on the fast scales: in the low
-acoustic and Alfv\'en Mach number cases the time step permitted by the present
-scheme exceeds that of a fully explicit discretisation, which is bounded by the
-fastest characteristic speed, by several orders of magnitude, with third-order
-accuracy in space and time retained throughout. The same ratio is quantified
-for the Kelvin--Helmholtz test in Fig.~\ref{fig:kh_dtratio}.
-% MISSING FLOAT: a figure of dt / dt_explicit for this test was referenced here
-% but is not in the source.  Re-insert it and restore the forward reference.
+perturbation. The last two columns of Table~\ref{tab:vortex_regimes} show what the splitting
+buys here, and what the second parameter costs. The admissible step exceeds
+that of a fully explicit discretisation---bounded by the fastest characteristic
+speed---by a factor rising to $86.5$ at $\rho_0=10^{-5}$, with the design order
+retained throughout; at $\rho_0\ge10^{-1}$ the flow is still transonic and
+there is nothing to gain. The gain is smaller than the four orders of magnitude
+reached in the Kelvin--Helmholtz test of Section~\ref{sec:KH}
+(Fig.~\ref{fig:kh_dtratio}) because this test is high-$\beta$ throughout:
+$\epsB$ saturates in the annulus where the Alfv\'en speed is already a few
+times the flow speed, and that annulus, not the vortex core, sets
+$\max_\Omega|\tilde\lambda^{c}_{\max}|$. Pinning $\epsB$ to zero removes it and
+multiplies the admissible step by between $2.1$ and $4.3$, which is the price,
+in this test, of returning the magnetic flux to the upwind solver; it is the
+high-$\beta$ side of the trade-off discussed in Section~\ref{sec:intro}, and by
+the argument given there it is the side on which the second parameter is not
+expected to pay for itself.
 
 
 \begin{table}[pos=htbp]
