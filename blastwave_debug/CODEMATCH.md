@@ -236,7 +236,62 @@ $$\varepsilon_M\to0\Rightarrow\lvert u\rvert\ll a,\qquad
 **格局很清楚：所有激波主导的算例收益基本为零，收益只在真正的低 Mach 算例。**
 这是「resolution not time step」改写的直接数值依据。
 
-## 14. 待核
+## 14. $\nabla\!\cdot\!B$：必须除以 $\lvert B\rvert/h$ 才能读
+
+原始范数差几个数量级，只是因为自然尺度差几个数量级。
+
+| 算例 | 边界 | $\max_t\lvert{\rm div}B\rvert_\infty$ | $\max\lvert B\rvert/h$ | 相对 |
+|---|---|---|---|---|
+| field loop 128×64 | 周期 | 4.674e-14 | 18.1 | **2.5e-15** |
+| blast 256² | 透射 | 1.099e-10 | 8969 | **1.15e-14** |
+| rotor 256² | 透射 | 1.737e-12 | 180 | **9.6e-15** |
+| RP5 800×1 | 透射 | 0（1D 无 CT） | — | 0 |
+
+VTK 独立复算（四阶中心 ${\rm div}_4$）确认：
+
+| | 离边界 $\ge2$ 格 | 恰在第 2 圈 | 第 3 圈 | 第 4 圈 |
+|---|---|---|---|---|
+| blast | 1.028e-10 | 9.34e-11 | 8.32e-11 | 8.56e-11 |
+| field loop | 2.831e-14 | 3.5e-19 | 4.2e-19 | 1.4e-18 |
+
+**最大值落在磁结构处（激波 / 环边缘），不在边界。** 代码头注 100–101 说明范数
+对非周期方向排除边界两格（因为 ${\rm div}_4\circ{\rm curl}_4\equiv0$ 需要完整模板），
+而上表说明这个排除没有掩盖任何东西。已写入结论段，替掉
+`% CHECK: non-periodic tests, interior stencil`。
+
+## 15. ✗ 可复现性缺口：$\varepsilon\equiv0$ + Rusanov 基线不在代码里
+
+`Final_emb_omp.cpp`（原始与补丁版本都一样）里 Rusanov 的全部出现：
+
+| 行 | 内容 |
+|---|---|
+| 528–533 | 六个**前向声明**（`RusanovK_x/y`、`RusanovK_Update`、`RusanovK_Pressure_x/y`、`RusanovK_Update_Pressure`），全部以 `;` 结尾 |
+| 1034/1036/1038 | `// [removed: RusanovC_x/y/Update]` |
+| 1505/1509 | 注释：`HLLEM_Update` **replaces** `RusanovC_Update` in the main loop |
+| 3537 | `(eps==0 remains a valid configuration ONLY with the Rusanov flux path...)` |
+
+**六个 `RusanovK_*` 无一处定义、无一处调用**（未使用的声明不需定义，所以照样链接），
+`RusanovC_*` 已整段删除，主循环里只有 `HLLEM_Update`（7036 行），
+`ARGS` 列表里也没有 `flux=` 开关。
+
+`epsMmax=0 epsBmax=0` 可以运行时设，但通量仍是 HLLEM，而 3528–3537 的注释明说
+$\varepsilon=0$ 时 HLLEM 的特征分解不适用——所以这也不是论文要的基线。
+
+**受影响的论文 claim（只有两句，其余 302/310/609/613/1254–1259 是叙述性引用，无碍）：**
+
+- L3138–3141「the standard IMEX scheme obtained with the fixed choice
+  $\epsM=\epsB\equiv0$ ... closed with the Rusanov flux」
+- L3149–3150「Compared with the standard IMEX scheme, the contact and rotational
+  discontinuities are resolved over fewer cells」
+
+→ **需要作者确认那条基线曲线是哪个版本跑的**，否则 `% CHECK: order and
+reconstruction of the baseline` 和 `% CHECK (after the baseline runs)` 无法回答。
+未擅自改动这两句。
+
+附注：`blastwave_debug/ref_mhd/ref_mhd.cpp` 是独立参考解算器，但它用 $\gamma=1.4$、
+$B_x=70/\sqrt{4\pi}$（旧参数），**与当前 $B_0=100$、$\gamma=5/3$ 的设置不可直接比较**。
+
+## 16. 待核
 
 - ○ §Eigenstructure of the explicit sub-system（已在 `REVIEW_IMEX_MHD-3.md` 逐式推过）
 - ○ §Time discretisation（`eq:88` 表已核；其余未核）
