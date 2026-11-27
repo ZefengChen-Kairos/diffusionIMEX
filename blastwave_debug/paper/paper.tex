@@ -1549,8 +1549,26 @@ of~\cite{SimonMandal2019} identifies for HLLEM, attributing the instability to
 the spurious activation of the anti-diffusive terms on the interfaces transverse
 to the shock.
 
+The indicator $\chi$ of~\eqref{eq:chi} cannot serve as that sensor, for a
+reason internal to its own design. Balsara calibrates
+$\kappa_1=0.4$ against the sound speed~\cite{Balsara2012}, whereas the
+magnetically stiff regime requires $c^{\min}$ to be the magnetosonic speed, so
+that $\chi\to0$ wherever either channel is stiff and no dissipation is added in
+either asymptotic limit --- which is exactly what is wanted
+in~\eqref{eq:mag_stab} and~\eqref{eq:p_stab}. The same property disqualifies
+$\chi$ as a shock sensor in a strongly magnetised flow: in the ambient medium of
+the blast wave of Section~\ref{sec:blast} one has $a=0.41$ against
+$c_B=28.2$, so the trigger $\kappa_1c^{\min}$ rises from $0.16$ to $11.3$,
+while the compression actually reached there is
+$\min(\Delta x,\Delta y)|\nabla\!\cdot\!\mathbf u|\approx0.8$. The indicator is
+therefore identically zero across the whole shock, by construction rather than
+by accident. Balsara reaches the same conclusion for the unmagnetised case from
+the other side, noting that cells about to be overrun by a shock are not caught
+by a divergence test and adding a companion criterion built on the pressure.
+
 We therefore damp all three coefficients with a single dimensionless sensor
-built from the pressure,
+built from the pressure alone, which carries no wave speed and is accordingly
+indifferent to the magnetisation,
 \begin{equation}
 \label{eq:flattener}
 \delta_k \longleftarrow \bigl(1-\sigma_{i+\frac12,j}\bigr)\,\delta_k,

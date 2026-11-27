@@ -330,3 +330,72 @@ journal / volume / issue / pages / DOI。
    **注意这条影响 $\chi$ 的删除结论**:我测 $\chi$ 几乎不触发是在 $\kappa_1=0.4$ 下做的。
 2. **两个 Laplacian 系数都从 paper 1 的局部改成了 paper 2 的全域。** 磁的那条论文写了,
    压力那条现在也写了。要不要在文中点明这是相对 paper 1 的改动。
+
+
+---
+
+## $\kappa_1$ 的三个值:已查到原始出处并解决(2026-11-27)
+
+作者提供了 Balsara, *Self-adjusting, positivity preserving high order schemes for
+hydrodynamics and magnetohydrodynamics*, JCP **231** (2012) 7504–7517 —— 正是
+`eq:chi` 已引的 `\cite{Balsara2012}`。原文 eq.(2) 与 `eq:chi` 逐字一致,并且:
+
+> While there is some flexibility in the value of $\kappa_1$, here we take **$\kappa_1 = 0.4$**.
+> Numerical experimentation has shown this value to work well at several orders and for a
+> large range of problems.
+
+**所以 paper 2 的 $0.4$ 就是 Balsara 自己的值,引用正确。** 原始码的 `0.05` 是没有出处的那个,
+已改成 `0.4`。
+
+### 但 Balsara 的 0.4 是对**声速**标定的
+
+Balsara 用 $c_s=\sqrt{\gamma P/\rho}$。两篇论文都换成了磁声速
+($\sqrt{a^2+c_B^2}$)。paper 1 第 1430–1431 行给了理由:
+
+> Using $c_f$ rather than $a$ triggers the indicator only on a super-fast-magnetosonic
+> compression: a flow stiff in either the acoustic or the magnetic sense yields a large
+> $c_f$ and hence $\chi^n\to0$, so no spurious dissipation is introduced in either
+> asymptotic limit.
+
+这对 Laplacian 完全正确(AP 动机)。但它把门限按 $c_f/a$ 抬高:
+
+| 论文 blast($B_0=100/\sqrt{4\pi}$) | $a$ | $c_B$ | $\sqrt{a^2+c_B^2}$ | $c_f/a$ |
+|---|---|---|---|---|
+| 环境 $r>R$($p=0.1,\rho=1$) | 0.408 | 28.21 | 28.21 | **69.1** |
+| 热核 $r\le R$($p=1000$) | 40.82 | 28.21 | 49.62 | 1.22 |
+
+- Balsara 的门限:$0.4\times0.408=\mathbf{0.163}$
+- 论文的门限:$0.4\times28.21=\mathbf{11.285}$
+- 实测 $\min(\Delta x,\Delta y)\lvert\nabla\!\cdot\!\mathbf u\rvert\approx\mathbf{0.8}$
+
+**超过 Balsara 门限 5 倍,但只有论文门限的 1/14。** 所以 $\chi$ 在 blast 上恒为零
+**是构造使然,不是偶然**。
+
+而 $0.4\,a/c_f=0.4/69.1=5.8\times10^{-3}$,与 **paper 1 的 $10^{-3}$ 同一量级** ——
+两篇不是随手不一致:paper 1 大概把常数按 $c_s\to c_f$ 重标定过,paper 2 回到了
+Balsara 的字面值。两者各自为其用途都站得住,**不需要改**,但若要加一句说明改动理由,
+这里有依据。
+
+### 这把 $\chi$ 的删除从"实测无效"升级成"原理必然"
+
+$\chi$ 按设计就是要在磁刚性极限里消失的。这正是 `eq:mag_stab` / `eq:p_stab` 想要的,
+但同时意味着**它不可能充当强磁化流的激波传感器**。$s_p$ 里根本没有波速,所以不受磁化影响。
+这不是缺陷,是 flattener 设计的**理由**,已写进论文(`eq:flattener` 之前那段)。
+
+### Balsara 自己也补了压力判据
+
+他的 eq.(3):
+
+> It is possible to improve on the previous flattener. Zones that are about to be run over by
+> a shock but have not yet entered the shock would also be stabilized if they were to
+> experience some flattening. **We identify such situations by looking at the pressure variation.**
+
+形式不同(他是把 $\eta$ 按压力大小关系向上游邻格传播,门控在 $\eta>0$;我们的 $s_p$ 是
+连续的幅值传感器,$\eta\equiv0$ 时他那条什么也不做),但"散度探测器不够、要补压力判据"
+这个模式是 Balsara 自己的。论文已按此措辞引用。
+
+### 一处措辞核对
+
+Balsara 的 flattener 用在**重构的可容许区间**上(他的 eq.(4)–(5),带第二个常数 $\kappa_2$),
+不是用在 Riemann solver 的反扩散上。论文第 1867 行写 "the shock indicator (flattener) of
+Balsara" —— 只归属**指示器**而不归属用途,措辞正确,不用改。
