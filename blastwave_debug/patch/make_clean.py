@@ -237,6 +237,12 @@ def step4b_probe_machinery(s):
     s = sub1(s, 'if(g_hllemflat && g_hllem_Qe){', 'if(g_hllem_Qe){', 'hchi guard')
     s = sub1(s, 'if(g_hllemflat >= 2){   // + pressure-jump sensor',
                 '{   // pressure-jump sensor', 'sp guard')
+    # the hllemflat=3 isolation hook (s_p alone, to measure chi's contribution) collapses to L9
+    s = sub1(s,
+        '\t\t\tfor(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++)\n'
+        '\t\t\t\thchi(i,j) = (g_hllemflat >= 3) ? sp(i,j) : fmax(hchi(i,j), sp(i,j));   // 3: s_p ALONE, to isolate chi\'s contribution\n',
+        '\t\t\tfor(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));\n',
+        'sp merge (drop the hllemflat=3 isolation hook)')
     assert s.count('if(g_hllemflat){ const int ') == 2, 'face chi guards'
     s = s.replace('if(g_hllemflat){ const int ', '{ const int ')
     s = sub1(s, ' else if(key=="hllemflat") g_hllemflat = (int)v; else if(key=="hllemcap") g_hllemcap = v;', '', 'hllemflat/cap keys')
@@ -279,7 +285,7 @@ def step4c_bake_method_params(s):
     # the ARGS banner now only echoes what can still be chosen
     m = re.search(r'\tstd::cout << "ARGS cfl=" << CFL[^\n]*\n[^\n]*\n', s)
     assert m, 'ARGS banner not found'
-    s = s[:m.start()] + '\tstd::cout << "ARGS cfl=" << CFL << " senv=" << g_senv\n' + s[m.end():]
+    s = s[:m.start()] + '\tstd::cout << "ARGS cfl=" << CFL\n' + s[m.end():]
     print('  step 4c method params: %d chars removed' % (n0 - len(s)))
     return s
 
@@ -298,6 +304,68 @@ def step4d_dead_envelope(s):
     for v in ('g_env_cap', 'g_env_wide'):
         assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
     print('  step 4d dead envelope vars: %d chars removed' % (n0 - len(s)))
+    return s
+
+
+def step4e_senv(s):
+    """Fix the envelope lower bound to the material speed of the interface and
+    drop the switch.
+
+    This is the one step that is NOT bit-identical to the previous rung by
+    construction: the old default was a three-way option.  The reference is the
+    patched source run with senv=2.
+
+    Why the bound is needed: as eps_M, eps_B -> 0 the magnetosonic quartic tends
+    to (lambda - u)^4, the split Einfeldt interval collapses onto the single point
+    u, and the HLL part carries no dissipation where u keeps one sign.  Without
+    the bound the scheme converges to a WRONG WEAK SOLUTION -- measured on RP6:
+    post-shock rho 3.884 against the exact 3.982, shock at -0.383 against -0.371,
+    unchanged from 250 to 2000 cells.
+
+    Why local and not domain-global: both close the degeneracy, but a global bound
+    drives delta_ent = 1 - |u|/u_max -> 1 wherever |u| << max_Omega|u|, which
+    REMOVES the dissipation from the three linearly degenerate fields in the quiet
+    ambient of a large-dynamic-range flow.  Measured on the 128^2 blast wave,
+    cells that are a local extremum of relative amplitude > 5%: rho 0.10% local,
+    1.03% global; > 1%: 1.32% local, 6.30% global, 2.20% with no bound.  The local
+    bound is also the Rusanov speed of paper eq:rusanov in the stiff limit, so it
+    needs no citation of its own.
+
+    Paper: eq:einfeldt carries the bound, eq:umaxface defines it, and the AP
+    paragraph derives the stiff limit from it (eq:aplimit).
+    """
+    n0 = len(s)
+    old = ('\tif(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // [fix E] global |u| floor\n'
+           '\telse if(g_senv == 2){   // [fix E2] LOCAL material-speed floor: max|u_n| over {L, Roe, R} of THIS face\n'
+           '\t\tconst double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));\n'
+           '\t\tif(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }\n'
+           '\t}\n')
+    new = ('\t// Lower bound on the envelope, paper eq:einfeldt with eq:umaxface: the largest material\n'
+           '\t// speed over the same three states {L, Roe, R}.  As eps_M, eps_B -> 0 the magnetosonic\n'
+           '\t// quartic tends to (lambda - u)^4, so the split Einfeldt interval collapses onto the\n'
+           '\t// single point u; the HLL part then carries no dissipation where u keeps one sign across\n'
+           '\t// the interface and the scheme converges to a wrong weak solution (RP6 without the bound:\n'
+           '\t// post-shock rho 3.884 against the exact 3.982, shock -0.383 against -0.371, unchanged\n'
+           '\t// from 250 to 2000 cells).  In the stiff limit this is the Rusanov speed of eq:rusanov.\n'
+           '\t// It is taken over the states of THIS interface: a domain-global bound closes the same\n'
+           '\t// degeneracy but drives delta_ent = 1 - |u|/u_max -> 1 wherever |u| << max|u|, removing\n'
+           '\t// the dissipation from the linearly degenerate fields in the quiet ambient of a flow with\n'
+           '\t// a large dynamic range (128^2 blast, cells that are a local extremum of amplitude > 5%:\n'
+           '\t// rho 0.10% with this bound, 1.03% with the global one).\n'
+           '\t{\tconst double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));\n'
+           '\t\tif(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }\n'
+           '\t}\n')
+    s = sub1(s, old, new, 'senv floor -> unconditional interface-local')
+    m2 = re.search(r'// \[fix E\] HLL wave-speed envelope:.*?\nint g_senv = 2;\n', s, re.S)
+    assert m2, 'senv comment block + declaration not found'
+    s = s[:m2.start()] + s[m2.end():]
+    s = sub1(s, '\t\telse if(key=="senv") g_senv = (int)v;\n', '', 'senv key')
+    # g_senv_u served only the global branch and is now written and never read
+    s = cut(s, 'double g_senv_u = 0.0;             // global max|u| of the current sweep direction\n', 'g_senv_u declaration')
+    s = sub1(s, '\tg_senv_u  = vx_max;    // [fix E]\n', '', 'g_senv_u x assignment')
+    s = sub1(s, '\tg_senv_u  = vy_max;    // [fix E]\n', '', 'g_senv_u y assignment')
+    assert s.count('g_senv') == 0, 'g_senv still referenced %d times' % s.count('g_senv')
+    print('  step 4e envelope bound: %d chars removed' % (n0 - len(s)))
     return s
 
 
@@ -390,7 +458,7 @@ def step6_junk_comments(s):
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
     upto = sys.argv[3] if len(sys.argv) > 3 else '6'
-    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '5', '6']
+    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '4e', '5', '6']
     want = order[:order.index(upto) + 1]
     s = open(src).read()
     if '1' in want:  s = step1_dead_code(s)
@@ -400,6 +468,7 @@ if __name__ == '__main__':
     if '4b' in want: s = step4b_probe_machinery(s)
     if '4c' in want: s = step4c_bake_method_params(s)
     if '4d' in want: s = step4d_dead_envelope(s)
+    if '4e' in want: s = step4e_senv(s)
     if '5' in want:  s = step5_comments(s)
     if '6' in want:  s = step6_junk_comments(s)
     open(dst, 'w').write(s)

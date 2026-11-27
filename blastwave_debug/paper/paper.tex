@@ -1349,22 +1349,30 @@ $\tilde\lambda^{\mp}_{f}(\mathbf{U})$ the smallest and largest roots of the magn
 quartic~\eqref{eq:ms_disp} at a state $\mathbf{U}$,
 \begin{equation}
 \label{eq:einfeldt}
-s_{L}=\min\Bigl(\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{-}_{f}(\mathbf{U}),\;-u^{\max}\Bigr),
+s_{L}=\min\Bigl(\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{-}_{f}(\mathbf{U}),\;-u^{\max}_{i+\frac12}\Bigr),
 \qquad
-s_{R}=\max\Bigl(\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}),\;+u^{\max}\Bigr),
+s_{R}=\max\Bigl(\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}),\;+u^{\max}_{i+\frac12}\Bigr),
 \end{equation}
-where $u^{\max}=\max_{\Omega}|u|$ for the $x$ sweep and $\max_{\Omega}|v|$ for the
-$y$ sweep: the same global material speed that already enters the time-step
-bound~\eqref{eq:cfl}. The lower bound closes the envelope where the split
-spectrum degenerates. As $\epsM,\epsB\to0$ the magnetosonic
-quartic~\eqref{eq:ms_disp} tends to $(\lambda-u)^{4}$, so both inner extrema
-in~\eqref{eq:einfeldt} tend to $u$, the interval $[s_{L},s_{R}]$ collapses onto a
-point, and the coefficient $s_{L}s_{R}/(s_{R}-s_{L})$ of~\eqref{eq:hllem} is
-indeterminate wherever the flow stagnates. Since
-$u^{\max}\le\mathrm{CFL}\,\min(\Delta x,\Delta y)/\Delta t$
-by~\eqref{eq:cfl}, the bound costs at most $\mathrm{CFL}$ times the viscosity of
-the classical Lax--Friedrichs flux; it contains no free parameter and is
-inactive at every face whose split fast speeds already bracket $\pm u^{\max}$.
+where
+\begin{equation}
+\label{eq:umaxface}
+u^{\max}_{i+\frac12}
+=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\bigl|u(\mathbf{U})\bigr|
+\end{equation}
+is the largest material speed among the same three states. The bound closes the
+envelope where the split spectrum degenerates. As $\epsM,\epsB\to0$ the
+magnetosonic quartic~\eqref{eq:ms_disp} tends to $(\lambda-u)^{4}$, so both inner
+extrema in~\eqref{eq:einfeldt} tend to $u$ and the interval $[s_{L},s_{R}]$
+collapses onto a point. The HLL part~\eqref{eq:hll} then carries no dissipation
+wherever $u$ keeps one sign across the interface, and the scheme converges to a
+wrong weak solution: on RP6 of Section~\ref{sec:riemann1d}, the strongest of the
+Riemann problems considered here, the unbounded envelope gives a post-shock
+density of $3.884$ against the exact $3.982$ and a shock position of $-0.383$
+against $-0.371$, with no improvement between $250$ and $2000$ cells.
+Because~\eqref{eq:umaxface} is built from the states of that interface alone and
+is itself a material speed, the bound leaves the asymptotic scaling of the
+dissipation unchanged, couples no distant part of the domain, and contains no
+free parameter.
 Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
 on the invariant blocks of Lemma~\ref{lem:blocks} the interval
 $[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
@@ -1394,8 +1402,8 @@ Newton started outside the root interval of a polynomial with real roots cannot
 leave it, so the envelope is obtained without any such failure.
 For $s_L\ge0$ or $s_R\le0$ the
 flux reduces to the upwind value $\tilde\FF^{c}(\mathbf{U}^{L})$ or
-$\tilde\FF^{c}(\mathbf{U}^{R})$, which the lower bound
-in~\eqref{eq:einfeldt} precludes unless the flow is globally at rest; for
+$\tilde\FF^{c}(\mathbf{U}^{R})$, which the bound
+in~\eqref{eq:einfeldt} precludes unless all three states are at rest; for
 $s_L<0<s_R$ the AP-HLLEM flux reads
 \begin{equation}
 \label{eq:hllem}
@@ -1475,25 +1483,33 @@ complete Riemann solver. In the stiff limit $\epsM,\epsB\to0$ the split spectrum
 so that $s_L,s_R=\mathcal O(|u|)$: the coefficient $s_Ls_R/(s_R-s_L)$
 of~\eqref{eq:hllem}, and with it both the HLL dissipation and the anti-diffusive
 term, scales with the material velocity rather than with the sound or Alfv\'en
-speed. The lower bound of~\eqref{eq:einfeldt} preserves that scaling, since
-$u^{\max}=\mathcal O(|u|)$ as well, and it fixes the limit uniquely: with
-$s_{L}=-u^{\max}$ and $s_{R}=u^{\max}$ the HLL part~\eqref{eq:hll} becomes
+speed. The bound of~\eqref{eq:einfeldt} preserves that scaling, being itself a
+material speed of the interface, and it fixes the limit uniquely: with
+$s_{L}=-u^{\max}_{i+\frac12}$ and $s_{R}=u^{\max}_{i+\frac12}$ the HLL
+part~\eqref{eq:hll} becomes
 \begin{equation}
 \label{eq:aplimit}
 \FF^{\mathrm{HLL}}_{i+\frac12,j}
 =\half\!\left[\tilde\FF^{c}(\mathbf{U}^{L})+\tilde\FF^{c}(\mathbf{U}^{R})
--u^{\max}\big(\mathbf{U}^{R}-\mathbf{U}^{L}\big)\right],
+-u^{\max}_{i+\frac12}\big(\mathbf{U}^{R}-\mathbf{U}^{L}\big)\right],
 \end{equation}
 which is exactly the scalar-dissipation flux~\eqref{eq:rusanov} that weak
-hyperbolicity forces on the standard IMEX baseline, with its local speed
-$s^{\max}$ replaced by the global bound $u^{\max}$. In the stiff limit the
-AP-HLLEM flux is therefore that baseline minus the anti-diffusive sum
-of~\eqref{eq:hllem}, whose entropy coefficient is
-$\delta_{\mathrm{ent}}=1-|u|/u^{\max}$ and stays positive wherever the local
-material speed is below the global bound. The asymptotic-preserving property is
-thus continuous in $\epsM,\epsB$ and needs no solver switching: the $\eps$-split
-does not discard the Rusanov flux~\eqref{eq:rusanov}, it recovers it as the
-stiff limit and sharpens the three linearly degenerate fields on top of it.
+hyperbolicity forces on the standard IMEX baseline, since
+$|\tilde\lambda^{c}_{\max}|\to|u|$ in the same limit. The AP-HLLEM flux is
+therefore that baseline minus the anti-diffusive sum of~\eqref{eq:hllem}, whose
+entropy coefficient there is
+$\delta_{\mathrm{ent}}=1-|u|/u^{\max}_{i+\frac12}$. Since the bound is taken
+over the states of that interface alone, this coefficient vanishes on a uniform
+interface and is positive only across a genuine velocity jump: the
+anti-diffusion switches itself off in the quiet part of the flow and acts where
+the linearly degenerate fields carry structure. A bound taken over the whole
+domain instead would drive $\delta_{\mathrm{ent}}\to1$ wherever
+$|u|\ll\max_\Omega|u|$ and so remove the dissipation from the three linearly
+degenerate fields in the quiet ambient of a flow with a large dynamic range. The
+asymptotic-preserving property is thus continuous in $\epsM,\epsB$ and needs no
+solver switching: the $\eps$-split does not discard the Rusanov
+flux~\eqref{eq:rusanov}, it recovers it as the stiff limit and sharpens the
+three linearly degenerate fields on top of it.
 
 
 \subsection{Characteristic WENO3-Z reconstruction}
@@ -3067,6 +3083,7 @@ $10^{-5}$ & 32   & 5.27e-06 & --   & 5.37e-01 & --   & 5.96e-03 & --   & 3.43e-0
 \end{table}
 
 \subsection{One-dimension MHD Riemann Tests}
+\label{sec:riemann1d}
 \label{sec:MHD_1d}
 
 Having established the convergence order in Section~\ref{sec:accuracy}, we

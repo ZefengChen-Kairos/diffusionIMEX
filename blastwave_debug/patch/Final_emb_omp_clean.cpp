@@ -228,17 +228,6 @@ double g_char_fallback_tol = 1.0e-6;
 double g_Az_yjump = 0.0, g_Az_xjump = 0.0;
 double g_vortex_rho0 = VORTEX_RHO0;
 double g_vortex_L = VORTEX_L;      // half-width of the vortex domain (run-time: vL=)
-// HLL wave-speed envelope: 0 = the split Einfeldt estimates of eq.(52);
-// 1 = their union with the GLOBAL maximum MATERIAL speed of the sweep direction, which keeps
-// the O(|u|) scaling of section 3.2 but stops the envelope vanishing at stagnation points;
-// 2 = their union with the LOCAL max|u_n| over {L, Roe, R} of each face.  senv=1 is correct on
-// single-scale problems (1D RPs, the low-Mach vortex) but on a problem with a large dynamic
-// range in |u| (the 2D blast wave: |u| ~ 30 in the hot interior, ~0 in the ambient) it widens
-// the envelope of EVERY face to the interior value, which amplifies the HLLEM delta_k
-// anti-diffusion on the linearly degenerate waves in the quiet ambient.  senv=2 is the local
-// version of the same floor and does not couple distant parts of the domain.
-int g_senv = 2;
-double g_senv_u = 0.0;             // global max|u| of the current sweep direction
 int g_novtk = 0;                   // 1: no VTK / state_*.dat output (novtk=1)
 double g_gamma_set = 0.0;          // gamma= 的值; 0 = 用各算例自己的默认
 double g_blast_B0 = 100.0;         // B0 = (g_blast_B0, 0, 0)/sqrt(4 pi); paper eq.(106)
@@ -1209,9 +1198,19 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 		sL = fmin(fmin(loL, loT), loR);
 		sR = fmax(fmax(hiL, hiT), hiR);
 	}
-	if(g_senv == 1 && g_senv_u > 0.0){ sL = fmin(sL, -g_senv_u); sR = fmax(sR, g_senv_u); }   // global |u| floor
-	else if(g_senv == 2){   // LOCAL material-speed floor: max|u_n| over {L, Roe, R} of THIS face
-		const double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));
+	// Lower bound on the envelope, paper eq:einfeldt with eq:umaxface: the largest material
+	// speed over the same three states {L, Roe, R}.  As eps_M, eps_B -> 0 the magnetosonic
+	// quartic tends to (lambda - u)^4, so the split Einfeldt interval collapses onto the
+	// single point u; the HLL part then carries no dissipation where u keeps one sign across
+	// the interface and the scheme converges to a wrong weak solution (RP6 without the bound:
+	// post-shock rho 3.884 against the exact 3.982, shock -0.383 against -0.371, unchanged
+	// from 250 to 2000 cells).  In the stiff limit this is the Rusanov speed of eq:rusanov.
+	// It is taken over the states of THIS interface: a domain-global bound closes the same
+	// degeneracy but drives delta_ent = 1 - |u|/u_max -> 1 wherever |u| << max|u|, removing
+	// the dissipation from the linearly degenerate fields in the quiet ambient of a flow with
+	// a large dynamic range (128^2 blast, cells that are a local extremum of amplitude > 5%:
+	// rho 0.10% with this bound, 1.03% with the global one).
+	{	const double um = fmax(fabs(vxL), fmax(fabs(vx_t), fabs(vxR)));
 		if(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }
 	}
 	
@@ -1668,7 +1667,6 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
 		}
 	}
-	g_senv_u  = vx_max;    // 
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 2; j < nyCells + ghost_cells + 2; j++){        // x-faces on +-2 extra rows
 		for(int i = ghost_cells - 1; i < nxCells + ghost_cells; i++){
@@ -1687,7 +1685,6 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 			}   // (Fx is assembled from the convolved parts below)
 		}
 	}
-	g_senv_u  = vy_max;    // 
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = ghost_cells - 1; j < nyCells + ghost_cells; j++){
 		for(int i = ghost_cells - 2; i < nxCells + ghost_cells + 2; i++){    // y-faces on +-2 extra columns
@@ -6300,11 +6297,10 @@ int main(int argc, char *argv[]){
 		if(key=="cfl") CFL = v; else if(key=="epsMmin") eps_M_min = v; else if(key=="epsMmax") eps_M_max = v; else if(key=="epsBmin") eps_B_min = v; else if(key=="epsBmax") eps_B_max = v;
 		else if(key=="tag") g_tag = k.substr(eq+1);
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
-		else if(key=="senv") g_senv = (int)v;
 		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
 		else if(key=="gamma") g_gamma_set = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }
-	std::cout << "ARGS cfl=" << CFL << " senv=" << g_senv
+	std::cout << "ARGS cfl=" << CFL
 	          << " blast(b0=" << g_blast_B0 << ",pin=" << g_blast_pin
 	          << ",tend=" << g_blast_tend << ",smooth=" << g_blast_smooth << ")" << std::endl;
 	switch (test) {
