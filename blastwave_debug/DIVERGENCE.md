@@ -33,7 +33,7 @@
 | | 原始码 | 论文 | 干净版 |
 |---|---|---|---|
 | $\kappa_1$ | `0.05` | `eq.(72)` 是 `0.4` | **0.4** ✓ |
-| 激波激活压力 Laplacian | 算了 `lap_p` 但**从未加进 Ax**（死代码） | `eq.(45)/(85)` 描述它生效 | **真的加了** ✓ |
+| 激波激活压力 Laplacian | 算了 `lap_p` 但**从未加进 Ax**（死代码） | paper **1** 的 eq.(45)/(85) 描述它生效 | **真的加了** ✓ ——但见下面第 12 项：paper **2** 的 `eq:pwave` 里没有这一项 |
 
 ## 第 1、2 项的引用（已查证）
 
@@ -202,3 +202,49 @@ Rusanov 耗散**不作用在 $\mathbf B$ 上**。paper 2 的 `eq:rusanov` 没写
 你明确说过 "RP5 要用全局最大速度做耗散"。固定面局部后 RP5 会得到上述接触面附近那一簇
 (约 21/800 点,中位 1.68%)而不是 0%。L9 配置下的 RP5 三路在测。如果那簇点在 1D 图上
 不可接受,就得保留 per-test 选择,论文需说明 1D 图用的是全域变体。
+
+
+---
+
+## 2026-11-27 的通量路径审计:新确认的分歧
+
+对 `paper.tex` 与 `Final_emb_omp_clean.cpp` 做了一次显式通量路径与"全局量渗进局部式"的
+系统核对,每条都经过一次对抗性复核(目标是**推翻**它)。下面只列**没被推翻**的,
+并标出哪些是我亲自在源码里复验过的。
+
+| # | 代码里有 | 论文 | 严重度 |
+|---|---|---|---|
+| **8** | 第 1 步的 dt 用**完整 MHD 谱**(`if(timestep < full_step+1){ a_max_x = ch_x; }`,`full_step=1`,:3505),之后每步增长被**压到前一步的 1.5 倍**(`if(dt_prev>0 && dt>1.5*dt_prev) dt=1.5*dt_prev;`,:6632) | `eq:cfl` 前一句写 "**always** subject to a CFL-type condition based \emph{only} on the characteristic speeds of the explicit sub-system" | **blocks-reproduction**(我已复验两处代码;每个 run log 里 `dt/dt_MHD` = 1, 1.50004, 2.25025 … 都看得见) |
+| **9** | 显式通量的"面中点→面均值"转换是**按 ε 份额分别做**的:通量先用 HLL 基权拆成 `Pc/Pp/Pb` + 余项 `FxR = f-(Pc+eM*Pp+eB*Pb)`,各自卷积,再用该面的 ε 重组(:1677–1678 / :1696–1697) | §`sec:fv_ops`(:2717–2720)说的是对**数值通量本身**做一次转换 | blocks-reproduction |
+| **10** | 横向的面均值↔面中点转换是 **minmod 门 + ε_M 混合**的二阶差分(`fv_transverse_lim`, :1518–1541),两个方向都是;外侧两圈**不转换**。门限 `thr = 0.5*h*max_Ω|q_k|` —— 单元级的判断依赖**全域**量 | `eq:convdeconv`(:2690–2700)是无条件的线性式 | misleading(扩展已有第 4 项:新信息是"两个方向"、"外两圈不转换"、"门限含全域 max") |
+| **11** | 喂给 Einfeldt 包络的声速被**地板化**:`a2_t = fmax(a2_t, 1e-12)`(:1172)并把该值传给 Roe 态的 `SplitFastSpeeds`(:1195);左右态用 `fmax(a2L,0.0)` | `eq:einfeldt` 与 $\tilde a^2$ 的定义没有地板;论文的退化条款只覆盖**反扩散项** | misleading |
+| **12** | 压力算子里加了一整个**激波激活 Laplacian**,系数是**全域** $\max_\Omega\lvert u\rvert$(`g_plap` 默认 1) | 论文写了**磁**的那一个(§1798–1802,`eq:mag_stab`,连全域 max 一起写了),但 `eq:pwave`(:1952–1958)**没有任何耗散项** | **blocks-reproduction**(我已复验论文两处) |
+| **13** | CT 里 $\nabla A$ 的斜率限制器由**全域** $\max\lvert\nabla A\rvert$ 开门(`mm2g`, :4023),并按 $\varepsilon_M$ 混合 | 论文只说 "limited differences" | misleading |
+| 14 | $\beta$ 旋转在 $\lvert\tilde B_\perp\rvert\le10^{-12}$ 以下回退到固定向量(:1237–1241);同一个 `eq:beta` 在两处用了**两个不一致**的门限 | 论文未写 | cosmetic |
+
+### 被推翻的(**不是**分歧)
+
+| 曾怀疑 | 复核结论 |
+|---|---|
+| Alfvén 右特征向量论文给的是原始变量、代码按守恒变量用 | 论文在 :994 写了 $\mathbf M=\partial\mathbf U/\partial\mathbf Q$。只是 $\mathbf M$ 从未逐项写出,属行文问题 |
+| 代码把 $\delta_k$ clamp 到 $[0,1]$,而论文说 "without further clipping" | 同一个量在相距 94 行的两处被描述为 "without further clipping"(:1383–1385)与 "restricted to $[0,1]$"(:1479)。是措辞不一致,不是分歧 |
+| nested Newton 的陡斜率 $M$ 用了**全域**最小值,论文称 $V$ 是单元局部的 | $M$ 的闭式论文从未写出(代码 :5306–5311)。是"论文没写"的可复现性缺口,不是局部性被破坏 |
+| `eq:einfeldt` 写全域界而代码默认局部 | 读的是中间状态。现在两边都是面局部,一致 |
+
+### 我自己写进论文后被这次审计抓到的两个错误(已改,commit `fbb6a60` 与本次)
+
+1. **$(\lambda-u)^4$** —— 错。$\varepsilon=0$ 时 `SplitMagnetosonicCoeffs` 给
+   $c_3=-2u,c_2=u^2,c_1=c_0=0$,即 $\lambda^2(\lambda-u)^2$,根 $\{0,0,u,u\}$。
+   改正后论证**更强**:包络 $\to[\min(0,u),\max(0,u)]$,$u$ 同号时一个端点恰为 0,
+   零耗散发生在光滑低马赫流的**几乎每一个界面**上,不只是孤立滞止点。
+2. **"about ten scalar iterations suffice"** —— 在刚性极限是错的。我自己复现了那个
+   Newton 循环:
+
+   | 情形 | 迭代 | 得到的精度 |
+   |---|---|---|
+   | 分离良好($\varepsilon_M=1,a=u=1$) | 13 | 精确 |
+   | 刚性极限($\varepsilon=0$) | 33 | 相对 **1.8e-9** |
+
+   双根使 $P$ 在 $\lvert\lambda-\lambda^\pm_f\rvert<\sqrt{\epsilon_{\rm mach}}$ 时成为纯噪声,
+   循环靠**符号守卫**退出而非容差。论文已改为实测值,并指出这在该极限下无关紧要 ——
+   因为 `eq:einfeldt` 的下界正好在那里把两个速度整个替换掉。

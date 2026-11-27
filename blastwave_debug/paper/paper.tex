@@ -1399,8 +1399,21 @@ R=2\max\Bigl(|c_3|,\;|c_2|^{1/2},\;|c_1|^{1/3},\;\bigl|\tfrac12c_0\bigr|^{1/4}\B
 \end{equation}
 Newton's method started from $R$ therefore decreases monotonically to
 $\tilde\lambda_f^{+}$, and started from $-R$ increases monotonically to
-$\tilde\lambda_f^{-}$; about ten scalar iterations suffice and no eigenvalue
-solver is required at the interface. The monotone iteration is also what makes
+$\tilde\lambda_f^{-}$, so no eigenvalue solver is required at the interface. The
+iteration is stopped at a relative step of $10^{-13}$, after $200$ iterations, or
+as soon as the derivative or the step changes sign, which cannot happen while
+the iterate is outside the root interval and therefore serves as a monotonicity
+guard. Where the roots are well separated about ten scalar iterations suffice
+(thirteen for $\epsM=1$, $a=u=1$). In the stiff limit both targeted roots are
+double, so the convergence is linear and the attainable accuracy is limited by
+the conditioning of a double root rather than by the stopping test: the
+quartic itself is evaluated as a difference of $\mathcal O(1)$ terms, so it is
+numerically indistinguishable from zero once $|\lambda-\lambda_f^{\pm}|$ falls
+below $\sqrt{\varepsilon_{\mathrm{mach}}}$, and the iteration exits on the sign
+guard after about thirty steps with a relative accuracy near $10^{-8}$. This is
+immaterial: in exactly that limit the bound of~\eqref{eq:einfeldt} replaces both
+speeds by $\mp u^{\max}_{i+\frac12}$, so the ill-conditioned roots do not reach
+the flux. The monotone iteration is also what makes
 the evaluation robust. The roots are real, but two of them nearly coincide over
 a non-negligible part of the state space, and a general-purpose root finder
 applied to the coefficients $(c_3,c_2,c_1,c_0)$ then returns spurious complex
