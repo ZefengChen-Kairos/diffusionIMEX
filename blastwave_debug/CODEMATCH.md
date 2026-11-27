@@ -212,7 +212,31 @@ $$\varepsilon_M\to0\Rightarrow\lvert u\rvert\ll a,\qquad
 已写入 §Ideal MHD blast wave（替掉 `% CHECK: describe eps_M and eps_B`），
 并在 .tex 里留了注释说明这些数来自 256²，投稿前需用 1000² 生产运行刷新。
 
-## 12. 待核
+## 12. 特征结构（§Eigenstructure）
+
+| 断言 | 论文 | 验证 | |
+|---|---|---|---|
+| 把 $F^p+F^B$ 全给隐式 → 显式部分只弱双曲 | 导言 304–307 | `jordan_check.txt`：$F^c$ 的特征值 $u$ 代数重数 4、几何重数 3 → **defective** | ✓ |
+| | | $F^B$ 单独：特征值 0 代数 4、几何 3 → defective | ✓ |
+| 分裂系统谱为实 | `eq:ms_eig` 四次方程 | `hyperbolicity_check.py`：**0 / 200000** 随机态有复根（相对虚部 > 1e-8），含 $\varepsilon_M\ne\varepsilon_B$ 与 $\varepsilon_M=0$ | ✓ |
+| 基底在 $\varepsilon_M\to0$ 退化 | 「the closed-form basis degenerates as $\epsM\to0$」 | 扫描在 $\varepsilon_M=\varepsilon_B=0$ 处仍为实根（实但 defective），与之一致 | ✓ |
+
+## 13. 实测 $\Delta t/\Delta t_{\rm explicit}$（中位数）
+
+直接回答 .tex 里结论段那条 `% CHECK: quote the measured ratio to the explicit step`。
+
+| 算例 | 网格 | 中位 | 最大 | 说明 |
+|---|---|---|---|---|
+| field loop $A_0=1$ | 128×64 | **229.69** | 229.74 | 真低 Mach，$M=5.5\times10^{-3}$ |
+| field loop $\varepsilon_B\equiv0$ | 128×64 | 272.75 | 273.02 | 单参数代理，比双参数**大 19%** |
+| blast wave | 256² | **1.084** | 4.409 | 激波主导 |
+| rotor | 256² | **1.000** | — | 盘内超声速超 Alfvén → $\varepsilon_M=\varepsilon_B=1$，全域最大值取到完整 MHD 谱 |
+| RP5 | 800×1 | **1.000** | 1.0005 | 1D 激波管 |
+
+**格局很清楚：所有激波主导的算例收益基本为零，收益只在真正的低 Mach 算例。**
+这是「resolution not time step」改写的直接数值依据。
+
+## 14. 待核
 
 - ○ §Eigenstructure of the explicit sub-system（已在 `REVIEW_IMEX_MHD-3.md` 逐式推过）
 - ○ §Time discretisation（`eq:88` 表已核；其余未核）

@@ -2866,10 +2866,43 @@ same reduction raises the sound speed and weakens the kinetic term
 in~\eqref{eq:vortex_dp}, while the magnetic term is unaffected. Since the
 unperturbed state carries no magnetic field, a global Alfv\'en Mach number
 cannot be assigned; we characterise each case by the maximum acoustic Mach
-number $M_c$, which scales as $\rho_0^{1/2}$, and by the Alfv\'en speed
-$c_a$, which scales as $\rho_0^{-1/2}$, for $\rho_0=10^{-k}$, $k=0,\dots,5$.
-% MISSING FLOAT: the table of M_c and c_a per rho_0 was referenced here but is
-% not in the source.  Re-insert it and restore "listed in Table~\ref{...}".
+number $M_c$ and by the largest Alfv\'en speed $c_a$, listed in
+Table~\ref{tab:vortex_regimes} for $\rho_0=10^{-k}$, $k=0,\dots,5$, together
+with the smallest Alfv\'en Mach number attained where the field does not
+vanish. The sweep crosses both sonic lines: the flow is supersonic at
+$\rho_0=1$ and sub-Alfv\'enic from $\rho_0=10^{-2}$ on, so that the splitting
+is exercised from the fully explicit regime down to one in which both channels
+are stiff. It does not, however, reach a low-$\beta$ state: the magnetic term
+of~\eqref{eq:vortex_dp} and $\|\Bb\|$ are both independent of $\rho_0$, so
+the plasma beta stays near $79$ throughout, and the regimes of this test are
+the high-$\beta$ ones.
+
+\begin{table}[pos=htbp]
+\centering
+\footnotesize
+\caption{MHD traveling vortex: the magnetosonic regime of each background
+density. $M_c=\max_\Omega\|\mathbf u\|/a$ and $c_a=\max_\Omega\|\Bb\|/\sqrt{\rho}$;
+$M_A$ is the smallest value of $\|\mathbf u\|/c_a$ over the cells in which
+$\Bb\neq\mathbf 0$, and $\beta$ the smallest plasma beta attained there. Since
+$\|\Bb\|$ does not depend on $\rho_0$, the speed $c_a$ follows
+$\rho_0^{-1/2}$ exactly; $M_c$ follows $\rho_0^{1/2}$ to within $0.4\%$ from
+$\rho_0=10^{-1}$ on and to $4\%$ at $\rho_0=1$, the residual being the
+variation of the pressure minimum through the kinetic term
+of~\eqref{eq:vortex_dp}.}
+\label{tab:vortex_regimes}
+\begin{tabular}{lrrrr}
+\toprule
+$\rho_0$ & $M_c$ & $c_a$ & $\min M_A$ & $\min\beta$ \\
+\midrule
+$10^{0}$  & $1.4732$ & $0.1592$ & $6.379$ & $72.5$ \\
+$10^{-1}$ & $0.4459$ & $0.5033$ & $2.017$ & $78.3$ \\
+$10^{-2}$ & $0.1405$ & $1.5915$ & $0.638$ & $78.9$ \\
+$10^{-3}$ & $0.0444$ & $5.0329$ & $0.202$ & $78.9$ \\
+$10^{-4}$ & $0.0141$ & $15.9155$ & $0.064$ & $78.9$ \\
+$10^{-5}$ & $0.0044$ & $50.3292$ & $0.020$ & $79.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 All simulations are run to $t_f=1$ on a sequence of uniformly refined meshes.
 The $L^2$ errors of $\rho$, $u$, $p$, $B_x$ and $A_z$ and the corresponding
