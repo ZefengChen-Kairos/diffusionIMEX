@@ -118,8 +118,10 @@ $10^{-6}$ 判据已退休、只守 NaN——**该变量全文零声明**，判�
 
 ### 为什么界是必需的(不是可选的补丁)
 
-$\varepsilon_M,\varepsilon_B\to0$ 时磁声四次式 $\to(\lambda-u)^4$,分裂 Einfeldt 区间塌成单点 $u$;
-$u$ 在界面上同号时 HLL 部分**零耗散**,格式**收敛到错的弱解**:
+$\varepsilon_M,\varepsilon_B\to0$ 时 `SplitMagnetosonicCoeffs` 给 $c_3=-2u,\;c_2=u^2,\;c_1=c_0=0$,即
+磁声四次式 $\to\lambda^2(\lambda-u)^2$,根 $\to\{0,0,u,u\}$,包络 $\to[\min(0,u),\max(0,u)]$。
+$u$ 在界面上同号时**一个端点恰好为 0**,$s_Ls_R=0$,HLL 部分**完全零耗散** —— 不只是在孤立
+滞止点,而是在光滑低马赫流的几乎每一个界面上。格式**收敛到错的弱解**:
 
 | RP6 | 无界 | 精确 |
 |---|---|---|
@@ -153,11 +155,25 @@ L9 配置、blast 128²、相对幅值 > 阈值的局部极值格数占比:
 曾被读成"局部几乎无效"。那个计数器量的是**重构界面态的容许性**,不是弱解正确性;RP6 的
 收敛结果才是决定性的。该组数在 `hllemcap=0.25 idp=1` 下测,不是 L9 配置。
 
-### 出处
+### 出处(已在原文核实)
 
-面局部的 $\max_{\{L,\tilde{\ },R\}}|u|$ 在刚性极限($|\tilde\lambda^c_{\max}|\to|u|$)**就是**
-`eq:rusanov` 自己的 $s^{\max}$,所以不需要自己的引用,`Rusanov1962` 已在 bib。不引 Lax,
-避免加条目。
+Paper 1(`MHDIMEX` = Chen, Demattè, Boscheri & Millmore, arXiv:2608.15837)eq.(24)–(25):
+
+$$\mathbf F^c_{i+\frac12,j}=\tfrac12\Big(\mathbf F^c(\mathbf U^R)+\mathbf F^c(\mathbf U^L)-s^{\max}_{i+\frac12,j}\,\mathsf P\,(\mathbf U^R-\mathbf U^L)\Big),\qquad
+\mathsf P=\mathrm{diag}(1,1,1,1,1,0,0,0)$$
+$$s^{\max}_{i+\frac12,j}=\max\big(|u^L_{i+\frac12,j}|,|u^R_{i+\frac12,j}|\big)$$
+
+**速度是局部的**,取两个界面态的 max;paper 1 正文也写 "the dissipative component of the
+explicit Rusanov flux, which **scales with the local flow velocity** $u$"。全域 max 在 paper 1
+里只出现在 CFL 时间步 eq.(26),**从不出现在任何通量里**。
+
+Roe 态是凸组合,故 $|\tilde u|\le\max(|u_L|,|u_R|)$,于是 $\max_{\{L,\tilde{\ },R\}}|u|$
+**恰好等于** paper 1 的 eq.(25)。所以这个界引入的速度是基线格式本来就在用的那一个:
+零新机制、零新引用。
+
+顺带发现 paper 1 的 eq.(24) 带一个投影 $\mathsf P=\mathrm{diag}(1,1,1,1,1,0,0,0)$ ——
+Rusanov 耗散**不作用在 $\mathbf B$ 上**。paper 2 的 `eq:rusanov` 没写这个 $\mathsf P$,
+对照基线时值得核一下是不是有意省略。
 
 ### 论文改了哪几处
 

@@ -316,8 +316,11 @@ def step4e_senv(s):
     patched source run with senv=2.
 
     Why the bound is needed: as eps_M, eps_B -> 0 the magnetosonic quartic tends
-    to (lambda - u)^4, the split Einfeldt interval collapses onto the single point
-    u, and the HLL part carries no dissipation where u keeps one sign.  Without
+    to lambda^2 (lambda - u)^2 (SplitMagnetosonicCoeffs at eps = 0 gives
+    c3 = -2u, c2 = u^2, c1 = c0 = 0), so its roots tend to {0, 0, u, u} and the
+    envelope to [min(0,u), max(0,u)].  Where u keeps one sign across the
+    interface one endpoint is EXACTLY zero, s_L s_R = 0, and the HLL part carries
+    no dissipation at all -- not only at isolated stagnation points.  Without
     the bound the scheme converges to a WRONG WEAK SOLUTION -- measured on RP6:
     post-shock rho 3.884 against the exact 3.982, shock at -0.383 against -0.371,
     unchanged from 250 to 2000 cells.
@@ -353,12 +356,14 @@ def step4e_senv(s):
            '\t\tif(um > 0.0){ sL = fmin(sL, -um); sR = fmax(sR, um); }\n'
            '\t}\n')
     new = ('\t// Lower bound on the envelope, paper eq:einfeldt with eq:umaxface: the largest material\n'
-           '\t// speed over the same three states {L, Roe, R}.  As eps_M, eps_B -> 0 the magnetosonic\n'
-           '\t// quartic tends to (lambda - u)^4, so the split Einfeldt interval collapses onto the\n'
-           '\t// single point u; the HLL part then carries no dissipation where u keeps one sign across\n'
-           '\t// the interface and the scheme converges to a wrong weak solution (RP6 without the bound:\n'
+           '\t// speed over the same three states {L, Roe, R}; since the Roe state is a convex combination\n'
+           '\t// this equals max(|u_L|, |u_R|), the Rusanov speed of paper 1 eq.(25).  As eps_M, eps_B -> 0\n'
+           '\t// the magnetosonic quartic tends to lambda^2 (lambda - u)^2, its roots to {0, 0, u, u} and\n'
+           '\t// the envelope to [min(0,u), max(0,u)]: where u keeps one sign across the interface one\n'
+           '\t// endpoint is EXACTLY zero, s_L s_R = 0, and the HLL part carries no dissipation at all.\n'
+           '\t// The scheme then converges to a wrong weak solution (RP6 without the bound:\n'
            '\t// post-shock rho 3.884 against the exact 3.982, shock -0.383 against -0.371, unchanged\n'
-           '\t// from 250 to 2000 cells).  In the stiff limit this is the Rusanov speed of eq:rusanov.\n'
+           '\t// from 250 to 2000 cells).\n'
            '\t// It is taken over the states of THIS interface: a domain-global bound closes the same\n'
            '\t// degeneracy but drives delta_ent = 1 - |u|/u_max -> 1 wherever |u| << max|u|, removing\n'
            '\t// the dissipation from the linearly degenerate fields in the quiet ambient of a flow with\n'

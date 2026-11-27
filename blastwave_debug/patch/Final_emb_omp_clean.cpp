@@ -1199,12 +1199,14 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 		sR = fmax(fmax(hiL, hiT), hiR);
 	}
 	// Lower bound on the envelope, paper eq:einfeldt with eq:umaxface: the largest material
-	// speed over the same three states {L, Roe, R}.  As eps_M, eps_B -> 0 the magnetosonic
-	// quartic tends to (lambda - u)^4, so the split Einfeldt interval collapses onto the
-	// single point u; the HLL part then carries no dissipation where u keeps one sign across
-	// the interface and the scheme converges to a wrong weak solution (RP6 without the bound:
+	// speed over the same three states {L, Roe, R}; since the Roe state is a convex combination
+	// this equals max(|u_L|, |u_R|), the Rusanov speed of paper 1 eq.(25).  As eps_M, eps_B -> 0
+	// the magnetosonic quartic tends to lambda^2 (lambda - u)^2, its roots to {0, 0, u, u} and
+	// the envelope to [min(0,u), max(0,u)]: where u keeps one sign across the interface one
+	// endpoint is EXACTLY zero, s_L s_R = 0, and the HLL part carries no dissipation at all.
+	// The scheme then converges to a wrong weak solution (RP6 without the bound:
 	// post-shock rho 3.884 against the exact 3.982, shock -0.383 against -0.371, unchanged
-	// from 250 to 2000 cells).  In the stiff limit this is the Rusanov speed of eq:rusanov.
+	// from 250 to 2000 cells).
 	// It is taken over the states of THIS interface: a domain-global bound closes the same
 	// degeneracy but drives delta_ent = 1 - |u|/u_max -> 1 wherever |u| << max|u|, removing
 	// the dissipation from the linearly degenerate fields in the quiet ambient of a flow with
