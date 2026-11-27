@@ -187,6 +187,7 @@ double GMRESiter = 1e32;
 int GMRESrest = 30;
 
 double shock_kappa1 = 0.4;    // [fix H] paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell
+int g_flat1 = 0;       // [fix L] 1: one unified face flattener sigma for delta_k AND the envelope
 int g_jguard = 1;      // [fix K] 1: keep the two J-keyed safeguards of HLLEM_x; 0: both off
 int g_chisplit = 0;    // [fix I] 1: gate chi on sqrt(eps_M a^2 + eps_B c_A^2) instead of sqrt(a^2 + c_A^2)
 int g_rho_scale = 0;   // [fix J] 1: scale the deconvolution increment to the threshold instead of discarding it
@@ -1344,9 +1345,21 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	// {L, Roe, R}, capped by the speed that sets the time step (the split spectral radius of this direction): the time step
 	// is unchanged, and in a low-Mach flow the cap is O(|u|), so the dissipation keeps the asymptotic scaling.  Where
 	// eps = 1 the split envelope already is the unsplit one and nothing changes.
+	double g_sigma_face = 0.0;   // [fix L] the one flattener, 0 when fix L is off
+	if(g_flat1){
+		const double Jr = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
+		const double pLx = a2L*rhoL, pRx = a2R*rhoR;             // gamma cancels in the ratio
+		const double Jp = (fmin(pLx, pRx) > 0.0) ? fabs(pRx - pLx)/fmin(pLx, pRx) : 0.0;
+		auto ramp = [](double J){ return fmin(1.0, fmax(0.0, 2.0*J - 1.0)); };   // J0 = 1/2, J1 = 1
+		// flat1=1: chi + the density AND pressure jumps.  flat1=2: chi + the
+		// density jump only, i.e. drop the pressure sensor as well.  The ladder
+		// is measured in blastwave_debug/PATCHES.md.
+		g_sigma_face = (g_flat1 >= 2) ? fmax(g_face_chi, ramp(Jr))
+		                             : fmax(g_face_chi, fmax(ramp(Jr), ramp(Jp)));
+	}
 	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
-		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]
-			const double th = fmin(1.0, (Jw - 0.5)/0.5);
+		const double th = g_flat1 ? g_sigma_face : fmin(1.0, (Jw - 0.5)/0.5);
+		if((g_flat1 ? (th > 0.0) : (g_jguard && Jw > 0.5)) && g_env_cap > 0.0){   // [fix L]
 			auto cfast = [](double a2, double bn2, double bp2){ const double s2 = a2 + bn2 + bp2; return sqrt(0.5*(s2 + sqrt(fmax(s2*s2 - 4.0*a2*bn2, 0.0)))); };
 			const double cT = cfast(a2_t, bx2_t, bp2_t), cL = cfast(fmax(a2L,0.0), bx2L, bp2L), cR = cfast(fmax(a2R,0.0), bx2R, bp2R);
 			const double sL1 = fmax(fmin(fmin(vxL - cL, vx_t - cT), vxR - cR), -g_env_cap);
@@ -1494,10 +1507,13 @@ void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 			// of rho fail.  The anti-diffusion is therefore reduced linearly from a relative jump |drho|/min(rho) of 1/2
 			// and switched off from 1 on: never active in smooth flow (|drho|/rho = O(h)), plain HLL across strong contacts,
 			// with the envelope widened by [W] above.
-			if(g_jguard){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]
+			if(g_jguard && !g_flat1){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]
 #pragma omp atomic
 				g_ent_lim++; } }
 			if(g_hllemoff || g_hllem_lo){ delta_C = 0.0; delta_Ap = 0.0; delta_Am = 0.0; }
+			else if(g_flat1){ const double fl = fmax(0.0, 1.0 - g_sigma_face); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl;   // [fix L] one flattener
+#pragma omp atomic
+				g_ent_lim += (g_sigma_face > 0.0); }
 			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener
 			if(g_hllemcap > 0.0){ const double cp = 1.0 - g_hllemcap; delta_C = fmin(delta_C, cp); delta_Ap = fmin(delta_Ap, cp); delta_Am = fmin(delta_Am, cp); }   // [fix C] cap
 			double coeff = sL*sR/(sR-sL);
@@ -6641,7 +6657,7 @@ int main(int argc, char *argv[]){
 		else if(key=="rho0") g_vortex_rho0 = v; else if(key=="vL") g_vortex_L = v; else if(key=="novtk") g_novtk = (int)v;
 		else if(key=="betafloor") g_betafloor = v; else if(key=="senv") g_senv = (int)v; else if(key=="idp") g_idp = (int)v;
 		else if(key=="chisplit") g_chisplit = (int)v; else if(key=="rhoscale") g_rho_scale = (int)v; else if(key=="rhothr") g_rho_thr = v;
-		else if(key=="jguard") g_jguard = (int)v;
+		else if(key=="jguard") g_jguard = (int)v; else if(key=="flat1") g_flat1 = (int)v;
 		else if(key=="b0") g_blast_B0 = v; else if(key=="pin") g_blast_pin = v; else if(key=="tend") g_blast_tend = v;
 		else if(key=="bsmooth") g_blast_smooth = (int)v; else if(key=="gamma") g_gamma_set = v;
 		else { std::cout << "unknown arg " << k << std::endl; return 1; } }

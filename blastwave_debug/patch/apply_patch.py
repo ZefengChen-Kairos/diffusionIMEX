@@ -687,6 +687,66 @@ int g_chisplit = 0;    // [fix I]""")
     rep("""		if(Jw > 0.5 && g_env_cap > 0.0){""",
         """		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]""")
 
+    # ========================================================================
+    # [fix L] ONE face flattener for the whole AP-HLLEM -> HLLE reversion.
+    #
+    # The code carried THREE jump sensors acting on the same thing:
+    #   fix C   delta_k *= 1 - max(chi, |dp|/min(p) / 0.5)        (pressure jump)
+    #   guard 2 delta_C *= max(0, (1-J)/0.5)  for J > 0.5          (density jump)
+    #   guard 3 envelope widened by th = min(1, (J-0.5)/0.5)       (density jump)
+    # with five constants between them.  But guard 2's factor is exactly
+    # 1 - Theta(J) and guard 3's th is exactly Theta(J) for the same ramp
+    #   Theta(J) = min(1, max(0, (J - J0)/(J1 - J0))),  J0 = 1/2, J1 = 1,
+    # so the three are one mechanism seen three times.  fix L writes it once:
+    #
+    #   sigma = max( chi_face , Theta(|drho|/min rho) , Theta(|dp|/min p) )
+    #   delta_k   <- (1 - sigma) delta_k
+    #   (sL, sR)  <- widened by sigma towards the CLASSICAL Einfeldt envelope
+    #                over {L, Roe, R}, capped by the time-step speed
+    #
+    # Both actions are the same statement -- revert the AP-HLLEM flux to HLLE
+    # across an under-resolved jump -- and both are citable from references the
+    # paper already carries: the delta_k reversion is the carbuncle cure of
+    # Dumbser & Balsara (the paper's HLLEM reference), the envelope is the
+    # Einfeldt estimate of the paper's eq:einfeldt, and chi is Balsara's
+    # flattener of eq:chi.  Five tuned constants become the two ends of one
+    # dimensionless ramp, of the same kind as the MP limiter's constants:
+    # J = O(h) in smooth flow, so sigma = chi there and nothing changes
+    # (measured: the J part touches 0.01% of the faces at 128^2).
+    #
+    # flat1=0 (default) reproduces the three-sensor form bit for bit.
+    # ========================================================================
+    rep("""int g_jguard = 1;      // [fix K]""",
+        """int g_flat1 = 0;       // [fix L] 1: one unified face flattener sigma for delta_k AND the envelope
+int g_jguard = 1;      // [fix K]""")
+    rep("""	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
+		if(g_jguard && Jw > 0.5 && g_env_cap > 0.0){   // [fix K]
+			const double th = fmin(1.0, (Jw - 0.5)/0.5);""",
+        """	double g_sigma_face = 0.0;   // [fix L] the one flattener, 0 when fix L is off
+	if(g_flat1){
+		const double Jr = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
+		const double pLx = a2L*rhoL, pRx = a2R*rhoR;             // gamma cancels in the ratio
+		const double Jp = (fmin(pLx, pRx) > 0.0) ? fabs(pRx - pLx)/fmin(pLx, pRx) : 0.0;
+		auto ramp = [](double J){ return fmin(1.0, fmax(0.0, 2.0*J - 1.0)); };   // J0 = 1/2, J1 = 1
+		// flat1=1: chi + the density AND pressure jumps.  flat1=2: chi + the
+		// density jump only, i.e. drop the pressure sensor as well.  The ladder
+		// is measured in blastwave_debug/PATCHES.md.
+		g_sigma_face = (g_flat1 >= 2) ? fmax(g_face_chi, ramp(Jr))
+		                             : fmax(g_face_chi, fmax(ramp(Jr), ramp(Jp)));
+	}
+	{	const double Jw = fabs(rhoR - rhoL)/fmin(rhoL, rhoR);
+		const double th = g_flat1 ? g_sigma_face : fmin(1.0, (Jw - 0.5)/0.5);
+		if((g_flat1 ? (th > 0.0) : (g_jguard && Jw > 0.5)) && g_env_cap > 0.0){   // [fix L]""")
+    rep("""			if(g_jguard){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]""",
+        """			if(g_jguard && !g_flat1){ const double J = fabs(rhoR - rhoL)/fmin(rhoL, rhoR); if(J > 0.5){ delta_C *= fmax(0.0, (1.0 - J)/0.5);   // [fix K]""")
+    rep("""			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener""",
+        """			else if(g_flat1){ const double fl = fmax(0.0, 1.0 - g_sigma_face); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl;   // [fix L] one flattener
+#pragma omp atomic
+				g_ent_lim += (g_sigma_face > 0.0); }
+			else if(g_hllemflat){ const double fl = fmax(0.0, 1.0 - g_face_chi); delta_C *= fl; delta_Ap *= fl; delta_Am *= fl; }   // [fix C] flattener""")
+    rep("""		else if(key=="jguard") g_jguard = (int)v;""",
+        """		else if(key=="jguard") g_jguard = (int)v; else if(key=="flat1") g_flat1 = (int)v;""")
+
     # [fix G] 这两条必须在上面的横幅/计数器文本被创建之后
     rep("""	          << " senv=" << g_senv << " betafloor=" << g_betafloor""",
         """	          << " senv=" << g_senv << " betafloor=" << g_betafloor << " idp=" << g_idp""")
