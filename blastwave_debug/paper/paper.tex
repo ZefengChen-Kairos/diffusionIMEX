@@ -1353,26 +1353,17 @@ s_{L}=\min\Bigl(\min_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U
 \qquad
 s_{R}=\max\Bigl(\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\tilde\lambda^{+}_{f}(\mathbf{U}),\;+u^{\max}_{i+\frac12}\Bigr),
 \end{equation}
-where
-\begin{equation}
-\label{eq:umaxface}
-u^{\max}_{i+\frac12}
-=\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U}^{R}\}}\bigl|u(\mathbf{U})\bigr|
-\end{equation}
-is the largest material speed among the same three states. Since $\tilde u$ is a
-convex combination of $u^{L}$ and $u^{R}$, \eqref{eq:umaxface} equals
-$\max(|u^{L}|,|u^{R}|)$, which is precisely the Rusanov speed used for the
-convective sub-system in~\cite{MHDIMEX}: the bound introduces no speed that the
-baseline scheme does not already use.
+where $u^{\max}_{i+\frac12}=\max(|u^{L}|,|u^{R}|)$ is the Rusanov speed used for
+the convective sub-system in~\cite{MHDIMEX}.
 
 The bound closes the envelope in the stiff limit. As $\epsM,\epsB\to0$ the
 magnetosonic quartic~\eqref{eq:ms_disp} tends to $\lambda^{2}(\lambda-u)^{2}$,
 so its roots tend to $\{0,0,u,u\}$ and the inner extrema
 of~\eqref{eq:einfeldt} tend to $\min(0,u)$ and $\max(0,u)$: wherever $u$ keeps
 one sign across the interface one endpoint is exactly zero and
-$s_{L}s_{R}=0$. Since~\eqref{eq:umaxface} is built from the states of that
-interface alone and is itself a material speed, the bound leaves the asymptotic
-scaling of the dissipation unchanged and contains no free parameter.
+$s_{L}s_{R}=0$. Being a material speed of that interface alone, the bound leaves
+the asymptotic scaling of the dissipation unchanged and contains no free
+parameter.
 Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
 on the invariant blocks of Lemma~\ref{lem:blocks} the interval
 $[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
@@ -1500,7 +1491,7 @@ part~\eqref{eq:hll} becomes
 which is exactly the scalar-dissipation flux~\eqref{eq:rusanov} that weak
 hyperbolicity forces on the standard IMEX baseline, with the same speed: in this
 limit $|\tilde\lambda^{c}_{\max}|\to|u|$, so $s^{\max}$ of~\eqref{eq:rusanov}
-and $u^{\max}_{i+\frac12}$ of~\eqref{eq:umaxface} coincide. The AP-HLLEM flux is
+and $u^{\max}_{i+\frac12}$ coincide. The AP-HLLEM flux is
 therefore that baseline minus the anti-diffusive sum of~\eqref{eq:hllem}, whose
 entropy coefficient there is
 $\delta_{\mathrm{ent}}=1-|u|/u^{\max}_{i+\frac12}$. Since the bound is taken
