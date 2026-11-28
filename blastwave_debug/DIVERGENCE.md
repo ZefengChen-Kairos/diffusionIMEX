@@ -399,3 +399,50 @@ $\chi$ 按设计就是要在磁刚性极限里消失的。这正是 `eq:mag_stab
 Balsara 的 flattener 用在**重构的可容许区间**上(他的 eq.(4)–(5),带第二个常数 $\kappa_2$),
 不是用在 Riemann solver 的反扩散上。论文第 1867 行写 "the shock indicator (flattener) of
 Balsara" —— 只归属**指示器**而不归属用途,措辞正确,不用改。
+
+
+---
+
+# 最终决定表(2026-11-28,作者逐条定稿)
+
+| # | 内容 | 决定 |
+|---|---|---|
+| 1 | flattener $\delta_k\leftarrow(1-\sigma)\delta_k$ | **已写** `eq:flattener` |
+| 2 | $s_p$ 压力跳传感器 | **已写** `eq:sp` |
+| 3 | 包络下界(面局部物质速度) | **已写** `eq:einfeldt` + `eq:umaxface` + `eq:aplimit` |
+| 4 | 均值↔点值转换的限制器($\kappa=0.5$、$\varepsilon_M$ 混合) | **不写** —— 同 #10,过于细节 |
+| 5 | 完备性运行时自检($\lVert RL\,\text{probe}-\text{probe}\rVert>10^{-6}$ 换单位基底) | **不写** —— 纯工程。论文已写的对策是基底的 $\varepsilon_M\ge10^{-2}$ 地板(§986/1239/1582),代码一致;这个检查只在 $B_n\sim10^{-6}$ 的角落触发,性质近似 `assert` |
+| 6 | 密度点值 guard(`RHO_PT_FLOOR = 0.5`) | **不写**。代码存废待 OT 余量趋势 |
+| 7 | blast 初值的 erf 平滑 | **不写**,保持分歧 |
+| 8 | dt:第 1 步用完整 MHD 谱 + 每步 1.5× 增长上限 | **未定** —— 见下 |
+| 9 | 显式通量按 $\varepsilon$ 份额分别卷积 | **不写** —— 实现细节,非创新点 |
+| 10 | 横向转换的 minmod 门 + $\varepsilon_M$ 混合 + 外两圈不转换 | **不写** —— 过于细节 |
+| 11 | Roe 声速地板 $\tilde a^2\leftarrow\max(\tilde a^2,10^{-12})$ | **不写** —— 工程 |
+| 12 | 压力 Laplacian(全域系数) | **已写** `eq:p_stab` |
+| 13 | CT 里 $\nabla A$ 斜率的同一个限制器 | **不写** —— 同 #10 |
+| 14 | $\beta$ 旋转在 $\lvert\mathbf B_\perp\rvert\to0$ 的回退(三处门限不一致) | **不写** —— 工程;是否统一门限待定 |
+
+论文侧因此**只写四样**:flattener + $s_p$、包络下界、压力 Laplacian。
+其余均为实现细节或工程保护,作者判定不属于数值方法要点。
+
+## 仍然未定的两件
+
+### (a) #8 dt —— 和其他几条不同类
+
+其他"不写"的条目,论文都只是**沉默**。这一条论文**正面断言了相反的行为**(`eq:cfl` 前一句):
+
+> always subject to a CFL-type stability condition based \emph{only} on the characteristic speeds
+> of the explicit sub-system
+
+而代码两处违反:`full_step=1` 让第 1 步用完整 MHD 谱(`caldt`:3505),之后 `dt` 每步被压到前一步的 1.5 倍(:6632)。而且**每个 run log 的 `dt/dt_MHD` 列都看得见**(1, 1.50004, 2.25025, …),审稿人若索要 log 会直接看到。两处都在原始码里,都是承重的(注释记录了不加上限时 ts=2 的 64× 大步让磁能一步翻倍、内能变负)。
+
+最小的处理是把 `eq:cfl` 前那句的 "always ... \emph{only}" 放宽,不必描述机制。
+
+### (b) 我自己引入、从未被测到的一处偏离(fix J)
+
+密度 guard 的**动作**:原始码与 patched 默认(`g_rho_scale = 0`)都是**丢弃增量**
+($\rho_{\rm pt}\leftarrow\bar\rho$),而 `make_clean` 烘进干净版的是**缩到地板**
+($\rho_{\rm pt}\leftarrow\tfrac12\bar\rho$)。
+
+所有逐位验证都看不见它,因为那个 guard 在 blast 128²/256² 与 OT 128²(三种 `senv`)上
+**一次都没触发**。建议改回原始行为:未经任何测试覆盖、论文也不描述的偏离不该进交付版。
