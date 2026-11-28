@@ -79,10 +79,14 @@ def step2_probes(s):
     s = s.replace('const double thr = g_rho_thr*in(i,j,0);   // [fix J]',
                   'const double thr = RHO_PT_FLOOR*in(i,j,0);')
     assert s.count('out(i,j,0) = g_rho_scale ? thr : in(i,j,0); ng++; } }') == 2, 'fix J out sites'
+    # fix J REVERTED: the original and the patched default both DISCARD the increment
+    # (rho_pt <- rho_bar).  Baking in "scale to the floor" was a deviation no test could
+    # detect, since the guard fires zero times in every test run, and it disagreed with the
+    # second guard in fv_cell_lim_to, which keeps the cell average.
     s = s.replace('out(i,j,0) = g_rho_scale ? thr : in(i,j,0); ng++; } }',
-                  'out(i,j,0) = thr; ng++; } }   // scale the increment down to the floor')
+                  'out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment')
     s = sub1(s, 'if(!(Qpt(i,j,0) >= g_rho_thr*Qbar(i,j,0))){ Qpt(i,j,0) = g_rho_scale ? g_rho_thr*Qbar(i,j,0) : Qbar(i,j,0); n++; }   // [fix J]',
-                'if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = RHO_PT_FLOOR*Qbar(i,j,0); n++; }', 'fix J pt guard')
+                'if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = Qbar(i,j,0); n++; }', 'fix J pt guard')
     # --- the globals and the runtime keys of the removed switches ---
     s = cut(s, 'int g_flat1 = 0;       // [fix L] 1: one unified face flattener sigma for delta_k AND the envelope\n'
                'int g_jguard = 1;      // [fix K] 1: keep the two J-keyed safeguards of HLLEM_x; 0: both off\n'
@@ -386,6 +390,117 @@ def step4e_senv(s):
     return s
 
 
+def step4f_drop_conversion_limiter(s):
+    """Delete the minmod limiter from the average<->point / transverse conversions
+    and from the CT slopes of grad A, and with it the whole eps_M blending.
+
+    What goes: d2lim and mm3, the two kappa = 0.5 constants, the two global
+    grid_absmax / reduction scales that fed their thresholds, the eps_M blend
+    weights w and wq, the globals g_epsM_cell / g_epsM_fx / g_epsM_fy that exist
+    only to carry those weights, and the CT lambdas mm2g / sl with S_gx, S_gy.
+    What stays: the conversions themselves, which become paper eq:convdeconv
+    verbatim, and the positivity guard of fv_cell_lim_to (its "redo fully
+    limited" retry is dropped, since there is no limited branch to redo).
+
+    Measured, limiter on vs off:
+      low-Mach vortex rho_0 = 1e-2 (eps_M ~ 0): bit-identical at 32, 64, 128 --
+        the eps_M blend had already switched the limiter off there.
+      vortex rho_0 = 1 (eps_M ~ 1): third order either way; the 64->128 rates are
+        3.13/2.94/2.94/3.01/3.00 with and 3.03/2.95/2.94/3.02/3.02 without, the
+        32->64 rate of rho is better without (2.67 vs 2.48), and at N = 128 the
+        two are BIT-IDENTICAL -- the threshold carries one power of h less than
+        the quantity it gates, so the gate opens everywhere under refinement.
+      blast 128^2: cells that are a local extremum above 5% 0.101 either way,
+        above 1% 1.316 with and 1.373 without.
+      RP5 800x1: 9 cells above 1% with (median 1.92%), 8 without (median 2.18%).
+    """
+    n0 = len(s)
+    # --- fv_cell_lim_to: drop the scale, kappa, w, the two-pass retry and the blend ---
+    pat = ('\tdouble S[NUM_VARS]; grid_absmax(tmp, ghost_cells, nxCells+ghost_cells, ghost_cells, nyCells+ghost_cells, S);\n'
+           '\tconst double kappa = 0.5;\n')
+    assert s.count(pat) == 2, 'scale + kappa: found %d' % s.count(pat)
+    s = s.replace(pat, '')   # fv_cell_lim_to and fv_transverse_lim
+    s = sub1(s,
+        '\t\t\tdouble w = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(std::max(ghost_cells,std::min(nxCells+ghost_cells-1,i)), std::max(ghost_cells,std::min(nyCells+ghost_cells-1,j))))) : 1.0;\n'
+        '\t\t\tfor(int pass = 0; pass < 2; pass++){\n'
+        '\t\t\t\tfor(int k = 0; k < NUM_VARS; k++){\n'
+        '\t\t\t\t\tdouble d2 = w * d2lim(tmp(i-2,j,k),tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k),tmp(i+2,j,k), kappa*dx*S[k]) + (1.0 - w) * d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));\n'
+        '\t\t\t\t\td2 += w * d2lim(tmp(i,j-2,k),tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k),tmp(i,j+2,k), kappa*dy*S[k]) + (1.0 - w) * d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k));\n'
+        '\t\t\t\t\tout(i,j,k) = tmp(i,j,k) + sgn * d2 / 24.0;\n'
+        '\t\t\t\t}\n',
+        '\t\t\t{\n'
+        '\t\t\t\tfor(int k = 0; k < NUM_VARS; k++){\n'
+        '\t\t\t\t\tconst double d2 = d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k)) + d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k));\n'
+        '\t\t\t\t\tout(i,j,k) = tmp(i,j,k) + sgn * d2 / 24.0;\n'
+        '\t\t\t\t}\n',
+        'fv_cell_lim_to blend + pass loop')
+    s = sub1(s, '\t\t\t\t\t\tif(pass == 0 && w < 1.0){ w = 1.0; continue; }\n', '', 'fv_cell_lim_to retry')
+    # --- fv_cell_lim_s ---
+    s = sub1(s, '\tdouble S = 0.0;\n'
+                '#pragma omp parallel for collapse(2) schedule(static) reduction(max:S)\n'
+                '\tfor(int j = ghost_cells; j < nyCells+ghost_cells; j++) for(int i = ghost_cells; i < nxCells+ghost_cells; i++) S = fmax(S, fabs(in(i,j)));\n'
+                '\tconst double kappa = 0.5;\n', '', 'fv_cell_lim_s scale + kappa')
+    s = sub1(s,
+        '\t\t\tdouble w = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(std::max(ghost_cells,std::min(nxCells+ghost_cells-1,i)), std::max(ghost_cells,std::min(nyCells+ghost_cells-1,j))))) : 1.0;\n'
+        '\t\t\tdouble d2 = w * d2lim(in(i-2,j),in(i-1,j),in(i,j),in(i+1,j),in(i+2,j), kappa*dx*S) + (1.0 - w) * d2lin(in(i-1,j),in(i,j),in(i+1,j));\n'
+        '\t\t\td2 += w * d2lim(in(i,j-2),in(i,j-1),in(i,j),in(i,j+1),in(i,j+2), kappa*dy*S) + (1.0 - w) * d2lin(in(i,j-1),in(i,j),in(i,j+1));\n',
+        '\t\t\tdouble d2 = d2lin(in(i-1,j),in(i,j),in(i+1,j)) + d2lin(in(i,j-1),in(i,j),in(i,j+1));\n',
+        'fv_cell_lim_s blend')
+    # --- fv_transverse_lim ---
+    s = sub1(s,
+        "\t\t\tArray* ef = (dir == 'x') ? g_epsM_fx : g_epsM_fy;\n"
+        "\t\t\tconst int fi = (dir == 'x') ? i - off : i, fj = (dir == 'y') ? j - off : j;   // [o3q] eps of the face this state belongs to\n"
+        '\t\t\tconst double w = ef ? fmin(1.0, fmax(0.0, (*ef)(std::max(ghost_cells-1,std::min(nxCells+ghost_cells-1,fi)), std::max(ghost_cells-1,std::min(nyCells+ghost_cells-1,fj))))) : 1.0;\n'
+        '\t\t\tfor(int k = 0; k < NUM_VARS; k++){\n'
+        "\t\t\t\tconst double thr = kappa * ((dir == 'x') ? dy : dx) * S[k];\n"
+        "\t\t\t\tdouble d2 = (dir == 'x')\n"
+        '\t\t\t\t          ? w * d2lim(tmp(i,j-2,k),tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k),tmp(i,j+2,k), thr) + (1.0 - w) * d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k))\n'
+        '\t\t\t\t          : w * d2lim(tmp(i-2,j,k),tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k),tmp(i+2,j,k), thr) + (1.0 - w) * d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));\n',
+        '\t\t\tfor(int k = 0; k < NUM_VARS; k++){\n'
+        "\t\t\t\tconst double d2 = (dir == 'x') ? d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k))\n"
+        '\t\t\t\t                               : d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));\n',
+        'fv_transverse_lim blend')
+    # --- CT: the same limiter on the slopes of G = grad A ---
+    s = sub1(s, '\tauto mm2g = [&](double a, double b, double thr)->double{ if(fabs(a) < thr && fabs(b) < thr) return 0.5*(a+b); return (a*b > 0.0) ? ((fabs(a) < fabs(b)) ? a : b) : 0.0; };\n',
+                '', 'CT mm2g')
+    s = sub1(s, '\t\tdouble S_gx = 0.0, S_gy = 0.0;\n'
+                '#pragma omp parallel for collapse(2) schedule(static) reduction(max:S_gx,S_gy)\n'
+                '\t\tfor(int j = ghost_cells; j < nyCells+ghost_cells; j++) for(int i = ghost_cells; i < nxCells+ghost_cells; i++){ S_gx = fmax(S_gx, fabs(Gx(i,j))); S_gy = fmax(S_gy, fabs(Gy(i,j))); }\n',
+                '', 'CT global slope scales')
+    s = sub1(s, '\t\t\t\tdouble wq = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(i,j))) : 1.0;\n'
+                '\t\t\t\tauto sl = [&](double a, double b, double thr)->double{ return wq * mm2g(a, b, thr) + (1.0 - wq) * 0.5*(a+b); };\n'
+                '\t\t\t\t// [o3t] the slopes of G = grad A use the SAME eps_M-blended, threshold-gated limiter as the slopes of u:\n'
+                '\t\t\t\t// the unconditional minmod zeroed them at every smooth extremum of G (O(h^2) in h-wide bands, B residual\n'
+                '\t\t\t\t// ~2.5th order on the stationary vortex); the gate still limits across a jump (|dG| > S_G/2).\n'
+                '\t\t\t\tSxx(i,j) = sl(Gx(i+1,j)-Gx(i,j), Gx(i,j)-Gx(i-1,j), 0.5*S_gx)/dx; Sxy(i,j) = sl(Gx(i,j+1)-Gx(i,j), Gx(i,j)-Gx(i,j-1), 0.5*S_gx)/dy;\n'
+                '\t\t\t\tSyx(i,j) = sl(Gy(i+1,j)-Gy(i,j), Gy(i,j)-Gy(i-1,j), 0.5*S_gy)/dx; Syy(i,j) = sl(Gy(i,j+1)-Gy(i,j), Gy(i,j)-Gy(i,j-1), 0.5*S_gy)/dy;\n',
+                '\t\t\t\tauto sl = [](double a, double b)->double{ return 0.5*(a+b); };   // central slope of G, unlimited (paper eq:Aupdate)\n'
+                '\t\t\t\tSxx(i,j) = sl(Gx(i+1,j)-Gx(i,j), Gx(i,j)-Gx(i-1,j))/dx; Sxy(i,j) = sl(Gx(i,j+1)-Gx(i,j), Gx(i,j)-Gx(i,j-1))/dy;\n'
+                '\t\t\t\tSyx(i,j) = sl(Gy(i+1,j)-Gy(i,j), Gy(i,j)-Gy(i-1,j))/dx; Syy(i,j) = sl(Gy(i,j+1)-Gy(i,j), Gy(i,j)-Gy(i,j-1))/dy;\n',
+                'CT slope limiter -> central')
+    # --- the limiter helpers and the eps_M plumbing that only fed the blend weights ---
+    m = re.search(r'static inline double mm3\(double a, double b, double c\)\{.*?\n\}\n', s, re.S)
+    assert m, 'mm3 not found'
+    s = s[:m.start()] + s[m.end():]
+    m = re.search(r'static inline double d2lim\(double qm2[^\n]*\{\n(?:[^\n]*\n)*?\}\n', s)
+    assert m, 'd2lim not found'
+    s = s[:m.start()] + s[m.end():]
+    # the rationale comments for the gate and the blend go with them
+    m = re.search(r'// limited undivided second difference at the centre point of a 5-point line\n'
+                  r'(?:// \[o3b\][^\n]*\n|//[^\n]*\n)*?'
+                  r'Array \*g_epsM_cell = nullptr, \*g_epsM_fx = nullptr, \*g_epsM_fy = nullptr;\n', s)
+    assert m, 'gate/blend rationale block not found'
+    s = s[:m.start()] + s[m.end():]
+    s = sub1(s, '\tg_epsM_cell = &eps_M;\n', '', 'g_epsM_cell assignment')
+    s = sub1(s, '\t\t\tg_epsM_fx = &eps_M_grid_x; g_epsM_fy = &eps_M_grid_y;\n', '', 'face eps assignment')
+    s = sub1(s, '\t\t\tg_epsM_fx = nullptr; g_epsM_fy = nullptr;   // the stage\'s face-eps arrays go out of scope below\n', '', 'face eps reset')
+    s = sub1(s, '\tconst void* key[3] = {&A_e, g_emb_Qe, g_epsM_cell};', '\tconst void* key[3] = {&A_e, g_emb_Qe, nullptr};', 'CT cache key')
+    for v in ('d2lim', 'mm3', 'g_epsM_cell', 'g_epsM_fx', 'g_epsM_fy', 'mm2g', 'S_gx', 'S_gy',
+              'const double kappa', 'kappa*dx', 'kappa*dy', 'kappa * (('):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    print('  step 4f conversion limiter: %d chars removed' % (n0 - len(s)))
+    return s
+
 def step5_comments(s):
     """Prune the development archaeology from the comments.
 
@@ -475,7 +590,7 @@ def step6_junk_comments(s):
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
     upto = sys.argv[3] if len(sys.argv) > 3 else '6'
-    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '4e', '5', '6']
+    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '4e', '4f', '5', '6']
     want = order[:order.index(upto) + 1]
     s = open(src).read()
     if '1' in want:  s = step1_dead_code(s)
@@ -486,6 +601,7 @@ if __name__ == '__main__':
     if '4c' in want: s = step4c_bake_method_params(s)
     if '4d' in want: s = step4d_dead_envelope(s)
     if '4e' in want: s = step4e_senv(s)
+    if '4f' in want: s = step4f_drop_conversion_limiter(s)
     if '5' in want:  s = step5_comments(s)
     if '6' in want:  s = step6_junk_comments(s)
     open(dst, 'w').write(s)

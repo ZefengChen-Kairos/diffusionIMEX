@@ -1390,11 +1390,6 @@ void HLLEM_y(double *QL, double *QR, double epsM, double epsB, double *flux){
 // Whole-grid convolution / deconvolution between point values and cell averages.
 // sgn = +1 : point value  -> cell average
 // sgn = -1 : cell average -> point value
-static inline double mm3(double a, double b, double c){
-	if(a > 0.0 && b > 0.0 && c > 0.0) return std::min(a, std::min(b, c));
-	if(a < 0.0 && b < 0.0 && c < 0.0) return std::max(a, std::max(b, c));
-	return 0.0;
-}
 // S[k] = max |G(i,j,k)| over i0 <= i < i1, j0 <= j < j1, all k (parallel; max is order independent)
 static void grid_absmax(const Grid& G, int i0, int i1, int j0, int j1, double* S){
 	for(int k = 0; k < NUM_VARS; k++) S[k] = 0.0;
@@ -1411,32 +1406,12 @@ static void grid_absmax(const Grid& G, int i0, int i1, int j0, int j1, double* S
 		for(int k = 0; k < NUM_VARS; k++) S[k] = fmax(S[k], loc[k]);
 	}
 }
-// limited undivided second difference at the centre point of a 5-point line
-// The minmod gate is only allowed to fire when at least one candidate second
-// difference is large on the scale of the variable (|d2| >= kappa*h*S): a genuine jump
-// has |d2| ~ S, smooth data |d2| ~ h^2 S, grid-scale noise |d2| ~ delta << h S.  With the
-// gate always armed (mm3 on everything) the on/off switching between neighbouring faces
-// turned grid-scale density noise into a growing drift on the low-Mach KH (measured:
-// 2.8e-3 -> 2.8e-4 at t=81, 64x32, once the conversions are linear there).
-// eps_M blend of the conversions: limited where the flow is explicit (shocks live at
-// M >= 1, eps_M = 1), LINEAR in the implicit (low-Mach) share.  A minmod that fires on an
-// unresolved low-Mach shear layer (2-cell KH layer: |d2 F| ~ S_F) switches on and off between
-// neighbouring faces and injects grid-scale momentum; measured on the KH 64x32, t=81: limited
-// flux convolution -> density drift 2.8e-3, linear -> 2.8e-4.
-Array *g_epsM_cell = nullptr, *g_epsM_fx = nullptr, *g_epsM_fy = nullptr;
 static inline double d2lin(double qm1, double q0, double qp1){ return qp1 - 2.0*q0 + qm1; }
-static inline double d2lim(double qm2, double qm1, double q0, double qp1, double qp2, double thr){
-	const double a = q0 - 2.0*qm1 + qm2, b = qp1 - 2.0*q0 + qm1, c = qp2 - 2.0*qp1 + q0;
-	if(fabs(a) < thr && fabs(b) < thr && fabs(c) < thr) return b;
-	return mm3(a, b, c);
-}
 // cell average <-> cell-centre point value, limited, applied where the 5-point stencil exists
 // out = limited conversion of in (all cells written; out and in must be different grids)
 static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 	const Grid& tmp = in;
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	double S[NUM_VARS]; grid_absmax(tmp, ghost_cells, nxCells+ghost_cells, ghost_cells, nyCells+ghost_cells, S);
-	const double kappa = 0.5;
 	auto pres = [&](const Grid& G, int ii, int jj)->double{   // pressure of a conservative state (ideal gas)
 		double r = G(ii,jj,0); if(!(r > 0.0)) return -1.0;
 		double ke = 0.5*(G(ii,jj,1)*G(ii,jj,1)+G(ii,jj,2)*G(ii,jj,2)+G(ii,jj,3)*G(ii,jj,3))/r;
@@ -1447,11 +1422,9 @@ static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 	for(int j = 0; j < NY; j++)
 		for(int i = 0; i < NX; i++){
 			if(i < 2 || i >= NX-2 || j < 2 || j >= NY-2){ for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k); continue; }   // outer rings unchanged
-			double w = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(std::max(ghost_cells,std::min(nxCells+ghost_cells-1,i)), std::max(ghost_cells,std::min(nyCells+ghost_cells-1,j))))) : 1.0;
-			for(int pass = 0; pass < 2; pass++){
+			{
 				for(int k = 0; k < NUM_VARS; k++){
-					double d2 = w * d2lim(tmp(i-2,j,k),tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k),tmp(i+2,j,k), kappa*dx*S[k]) + (1.0 - w) * d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));
-					d2 += w * d2lim(tmp(i,j-2,k),tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k),tmp(i,j+2,k), kappa*dy*S[k]) + (1.0 - w) * d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k));
+					const double d2 = d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k)) + d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k));
 					out(i,j,k) = tmp(i,j,k) + sgn * d2 / 24.0;
 				}
 				// positivity guard (eps_M is blind to a pressure jump in a fluid at rest, e.g. the
@@ -1460,7 +1433,6 @@ static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 				if(sgn < 0.0){
 					double r0 = tmp(i,j,0), p0 = pres(tmp,i,j), r1 = out(i,j,0), p1 = pres(out,i,j);
 					if(r1 < 0.5*r0 || p1 < 0.5*p0){
-						if(pass == 0 && w < 1.0){ w = 1.0; continue; }
 						// still inadmissible fully limited (low-beta cell: p is a small difference of
 						// large deconvolved terms): keep the cell average as the point value there (2nd-order
 						// locally, admissible) -- a negative point p otherwise reached the Riemann solver.
@@ -1474,17 +1446,11 @@ static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 // the limited conversion of a scalar field, sgn > 0 (fv_cell_lim_to applied to one slot)
 static void fv_cell_lim_s(Array &out, const Array &in, double sgn){
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	double S = 0.0;
-#pragma omp parallel for collapse(2) schedule(static) reduction(max:S)
-	for(int j = ghost_cells; j < nyCells+ghost_cells; j++) for(int i = ghost_cells; i < nxCells+ghost_cells; i++) S = fmax(S, fabs(in(i,j)));
-	const double kappa = 0.5;
 #pragma omp parallel for schedule(static)
 	for(int j = 0; j < NY; j++)
 		for(int i = 0; i < NX; i++){
 			if(i < 2 || i >= NX-2 || j < 2 || j >= NY-2){ out(i,j) = in(i,j); continue; }
-			double w = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(std::max(ghost_cells,std::min(nxCells+ghost_cells-1,i)), std::max(ghost_cells,std::min(nyCells+ghost_cells-1,j))))) : 1.0;
-			double d2 = w * d2lim(in(i-2,j),in(i-1,j),in(i,j),in(i+1,j),in(i+2,j), kappa*dx*S) + (1.0 - w) * d2lin(in(i-1,j),in(i,j),in(i+1,j));
-			d2 += w * d2lim(in(i,j-2),in(i,j-1),in(i,j),in(i,j+1),in(i,j+2), kappa*dy*S) + (1.0 - w) * d2lin(in(i,j-1),in(i,j),in(i,j+1));
+			double d2 = d2lin(in(i-1,j),in(i,j),in(i+1,j)) + d2lin(in(i,j-1),in(i,j),in(i,j+1));
 			out(i,j) = in(i,j) + sgn * d2 / 24.0;
 		}
 }
@@ -1522,20 +1488,13 @@ static void fv_transverse_lim(Grid &F, char dir, double sgn, int off = 0, Grid* 
 	Grid& out = keep ? *keep : scratch;   // result, computed out of place; becomes F's storage at the end (no copies)
 	const Grid& tmp = F;
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	double S[NUM_VARS]; grid_absmax(tmp, ghost_cells, nxCells+ghost_cells, ghost_cells, nyCells+ghost_cells, S);
-	const double kappa = 0.5;
 #pragma omp parallel for schedule(static)
 	for(int j = 0; j < NY; j++)
 		for(int i = 0; i < NX; i++){
 			if(i < 2 || i >= NX-2 || j < 2 || j >= NY-2){ for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k); continue; }   // outer rings unchanged
-			Array* ef = (dir == 'x') ? g_epsM_fx : g_epsM_fy;
-			const int fi = (dir == 'x') ? i - off : i, fj = (dir == 'y') ? j - off : j;   // eps of the face this state belongs to
-			const double w = ef ? fmin(1.0, fmax(0.0, (*ef)(std::max(ghost_cells-1,std::min(nxCells+ghost_cells-1,fi)), std::max(ghost_cells-1,std::min(nyCells+ghost_cells-1,fj))))) : 1.0;
 			for(int k = 0; k < NUM_VARS; k++){
-				const double thr = kappa * ((dir == 'x') ? dy : dx) * S[k];
-				double d2 = (dir == 'x')
-				          ? w * d2lim(tmp(i,j-2,k),tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k),tmp(i,j+2,k), thr) + (1.0 - w) * d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k))
-				          : w * d2lim(tmp(i-2,j,k),tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k),tmp(i+2,j,k), thr) + (1.0 - w) * d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));
+				const double d2 = (dir == 'x') ? d2lin(tmp(i,j-1,k),tmp(i,j,k),tmp(i,j+1,k))
+				                               : d2lin(tmp(i-1,j,k),tmp(i,j,k),tmp(i+1,j,k));
 				out(i,j,k) = tmp(i,j,k) + sgn * d2 / 24.0;
 			}
 		}
@@ -1561,7 +1520,7 @@ static void fv_cell_to(Grid &out, const Grid &in, double sgn, bool rho_guard = f
 				}
 		}
 		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = RHO_PT_FLOOR*in(i,j,0);
-			if(!(out(i,j,0) >= thr)){ out(i,j,0) = thr; ng++; } }   // scale the increment down to the floor
+			if(!(out(i,j,0) >= thr)){ out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment
 	}
 	g_rho_guard += ng;
 }
@@ -1595,7 +1554,7 @@ template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, do
 				}
 		}
 		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = RHO_PT_FLOOR*in(i,j,0);
-			if(!(out(i,j,0) >= thr)){ out(i,j,0) = thr; ng++; } }   // scale the increment down to the floor
+			if(!(out(i,j,0) >= thr)){ out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment
 	}
 	if(rho_guard) g_rho_guard += ng;
 }
@@ -3927,7 +3886,7 @@ static void rho_pt_guard(Grid& Qpt, Grid& Qbar){   // (also available inside fv_
 	long n = 0;
 #pragma omp parallel for collapse(2) schedule(static) reduction(+:n)
 	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++)
-		if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = RHO_PT_FLOOR*Qbar(i,j,0); n++; }
+		if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = Qbar(i,j,0); n++; }
 	g_rho_guard += n;
 }
 // CELL AVERAGES of the velocity u = m/rho via point values (ubar != mbar/rhobar at O(h^2) when rho varies):
@@ -4022,32 +3981,24 @@ void Unstaggered_CT(Grid& u_con, Grid& A,Grid& A_s, Grid& A_e, double h) {
 		return (v >= 0.0) ? wz5(Dy(i,j,-3),Dy(i,j,-2),Dy(i,j,-1),Dy(i,j,0),Dy(i,j,1))
 		                  : wz5(Dy(i,j,2),Dy(i,j,1),Dy(i,j,0),Dy(i,j,-1),Dy(i,j,-2));
 	};
-	auto mm2g = [&](double a, double b, double thr)->double{ if(fabs(a) < thr && fabs(b) < thr) return 0.5*(a+b); return (a*b > 0.0) ? ((fabs(a) < fabs(b)) ? a : b) : 0.0; };
 	// G = grad A_e (upwind WENO5) and its limited slopes depend only on A_e, on the upwind direction (from u_E when
 	// g_emb_Qe is set) and on eps_M: all fixed within a stage, so they are computed once per stage and reused by every
 	// CT of that stage (the embedded functional evaluates the CT once per defect-correction sweep).
 	static Array Gx(nxCells, nyCells), Gy(nxCells, nyCells);
 	static Array Sxx(nxCells, nyCells), Sxy(nxCells, nyCells), Syx(nxCells, nyCells), Syy(nxCells, nyCells);   // limited slopes of G
 	static long G_stamp = -1; static const void* G_key[3] = {nullptr, nullptr, nullptr};
-	const void* key[3] = {&A_e, g_emb_Qe, g_epsM_cell};
+	const void* key[3] = {&A_e, g_emb_Qe, nullptr};
 	const bool cacheable = (g_emb_Qe != nullptr);
 	if(!(cacheable && G_stamp == g_stage_stamp && G_key[0] == key[0] && G_key[1] == key[1] && G_key[2] == key[2])){
 #pragma omp parallel for collapse(2) schedule(static)
 		for(int j = ghost_cells-1; j < nyCells + ghost_cells + 1; j++)
 			for(int i = ghost_cells-1; i < nxCells + ghost_cells + 1; i++){ Gx(i,j) = Gx_at(i,j); Gy(i,j) = Gy_at(i,j); }
-		double S_gx = 0.0, S_gy = 0.0;
-#pragma omp parallel for collapse(2) schedule(static) reduction(max:S_gx,S_gy)
-		for(int j = ghost_cells; j < nyCells+ghost_cells; j++) for(int i = ghost_cells; i < nxCells+ghost_cells; i++){ S_gx = fmax(S_gx, fabs(Gx(i,j))); S_gy = fmax(S_gy, fabs(Gy(i,j))); }
 #pragma omp parallel for collapse(2) schedule(static)
 		for(int j = ghost_cells; j < nyCells + ghost_cells; j++)
 			for(int i = ghost_cells; i < nxCells + ghost_cells; i++){
-				double wq = g_epsM_cell ? fmin(1.0, fmax(0.0, (*g_epsM_cell)(i,j))) : 1.0;
-				auto sl = [&](double a, double b, double thr)->double{ return wq * mm2g(a, b, thr) + (1.0 - wq) * 0.5*(a+b); };
-				// the slopes of G = grad A use the SAME eps_M-blended, threshold-gated limiter as the slopes of u:
-				// the unconditional minmod zeroed them at every smooth extremum of G (O(h^2) in h-wide bands, B residual
-				// ~2.5th order on the stationary vortex); the gate still limits across a jump (|dG| > S_G/2).
-				Sxx(i,j) = sl(Gx(i+1,j)-Gx(i,j), Gx(i,j)-Gx(i-1,j), 0.5*S_gx)/dx; Sxy(i,j) = sl(Gx(i,j+1)-Gx(i,j), Gx(i,j)-Gx(i,j-1), 0.5*S_gx)/dy;
-				Syx(i,j) = sl(Gy(i+1,j)-Gy(i,j), Gy(i,j)-Gy(i-1,j), 0.5*S_gy)/dx; Syy(i,j) = sl(Gy(i,j+1)-Gy(i,j), Gy(i,j)-Gy(i,j-1), 0.5*S_gy)/dy;
+				auto sl = [](double a, double b)->double{ return 0.5*(a+b); };   // central slope of G, unlimited (paper eq:Aupdate)
+				Sxx(i,j) = sl(Gx(i+1,j)-Gx(i,j), Gx(i,j)-Gx(i-1,j))/dx; Sxy(i,j) = sl(Gx(i,j+1)-Gx(i,j), Gx(i,j)-Gx(i,j-1))/dy;
+				Syx(i,j) = sl(Gy(i+1,j)-Gy(i,j), Gy(i,j)-Gy(i-1,j))/dx; Syy(i,j) = sl(Gy(i,j+1)-Gy(i,j), Gy(i,j)-Gy(i,j-1))/dy;
 			}
 		if(cacheable){ G_stamp = g_stage_stamp; for(int q = 0; q < 3; q++) G_key[q] = key[q]; } else G_stamp = -1;
 	}
@@ -6475,7 +6426,6 @@ int main(int argc, char *argv[]){
 	Array Bx_p0(nxCells,nyCells), By_0p(nxCells,nyCells),Bx_p0_n(nxCells,nyCells), By_0p_n(nxCells,nyCells), Az(nxCells, nyCells), Bx(nxCells,nyCells),By(nxCells,nyCells), Bz(nxCells,nyCells);
 	Array Bx_p0_Qe(nxCells,nyCells), By_0p_Qe(nxCells,nyCells),Bx_p0_Qs(nxCells,nyCells), By_0p_Qs(nxCells,nyCells);
 	Array eps_M(nxCells,nyCells), eps_B(nxCells,nyCells);
-	g_epsM_cell = &eps_M;
 	Array eps_M_x(nxCells,nyCells), eps_M_y(nxCells,nyCells);
 	Array eps_B_x(nxCells,nyCells), eps_B_y(nxCells,nyCells);
 	u_initialization(u_pri, Bx_p0, By_0p);
@@ -6703,7 +6653,6 @@ int main(int argc, char *argv[]){
 			// Magnetic_Subsystem_AX/MagSubsystem_UpdateB/TVDReconstruction
 			// below all reference Qe as "the" explicit state for this stage.
 			Array eps_M_grid_x(nxCells,nyCells), eps_M_grid_y(nxCells,nyCells);
-			g_epsM_fx = &eps_M_grid_x; g_epsM_fy = &eps_M_grid_y;
 			Array eps_B_grid_x(nxCells,nyCells), eps_B_grid_y(nxCells,nyCells);
 			getepsgrid(Qe, eps_M, eps_B,eps_M_grid_x, eps_M_grid_y, eps_B_grid_x, eps_B_grid_y);
 
@@ -6755,7 +6704,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 			}
-			g_epsM_fx = nullptr; g_epsM_fy = nullptr;   // the stage's face-eps arrays go out of scope below
 			
 #pragma omp parallel for collapse(2) schedule(static)
 			for(int j = 0; j < nyCells + 2*ghost_cells; j++){
