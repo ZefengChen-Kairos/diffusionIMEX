@@ -1356,14 +1356,12 @@ s_{R}=\max\Bigl(\max_{\mathbf{U}\in\{\mathbf{U}^{L},\tilde{\mathbf{U}},\mathbf{U
 where $u^{\max}_{i+\frac12}=\max(|u^{L}|,|u^{R}|)$ is the Rusanov speed used for
 the convective sub-system in~\cite{MHDIMEX}.
 
-The bound closes the envelope in the stiff limit. As $\epsM,\epsB\to0$ the
-magnetosonic quartic~\eqref{eq:ms_disp} tends to $\lambda^{2}(\lambda-u)^{2}$,
-so its roots tend to $\{0,0,u,u\}$ and the inner extrema
-of~\eqref{eq:einfeldt} tend to $\min(0,u)$ and $\max(0,u)$: wherever $u$ keeps
-one sign across the interface one endpoint is exactly zero and
-$s_{L}s_{R}=0$. Being a material speed of that interface alone, the bound leaves
-the asymptotic scaling of the dissipation unchanged and contains no free
-parameter.
+In the stiff limit $\epsM,\epsB\to0$ the magnetosonic
+quartic~\eqref{eq:ms_disp} tends to $\lambda^{2}(\lambda-u)^{2}$, so its roots
+tend to $\{0,0,u,u\}$ and the bound fixes $[s_{L},s_{R}]$ at
+$[-u^{\max}_{i+\frac12},\,u^{\max}_{i+\frac12}]$. Being a material speed of the
+interface, it leaves the asymptotic scaling of the dissipation unchanged and
+contains no free parameter.
 Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
 on the invariant blocks of Lemma~\ref{lem:blocks} the interval
 $[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
@@ -1384,19 +1382,10 @@ R=2\max\Bigl(|c_3|,\;|c_2|^{1/2},\;|c_1|^{1/3},\;\bigl|\tfrac12c_0\bigr|^{1/4}\B
 Newton's method started from $R$ therefore decreases monotonically to
 $\tilde\lambda_f^{+}$, and started from $-R$ increases monotonically to
 $\tilde\lambda_f^{-}$, so no eigenvalue solver is required at the interface. The
-iteration is stopped at a relative step of $10^{-13}$, after $200$ iterations,
-or as soon as the derivative or the step changes sign, which cannot occur while
-the iterate lies outside the root interval and therefore serves as a
-monotonicity guard. A few tens of scalar iterations suffice; in the stiff limit
-the two targeted roots are double, the convergence is linear, and the attainable
-accuracy is that of a double root, which is immaterial there because the bound
-in~\eqref{eq:einfeldt} replaces both speeds by $\mp u^{\max}_{i+\frac12}$. The
-monotone iteration is also what makes the evaluation robust. The roots are real, but two of them nearly coincide over
-a non-negligible part of the state space, and a general-purpose root finder
-applied to the coefficients $(c_3,c_2,c_1,c_0)$ then returns spurious complex
-pairs -- for randomly sampled admissible states, in a few per cent of them.
-Newton started outside the root interval of a polynomial with real roots cannot
-leave it, so the envelope is obtained without any such failure.
+iteration is stopped at a relative step of $10^{-13}$, after $200$ iterations, or
+at a sign change of the derivative or of the step, and a few tens of scalar
+iterations suffice. Started outside the root interval of a polynomial with real
+roots, the iteration remains in it.
 For $s_L\ge0$ or $s_R\le0$ the
 flux reduces to the upwind value $\tilde\FF^{c}(\mathbf{U}^{L})$ or
 $\tilde\FF^{c}(\mathbf{U}^{R})$; for $s_L<0<s_R$ the AP-HLLEM flux reads
@@ -1494,30 +1483,19 @@ limit $|\tilde\lambda^{c}_{\max}|\to|u|$, so $s^{\max}$ of~\eqref{eq:rusanov}
 and $u^{\max}_{i+\frac12}$ coincide. The AP-HLLEM flux is
 therefore that baseline minus the anti-diffusive sum of~\eqref{eq:hllem}, whose
 entropy coefficient there is
-$\delta_{\mathrm{ent}}=1-|u|/u^{\max}_{i+\frac12}$. Since the bound is taken
-over the states of that interface alone, this coefficient vanishes on a uniform
-interface and is positive only across a genuine velocity jump: the
-anti-diffusion switches itself off in the quiet part of the flow and acts where
-the linearly degenerate fields carry structure. A bound taken over the whole
-domain instead would drive $\delta_{\mathrm{ent}}\to1$ wherever
-$|u|\ll\max_\Omega|u|$ and so remove the dissipation from the three linearly
-degenerate fields in the quiet ambient of a flow with a large dynamic range. The
+$\delta_{\mathrm{ent}}=1-|u|/u^{\max}_{i+\frac12}$, which vanishes on a uniform
+interface and is positive across a velocity jump, so the anti-diffusion acts
+where the linearly degenerate fields carry structure. The
 asymptotic-preserving property is thus continuous in $\epsM,\epsB$ and needs no
-solver switching: the $\eps$-split does not discard the Rusanov
-flux~\eqref{eq:rusanov}, it recovers it as the stiff limit and sharpens the
-three linearly degenerate fields on top of it.
+solver switching: the stiff limit of the AP-HLLEM flux is the Rusanov
+flux~\eqref{eq:rusanov}, sharpened on the three linearly degenerate fields.
 
 \paragraph{Shock stabilisation of the anti-diffusion.}
-On an interface whose normal is transverse to a strong shock the normal velocity
-is small, so $\tilde\lambda_{\mathrm{ent}}=\tilde u$ lies far from both ends of
-$[s_L,s_R]$ and~\eqref{eq:deltak} gives $\delta_{\mathrm{ent}}\to1$, leaving the
-entropy anti-diffusion along the front undamped; the two Alfv\'en coefficients
-behave likewise. This is the grid-aligned shock instability of HLLEM, which the
-linear perturbation analysis of~\cite{SimonMandal2019} attributes to the
-activation of the anti-diffusive terms on the interfaces transverse to the
-shock. All three coefficients are therefore damped by a dimensionless sensor
-built from the pressure, following the pressure criterion that accompanies the
-divergence flattener of Balsara~\cite{Balsara2012},
+Across a strong shock the three anti-diffusion coefficients are damped by a
+dimensionless sensor built from the pressure, in the manner of the pressure
+criterion that accompanies the divergence flattener of
+Balsara~\cite{Balsara2012} and of the anti-diffusion control
+of~\cite{SimonMandal2019},
 \begin{equation}
 \label{eq:flattener}
 \delta_k \longleftarrow \bigl(1-\sigma_{i+\frac12,j}\bigr)\,\delta_k,
@@ -1533,16 +1511,13 @@ s^{p}_{i,j}=\min\!\left(1,\;\frac{1}{\varsigma}
 \end{equation}
 where $\mathcal N(i,j)$ are the four face neighbours of the cell.
 
-A contact discontinuity and a rotational discontinuity are both
-pressure-continuous, so $s^{p}$ does not respond to either, however large the
-jump in density or in the transverse field; it responds to a shock, across which
-the pressure jump is the defining feature. The parameter $\varsigma$ is a
-saturation scale rather than a threshold: the sensor rises linearly from zero
-and reaches one at a relative pressure jump of $50\%$, so there is no dead zone
-and no discontinuous switch, and where it saturates the flux is the plain HLL
-flux~\eqref{eq:hll}. The design order is unaffected, since in smooth flow
-$\sigma=\mathcal O(h)$ multiplies an anti-diffusive term whose own jump is
-$\mathcal O(h^{3})$ after the reconstruction of
+The pressure selects shocks among the discontinuities of the system: a contact
+and a rotational discontinuity are pressure-continuous, while across a shock the
+pressure jump is the defining feature. The parameter $\varsigma$ is a saturation
+scale: $s^{p}$ rises linearly from zero and reaches one at a relative pressure
+jump of $50\%$, where the flux is the plain HLL flux~\eqref{eq:hll}. In smooth
+flow $\sigma=\mathcal O(h)$ and multiplies an anti-diffusive term whose own jump
+is $\mathcal O(h^{3})$ after the reconstruction of
 Section~\ref{sec:reconstruction}.
 
 
@@ -1976,10 +1951,8 @@ the energy is balanced with a solenoidal field throughout the solve. The
 operator is not symmetric, because of the first-order terms contributed by
 $\Phi$, and~\eqref{eq:pwave} is solved as described in Section \ref{sec:nestednewton}.
 
-The central discretisation of the elliptic term in~\eqref{eq:pwave} carries no
-numerical dissipation, exactly as that of $\mathcal D^{n}_{B}$ did, so the same
-shock-activated stabilisation is applied to it. Following~\cite{MHDIMEX},
-\eqref{eq:pwave} is augmented on its left-hand side by
+The same shock-activated stabilisation is applied to the pressure equation.
+Following~\cite{MHDIMEX}, \eqref{eq:pwave} is augmented on its left-hand side by
 $-\mathcal S^{p}_{h}[p^{n+1}]$, with
 \begin{equation}
 \label{eq:p_stab}
