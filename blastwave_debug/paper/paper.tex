@@ -1365,29 +1365,21 @@ $\max(|u^{L}|,|u^{R}|)$, which is precisely the Rusanov speed used for the
 convective sub-system in~\cite{MHDIMEX}: the bound introduces no speed that the
 baseline scheme does not already use.
 
-It is needed because the split envelope degenerates. As $\epsM,\epsB\to0$ the
-magnetosonic quartic~\eqref{eq:ms_disp} tends to $\lambda^{2}(\lambda-u)^{2}$, so
-its roots tend to $\{0,0,u,u\}$ and the inner extrema of~\eqref{eq:einfeldt}
-tend to $\min(0,u)$ and $\max(0,u)$. Wherever $u$ keeps one sign across the
-interface one endpoint is then exactly zero, $s_{L}s_{R}=0$, and the HLL
-part~\eqref{eq:hll} carries no dissipation at all --- not only at isolated
-stagnation points, but on almost every interface of a smooth low-Mach flow. The
-scheme then converges to a wrong weak solution: on RP6 of
-Section~\ref{sec:riemann1d}, the strongest of the Riemann problems considered
-here, the unbounded envelope gives a post-shock density of $3.884$ against the
-exact $3.982$ and a shock position of $-0.383$ against $-0.371$, with no
-improvement between $250$ and $2000$ cells. Because~\eqref{eq:umaxface} is built
-from the states of that interface alone and is itself a material speed, the
-bound leaves the asymptotic scaling of the dissipation unchanged, couples no
-distant part of the domain, and contains no free parameter.
+The bound closes the envelope in the stiff limit. As $\epsM,\epsB\to0$ the
+magnetosonic quartic~\eqref{eq:ms_disp} tends to $\lambda^{2}(\lambda-u)^{2}$,
+so its roots tend to $\{0,0,u,u\}$ and the inner extrema
+of~\eqref{eq:einfeldt} tend to $\min(0,u)$ and $\max(0,u)$: wherever $u$ keeps
+one sign across the interface one endpoint is exactly zero and
+$s_{L}s_{R}=0$. Since~\eqref{eq:umaxface} is built from the states of that
+interface alone and is itself a material speed, the bound leaves the asymptotic
+scaling of the dissipation unchanged and contains no free parameter.
 Only the magnetosonic roots enter~\eqref{eq:einfeldt}, and they are enough:
 on the invariant blocks of Lemma~\ref{lem:blocks} the interval
 $[\tilde\lambda^{-}_{f},\tilde\lambda^{+}_{f}]$ also contains the split
 Alfv\'en speeds~\eqref{eq:alfven_eig}. We have verified this over the whole
 admissible range of states and of $(\epsM,\epsB)\in[0,1]^2$; the two intervals
 touch only in the degenerate limit $\epsB B_x\to0$, where the Alfv\'en pair
-collapses onto $\{u,\epsB u\}$; the lower bound in~\eqref{eq:einfeldt} only
-widens $[s_{L},s_{R}]$ and so cannot invalidate the inclusion. The anti-diffusion coefficients
+collapses onto $\{u,\epsB u\}$. The anti-diffusion coefficients
 $\delta_k$ of~\eqref{eq:deltak} therefore lie in $[0,1]$ for all three linearly
 degenerate fields without being clipped there; the shock sensor
 of~\eqref{eq:flattener} is the only further modification they receive.
@@ -1401,21 +1393,14 @@ R=2\max\Bigl(|c_3|,\;|c_2|^{1/2},\;|c_1|^{1/3},\;\bigl|\tfrac12c_0\bigr|^{1/4}\B
 Newton's method started from $R$ therefore decreases monotonically to
 $\tilde\lambda_f^{+}$, and started from $-R$ increases monotonically to
 $\tilde\lambda_f^{-}$, so no eigenvalue solver is required at the interface. The
-iteration is stopped at a relative step of $10^{-13}$, after $200$ iterations, or
-as soon as the derivative or the step changes sign, which cannot happen while
-the iterate is outside the root interval and therefore serves as a monotonicity
-guard. Where the roots are well separated about ten scalar iterations suffice
-(thirteen for $\epsM=1$, $a=u=1$). In the stiff limit both targeted roots are
-double, so the convergence is linear and the attainable accuracy is limited by
-the conditioning of a double root rather than by the stopping test: the
-quartic itself is evaluated as a difference of $\mathcal O(1)$ terms, so it is
-numerically indistinguishable from zero once $|\lambda-\lambda_f^{\pm}|$ falls
-below $\sqrt{\varepsilon_{\mathrm{mach}}}$, and the iteration exits on the sign
-guard after about thirty steps with a relative accuracy near $10^{-8}$. This is
-immaterial: in exactly that limit the bound of~\eqref{eq:einfeldt} replaces both
-speeds by $\mp u^{\max}_{i+\frac12}$, so the ill-conditioned roots do not reach
-the flux. The monotone iteration is also what makes
-the evaluation robust. The roots are real, but two of them nearly coincide over
+iteration is stopped at a relative step of $10^{-13}$, after $200$ iterations,
+or as soon as the derivative or the step changes sign, which cannot occur while
+the iterate lies outside the root interval and therefore serves as a
+monotonicity guard. A few tens of scalar iterations suffice; in the stiff limit
+the two targeted roots are double, the convergence is linear, and the attainable
+accuracy is that of a double root, which is immaterial there because the bound
+in~\eqref{eq:einfeldt} replaces both speeds by $\mp u^{\max}_{i+\frac12}$. The
+monotone iteration is also what makes the evaluation robust. The roots are real, but two of them nearly coincide over
 a non-negligible part of the state space, and a general-purpose root finder
 applied to the coefficients $(c_3,c_2,c_1,c_0)$ then returns spurious complex
 pairs -- for randomly sampled admissible states, in a few per cent of them.
@@ -1423,9 +1408,7 @@ Newton started outside the root interval of a polynomial with real roots cannot
 leave it, so the envelope is obtained without any such failure.
 For $s_L\ge0$ or $s_R\le0$ the
 flux reduces to the upwind value $\tilde\FF^{c}(\mathbf{U}^{L})$ or
-$\tilde\FF^{c}(\mathbf{U}^{R})$, which the bound
-in~\eqref{eq:einfeldt} precludes unless all three states are at rest; for
-$s_L<0<s_R$ the AP-HLLEM flux reads
+$\tilde\FF^{c}(\mathbf{U}^{R})$; for $s_L<0<s_R$ the AP-HLLEM flux reads
 \begin{equation}
 \label{eq:hllem}
 \tilde\FF^{\eps}_{i+\frac12,j}
@@ -1534,41 +1517,16 @@ flux~\eqref{eq:rusanov}, it recovers it as the stiff limit and sharpens the
 three linearly degenerate fields on top of it.
 
 \paragraph{Shock stabilisation of the anti-diffusion.}
-The coefficients~\eqref{eq:deltak} measure each linearly degenerate speed
-against the envelope, and near a strong shock that construction fails in one
-specific place. On an interface whose normal is \emph{transverse} to the shock
---- an interface lying along the front rather than across it --- the normal
-velocity is small, so the entropy speed $\tilde\lambda_{\mathrm{ent}}=\tilde u$
-sits far from both ends of $[s_L,s_R]$ and~\eqref{eq:deltak} returns
-$\delta_{\mathrm{ent}}\to1$: the entropy anti-diffusion along the front is left
-undamped, and the same holds for the two Alfv\'en coefficients. The front is
-then free to develop a transverse modulation that feeds on the missing
-dissipation, which is the grid-aligned shock instability familiar as the
-carbuncle. This is the mechanism that the linear perturbation analysis
-of~\cite{SimonMandal2019} identifies for HLLEM, attributing the instability to
-the spurious activation of the anti-diffusive terms on the interfaces transverse
-to the shock.
-
-The indicator $\chi$ of~\eqref{eq:chi} cannot serve as that sensor, for a
-reason internal to its own design. Balsara calibrates
-$\kappa_1=0.4$ against the sound speed~\cite{Balsara2012}, whereas the
-magnetically stiff regime requires $c^{\min}$ to be the magnetosonic speed, so
-that $\chi\to0$ wherever either channel is stiff and no dissipation is added in
-either asymptotic limit --- which is exactly what is wanted
-in~\eqref{eq:mag_stab} and~\eqref{eq:p_stab}. The same property disqualifies
-$\chi$ as a shock sensor in a strongly magnetised flow: in the ambient medium of
-the blast wave of Section~\ref{sec:blast} one has $a=0.41$ against
-$c_B=28.2$, so the trigger $\kappa_1c^{\min}$ rises from $0.16$ to $11.3$,
-while the compression actually reached there is
-$\min(\Delta x,\Delta y)|\nabla\!\cdot\!\mathbf u|\approx0.8$. The indicator is
-therefore identically zero across the whole shock, by construction rather than
-by accident. Balsara reaches the same conclusion for the unmagnetised case from
-the other side, noting that cells about to be overrun by a shock are not caught
-by a divergence test and adding a companion criterion built on the pressure.
-
-We therefore damp all three coefficients with a single dimensionless sensor
-built from the pressure alone, which carries no wave speed and is accordingly
-indifferent to the magnetisation,
+On an interface whose normal is transverse to a strong shock the normal velocity
+is small, so $\tilde\lambda_{\mathrm{ent}}=\tilde u$ lies far from both ends of
+$[s_L,s_R]$ and~\eqref{eq:deltak} gives $\delta_{\mathrm{ent}}\to1$, leaving the
+entropy anti-diffusion along the front undamped; the two Alfv\'en coefficients
+behave likewise. This is the grid-aligned shock instability of HLLEM, which the
+linear perturbation analysis of~\cite{SimonMandal2019} attributes to the
+activation of the anti-diffusive terms on the interfaces transverse to the
+shock. All three coefficients are therefore damped by a dimensionless sensor
+built from the pressure, following the pressure criterion that accompanies the
+divergence flattener of Balsara~\cite{Balsara2012},
 \begin{equation}
 \label{eq:flattener}
 \delta_k \longleftarrow \bigl(1-\sigma_{i+\frac12,j}\bigr)\,\delta_k,
@@ -1582,31 +1540,19 @@ s^{p}_{i,j}=\min\!\left(1,\;\frac{1}{\varsigma}
 \frac{\bigl|p_{k,l}-p_{i,j}\bigr|}{\min\bigl(p_{k,l},p_{i,j}\bigr)}\right),
 \qquad \varsigma=\tfrac12,
 \end{equation}
-where $\mathcal N(i,j)$ are the four face neighbours of the cell. Three
-properties make this the minimal choice for the present solver.
+where $\mathcal N(i,j)$ are the four face neighbours of the cell.
 
-First, the sensor is blind to exactly the structures the anti-diffusion exists
-to sharpen. A contact discontinuity and a rotational discontinuity are both
+A contact discontinuity and a rotational discontinuity are both
 pressure-continuous, so $s^{p}$ does not respond to either, however large the
-jump in density or in the transverse field; it responds to a shock, where the
-pressure jump is the defining feature. Damping is therefore applied where the
-anti-diffusion is harmful and withheld where it is the point of the scheme.
-
-Second, $\varsigma$ is a saturation scale rather than a threshold. The sensor
-rises linearly from zero and reaches one at a relative pressure jump of
-$50\%$, so there is no dead zone and no discontinuous switch between solvers;
-where it saturates the flux is the plain HLL flux~\eqref{eq:hll}, which in the
-stiff limit is the Rusanov baseline~\eqref{eq:aplimit}, so the scheme never
-falls below the flux that weak hyperbolicity would have forced anyway.
-
-Third, the design order is untouched. In smooth flow the relative pressure jump
-across a face is $\mathcal O(h)$, so $\sigma=\mathcal O(h)$, and it multiplies
-an anti-diffusive term whose own jump is $\mathcal O(h^{3})$ after the
-reconstruction of Section~\ref{sec:reconstruction}; the perturbation of the
-flux is $\mathcal O(h^{4})$. Measured on the low-Mach vortex of
-Section~\ref{sec:stationary_vortex} at $\rho_0=10^{-2}$, the convergence rates
-with the sensor active are $3.52$, $2.89$, $3.29$, $3.52$ and $3.64$ for
-$\rho$, $u$, $p$, $B_x$ and $A_z$.
+jump in density or in the transverse field; it responds to a shock, across which
+the pressure jump is the defining feature. The parameter $\varsigma$ is a
+saturation scale rather than a threshold: the sensor rises linearly from zero
+and reaches one at a relative pressure jump of $50\%$, so there is no dead zone
+and no discontinuous switch, and where it saturates the flux is the plain HLL
+flux~\eqref{eq:hll}. The design order is unaffected, since in smooth flow
+$\sigma=\mathcal O(h)$ multiplies an anti-diffusive term whose own jump is
+$\mathcal O(h^{3})$ after the reconstruction of
+Section~\ref{sec:reconstruction}.
 
 
 \subsection{Characteristic WENO3-Z reconstruction}
