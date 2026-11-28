@@ -435,6 +435,14 @@ def step4f_drop_conversion_limiter(s):
         '\t\t\t\t}\n',
         'fv_cell_lim_to blend + pass loop')
     s = sub1(s, '\t\t\t\t\t\tif(pass == 0 && w < 1.0){ w = 1.0; continue; }\n', '', 'fv_cell_lim_to retry')
+    # the pass loop's trailing `break` would now bind to the enclosing i-loop and abandon the
+    # rest of the row (measured: NaN from step 1, density guard firing 1.4e8 times)
+    s = sub1(s,
+        '\t\t\t\t\t\tfor(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k);\n'
+        '\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tbreak;\n\t\t\t}\n',
+        '\t\t\t\t\t\tfor(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k);\n'
+        '\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n',
+        'fv_cell_lim_to pass-loop break')
     # --- fv_cell_lim_s ---
     s = sub1(s, '\tdouble S = 0.0;\n'
                 '#pragma omp parallel for collapse(2) schedule(static) reduction(max:S)\n'

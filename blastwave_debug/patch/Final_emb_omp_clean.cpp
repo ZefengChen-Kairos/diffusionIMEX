@@ -1439,7 +1439,6 @@ static void fv_cell_lim_to(Grid &out, const Grid &in, double sgn){
 						for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = tmp(i,j,k);
 					}
 				}
-				break;
 			}
 		}
 }
