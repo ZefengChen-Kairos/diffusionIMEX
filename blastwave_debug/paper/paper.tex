@@ -1168,16 +1168,19 @@ magnetic vector potential, see Section~\ref{sec:CT}.
 The time interval $[0,t_{\mathrm{out}}]$ is discretised by time steps
 $\Delta t=t^{n+1}-t^{n}$, always subject to a CFL-type stability condition based
 \emph{only} on the characteristic speeds of the explicit sub-system
-\eqref{eq:new_split}. Thus, with $|\tilde\lambda^{c}_{\max}|^{n}$ denoting the
-largest eigenvalue of the split convective sub-system at time level $t^{n}$,
+\eqref{eq:new_split}. Thus, with $\tilde\lambda^{c}_{d}$ the largest eigenvalue
+in modulus of the split convective sub-system in direction $d$ at time level
+$t^{n}$, the directional restrictions add and
 \begin{equation}
 \label{eq:cfl}
-\Delta t\le \mathrm{CFL}\,
-\frac{\min(\Delta x,\Delta y)}{\max_\Omega|\tilde\lambda^{c}_{\max}|^{n}}.
+\Delta t\le \mathrm{CFL}\left(
+\frac{\max_\Omega|\tilde\lambda^{c}_{x}|^{n}}{\Delta x}
++\frac{\max_\Omega|\tilde\lambda^{c}_{y}|^{n}}{\Delta y}\right)^{\!-1},
+\qquad 0<\mathrm{CFL}\le1 .
 \end{equation}
 Condition~\eqref{eq:cfl} is based on the $\eps$-split convective spectrum rather
 than on the full MHD spectrum~\eqref{eq:MHD_eigs}. In the low-Mach and low-Alfv\'en
-regime $\epsM,\epsB\to0$ and $|\tilde\lambda^{c}_{\max}|\to\|\mathbf{u}\|$, so that the
+regime $\epsM,\epsB\to0$ and $|\tilde\lambda^{c}_{d}|\to|u_{d}|$, so that the
 time step is governed by the material velocity rather than by the sound speed or
 the Alfv\'en speed; in the supersonic and super-Alfv\'enic regime
 $\epsM,\epsB\to1$ and the full MHD spectrum is recovered. Because the two
