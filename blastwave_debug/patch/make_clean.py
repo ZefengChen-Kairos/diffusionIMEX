@@ -509,6 +509,79 @@ def step4f_drop_conversion_limiter(s):
     print('  step 4f conversion limiter: %d chars removed' % (n0 - len(s)))
     return s
 
+def step4g_drop_chi_and_rho_guard(s):
+    """Two deletions the measurements licensed.
+
+    (a) chi out of the FLATTENER.  chi stays in the code and in the paper for the
+    shock-activated Laplacians (eq:chi, eq:mag_stab, eq:p_stab, four ShockDetector
+    call sites); only the fifth one, which fed the HLLEM flattener, goes, so the
+    flattener is sigma = s_p, exactly what eq:flattener states.  Measured: on the
+    128^2 blast chi is identically zero (kappa_1 c_f = 11.3 against a compression
+    of 0.8, because the indicator uses the magnetosonic rather than the sound
+    speed that Balsara calibrated 0.4 against); on Orszag-Tang chi exceeds s_p on
+    0.317% / 0.255% / 0.189% of cells at N = 128 / 192 / 256, a share that FALLS
+    under refinement, and every quality metric is unchanged to four digits; on
+    RP5 with the envelope bound it exceeds s_p nowhere at all.
+
+    (b) the density point-value guard.  Measured on Orszag-Tang to t = 0.35, past
+    the t = 0.3234 at which the comment recorded a 1024^2 failure:
+    min rho_pt/rho_bar = 0.9589 / 0.9599 / 0.9595 at N = 128 / 192 / 256 against
+    a threshold of 0.5, with no trend, so the extrapolation to the paper's 1000^2
+    is 0.96 and the guard is dead code there.  The recorded failure predates the
+    kappa_1 = 0.4 indicator, the split envelope and its bound.  Its action also
+    duplicated the positivity guard inside fv_cell_lim_to, which keeps the cell
+    average on the same 0.5 test, so two mechanisms were doing one job.
+    """
+    n0 = len(s)
+    # (a) chi out of the flattener
+    s = sub1(s, '\t\tShockDetector(hchi, *g_hllem_Qe);   // [fix C] chi of the explicit stage state (ghosts filled by bound_cond_array)\n', '', 'flattener ShockDetector call')
+    s = sub1(s, '\t\t\tfor(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));\n',
+                '\t\t\tfor(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = sp(i,j);\n',
+                'flattener sensor = s_p')
+    s = sub1(s, '\tstatic Array hchi(nxCells, nyCells);\n', '\tstatic Array hchi(nxCells, nyCells);   // the flattener sensor s_p of eq:sp\n', 'hchi comment')
+    # (b) the density point-value guard
+    s = sub1(s, '// The deconvolution rho - (d2x + d2y) rho / 24', '// REMOVED (measured dead at the paper resolution): the deconvolution rho - (d2x + d2y) rho / 24', 'guard comment head') if '// The deconvolution rho - (d2x + d2y) rho / 24' in s else s
+    m = re.search(r'[\t ]*// [^\n]*deconvolution[^\n]*\n(?:[\t ]*//[^\n]*\n)*const double RHO_PT_FLOOR = 0\.5;\n', s)
+    assert m, 'RHO_PT_FLOOR block not found'
+    s = s[:m.start()] + s[m.end():]
+    m = re.search(r'[\t ]*// [^\n]*rho_pt_guard[^\n]*\n(?:[\t ]*//[^\n]*\n)*static void rho_pt_guard\(Grid& Qpt, Grid& Qbar\)\{.*?\n\}\n', s, re.S)
+    if not m:
+        m = re.search(r'static void rho_pt_guard\(Grid& Qpt, Grid& Qbar\)\{.*?\n\}\n', s, re.S)
+    assert m, 'rho_pt_guard not found'
+    s = s[:m.start()] + s[m.end():]
+    for sig in ('static void fv_cell_to(Grid &out, const Grid &in, double sgn, bool rho_guard = false){',
+                'template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, double sgn, bool rho_guard = false){'):
+        assert s.count(sig) == 1, 'signature: ' + sig[:60]
+        s = s.replace(sig, sig.replace(', bool rho_guard = false', ''))
+    body = ('\t\tif(rho_guard) for(int i = 0; i < NX; i++){ const double thr = RHO_PT_FLOOR*in(i,j,0);\n'
+            '\t\t\tif(!(out(i,j,0) >= thr)){ out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment\n')
+    assert s.count(body) == 2, 'guard bodies: found %d' % s.count(body)
+    s = s.replace(body, '')
+    for old, new in (('\tlong ng = 0;\n#pragma omp parallel for schedule(static) reduction(+:ng)\n',
+                      '#pragma omp parallel for schedule(static)\n'),
+                     ('\tg_rho_guard += ng;\n', ''),
+                     ('\tif(rho_guard) g_rho_guard += ng;\n', '')):
+        if old in s: s = s.replace(old, new)
+    for call, fixed in ((', -1.0, true);   // [emb] linear in the momentum; density point-value guard', ', -1.0);   // [emb] linear in the momentum'),
+                        ('fv_cell_to(Qp, Q, -1.0, true);', 'fv_cell_to(Qp, Q, -1.0);'),
+                        ('fv_cell_to(*g_mfv_R,  u_con, -1.0, true);', 'fv_cell_to(*g_mfv_R,  u_con, -1.0);'),
+                        ('fv_cell_to(Qp, u_test, -1.0, true);', 'fv_cell_to(Qp, u_test, -1.0);'),
+                        (', -1.0, true);   // with the density point-value guard', ', -1.0);')):
+        assert s.count(call) == 1, 'call site: ' + call[:50]
+        s = s.replace(call, fixed)
+    s = sub1(s, 'extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter',
+                'long g_ent_lim = 0;   // counter: faces where the flattener reduced the anti-diffusion', 'counter decl')
+    s = sub1(s, 'long g_rho_guard = 0;\n', '', 'g_rho_guard definition')
+    s = sub1(s, '", density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at "',
+                '", entropy anti-diffusion limited at "', 'guard report')
+    s = sub1(s, '// rho_guard: in the same pass, the density point-value guard of rho_pt_guard (out, in) on every cell.\n', '', 'fv_cell_to doc comment')
+    s = sub1(s, '// fv_cell_to for N components; In(i,j,c) is any accessor (a FieldN, or N slots of a Grid); rho_guard as in fv_cell_to (component 0)',
+                '// fv_cell_to for N components; In(i,j,c) is any accessor (a FieldN, or N slots of a Grid)', 'fvN_to doc comment')
+    for v in ('RHO_PT_FLOOR', 'rho_guard', 'g_rho_guard', 'rho_pt_guard'):
+        assert s.count(v) == 0, '%s still referenced %d times' % (v, s.count(v))
+    print('  step 4g chi + density guard: %d chars removed' % (n0 - len(s)))
+    return s
+
 def step5_comments(s):
     """Prune the development archaeology from the comments.
 
@@ -598,7 +671,7 @@ def step6_junk_comments(s):
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
     upto = sys.argv[3] if len(sys.argv) > 3 else '6'
-    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '4e', '4f', '5', '6']
+    order = ['1', '2', '3', '4a', '4b', '4c', '4d', '4e', '4f', '4g', '5', '6']
     want = order[:order.index(upto) + 1]
     s = open(src).read()
     if '1' in want:  s = step1_dead_code(s)
@@ -610,6 +683,7 @@ if __name__ == '__main__':
     if '4d' in want: s = step4d_dead_envelope(s)
     if '4e' in want: s = step4e_senv(s)
     if '4f' in want: s = step4f_drop_conversion_limiter(s)
+    if '4g' in want: s = step4g_drop_chi_and_rho_guard(s)
     if '5' in want:  s = step5_comments(s)
     if '6' in want:  s = step6_junk_comments(s)
     open(dst, 'w').write(s)

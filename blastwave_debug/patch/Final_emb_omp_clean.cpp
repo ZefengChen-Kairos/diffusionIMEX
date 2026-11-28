@@ -107,10 +107,6 @@ double GMRESiter = 1e32;
 int GMRESrest = 30;
 
 // Floor of the density point value relative to its cell average, reached by
-// scaling the deconvolution increment down to it rather than discarding the
-// increment.  It bounds the derived point velocity m_pt/rho_pt by
-// 1/RHO_PT_FLOOR times the cell-average one.
-const double RHO_PT_FLOOR = 0.5;
 // Ends of the flattener ramp in the relative density jump across a face.
 const double J0_FLAT = 0.5, J1_FLAT = 1.0;
 double shock_kappa1 = 0.4;    // paper eq.(72); chi > 0 only if h*div(u) < -k1*c_f, i.e. a compression of 40% of c_f per cell
@@ -1127,7 +1123,7 @@ inline double HLLEM_clamp01(double x){ return fmax(0.0, fmin(1.0, x)); }
 static thread_local double g_hll_wL = 0.5, g_hll_wR = 0.5;
 static thread_local double g_face_chi = 0.0;   // shock indicator of the current face (set by HLLEM_Update)
 Grid* g_hllem_Qe = nullptr;              // explicit stage state for the shock indicator
-extern long g_rho_guard; long g_ent_lim = 0;   // counters: density point-value guard, entropy anti-diffusion limiter
+long g_ent_lim = 0;   // counter: faces where the flattener reduced the anti-diffusion
 void HLLEM_x(double *QL, double *QR, double epsM, double epsB, double *flux){
 	double priL[NUM_VARS], priR[NUM_VARS];
 	ini_con2pri(priL, QL);
@@ -1501,12 +1497,9 @@ static void fv_transverse_lim(Grid &F, char dir, double sgn, int off = 0, Grid* 
 }
 // out = (in, converted): out = in + sgn (d2x + d2y) in / 24 on 1..N-2, out = in on the outermost ring.
 // (out and in must be different grids.)
-// rho_guard: in the same pass, the density point-value guard of rho_pt_guard (out, in) on every cell.
-long g_rho_guard = 0;
-static void fv_cell_to(Grid &out, const Grid &in, double sgn, bool rho_guard = false){
+static void fv_cell_to(Grid &out, const Grid &in, double sgn){
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	long ng = 0;
-#pragma omp parallel for schedule(static) reduction(+:ng)
+#pragma omp parallel for schedule(static)
 	for(int j = 0; j < NY; j++){
 		if(j == 0 || j == NY-1){ for(int i = 0; i < NX; i++) for(int k = 0; k < NUM_VARS; k++) out(i,j,k) = in(i,j,k); }
 		else{
@@ -1518,10 +1511,7 @@ static void fv_cell_to(Grid &out, const Grid &in, double sgn, bool rho_guard = f
 					out(i,j,k) = in(i,j,k) + sgn * d2 / 24.0;
 				}
 		}
-		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = RHO_PT_FLOOR*in(i,j,0);
-			if(!(out(i,j,0) >= thr)){ out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment
 	}
-	g_rho_guard += ng;
 }
 template<int N> struct FieldN {
 	double* data; int NXg;
@@ -1536,11 +1526,10 @@ template<int N> struct FieldN {
 	double& operator()(int i, int j, int c)       { return data[N*(i + j*NXg) + c]; }
 };
 using Field3 = FieldN<3>;
-// fv_cell_to for N components; In(i,j,c) is any accessor (a FieldN, or N slots of a Grid); rho_guard as in fv_cell_to (component 0)
-template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, double sgn, bool rho_guard = false){
+// fv_cell_to for N components; In(i,j,c) is any accessor (a FieldN, or N slots of a Grid)
+template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, double sgn){
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	long ng = 0;
-#pragma omp parallel for schedule(static) reduction(+:ng)
+#pragma omp parallel for schedule(static)
 	for(int j = 0; j < NY; j++){
 		if(j == 0 || j == NY-1){ for(int i = 0; i < NX; i++) for(int c = 0; c < N; c++) out(i,j,c) = in(i,j,c); }
 		else{
@@ -1552,10 +1541,7 @@ template<int N, typename In> static void fvN_to(FieldN<N> &out, const In &in, do
 					out(i,j,c) = in(i,j,c) + sgn * d2 / 24.0;
 				}
 		}
-		if(rho_guard) for(int i = 0; i < NX; i++){ const double thr = RHO_PT_FLOOR*in(i,j,0);
-			if(!(out(i,j,0) >= thr)){ out(i,j,0) = in(i,j,0); ng++; } }   // discard the deconvolution increment
 	}
-	if(rho_guard) g_rho_guard += ng;
 }
 template<int N> static void fvN(FieldN<N> &F, double sgn){
 	static FieldN<N> tmp;
@@ -1606,9 +1592,8 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 	static bool parts_init = false;
 	if(!parts_init){ parts_init = true; }   // (zero from the Grid constructor)
 
-	static Array hchi(nxCells, nyCells);
+	static Array hchi(nxCells, nyCells);   // the flattener sensor s_p of eq:sp
 	if(g_hllem_Qe){
-		ShockDetector(hchi, *g_hllem_Qe);   // chi of the explicit stage state (ghosts filled by bound_cond_array)
 		{   // pressure-jump sensor: s_p = min(1, max_nbr |dp| / min(p) / 0.5), cell := max(chi, s_p)
 			static Array pc(nxCells, nyCells), sp(nxCells, nyCells);
 			const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
@@ -1624,7 +1609,7 @@ void HLLEM_Update(Grid &u_con, Grid &Qs, Grid &w_xL, Grid &w_xR, Grid &w_yL, Gri
 				sp(i,j) = fmin(1.0, d/0.5);
 			}
 #pragma omp parallel for collapse(2) schedule(static)
-			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = fmax(hchi(i,j), sp(i,j));
+			for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++) hchi(i,j) = sp(i,j);
 		}
 	}
 #pragma omp parallel for collapse(2) schedule(static)
@@ -3880,20 +3865,12 @@ inline double minmod(double a, double b) {
 // deconvolution removes more than half of rho, the cell average is used instead, the same admissibility threshold as
 // in fv_cell_lim.  rho is fixed within a stage, so the functional stays affine in (m, B); in smooth flow the guard
 // never acts and the scheme is unchanged.
-static void rho_pt_guard(Grid& Qpt, Grid& Qbar){   // (also available inside fv_cell_to)
-	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	long n = 0;
-#pragma omp parallel for collapse(2) schedule(static) reduction(+:n)
-	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++)
-		if(!(Qpt(i,j,0) >= RHO_PT_FLOOR*Qbar(i,j,0))){ Qpt(i,j,0) = Qbar(i,j,0); n++; }
-	g_rho_guard += n;
-}
 // CELL AVERAGES of the velocity u = m/rho via point values (ubar != mbar/rhobar at O(h^2) when rho varies):
 // Qbar -> Q_pt (deconvolve, limited) -> u_pt = m_pt/rho_pt -> ubar (convolve).  Used by the A transport.
 static void cellavg_velocity(Grid& u, Array& ub, Array& vb){
 	static FieldN<3> Qpt; static Array Tu(nxCells, nyCells), Tv(nxCells, nyCells);   // point values of rho, m_x, m_y
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	fvN_to<3>(Qpt, GridSlots{u, 0}, -1.0, true);   // linear in the momentum; density point-value guard
+	fvN_to<3>(Qpt, GridSlots{u, 0}, -1.0);   // linear in the momentum
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++){
 		double r = fmax(Qpt(i,j,0), 1e-300);
@@ -4807,7 +4784,7 @@ static void kemb_lin(Grid& Q, Grid& Qe, Array& out){
 	static long ep_stamp = -1;
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
 	if(ep_stamp != g_stage_stamp){ fv_cell_to(Ep, Qe, -1.0); fv_cell_to(E2, Ep, +1.0); ep_stamp = g_stage_stamp; }
-	fv_cell_to(Qp, Q, -1.0, true); fv_cell_to(Q2, Qp, +1.0);
+	fv_cell_to(Qp, Q, -1.0); fv_cell_to(Q2, Qp, +1.0);
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 0; j < NY; j++) for(int i = 0; i < NX; i++) Ts(i,j) = kl_of(Ep, Qp, i, j);
 	fv_cell_s(Tc, Ts, +1.0);
@@ -5423,7 +5400,7 @@ static void mfv_prepare(Grid& u_con, Grid& Qe){
 	if(g_mfv_stamp == g_stage_stamp) return;
 	g_mfv_stamp = g_stage_stamp;
 	fv_cell_to(*g_mfv_Bn, Qe,    -1.0);
-	fv_cell_to(*g_mfv_R,  u_con, -1.0, true);
+	fv_cell_to(*g_mfv_R,  u_con, -1.0);
 }
 // ---- N-component fields: the magnetic operator works on three components (B, or the momentum increment) and the
 // energy / B_z sweep on four; an 8-slot Grid would move 8/N times the memory for the same arithmetic ----
@@ -5642,7 +5619,7 @@ static void MagneticFlux_Update_FV(Grid& u_con, Grid& u_test, Array& eps_B_grid_
 	static Grid Qp(nxCells,nyCells), FX(nxCells,nyCells), FY(nxCells,nyCells), OUT(nxCells,nyCells);
 	static bool init = false; if(!init){ mfv_zero(Qp); mfv_zero(FX); mfv_zero(FY); mfv_zero(OUT); init = true; }
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
-	fv_cell_to(Qp, u_test, -1.0, true);
+	fv_cell_to(Qp, u_test, -1.0);
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++){
 		double Q[NUM_VARS], F[NUM_VARS], G[NUM_VARS];
@@ -5674,7 +5651,7 @@ static void Magnetic_Sweep_FV(Grid& u_con, Array& Bz_star, Array& E_star, Array&
 	const Field3& Bn = *g_mfv_Bn3;   // point values of B_E (prepared by the magnetic RHS of this stage)
 	const int NX = nxCells + 2*ghost_cells, NY = nyCells + 2*ghost_cells;
 	bound_cond_u(u_con);
-	fvN_to<4>(Qp, GridSlots{u_con, 0}, -1.0, true);   // with the density point-value guard
+	fvN_to<4>(Qp, GridSlots{u_con, 0}, -1.0);
 #pragma omp parallel for collapse(2) schedule(static)
 	for(int j = 1; j < NY-1; j++) for(int i = 1; i < NX-1; i++){
 		const double r = fmax(Qp(i,j,0), 1e-300);
@@ -6730,7 +6707,7 @@ int main(int argc, char *argv[]){
 	}while(t < time_stop);
 	fclose(steplog);
 	std::cout << "pressure solves " << g_emb_solves << ", defect-correction sweeps " << g_emb_sweeps << ", not converged " << g_emb_nc
-	          << ", density point-value guard applied " << g_rho_guard << " times, entropy anti-diffusion limited at " << g_ent_lim << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
+	          << ", entropy anti-diffusion limited at " << g_ent_lim << " faces, pressure LU builds " << g_lu_builds << " (" << g_lu_time << " s)" << std::endl;
 	if(test == testVortex){   // paper Table 2: L2 errors of rho, u, p, Bx, Az against the exact (translated) cell averages
 		const double gp[3] = {-sqrt(3.0/5.0), 0.0, sqrt(3.0/5.0)}; const double gw[3] = {5.0/18.0, 8.0/18.0, 5.0/18.0};
 		double l2[5] = {0,0,0,0,0}, li[5] = {0,0,0,0,0};
